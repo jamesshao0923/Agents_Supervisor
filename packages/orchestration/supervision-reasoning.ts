@@ -4,7 +4,7 @@ import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import type { SupervisionJob } from '../contracts/p6-supervision.js';
 import type { SupervisorStore } from '../persistence/store.js';
 import { runtimeCanonical } from '../persistence/runtime.js';
-import { futureVerificationFloor } from '../domain/index.js';
+import { futureVerificationFloor,futureExecutionFloor } from '../domain/index.js';
 import { inspectProcess, terminateProcess } from '../process-control/index.js';
 import type { ProcessIdentity } from '../process-control/index.js';
 import { CodexReasonerAdapter, ReasonerError, parseReasonerOutput, validateReasonerSchema } from './reasoner.js';
@@ -90,7 +90,7 @@ export class SupervisionReasoningRunner {
     else ensure(attempt.settled && attempt.status === 'succeeded' && attempt.actual === job.usage && operation.status === 'confirmed', 'Supervision result lacks settled successful ledger');
     const reserve = run.attempts.filter(a => !a.settled).reduce((sum, a) => sum + a.reservation, 0);
     const legacy = Math.max(0, run.budget.verificationReserve - run.attempts.filter(a => a.purpose === 'verification' && a.contractVersion === run.contract.version).reduce((sum, a) => sum + (a.settled ? a.actual! : a.reservation), 0));
-    const protection = Math.max(legacy, futureVerificationFloor(run));
+    const protection = Math.max(legacy, futureVerificationFloor(run))+futureExecutionFloor(run);
     ensure(Number.isSafeInteger(run.budget.spent + reserve + protection) && run.budget.spent + reserve + protection <= run.budget.limit, 'Supervision budget is exhausted');
     const conversation = this.store.conversations.forRun(job.projectId, job.runId);
     if (conversation) ensure(this.store.conversations.budget(conversation.id).available >= protection, 'Conversation supervision budget is exhausted');

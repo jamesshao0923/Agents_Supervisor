@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "stage": "P7",
-  "revision": "p7-parallel-live-v27",
+  "revision": "p7-automatic-admission-v28",
   "caseIds": [
     "p7.unit-task-results.001",
     "p7.unit-task-results.002",
@@ -71,7 +71,26 @@
     "p7.integration-scheduled-inputs.004",
     "p7.integration-integration-inputs.004",
     "p7.integration-integration-inputs.005",
-    "p7.live-scheduled-parallel.001"
+    "p7.live-scheduled-parallel.001",
+    "p7.integration-goal-graph.001",
+    "p7.integration-goal-graph.002",
+    "p7.integration-goal-graph.003",
+    "p7.integration-goal-graph.004",
+    "p7.integration-goal-graph.005",
+    "p7.integration-goal-graph.006",
+    "p7.integration-graph-admission.001",
+    "p7.integration-graph-admission.002",
+    "p7.integration-graph-admission.003",
+    "p7.integration-graph-admission.004",
+    "p7.integration-graph-admission.005",
+    "p7.integration-graph-admission.006",
+    "p7.integration-graph-admission.007",
+    "p7.integration-graph-admission.008",
+    "p7.integration-graph-admission.009",
+    "p7.integration-graph-admission.010",
+    "p7.integration-graph-admission.011",
+    "p7.integration-graph-admission.012",
+    "p7.integration-graph-admission.013"
   ],
   "requiredRisks": [
     "p7-task-results",
@@ -84,7 +103,9 @@
     "p7-scheduled-producer",
     "p7-auto-publication",
     "p7-branch-inputs",
-    "p7-integration-inputs"
+    "p7-integration-inputs",
+    "p7-goal-graph",
+    "p7-graph-admission"
   ],
   "coreRegression": [
     "dev.integration-runner.003",

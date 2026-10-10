@@ -1,3 +1,4 @@
+import {prepareGoalGraphAdmission,type GraphAdmissionOptions} from './graph-admission.js';
 import { mkdir,realpath,stat,lstat,readdir,readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join,isAbsolute } from 'node:path';
@@ -14,7 +15,7 @@ const errorText=(e:unknown)=>e instanceof Error?e.message:String(e);
 export class OrchestrationController {
   private queue:Promise<unknown>=Promise.resolve();
   private pending=new Map<string,{abort:AbortController;promise:Promise<void>}>();
-  constructor(private store:SupervisorStore,private dataDir:string,private runtime:LocalRuntimeAdapter,private reasoner:SupervisorReasoner=new CodexReasonerAdapter(),private options:{managedWorkspaceRoot?:string}={}){}
+  constructor(private store:SupervisorStore,private dataDir:string,private runtime:LocalRuntimeAdapter,private reasoner:SupervisorReasoner=new CodexReasonerAdapter(),private options:{managedWorkspaceRoot?:string;graphAdmission?:GraphAdmissionOptions}={}){}
   async initialize():Promise<void>{
     for(const session of this.store.goals.list())this.store.conversations.ensureForGoal(session.id);
     for(const s of this.store.goals.list())for(const j of s.jobs.filter(x=>x.status==='running')){
@@ -54,7 +55,7 @@ export class OrchestrationController {
       if(!prior.session.runtimeId){if(!last?.stopConfirmed)throw new Error('Model stop unresolved');for(const id of last.identities)if((await inspectProcess(id)).status!=='stopped')throw new Error('Model process still active');for(const [path,digest] of Object.entries(last.proofs))if(hash(await readFile(path))!==digest)throw new Error('Reasoning evidence changed');}
     }
     if(a.type==='admit'){const prior=this.store.goals.inspect(a.sessionId);if(!prior.session.runtimeId)await this.remember(prior.session,prior.run.contract.version+1);}
-    const result=this.store.goals.control(a);
+    const result=a.type==='admit'&&!this.store.goals.get(a.sessionId).runtimeId&&(this.store.goals.get(a.sessionId).proposal?.steps.length??0)>1?this.store.goals.admitGraph(await prepareGoalGraphAdmission(this.store,this.dataDir,a,this.options.graphAdmission)):this.store.goals.control(a);
     if(a.type==='cancel'){for(const j of result.session.jobs)this.pending.get(j.id)?.abort.abort();}
     else if(a.type==='admit'){await this.runtime.ensureWorker();}
     else this.launch(result.session);

@@ -53,7 +53,7 @@ function action(v: unknown, p: string): void {
   const t = object(v, p).type;
   let keys: string[];
   switch (t) {
-    case 'startAttempt': keys = ['type', 'attemptId', 'nodeId', 'contractVersion', 'reservation', 'purpose', 'resources', 'futureVerificationAllocationId']; break;
+    case 'startAttempt': keys = ['type', 'attemptId', 'nodeId', 'contractVersion', 'reservation', 'purpose', 'resources', 'futureVerificationAllocationId', 'futureExecutionAllocationId']; break;
     case 'finishAttempt': keys = ['type', 'attemptId', 'outcome']; break;
     case 'settleAttempt': keys = ['type', 'attemptId', 'actual']; break;
     case 'setOperation': keys = ['type', 'operationId', 'attemptId', 'status']; break;
@@ -62,13 +62,14 @@ function action(v: unknown, p: string): void {
     case 'admit': keys = ['type', 'contract', 'nodes']; break;
     case 'revisePlan': keys = ['type', 'contract', 'nodes', 'reason']; break;
     case 'appendRepairNodes': keys = ['type', 'contractVersion', 'nodes', 'reason', 'failureJobId', 'failedObligationIds']; break;
+    case 'setFutureExecution': keys=['type','allocation','reason']; break;
     case 'setFutureVerification': keys = ['type', 'contractVersion', 'allocationId', 'amount', 'reason']; break;
     case 'replaceContract': keys = ['type', 'contract']; break;
     case 'recordEvidence': keys = ['type', 'evidence']; break;
     case 'setArtifact': keys = ['type', 'artifact']; break;
     default: fail(`${p}.type`, 'unknown action');
   }
-  const o = object(v, p, keys, t === 'startAttempt' ? ['futureVerificationAllocationId'] : []);
+  const o = object(v, p, keys, t === 'startAttempt' ? ['futureVerificationAllocationId','futureExecutionAllocationId'] : []);
   for (const k of ['attemptId', 'nodeId', 'operationId', 'resource']) if (keys.includes(k)) string(o[k], `${p}.${k}`);
   if (t === 'startAttempt') { number(o.contractVersion, `${p}.contractVersion`, 1, true); number(o.reservation, `${p}.reservation`, 0, true); choice(o.purpose, `${p}.purpose`, ['execution', 'verification', 'reasoning', 'inspection']); strings(o.resources, `${p}.resources`); }
   if (t === 'startAttempt' && Object.hasOwn(o, 'futureVerificationAllocationId')) string(o.futureVerificationAllocationId, `${p}.futureVerificationAllocationId`);
@@ -81,6 +82,8 @@ function action(v: unknown, p: string): void {
     number(o.contractVersion, `${p}.contractVersion`, 1, true); string(o.reason, `${p}.reason`); string(o.failureJobId, `${p}.failureJobId`); strings(o.failedObligationIds, `${p}.failedObligationIds`);
     array(o.nodes, `${p}.nodes`, (v,p) => {const n=object(v,p,['id','dependencies','required']);string(n.id,`${p}.id`);strings(n.dependencies,`${p}.dependencies`);bool(n.required,`${p}.required`);});
   }
+  if(t==='startAttempt'&&Object.hasOwn(o,'futureExecutionAllocationId'))string(o.futureExecutionAllocationId,`${p}.futureExecutionAllocationId`);
+  if(t==='setFutureExecution'){const a=object(o.allocation,`${p}.allocation`,['allocationId','contractVersion','nodeId','attemptId','amount']);for(const k of ['allocationId','nodeId','attemptId'])string(a[k],`${p}.allocation.${k}`);number(a.contractVersion,`${p}.allocation.contractVersion`,1,true);number(a.amount,`${p}.allocation.amount`,1,true);string(o.reason,`${p}.reason`);}
   if (t === 'setFutureVerification') {number(o.contractVersion, `${p}.contractVersion`, 1, true);string(o.allocationId, `${p}.allocationId`);number(o.amount, `${p}.amount`, 0, true);string(o.reason, `${p}.reason`);}
   if (t === 'replaceContract') contract(o.contract, `${p}.contract`);
   if (t === 'recordEvidence') evidence(o.evidence, `${p}.evidence`);

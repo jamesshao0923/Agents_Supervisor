@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-catalog-v27",
+  "revision": "dev-catalog-v28",
   "modules": [
     {
       "id": "dev-contracts",
@@ -687,6 +687,18 @@
       "layer": "live",
       "file": "dist/tests/live/scheduled-parallel.test.js",
       "timeoutMs": 1490000
+    },
+    {
+      "id": "integration-goal-graph",
+      "layer": "integration",
+      "file": "dist/tests/integration/goal-graph.test.js",
+      "timeoutMs": 180000
+    },
+    {
+      "id": "integration-graph-admission",
+      "layer": "integration",
+      "file": "dist/tests/integration/graph-admission.test.js",
+      "timeoutMs": 180000
     }
   ],
   "cases": [
@@ -14148,6 +14160,386 @@
       "prerequisites": "Real configured Codex login and advertised model, actual managed independent workspaces and P4 review; no provider fixtures",
       "assertions": "tests/live/scheduled-parallel.test.ts :: P7-PARALLEL-L01 real independent branches publish inputs and integrate before independent delivery",
       "cleanup": "Stop only owned targets and worker, preserve all actual evidence and unknown accounting",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-goal-graph.001",
+      "name": "P7-GRAPH-I01 exact original requirements refs and dependency coverage compile into actual SQLite scheduler without a new planning fee",
+      "suiteId": "integration-goal-graph",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-goal-graph"
+      ],
+      "scenario": "P7-GRAPH-I01 exact original requirements refs and dependency coverage compile into actual SQLite scheduler without a new planning fee",
+      "impactTags": [
+        "p7-goal-graph",
+        "p7-goal-graph",
+        "p7-graph-admission"
+      ],
+      "prerequisites": "Real SQLite, files and managed Node; synthetic planning/accounting fixtures are mechanism evidence, not provider delivery.",
+      "assertions": "tests/integration/goal-graph.test.ts :: P7-GRAPH-I01 exact original requirements refs and dependency coverage compile into actual SQLite scheduler without a new planning fee",
+      "cleanup": "Stop owned workers/processes, close stores; retain all frozen reports and failures.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-goal-graph.002",
+      "name": "P7-GRAPH-I02 preparation copies real complete bytes and executable modes and rejects source copy or receipt tampering",
+      "suiteId": "integration-goal-graph",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-goal-graph"
+      ],
+      "scenario": "P7-GRAPH-I02 preparation copies real complete bytes and executable modes and rejects source copy or receipt tampering",
+      "impactTags": [
+        "p7-goal-graph",
+        "p7-goal-graph",
+        "p7-graph-admission"
+      ],
+      "prerequisites": "Real SQLite, files and managed Node; synthetic planning/accounting fixtures are mechanism evidence, not provider delivery.",
+      "assertions": "tests/integration/goal-graph.test.ts :: P7-GRAPH-I02 preparation copies real complete bytes and executable modes and rejects source copy or receipt tampering",
+      "cleanup": "Stop owned workers/processes, close stores; retain all frozen reports and failures.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-goal-graph.003",
+      "name": "P7-GRAPH-I03 full preparation request is idempotent while incomplete owned staging remains blocked without deletion or false success",
+      "suiteId": "integration-goal-graph",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-goal-graph"
+      ],
+      "scenario": "P7-GRAPH-I03 full preparation request is idempotent while incomplete owned staging remains blocked without deletion or false success",
+      "impactTags": [
+        "p7-goal-graph",
+        "p7-goal-graph",
+        "p7-graph-admission"
+      ],
+      "prerequisites": "Real SQLite, files and managed Node; synthetic planning/accounting fixtures are mechanism evidence, not provider delivery.",
+      "assertions": "tests/integration/goal-graph.test.ts :: P7-GRAPH-I03 full preparation request is idempotent while incomplete owned staging remains blocked without deletion or false success",
+      "cleanup": "Stop owned workers/processes, close stores; retain all frozen reports and failures.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-goal-graph.004",
+      "name": "P7-GRAPH-I04 altered contract source config refs prompt and insufficient aggregate execution budget cannot compile",
+      "suiteId": "integration-goal-graph",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-goal-graph"
+      ],
+      "scenario": "P7-GRAPH-I04 altered contract source config refs prompt and insufficient aggregate execution budget cannot compile",
+      "impactTags": [
+        "p7-goal-graph",
+        "p7-goal-graph",
+        "p7-graph-admission"
+      ],
+      "prerequisites": "Real SQLite, files and managed Node; synthetic planning/accounting fixtures are mechanism evidence, not provider delivery.",
+      "assertions": "tests/integration/goal-graph.test.ts :: P7-GRAPH-I04 altered contract source config refs prompt and insufficient aggregate execution budget cannot compile",
+      "cleanup": "Stop owned workers/processes, close stores; retain all frozen reports and failures.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-goal-graph.005",
+      "name": "P7-GRAPH-I05 real parent rollback and reopened exact prepared receipt preserve original anchor fees and retry the same frozen plan",
+      "suiteId": "integration-goal-graph",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-goal-graph"
+      ],
+      "scenario": "P7-GRAPH-I05 real parent rollback and reopened exact prepared receipt preserve original anchor fees and retry the same frozen plan",
+      "impactTags": [
+        "p7-goal-graph",
+        "p7-goal-graph",
+        "p7-graph-admission"
+      ],
+      "prerequisites": "Real SQLite, files and managed Node; synthetic planning/accounting fixtures are mechanism evidence, not provider delivery.",
+      "assertions": "tests/integration/goal-graph.test.ts :: P7-GRAPH-I05 real parent rollback and reopened exact prepared receipt preserve original anchor fees and retry the same frozen plan",
+      "cleanup": "Stop owned workers/processes, close stores; retain all frozen reports and failures.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-goal-graph.006",
+      "name": "P7-GRAPH-I06 two actual Node SQLite workers race the compiled frontier and only one reservation consumer and lease commits",
+      "suiteId": "integration-goal-graph",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-goal-graph"
+      ],
+      "scenario": "P7-GRAPH-I06 two actual Node SQLite workers race the compiled frontier and only one reservation consumer and lease commits",
+      "impactTags": [
+        "p7-goal-graph",
+        "p7-goal-graph",
+        "p7-graph-admission"
+      ],
+      "prerequisites": "Real SQLite, files and managed Node; synthetic planning/accounting fixtures are mechanism evidence, not provider delivery.",
+      "assertions": "tests/integration/goal-graph.test.ts :: P7-GRAPH-I06 two actual Node SQLite workers race the compiled frontier and only one reservation consumer and lease commits",
+      "cleanup": "Stop owned workers/processes, close stores; retain all frozen reports and failures.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-graph-admission.001",
+      "name": "P7-ADMIT-I01 actual P5 empty-project admission atomically binds anchor graph floor and same Run without replanning",
+      "suiteId": "integration-graph-admission",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-graph-admission"
+      ],
+      "scenario": "P7-ADMIT-I01 actual P5 empty-project admission atomically binds anchor graph floor and same Run without replanning",
+      "impactTags": [
+        "p7-graph-admission",
+        "p7-goal-graph",
+        "p7-graph-admission"
+      ],
+      "prerequisites": "Real SQLite, files and managed Node; synthetic planning/accounting fixtures are mechanism evidence, not provider delivery.",
+      "assertions": "tests/integration/graph-admission.test.ts :: P7-ADMIT-I01 actual P5 empty-project admission atomically binds anchor graph floor and same Run without replanning",
+      "cleanup": "Stop owned workers/processes, close stores; retain all frozen reports and failures.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-graph-admission.002",
+      "name": "P7-ADMIT-I02 SQLite trigger failure rolls back anchor adoption graph receipt result ledger and floor while owned preparation remains recoverable",
+      "suiteId": "integration-graph-admission",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-graph-admission"
+      ],
+      "scenario": "P7-ADMIT-I02 SQLite trigger failure rolls back anchor adoption graph receipt result ledger and floor while owned preparation remains recoverable",
+      "impactTags": [
+        "p7-graph-admission",
+        "p7-goal-graph",
+        "p7-graph-admission"
+      ],
+      "prerequisites": "Real SQLite, files and managed Node; synthetic planning/accounting fixtures are mechanism evidence, not provider delivery.",
+      "assertions": "tests/integration/graph-admission.test.ts :: P7-ADMIT-I02 SQLite trigger failure rolls back anchor adoption graph receipt result ledger and floor while owned preparation remains recoverable",
+      "cleanup": "Stop owned workers/processes, close stores; retain all frozen reports and failures.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-graph-admission.003",
+      "name": "P7-ADMIT-I03 final floor is additive to verification and all common reasoning and scheduled reservations preserve it",
+      "suiteId": "integration-graph-admission",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-graph-admission"
+      ],
+      "scenario": "P7-ADMIT-I03 final floor is additive to verification and all common reasoning and scheduled reservations preserve it",
+      "impactTags": [
+        "p7-graph-admission",
+        "p7-goal-graph",
+        "p7-graph-admission"
+      ],
+      "prerequisites": "Real SQLite, files and managed Node; synthetic planning/accounting fixtures are mechanism evidence, not provider delivery.",
+      "assertions": "tests/integration/graph-admission.test.ts :: P7-ADMIT-I03 final floor is additive to verification and all common reasoning and scheduled reservations preserve it",
+      "cleanup": "Stop owned workers/processes, close stores; retain all frozen reports and failures.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-graph-admission.004",
+      "name": "P7-ADMIT-I04 exact final attempt alone consumes protection in real runtime claim with pause resume and legacy budget compatibility",
+      "suiteId": "integration-graph-admission",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-graph-admission"
+      ],
+      "scenario": "P7-ADMIT-I04 exact final attempt alone consumes protection in real runtime claim with pause resume and legacy budget compatibility",
+      "impactTags": [
+        "p7-graph-admission",
+        "p7-goal-graph",
+        "p7-graph-admission"
+      ],
+      "prerequisites": "Real SQLite, files and managed Node; synthetic planning/accounting fixtures are mechanism evidence, not provider delivery.",
+      "assertions": "tests/integration/graph-admission.test.ts :: P7-ADMIT-I04 exact final attempt alone consumes protection in real runtime claim with pause resume and legacy budget compatibility",
+      "cleanup": "Stop owned workers/processes, close stores; retain all frozen reports and failures.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-graph-admission.005",
+      "name": "P7-ADMIT-I05 cancelled pending changed source and tampered actual preparation cannot partially admit",
+      "suiteId": "integration-graph-admission",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-graph-admission"
+      ],
+      "scenario": "P7-ADMIT-I05 cancelled pending changed source and tampered actual preparation cannot partially admit",
+      "impactTags": [
+        "p7-graph-admission",
+        "p7-goal-graph",
+        "p7-graph-admission"
+      ],
+      "prerequisites": "Real SQLite, files and managed Node; synthetic planning/accounting fixtures are mechanism evidence, not provider delivery.",
+      "assertions": "tests/integration/graph-admission.test.ts :: P7-ADMIT-I05 cancelled pending changed source and tampered actual preparation cannot partially admit",
+      "cleanup": "Stop owned workers/processes, close stores; retain all frozen reports and failures.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-graph-admission.006",
+      "name": "P7-ADMIT-I06 actual controller default admit starts a real worker only after graph commit and replays without another planner",
+      "suiteId": "integration-graph-admission",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-graph-admission"
+      ],
+      "scenario": "P7-ADMIT-I06 actual controller default admit starts a real worker only after graph commit and replays without another planner",
+      "impactTags": [
+        "p7-graph-admission",
+        "p7-goal-graph",
+        "p7-graph-admission"
+      ],
+      "prerequisites": "Real SQLite, files and managed Node; synthetic planning/accounting fixtures are mechanism evidence, not provider delivery.",
+      "assertions": "tests/integration/graph-admission.test.ts :: P7-ADMIT-I06 actual controller default admit starts a real worker only after graph commit and replays without another planner",
+      "cleanup": "Stop owned workers/processes, close stores; retain all frozen reports and failures.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-graph-admission.007",
+      "name": "P7-ADMIT-I07 quiet contract revision explicitly invalidates final floor while active effects and cancel retain the allocation",
+      "suiteId": "integration-graph-admission",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-graph-admission"
+      ],
+      "scenario": "P7-ADMIT-I07 quiet contract revision explicitly invalidates final floor while active effects and cancel retain the allocation",
+      "impactTags": [
+        "p7-graph-admission",
+        "p7-goal-graph",
+        "p7-graph-admission"
+      ],
+      "prerequisites": "Real SQLite, files and managed Node; synthetic planning/accounting fixtures are mechanism evidence, not provider delivery.",
+      "assertions": "tests/integration/graph-admission.test.ts :: P7-ADMIT-I07 quiet contract revision explicitly invalidates final floor while active effects and cancel retain the allocation",
+      "cleanup": "Stop owned workers/processes, close stores; retain all frozen reports and failures.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-graph-admission.008",
+      "name": "P7-ADMIT-I08 full preparation request and late proof bytes remain immutable before the admission transaction",
+      "suiteId": "integration-graph-admission",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-graph-admission"
+      ],
+      "scenario": "P7-ADMIT-I08 full preparation request and late proof bytes remain immutable before the admission transaction",
+      "impactTags": [
+        "p7-graph-admission",
+        "p7-goal-graph",
+        "p7-graph-admission"
+      ],
+      "prerequisites": "Real SQLite, files and managed Node; synthetic planning/accounting fixtures are mechanism evidence, not provider delivery.",
+      "assertions": "tests/integration/graph-admission.test.ts :: P7-ADMIT-I08 full preparation request and late proof bytes remain immutable before the admission transaction",
+      "cleanup": "Stop owned workers/processes, close stores; retain all frozen reports and failures.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-graph-admission.009",
+      "name": "P7-ADMIT-I09 authorized quiet revision retires old scheduled fence atomically and retains immutable plan while unknown claims block",
+      "suiteId": "integration-graph-admission",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-graph-admission"
+      ],
+      "scenario": "P7-ADMIT-I09 authorized quiet revision retires old scheduled fence atomically and retains immutable plan while unknown claims block",
+      "impactTags": [
+        "p7-graph-admission",
+        "p7-goal-graph",
+        "p7-graph-admission"
+      ],
+      "prerequisites": "Real SQLite, files and managed Node; synthetic planning/accounting fixtures are mechanism evidence, not provider delivery.",
+      "assertions": "tests/integration/graph-admission.test.ts :: P7-ADMIT-I09 authorized quiet revision retires old scheduled fence atomically and retains immutable plan while unknown claims block",
+      "cleanup": "Stop owned workers/processes, close stores; retain all frozen reports and failures.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-graph-admission.010",
+      "name": "P7-ADMIT-I10 established single-step P5 admission remains one execution without a redundant branch or final-integration turn",
+      "suiteId": "integration-graph-admission",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-graph-admission"
+      ],
+      "scenario": "P7-ADMIT-I10 established single-step P5 admission remains one execution without a redundant branch or final-integration turn",
+      "impactTags": [
+        "p7-graph-admission",
+        "p7-goal-graph",
+        "p7-graph-admission"
+      ],
+      "prerequisites": "Real SQLite, files and managed Node; synthetic planning/accounting fixtures are mechanism evidence, not provider delivery.",
+      "assertions": "tests/integration/graph-admission.test.ts :: P7-ADMIT-I10 established single-step P5 admission remains one execution without a redundant branch or final-integration turn",
+      "cleanup": "Stop owned workers/processes, close stores; retain all frozen reports and failures.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-graph-admission.011",
+      "name": "P7-ADMIT-I11 actual frozen host request rejects changed returned policy and derived identity before any admission mutation",
+      "suiteId": "integration-graph-admission",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-graph-admission"
+      ],
+      "scenario": "P7-ADMIT-I11 actual frozen host request rejects changed returned policy and derived identity before any admission mutation",
+      "impactTags": [
+        "p7-graph-admission",
+        "p7-goal-graph",
+        "p7-graph-admission"
+      ],
+      "prerequisites": "Real SQLite, files and managed Node; synthetic planning/accounting fixtures are mechanism evidence, not provider delivery.",
+      "assertions": "tests/integration/graph-admission.test.ts :: P7-ADMIT-I11 actual frozen host request rejects changed returned policy and derived identity before any admission mutation",
+      "cleanup": "Stop owned workers/processes, close stores; retain all frozen reports and failures.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-graph-admission.012",
+      "name": "P7-ADMIT-I12 transaction rereads actual request and seed bytes and rejects stale command without leaving graph state",
+      "suiteId": "integration-graph-admission",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-graph-admission"
+      ],
+      "scenario": "P7-ADMIT-I12 transaction rereads actual request and seed bytes and rejects stale command without leaving graph state",
+      "impactTags": [
+        "p7-graph-admission",
+        "p7-goal-graph",
+        "p7-graph-admission"
+      ],
+      "prerequisites": "Real SQLite, files and managed Node; synthetic planning/accounting fixtures are mechanism evidence, not provider delivery.",
+      "assertions": "tests/integration/graph-admission.test.ts :: P7-ADMIT-I12 transaction rereads actual request and seed bytes and rejects stale command without leaving graph state",
+      "cleanup": "Stop owned workers/processes, close stores; retain all frozen reports and failures.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-graph-admission.013",
+      "name": "P7-ADMIT-I13 asynchronous preparation freezes caller action and host options before yielding",
+      "suiteId": "integration-graph-admission",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-graph-admission"
+      ],
+      "scenario": "P7-ADMIT-I13 asynchronous preparation freezes caller action and host options before yielding",
+      "impactTags": [
+        "p7-graph-admission",
+        "p7-goal-graph",
+        "p7-graph-admission"
+      ],
+      "prerequisites": "Real SQLite, files and managed Node; synthetic planning/accounting fixtures are mechanism evidence, not provider delivery.",
+      "assertions": "tests/integration/graph-admission.test.ts :: P7-ADMIT-I13 asynchronous preparation freezes caller action and host options before yielding",
+      "cleanup": "Stop owned workers/processes, close stores; retain all frozen reports and failures.",
       "status": "active"
     }
   ]

@@ -44,7 +44,7 @@ export function createTaskScheduler({ sha256, decisionId }: { sha256: (canonical
     safeResultJSON(s); exact(s, ['schemaVersion','revision','scope','status','tier','nodes','results','claims','loops','budget','limits']);
     ensure(s.schemaVersion === 1 && ['ready','running','paused','blocked','cancelled','succeeded'].includes(s.status) && Object.hasOwn(thresholds, s.tier), 'invalid scheduler state'); integer(s.revision);
     exact(s.scope, ['projectId','runId','contractVersion','contractDigest']); text(s.scope.projectId); text(s.scope.runId); integer(s.scope.contractVersion, 1); ensure(/^[a-f0-9]{64}$/.test(s.scope.contractDigest), 'invalid contract digest');
-    exact(s.budget, ['limit','spent','verificationRemaining','futureVerificationFloor']); Object.values(s.budget).forEach(v => integer(v));
+    exact(s.budget, ['limit','spent','verificationRemaining','futureVerificationFloor',...(Object.hasOwn(s.budget,'futureExecutionFloor')?['futureExecutionFloor']:[])]); Object.values(s.budget).forEach(v => integer(v));
     exact(s.limits, ['maxActive','maxNodes','maxDepth','nowMs','deadlineMs']); Object.values(s.limits).forEach(v => integer(v)); integer(s.limits.maxActive, 1); integer(s.limits.maxNodes, 1);
     ensure(s.nodes.length <= 4096 && s.claims.length <= 4096 && s.loops.length <= 256, 'scheduler capacity exceeded');
     unique(s.nodes.map(n => n.id), 'node'); unique(s.claims.map(c => c.id), 'claim'); unique(s.claims.map(c => c.taskId), 'claimed task'); unique(s.loops.map(l => l.id), 'loop');
@@ -78,7 +78,7 @@ export function createTaskScheduler({ sha256, decisionId }: { sha256: (canonical
     for (const l of s.loops) ensure(l.nodeCount >= s.nodes.filter(n => n.loopIds.includes(l.id)).length, 'loop node count understated');
   }
   function reserved(s: SchedulerSnapshot, loopId?: string): number { const amount = s.claims.filter(c => loopId === undefined || c.loopIds.includes(loopId)).reduce((a,c) => a + c.reservation, 0); integer(amount); return amount; }
-  function available(s: SchedulerSnapshot): number { const held = s.budget.spent + reserved(s) + Math.max(s.budget.verificationRemaining, s.budget.futureVerificationFloor); integer(held); return s.budget.limit - held; }
+  function available(s: SchedulerSnapshot): number { const held = s.budget.spent + reserved(s) + Math.max(s.budget.verificationRemaining, s.budget.futureVerificationFloor)+(s.budget.futureExecutionFloor??0); integer(held); return s.budget.limit - held; }
   function hardReasons(s: SchedulerSnapshot): string[] {
     const reasons: string[] = [];
     if (['paused','cancelled','succeeded','blocked'].includes(s.status)) reasons.push('run does not authorize new dispatch');

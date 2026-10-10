@@ -26,6 +26,7 @@ export interface GoalSession {
   messages:RequirementMessage[];jobs:ReasoningJob[];proposal:GoalProposal|null;
   runtimeId:string|null;error:string|null;createdAt:string;updatedAt:string;
   config:ReasonerConfig;maxContextChars:number;
+  graphAdmission?:import('./p7-graph.js').GoalGraphAdmissionReceipt;
   continuation?:{conversationId:string;predecessorSessionId:string;predecessorRunId:string;predecessorDeliveryId:string;proposalJobId:string|null};
 }
 export interface GoalInspection {session:GoalSession;run:Run}

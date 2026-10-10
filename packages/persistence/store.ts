@@ -81,7 +81,7 @@ export class SupervisorStore {
     this.scheduler = new TaskSchedulerRepository(this.db,this.root);
     this.authorRouting = new AuthorRoutingRepository(this.db,this.root);
     this.supervisionRouting = new SupervisionRoutingRepository(this.db,this.root,SUPERVISOR_ROUTING_POLICY_V1);
-    this.goals = new GoalRepository(this.db);
+    this.goals = new GoalRepository(this.db,this.root);
     this.supervision = new SupervisionRepository(this.db);
     this.supervisionInterruptions = new SupervisionInterruptionRepository(this.db);
     this.supervisionMonitor = new SupervisionMonitorRepository(this.db);

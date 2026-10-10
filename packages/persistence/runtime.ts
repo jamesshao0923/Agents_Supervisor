@@ -1,3 +1,4 @@
+import type {ScheduledRecord,ScheduledClaim,ScheduledOperation} from '../contracts/p7-dispatch.js';
 import {ScheduledIntegrationInputsRepository} from './integration-inputs.js';
 import {integrationExecutionPrompt} from '../contracts/p7-integration-inputs.js';
 import { VerificationLineageRepository } from './verification-lineage.js';
@@ -126,6 +127,25 @@ export class RuntimeRepository {
     ensure(this.run(r).admission==='admitted','Draft cannot execute');
     this.db.prepare('INSERT INTO runtime_runs(id,project_id,run_id,record) VALUES (?,?,?,?)').run(r.id,projectId,runId,runtimeCanonical(r));this.enqueue(r);this.checkpointWrite(r);this.save(r,'admitted',{definition:request});return r;
   }
+  /** Retire a fully reconciled old graph at the same authorized contract-change
+   * boundary. Historical plan/claims/packages stay immutable and are not drained
+   * or promoted to accepted results by this cancellation. */
+  private retireScheduledForRevision(runtime:RuntimeRecord,contractVersion:number,nextVersion:number,commandId:string):void {
+    const row=this.db.prepare('SELECT record FROM scheduled_records WHERE runtime_id=?').get(runtime.id);if(!row)return;
+    const record=JSON.parse(String(row.record)) as ScheduledRecord;if(record.state==='cancelled'&&record.fence==='released')return;
+    ensure(record.plan.contractVersion===contractVersion,'Old scheduled graph does not match the revision boundary');
+    const claims=this.db.prepare('SELECT record FROM scheduled_claims WHERE scheduler_id=?').all(record.id).map(row=>JSON.parse(String(row.record)) as ScheduledClaim);
+    for(const claim of claims){
+      const operationRow=this.db.prepare('SELECT record FROM scheduled_outbox WHERE id=?').get(claim.operationId);ensure(operationRow,'Scheduled revision is missing an operation');
+      const operation=JSON.parse(String(operationRow!.record)) as ScheduledOperation;ensure(['confirmed','failed','cancelled'].includes(operation.state),'Scheduled revision has active or unknown effects');
+      ensure(!this.db.prepare("SELECT id FROM scheduled_leases WHERE claim_id=? AND state='held' LIMIT 1").get(claim.id),'Scheduled revision has unreleased resources');
+      const executionRow=this.db.prepare('SELECT record FROM executions WHERE id=?').get(claim.attemptId);ensure(executionRow,'Scheduled revision has no actual stopped execution receipt');
+      const execution=JSON.parse(String(executionRow!.record)) as ExecutionRecord;ensure(execution.stopConfirmed&&execution.usageStatus==='reported'&&execution.usage!==null&&['completed','failed','cancelled'].includes(execution.state),'Scheduled revision execution is unresolved');
+    }
+    const previous={state:record.state,fence:record.fence,revision:record.revision};record.state='cancelled';record.fence='released';record.revision++;
+    this.db.prepare('UPDATE scheduled_records SET record=? WHERE id=?').run(runtimeCanonical(record),record.id);
+    this.db.prepare('INSERT INTO scheduled_events(scheduler_id,kind,record) VALUES(?,?,?)').run(record.id,'contract-revision-retired',runtimeCanonical({commandId,previous,previousContractVersion:contractVersion,contractVersion:nextVersion,planDigest:record.planDigest,reason:'Authorized quiet revision replaces the old graph; no result or delivery granted'}));
+  }
   /** Revision is a single durable transition, after all old effects and costs are known.
    * The commit hook lets the conversation controller acknowledge its frozen message
    * in this same transaction; a failed acknowledgement rolls back the plan/outbox. */
@@ -148,6 +168,7 @@ export class RuntimeRepository {
       ensure(input.nodes.every((n,i)=>runtimeCanonical(n.dependencies)===runtimeCanonical(i?[input.nodes[i-1]!.id]:[])&&n.required),'Sequential runtime requires required ordered dependencies');
       const parent=this.checkpoint(r.id),previousDefinition=r.definition,previousInputs=r.inputs;
       this.action(r,{type:'revisePlan',contract:input.contract,nodes:input.nodes,reason:input.reason});
+      this.retireScheduledForRevision(r,run.contract.version,input.contract.version,input.commandId);
       for(const op of operations)if(op.state==='queued'){op.state='cancelled';op.error='Superseded by contract revision';this.saveOp(op);}
       r.definition=structuredClone(definition);r.cursor=0;r.error=null;r.inputs={};
       this.enqueue(r);this.checkpointWrite(r,parent);r.phase=this.phase(r);
@@ -265,7 +286,7 @@ export class RuntimeRepository {
   claim(id:string,owner:string):RuntimeOperation|null {return this.tx(()=>{
     const r=this.get(id);this.compatible(r);if(r.paused||r.cancelled||new ConversationRepository(this.db).hasPendingForRun(r.projectId,r.runId))return null;const o=this.currentOperations(id).find(x=>x.stepIndex===r.cursor&&x.state==='queued');if(!o)return null;if(o.step.kind==='input'&&!Object.hasOwn(r.inputs,o.step.id))return null;
     if(this.integrationFenced(r.id)||this.awaitingInspection(r))return null;
-    this.action(r,{type:'startAttempt',attemptId:o.attemptId,nodeId:o.step.id,contractVersion:o.contractVersion,reservation:o.step.kind==='codex'?o.step.reservation:0,purpose:'execution',resources:o.step.kind==='codex'?['workspace:'+r.workspace]:[]});this.action(r,{type:'setOperation',operationId:o.attemptId,attemptId:o.attemptId,status:'pending'});
+    this.action(r,{type:'startAttempt',attemptId:o.attemptId,nodeId:o.step.id,contractVersion:o.contractVersion,reservation:o.step.kind==='codex'?o.step.reservation:0,purpose:'execution',resources:o.step.kind==='codex'?['workspace:'+r.workspace]:[],...(this.run(r).budget.futureExecution?.nodeId===o.step.id?{futureExecutionAllocationId:this.run(r).budget.futureExecution!.allocationId}:{})});this.action(r,{type:'setOperation',operationId:o.attemptId,attemptId:o.attemptId,status:'pending'});
     o.owner=owner;o.state='claimed';this.saveOp(o);r.phase='running';this.save(r,'claimed',{operationId:o.id,owner});return o;
   });}
   private qualifyEligible(id:string,owner:string,checkInputs:boolean):void {const o=this.operation(id),r=this.get(o.runtimeId);this.compatible(r);ensure(!this.integrationFenced(r.id),'Scheduled branches have not released final integration');ensure(o.owner===owner,'Stale worker qualification');ensure(!r.paused&&!r.cancelled,'Runtime dispatch is paused or cancelled');ensure(['claimed','started'].includes(o.state),'Operation is not eligible');const run=this.run(r);ensure(run.contract.version===o.contractVersion&&run.attempts.find(a=>a.id===o.attemptId)?.status==='running','Stale attempt qualification');if(checkInputs)new ScheduledIntegrationInputsRepository(this.db).verify(id);}

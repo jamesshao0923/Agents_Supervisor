@@ -5,7 +5,7 @@ import type {SchedulerSnapshot} from '../contracts/p7-scheduler.js';
 import {safeResultJSON} from '../contracts/p7-results.js';
 import {createTaskScheduler,schedulerResourcesConflict} from './task-scheduler.js';
 import {createTaskResultDomain} from './task-results.js';
-import {futureVerificationFloor} from './index.js';
+import {futureVerificationFloor,futureExecutionFloor} from './index.js';
 const ensure=(ok:unknown,message:string):void=>{if(!ok)throw Error('Scheduled dispatch: '+message);};
 export function createScheduledDispatch({sha256}:{sha256:(text:string)=>string}){
  const results=createTaskResultDomain({sha256}),scheduler=createTaskScheduler({sha256,decisionId:d=>'schedule-'+d});
@@ -38,7 +38,7 @@ export function createScheduledDispatch({sha256}:{sha256:(text:string)=>string})
   return {schemaVersion:1,revision:run.revision,scope:{projectId:run.projectId,runId:run.id,contractVersion:run.contract.version,contractDigest:plan.contractDigest},status:run.status,tier:plan.tier,
    nodes:plan.tasks.map(t=>{const n=run.nodes.find(n=>n.id===t.node.id)!;const conflict=leases.some(l=>l.state==='held'&&!outstanding.some(c=>c.id===l.claimId&&c.taskId===n.id)&&t.node.resources.some(r=>schedulerResourcesConflict(r,l.resource)));return {...structuredClone(t.node),status:conflict&&n.status==='pending'?'blocked':n.status,inputs:t.inputRequirements.flatMap(i=>{const head=ledger.heads.find(h=>h.taskId===i.dependencyNodeId);return head?[{dependencyNodeId:i.dependencyNodeId,result:head.ref,minimumState:i.minimumState}]:[];})};}),
    results:ledger,claims:outstanding.map(c=>{const a=run.attempts.find(a=>a.id===c.attemptId)!,op=operations.find(o=>o.claimId===c.id)!;return {id:c.id,taskId:c.taskId,reservation:a.settled?0:c.reservation,resources:leases.filter(l=>l.claimId===c.id&&l.state==='held').map(l=>l.resource),loopIds:c.loopIds,usage:!a.settled&&(a.status!=='running'||op.state==='unknown')?'unknown':'known',effects:op.state==='unknown'?'unknown':'pending'};}),
-   loops:plan.loops.map(l=>({...l,spent:spent(l.id)})),budget:{limit:run.budget.limit,spent:run.budget.spent,verificationRemaining:Math.max(0,run.budget.verificationReserve-run.attempts.filter(a=>a.purpose==='verification'&&a.contractVersion===run.contract.version).reduce((s,a)=>s+(a.settled?a.actual!:a.reservation),0)),futureVerificationFloor:futureVerificationFloor(run)},limits:{...plan.limits,nowMs}};
+   loops:plan.loops.map(l=>({...l,spent:spent(l.id)})),budget:{limit:run.budget.limit,spent:run.budget.spent,verificationRemaining:Math.max(0,run.budget.verificationReserve-run.attempts.filter(a=>a.purpose==='verification'&&a.contractVersion===run.contract.version).reduce((s,a)=>s+(a.settled?a.actual!:a.reservation),0)),futureVerificationFloor:futureVerificationFloor(run),futureExecutionFloor:futureExecutionFloor(run)},limits:{...plan.limits,nowMs}};
  }
  function install(run:Run,plan:ScheduledPlan):{run:Run;events:DomainEvent[]}{
   validatePlan(run,plan);const anchor=run.nodes.find(n=>n.id===plan.integrationNodeId);

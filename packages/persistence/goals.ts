@@ -1,3 +1,9 @@
+import {readFileSync} from 'node:fs';
+import type {GoalGraphAdmissionInput} from '../contracts/p7-graph.js';
+import {buildGoalGraphAdmission,compileGoalScheduledPlan} from '../orchestration/goal-graph.js';
+import {assertGoalGraphPreparation} from '../orchestration/graph-admission.js';
+import {TaskSchedulerRepository} from './task-scheduler.js';
+import {TaskResultRepository} from './task-results.js';
 import { VerificationLineageRepository, lineageDigest } from './verification-lineage.js';
 import type { AppliedContractTransition } from '../contracts/p4-lineage.js';
 import { validateFollowupEvolution, validateEvolutionReview } from '../orchestration/followup-evolution.js';
@@ -15,7 +21,7 @@ import { sep } from 'node:path';
 const hash=(s:string)=>createHash('sha256').update(s).digest('hex');
 function ensure(v:unknown,m:string):asserts v {if(!v)throw new Error(m);}
 export class GoalRepository {
-  constructor(private db:DatabaseSync){}
+  constructor(private db:DatabaseSync,private readonly dataDir?:string){}
   private tx<T>(f:()=>T):T {if(this.db.isTransaction)return f();this.db.exec('BEGIN IMMEDIATE');try{const x=f();this.db.exec('COMMIT');return x;}catch(e){this.db.exec('ROLLBACK');throw e;}}
   list():GoalSession[]{return this.db.prepare('SELECT record FROM goal_sessions ORDER BY rowid DESC').all().map(r=>JSON.parse(String(r.record)) as GoalSession);}
   get(id:string):GoalSession {const row=this.db.prepare('SELECT record FROM goal_sessions WHERE id=?').get(id);ensure(row,'Unknown goal');return JSON.parse(String(row.record)) as GoalSession;}
@@ -142,6 +148,31 @@ export class GoalRepository {
     const plan=admittedPlan(s,run);applyAction(run,{type:'admit',contract:plan.contract,nodes:plan.steps.map((step,i)=>({id:step.id,dependencies:i?[plan.steps[i-1]!.id]:[],required:true}))});
     ensure(run.budget.limit-run.budget.spent-run.budget.verificationReserve>=s.config.reservation,'Insufficient execution budget');
   }
+  /** One parent transaction owns admission, final execution protection and graph
+   * installation. A durable filesystem preparation alone is not dispatchable. */
+  admitGraph(input:GoalGraphAdmissionInput):GoalInspection{return this.tx(()=>{
+    ensure(this.dataDir,'Graph admission needs the store data root');const a=input.action,prior=this.receipt(a),requestDigest=hash(canonical(input));
+    if(prior){ensure(prior.graphAdmission?.requestDigest===requestDigest,'Conflicting graph admission command');return this.inspect(prior.id);}
+    this.validateAdmission(a);assertGoalGraphPreparation(input,this.dataDir);const session=this.get(a.sessionId),baseRun=this.run(session);
+    ensure(baseRun.revision===input.expectedRunRevision,'Graph Run revision changed');
+    ensure(canonical(buildGoalGraphAdmission(session,baseRun))===canonical(input.admission),'Graph source changed before admission');
+    // Recheck evidence after asynchronous filesystem preparation, under the
+    // same transaction as every admission mutation. Physical identities remain
+    // independently checked by the controller before preparation/dispatch.
+    for(const job of session.jobs)for(const [path,digest]of Object.entries(job.proofs))ensure(createHash('sha256').update(readFileSync(path)).digest('hex')===digest,'Reasoning evidence changed before graph commit');
+    const admission=input.admission;
+    this.act(session,{type:'admit',contract:admission.contract,nodes:[{id:admission.integrationStep.id,dependencies:[],required:true}]});
+    const runtimeRepo=new RuntimeRepository(this.db),run=this.run(session);
+    const runtime=runtimeRepo.adoptGoal({type:'submit',commandId:a.commandId,workspace:session.workspace,workspaceKind:session.workspaceKind,goal:admission.contract.goal,tokenLimit:run.budget.limit,verificationReserve:run.budget.verificationReserve,steps:[admission.integrationStep]},session.projectId,session.id);
+    const plan=compileGoalScheduledPlan({session,baseRun,run,runtime,admission,preparation:input.preparation,policy:input.policy});
+    const operation=runtimeRepo.currentOperations(runtime.id)[0]!;
+    const allocation={allocationId:'final-execution-'+hash(a.commandId),contractVersion:run.contract.version,nodeId:admission.integrationStep.id,attemptId:operation.attemptId,amount:admission.integrationStep.reservation};
+    this.act(session,{type:'setFutureExecution',allocation,reason:'Preserve the exact final integration attempt after same-contract branches'});
+    const results=new TaskResultRepository(this.db,this.dataDir);results.initializeScope({commandId:a.commandId+':results',projectId:session.projectId,runId:session.id});
+    const scheduler=new TaskSchedulerRepository(this.db,this.dataDir),record=scheduler.install({commandId:a.commandId+':graph',plan,expectedRunRevision:this.run(session).revision,expectedResultRevision:results.inspect(plan).revision});
+    session.graphAdmission={schemaVersion:1,commandId:a.commandId,requestDigest,admission:structuredClone(admission),preparation:structuredClone(input.preparation),policy:structuredClone(input.policy),schedulerDigest:record.planDigest,allocation};
+    session.runtimeId=runtime.id;session.phase='admitted';this.save(session);this.receipted(a,session.id,a.commandId);return this.inspect(session.id);
+  });}
   control(a:Exclude<OrchestrationAction,{type:'start'}|{type:'list'}|{type:'inspect';sessionId:string}>):GoalInspection {return this.tx(()=>{
     const prior=this.receipt(a);if(prior)return this.inspect(prior.id);const s=this.get(a.sessionId);
     if(a.type==='cancel'){ensure(!s.runtimeId,'Cancel admitted tasks through runtime');this.act(s,{type:'cancel'});s.phase='cancelled';}

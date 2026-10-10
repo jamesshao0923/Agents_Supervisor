@@ -19,7 +19,7 @@ export class ScheduledIntegrationInputsRepository {
  private record<T>(table:string,id:string):T {const row=this.db.prepare('SELECT record FROM '+table+' WHERE id=?').get(id);ensure(row,'missing '+table);return JSON.parse(String(row.record)) as T;}
  private context(operationId:string):{operation:RuntimeOperation;runtime:RuntimeRecord;scheduler:ScheduledRecord}|null {
   const operation=this.record<RuntimeOperation>('runtime_outbox',operationId),runtime=this.record<RuntimeRecord>('runtime_runs',operation.runtimeId),row=this.db.prepare('SELECT record FROM scheduled_records WHERE runtime_id=?').get(runtime.id);if(!row)return null;
-  const scheduler=JSON.parse(String(row.record)) as ScheduledRecord;if(operation.step.id!==scheduler.plan.integrationNodeId)return null;ensure(operation.step.kind==='codex','integration requires an actual Codex step');return {operation,runtime,scheduler};
+  const scheduler=JSON.parse(String(row.record)) as ScheduledRecord;if(operation.step.id!==scheduler.plan.integrationNodeId||operation.contractVersion!==scheduler.plan.contractVersion)return null;ensure(operation.step.kind==='codex','integration requires an actual Codex step');return {operation,runtime,scheduler};
  }
  applies(operationId:string):boolean{return this.context(operationId)!==null;}
  private read(operationId:string):{binding:IntegrationInputBinding;sources:IntegrationInputSource[]} {

@@ -8,7 +8,7 @@ export interface Attempt {
   id: string; nodeId: string; contractVersion: number; status: 'running' | 'succeeded' | 'failed' | 'cancelled';
   reservation: number; purpose: AttemptPurpose; settled: boolean; actual: number | null;
 }
-export interface Budget { unit: 'work-unit' | 'token'; limit: number; spent: number; verificationReserve: number; futureVerification?: import('./p6-loop.js').FutureVerificationAllocation }
+export interface Budget { unit: 'work-unit' | 'token'; limit: number; spent: number; verificationReserve: number; futureVerification?: import('./p6-loop.js').FutureVerificationAllocation; futureExecution?: import('./p7-final-execution.js').FutureExecutionAllocation }
 export interface Lease { resource: string; attemptId: string; released: boolean }
 export interface Operation { id: string; attemptId: string; status: 'pending' | 'confirmed' | 'unknown' }
 export interface Artifact { id: string; digest: string; path: string; contractVersion: number }
@@ -45,7 +45,8 @@ export interface CreateRunInput {
   budget: { limit: number; verificationReserve: number; unit?: 'work-unit' | 'token' };
 }
 export type RunAction =
-  | { type: 'startAttempt'; attemptId: string; nodeId: string; contractVersion: number; reservation: number; purpose: AttemptPurpose; resources: string[]; futureVerificationAllocationId?: string }
+  | {type:'setFutureExecution';allocation:import('./p7-final-execution.js').FutureExecutionAllocation;reason:string}
+  | { type: 'startAttempt'; attemptId: string; nodeId: string; contractVersion: number; reservation: number; purpose: AttemptPurpose; resources: string[]; futureVerificationAllocationId?: string; futureExecutionAllocationId?:string }
   | { type: 'finishAttempt'; attemptId: string; outcome: 'succeeded' | 'failed' | 'cancelled' }
   | { type: 'settleAttempt'; attemptId: string; actual: number }
   | { type: 'setOperation'; operationId: string; attemptId: string; status: Operation['status'] }
