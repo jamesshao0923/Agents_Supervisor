@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseVerificationSpec } from '../../packages/contracts/p4.js';
 import { parseReasonerOutput } from '../../packages/orchestration/reasoner-schema.js';
-import { acceptanceAuthoringContextDigest, acceptanceAuthoringSchema, buildAcceptanceAuthoringPrompt, materializeAcceptanceBundle, validateAcceptanceBundle, type AcceptanceAuthoringContext, type AcceptanceBundle } from '../../packages/orchestration/acceptance-authoring.js';
+import { acceptanceAuthoringContextDigest, acceptanceAuthoringSchema, currentAcceptanceAssetSchema, buildAcceptanceAuthoringPrompt, materializeAcceptanceBundle, validateAcceptanceBundle, type AcceptanceAuthoringContext, type AcceptanceBundle } from '../../packages/orchestration/acceptance-authoring.js';
 const hash = (text: string) => createHash('sha256').update(text).digest('hex');
 function context(): AcceptanceAuthoringContext {
   const content = 'export function sum(a,b) { return a+b; }\n';
@@ -34,6 +34,8 @@ test('P6-AUTH-U01 strict proposed assets bind complete contract source environme
   let getterCalled = false;
   const unsafe = Object.defineProperty({ ...b }, 'sideEffect', { enumerable: true, get() { getterCalled = true; return 'passed'; } });
   assert.throws(() => validateAcceptanceBundle(unsafe, c), /Unsafe JSON/); assert.equal(getterCalled, false);
+  const unsafeContext = Object.defineProperty({ ...c }, 'previousSpec', { enumerable: true, get() { getterCalled = true; return null; } });
+  assert.throws(() => acceptanceAuthoringSchema(unsafeContext), /Unsafe JSON/); assert.equal(getterCalled, false);
 });
 
 test('P6-AUTH-U02 semantic checks reject weakened necessity coverage controls and copied candidate tests', () => {
@@ -144,4 +146,54 @@ test('P6-AUTH-U07 retains P4 TypeScript build semantics and actual CLI input dec
   assert.doesNotThrow(() => validateAcceptanceBundle(b, c));
   verifier.candidateEntries = ['missing.mjs']; assert.throws(() => validateAcceptanceBundle(b, c), /missing frozen candidate input/);
   verifier.candidateEntries = ['math.mjs']; b.controls[0]!.files.pop(); assert.throws(() => validateAcceptanceBundle(b, c), /required verifier input/);
+});
+
+
+test('P6-AUTH-U08 historical case schema is typed and preserves exact parameters order shape and verifier without provider claims', () => {
+  const c = context(), historical = structuredClone(bundle(c).spec.cases[0]!);
+  delete historical.status;
+  historical.parameters = [{ input: '2', label: 'first' }, { input: '3', label: 'second' }];
+  const cases = Array.from({ length: 40 }, (_, index) => ({ ...structuredClone(historical), id: `published-${index}` }));
+  const schema = currentAcceptanceAssetSchema(c, cases);
+  type Node = Record<string, unknown>;
+  const item = ((schema.properties as Node).spec as Node).properties as Node;
+  const caseSchema = (item.cases as Node).items as Node;
+  function checkTyped(node: Node): void {
+    assert.ok(typeof node.type === 'string' || Array.isArray(node.anyOf), 'Every historical literal declares its type; composition nodes contain typed branches');
+    if (node.type === 'object') {
+      assert.equal(node.additionalProperties, false);
+      const properties = node.properties as Record<string, Node>;
+      assert.deepEqual(node.required, Object.keys(properties));
+      Object.values(properties).forEach(checkTyped);
+    }
+    if (node.type === 'array') checkTyped(node.items as Node);
+    if (Array.isArray(node.anyOf)) { assert.ok(node.anyOf.length <= 32); (node.anyOf as Node[]).forEach(checkTyped); }
+  }
+  const historyBranch = (caseSchema.anyOf as Node[])[1]!;
+  checkTyped(historyBranch);
+  for (const published of cases) assert.deepEqual(parseReasonerOutput(JSON.stringify(published), historyBranch), published);
+  const mutations: ((value: typeof historical) => void)[] = [
+    value => { value.parameters[0]!.input = '99'; },
+    value => { value.parameters.reverse(); },
+    value => { value.parameters.push({ input: '2', label: 'first' }); },
+    value => { value.parameters[0]!.unexpected = 'addition'; },
+    value => { delete value.parameters[0]!.label; },
+    value => { value.status = 'active'; },
+    value => { value.verifier.timeoutMs = 2000; },
+  ];
+  for (const mutate of mutations) {
+    const changed = structuredClone(cases[0]!); mutate(changed);
+    assert.throws(() => parseReasonerOutput(JSON.stringify(changed), caseSchema));
+  }
+  const next = bundle(c); next.spec.cases = [structuredClone(cases[0]!)];
+  assert.doesNotThrow(() => parseReasonerOutput(JSON.stringify(next), schema));
+  c.previousSpec = { ...structuredClone(bundle(c).spec), cases };
+  for (const control of c.previousSpec.controls) control.workspace = `/private/published/${control.id}`;
+  const legacySchema = acceptanceAuthoringSchema(c);
+  const legacyCase = (((legacySchema.properties as Node).spec as Node).properties as Node).cases as Node;
+  assert.doesNotThrow(() => parseReasonerOutput(JSON.stringify(cases[0]), legacyCase.items as Node));
+  let getterCalled = false;
+  const unsafe = Object.defineProperty({}, 'id', { enumerable: true, get() { getterCalled = true; return 'published'; } });
+  assert.throws(() => currentAcceptanceAssetSchema(context(), [unsafe as typeof historical]), /Unsafe JSON/);
+  assert.equal(getterCalled, false);
 });

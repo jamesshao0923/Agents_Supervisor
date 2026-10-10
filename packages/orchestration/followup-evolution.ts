@@ -86,7 +86,7 @@ export function followupEvolutionReviewSchema(result: FollowupProposal, context:
   ensure(checked.decision === 'revise', 'Only an executable revision has an authorization review');
   const sourceDigest = hash(processingSources(context, relatedMessageIds).map(({ id, text, sequence }) => ({ id, text, sequence })));
   return validateReasonerSchema(object({
-    approved: { type: 'boolean' }, proposalDigest: { const: hash(checked.proposal) }, sourceDigest: { const: sourceDigest },
+    approved: { type: 'boolean' }, proposalDigest: { type: 'string', const: hash(checked.proposal) }, sourceDigest: { type: 'string', const: sourceDigest },
     changes: { type: 'array', minItems: checked.criterionChanges!.length, maxItems: checked.criterionChanges!.length, items: object({
       criterionId: text, kind: { type: 'string', enum: ['add', 'modify', 'retire'] }, authorized: { type: 'boolean' },
       reasons: { type: 'array', minItems: 1, maxItems: 64, items: text },

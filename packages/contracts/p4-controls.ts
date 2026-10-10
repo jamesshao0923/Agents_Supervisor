@@ -48,6 +48,8 @@ export interface QualificationMatrixInput {
   base:ControlDefinitionBinding|null;target:ControlDefinitionBinding;
   transitions:AppliedContractTransition[];manifest:ControlEvolutionManifest;
   specimens:SpecimenRevision[];historicalDefinitions?:ControlDefinitionBinding[];
+  /** Exact already-published ancestry; cannot authorize a new scope retirement. */
+  historicalTransitions?:AppliedContractTransition[];historicalManifest?:ControlEvolutionManifest;
 }
 
 export function safeControlJSON(value:unknown):void {

@@ -1,3 +1,11 @@
+## dev-catalog-v18 / p6-control-qualification-v2 / p7-result-persistence-v2
+
+- schema11 新增控制演进作者、真实 bootstrap/资格矩阵、不可变资格证据和历史交付观察；新增用例在正式运行前登记，P6/P7 仍为 developing。不得把持久化测试中明确标注的模型元数据当作真实模型验收。
+- 新增 12 项 draft/history 单元、10 项真实命令 bootstrap、4 项作者资产/来源绑定、6 项实际 SQLite 资格持久化、7 项历史交付证据、1 项桌面展示和 1 项历史 typed schema 回归。历史原样、故障见证、逐行真实作业绑定、事务回滚及篡改拒绝分别核对，无退役或合并旧用例。
+- 新增 2 项真实 controller 输入拒绝/运行中隔离门禁；修正 executing 状态对合法新契约仍使用旧拒绝分支的问题，使其能够进入 V2 作者流程。实际完整演进仍需真实模型验收。
+- 新增 9 项 P7 结果持久化真实组件检查：不可变产物包、幂等/恢复、SQLite/文件绑定与实际多步骤归属拒绝。当前仅单步骤 local-v1 提交；未实现的独立验证输入和并行交付仍明确拒绝。
+- persistence 原稳定 ID 保留，升级 fixture 覆盖 schema11；预期 schema 版本随迁移改为 11，旧运行/预算/未知用量不丢失的断言不变。跟进复核 schema 的 const 字段补 type；旧真实请求 invalid_json_schema 失败和未知用量不改写。
+
 # Supervisor 研发测试目录变更记录
 
 ## dev-catalog-v14 / p6-autoloop-controller-v1（开发中）

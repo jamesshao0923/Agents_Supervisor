@@ -6,7 +6,8 @@ import type { ExecutionEvent, ExecutionRecord, ExecutionState, ExecutorCapabilit
 import type { RuntimeRecord, RuntimePhase, RuntimeOperation, RuntimeCheckpoint, RuntimeEvent } from '../../packages/contracts/p3.js';
 import type { Run } from '../../packages/contracts/p1.js';
 import type { Delivery, FrozenPlan, ModelConfig, Proposal, VerificationAction, VerificationJob } from '../../packages/verification/records.js';
-import { buildTimeline, describeGoalProblem, describeTaskError, describeVerificationProblem, goalPhaseLabels, goalSessionId, mergeGoalSessions, conversationTaskViews, activeConversationTaskId, conversationStateLabels, preferredTaskModel, taskModelOptions, goalCanAnswer, goalCanRestore } from './presentation.js';
+import { buildTimeline, describeGoalProblem, describeTaskError, describeVerificationProblem, describeDeliveryAssessment, goalPhaseLabels, goalSessionId, mergeGoalSessions, conversationTaskViews, activeConversationTaskId, conversationStateLabels, preferredTaskModel, taskModelOptions, goalCanAnswer, goalCanRestore } from './presentation.js';
+import type { DeliveryAssessment } from '../../packages/contracts/p4-delivery-status.js';
 import type { DesktopTask as TaskRecord, TimelineEntry } from './presentation.js';
 
 import { parseOrchestrationAction } from '../../packages/contracts/p5.js';
@@ -19,7 +20,7 @@ type StartInput = Omit<GoalStart, 'type'>;
 type StartResult = { accepted: true; record: GoalInspection } | { accepted: false; error: string };
 type GoalMutation = Exclude<OrchestrationAction, { type: 'start' | 'list' | 'inspect' }>;
 interface RuntimeInspection { runtime: RuntimeRecord; run: Run; operations: RuntimeOperation[]; checkpoints: { checkpoint: RuntimeCheckpoint; digest: string; valid: boolean }[] }
-interface VerificationStatus { proposals: Proposal[]; plans: FrozenPlan[]; jobs: VerificationJob[]; deliveries: Delivery[]; currentDelivery: { current: boolean; reason: string; delivery: Delivery | null } }
+interface VerificationStatus { proposals: Proposal[]; plans: FrozenPlan[]; jobs: VerificationJob[]; deliveries: Delivery[]; currentDelivery: { current: boolean; reason: string; delivery: Delivery | null; assessment?: DeliveryAssessment | null } }
 type VerificationMutation = Exclude<VerificationAction, { type: 'status' | 'job' }>;
 type ConversationSend = Omit<Extract<ConversationAction, {type: 'send'}>, 'type'>;
 interface DesktopAPI extends SupervisionDesktopAPI {
@@ -582,7 +583,8 @@ function App() {
   const currentDeliveryKnown = online && Boolean(verification) && !verificationReadError;
   const deliveryCurrent = Boolean(currentDeliveryKnown && !verificationLoading && verification?.currentDelivery.current);
   const hasDelivery = Boolean(verification?.currentDelivery.delivery) || detail?.run.status === 'succeeded';
-  const deliveryLabel = !hasDelivery ? '' : !currentDeliveryKnown ? '交付有效性待核对' : verificationLoading ? verification?.currentDelivery.current ? '上次核对通过 · 正在核对' : '上次交付需重新核验 · 正在核对' : deliveryCurrent ? '当前交付有效 · 独立验收通过' : '交付需重新核验';
+  const deliveryHistory = currentDeliveryKnown && !verificationLoading && verification?.currentDelivery.assessment ? describeDeliveryAssessment(verification.currentDelivery.assessment) : null;
+  const deliveryLabel = !hasDelivery ? '' : !currentDeliveryKnown ? '交付记录待核对' : verificationLoading ? '已保存交付记录 · 正在核对' : deliveryHistory?.title ?? (deliveryCurrent ? '当前交付有效 · 独立验收通过' : '交付需重新核验');
   const deliveryProblem = verification ? describeVerificationProblem(verification.currentDelivery.reason) : null;
   const verificationLabels = { passed: '通过', failed: '失败', unknown: '无法判断', 'not-applicable': '不适用' };
   const executionLabels = { executed: '已执行', 'environment-blocked': '环境阻塞', 'verifier-error': '验收器错误', 'not-run': '未执行' };
@@ -695,9 +697,9 @@ function App() {
           {!online && <div className="notice compact">界面未连接后台，以下为上次已知验收状态；当前交付有效性待重新核对。</div>}
           {verificationError && <div className="notice error compact" role="alert">{verificationError}</div>}
           {verificationReadError && <div className="notice error compact" role="alert">验收状态同步失败，当前交付有效性待核对：{verificationReadError}</div>}
-          {verification?.currentDelivery.delivery ? <div className={`notice compact ${currentDeliveryKnown && !verification.currentDelivery.current ? 'error' : ''}`} role="status">
-            <strong>{deliveryCurrent ? '当前候选已独立验收并确认交付。' : !currentDeliveryKnown ? '交付有效性待核对' : verificationLoading ? verification.currentDelivery.current ? '上次核对通过，正在重新核对' : '上次交付需重新核验，正在重新核对' : `交付需重新核验：${deliveryProblem?.title}`}</strong>
-            {currentDeliveryKnown && !verificationLoading && !deliveryCurrent && <><p>{deliveryProblem?.description}</p><p>下一步：{verificationTerminal ? '此轮已有交付记录，可在持续跟进中发送新要求，开启下一轮独立交付。' : deliveryProblem?.next}</p></>}
+          {verification?.currentDelivery.delivery ? <div className={`notice compact ${deliveryHistory?.error || (!deliveryHistory && currentDeliveryKnown && !verificationLoading && !verification.currentDelivery.current) ? 'error' : ''}`} role="status">
+            <strong>{deliveryHistory?.title ?? deliveryLabel}</strong>
+            {deliveryHistory ? <><p>{deliveryHistory.detail}</p>{deliveryHistory.notes.length > 0 && <ul>{deliveryHistory.notes.map(note => <li key={note}>{note}</li>)}</ul>}</> : currentDeliveryKnown && !verificationLoading && !deliveryCurrent && <><p>{deliveryProblem?.description}</p><p>下一步：{verificationTerminal ? '此轮已有交付记录，可在持续跟进中发送新要求，开启下一轮独立交付。' : deliveryProblem?.next}</p></>}
             {(!currentDeliveryKnown || verificationLoading) && <p>这里保留上次交付记录；当前有效性等待本轮后台证据核对。</p>}
             <details className="technical-details"><summary>查看交付记录与技术原因</summary><dl className="facts"><dt>交付编号</dt><dd className="mono">{verification.currentDelivery.delivery.id}</dd><dt>候选摘要</dt><dd className="mono">{verification.currentDelivery.delivery.candidateDigest}</dd><dt>后台原因</dt><dd>{verification.currentDelivery.reason || '上次核对未返回失效原因。'}</dd></dl></details>
           </div> : <p className="form-hint">尚无已确认交付；运行结束不会自动完成验收。</p>}

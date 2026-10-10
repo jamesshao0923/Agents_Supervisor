@@ -78,6 +78,9 @@ function reviewedFixture() {
 }
 test('P6-FE-U08 independent review binds proposal and exact ordered user sources', () => {
   const { context, result, review } = reviewedFixture(); validateReasonerSchema(followupEvolutionReviewSchema(result, context, []));
+  const properties = followupEvolutionReviewSchema(result, context, []).properties as Record<string, { type?: string }>;
+  assert.equal(properties.proposalDigest!.type, 'string', 'Codex response schema requires explicit scalar type');
+  assert.equal(properties.sourceDigest!.type, 'string');
   assert.deepEqual(validateEvolutionReview(review, result, context, []), review);
   for (const key of ['proposalDigest', 'sourceDigest'] as const) assert.throws(() => validateEvolutionReview({ ...review, [key]: '0'.repeat(64) }, result, context, []));
 });

@@ -10,6 +10,8 @@ export interface Proposal {
   id: string; runtimeId: string; projectId: string; runId: string; baseVersion: number; version: number | null;
   spec: VerificationSpec; bundle: DefinitionBundle; candidate: Candidate; contractDigest: string;
   status: 'proposed' | 'published'; createdAt: string; reviewId?: string; reviewEnvironmentDigest?: string;
+  /** Frozen before binding; qualified evidence is appended separately after review. */
+  controlDraftDigest?: string;
 }
 export interface FrozenPlan {
   id: string; runtimeId: string; projectId: string; runId: string; proposalId: string; catalogVersion: number;
@@ -31,7 +33,7 @@ export interface Delivery {
   candidateDigest: string; definitionDigest: string; createdAt: string; path: string;
 }
 export type VerificationAction =
-  | { type: 'propose'; commandId: string; runtimeId: string; specPath: string }
+  | { type: 'propose'; commandId: string; runtimeId: string; specPath: string; controlDeclarationPath?: string; controlAuthorJobId?: string }
   | ({ type: 'review'; commandId: string; proposalId: string } & ModelConfig)
   | { type: 'publish'; commandId: string; proposalId: string; reviewId: string }
   | { type: 'freeze'; commandId: string; runtimeId: string; mode: 'final' | 'impact'; changedModules?: string[] }

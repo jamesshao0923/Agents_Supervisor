@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-catalog-v17",
+  "revision": "dev-catalog-v18",
   "modules": [
     {
       "id": "dev-contracts",
@@ -477,6 +477,54 @@
       "layer": "integration",
       "file": "dist/tests/integration/control-qualification.test.js",
       "timeoutMs": 300000
+    },
+    {
+      "id": "unit-control-draft",
+      "layer": "unit",
+      "file": "dist/tests/unit/control-draft.test.js",
+      "timeoutMs": 120000
+    },
+    {
+      "id": "unit-control-history",
+      "layer": "unit",
+      "file": "dist/tests/unit/control-history.test.js",
+      "timeoutMs": 120000
+    },
+    {
+      "id": "integration-control-bootstrap",
+      "layer": "integration",
+      "file": "dist/tests/integration/control-bootstrap.test.js",
+      "timeoutMs": 300000
+    },
+    {
+      "id": "integration-control-authoring",
+      "layer": "integration",
+      "file": "dist/tests/integration/control-authoring.test.js",
+      "timeoutMs": 300000
+    },
+    {
+      "id": "integration-control-qualification-persistence",
+      "layer": "integration",
+      "file": "dist/tests/integration/control-qualification-persistence.test.js",
+      "timeoutMs": 300000
+    },
+    {
+      "id": "integration-delivery-status",
+      "layer": "integration",
+      "file": "dist/tests/integration/delivery-status.test.js",
+      "timeoutMs": 300000
+    },
+    {
+      "id": "integration-task-results",
+      "layer": "integration",
+      "file": "dist/tests/integration/task-results.test.js",
+      "timeoutMs": 300000
+    },
+    {
+      "id": "integration-control-controller",
+      "layer": "integration",
+      "file": "dist/tests/integration/control-controller.test.js",
+      "timeoutMs": 120000
     }
   ],
   "cases": [
@@ -11075,6 +11123,942 @@
       "prerequisites": "Pinned Node; real immutable files and actual permission-limited P4 Node command processes, identity/stop and output proofs; no model approval is fabricated.",
       "assertions": "tests/integration/control-qualification.test.ts :: P6-CTRL-I10 cancelled qualification does not launch new commands or fabricate pair reports",
       "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-draft.001",
+      "name": "P6-BOOT-U01 host draft freezes actual target bytes without inventing negative failure witnesses",
+      "suiteId": "unit-control-draft",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-bootstrap"
+      ],
+      "scenario": "P6-BOOT-U01 host draft freezes actual target bytes without inventing negative failure witnesses",
+      "impactTags": [
+        "p6-control-bootstrap"
+      ],
+      "prerequisites": "Pinned Node; actual production pure/schema/presentation modules. No live model or stage approval is claimed.",
+      "assertions": "tests/unit/control-draft.test.ts :: P6-BOOT-U01 host draft freezes actual target bytes without inventing negative failure witnesses",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-draft.002",
+      "name": "P6-BOOT-U02 control plan exact coverage kind and source-free permission fields are checked",
+      "suiteId": "unit-control-draft",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-bootstrap"
+      ],
+      "scenario": "P6-BOOT-U02 control plan exact coverage kind and source-free permission fields are checked",
+      "impactTags": [
+        "p6-control-bootstrap"
+      ],
+      "prerequisites": "Pinned Node; actual production pure/schema/presentation modules. No live model or stage approval is claimed.",
+      "assertions": "tests/unit/control-draft.test.ts :: P6-BOOT-U02 control plan exact coverage kind and source-free permission fields are checked",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-draft.003",
+      "name": "P6-BOOT-U03 root cannot invent predecessor history or unbound author digests",
+      "suiteId": "unit-control-draft",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-bootstrap"
+      ],
+      "scenario": "P6-BOOT-U03 root cannot invent predecessor history or unbound author digests",
+      "impactTags": [
+        "p6-control-bootstrap"
+      ],
+      "prerequisites": "Pinned Node; actual production pure/schema/presentation modules. No live model or stage approval is claimed.",
+      "assertions": "tests/unit/control-draft.test.ts :: P6-BOOT-U03 root cannot invent predecessor history or unbound author digests",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-draft.004",
+      "name": "P6-BOOT-U04 frozen contract and target definition must match exact proposal base",
+      "suiteId": "unit-control-draft",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-bootstrap"
+      ],
+      "scenario": "P6-BOOT-U04 frozen contract and target definition must match exact proposal base",
+      "impactTags": [
+        "p6-control-bootstrap"
+      ],
+      "prerequisites": "Pinned Node; actual production pure/schema/presentation modules. No live model or stage approval is claimed.",
+      "assertions": "tests/unit/control-draft.test.ts :: P6-BOOT-U04 frozen contract and target definition must match exact proposal base",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-draft.005",
+      "name": "P6-BOOT-U05 rehashed draft cannot change mechanical bootstrap selection or current specimen bytes",
+      "suiteId": "unit-control-draft",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-bootstrap"
+      ],
+      "scenario": "P6-BOOT-U05 rehashed draft cannot change mechanical bootstrap selection or current specimen bytes",
+      "impactTags": [
+        "p6-control-bootstrap"
+      ],
+      "prerequisites": "Pinned Node; actual production pure/schema/presentation modules. No live model or stage approval is claimed.",
+      "assertions": "tests/unit/control-draft.test.ts :: P6-BOOT-U05 rehashed draft cannot change mechanical bootstrap selection or current specimen bytes",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-draft.006",
+      "name": "P6-BOOT-U06 historical handles cannot be edited as author frontier suggestions",
+      "suiteId": "unit-control-draft",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-bootstrap"
+      ],
+      "scenario": "P6-BOOT-U06 historical handles cannot be edited as author frontier suggestions",
+      "impactTags": [
+        "p6-control-bootstrap"
+      ],
+      "prerequisites": "Pinned Node; actual production pure/schema/presentation modules. No live model or stage approval is claimed.",
+      "assertions": "tests/unit/control-draft.test.ts :: P6-BOOT-U06 historical handles cannot be edited as author frontier suggestions",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-draft.007",
+      "name": "P6-BOOT-U07 unknown unexecuted or null bootstrap evidence cannot assemble qualified specimens",
+      "suiteId": "unit-control-draft",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-bootstrap"
+      ],
+      "scenario": "P6-BOOT-U07 unknown unexecuted or null bootstrap evidence cannot assemble qualified specimens",
+      "impactTags": [
+        "p6-control-bootstrap"
+      ],
+      "prerequisites": "Pinned Node; actual production pure/schema/presentation modules. No live model or stage approval is claimed.",
+      "assertions": "tests/unit/control-draft.test.ts :: P6-BOOT-U07 unknown unexecuted or null bootstrap evidence cannot assemble qualified specimens",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-draft.008",
+      "name": "P6-BOOT-U08 required obligations cannot use a control declared for a different fault",
+      "suiteId": "unit-control-draft",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-bootstrap"
+      ],
+      "scenario": "P6-BOOT-U08 required obligations cannot use a control declared for a different fault",
+      "impactTags": [
+        "p6-control-bootstrap"
+      ],
+      "prerequisites": "Pinned Node; actual production pure/schema/presentation modules. No live model or stage approval is claimed.",
+      "assertions": "tests/unit/control-draft.test.ts :: P6-BOOT-U08 required obligations cannot use a control declared for a different fault",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-history.001",
+      "name": "P6-BOOT-U09 third round preserves exact prior retirement while current authorization chain contains only new transition",
+      "suiteId": "unit-control-history",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-bootstrap"
+      ],
+      "scenario": "P6-BOOT-U09 third round preserves exact prior retirement while current authorization chain contains only new transition",
+      "impactTags": [
+        "p6-control-bootstrap"
+      ],
+      "prerequisites": "Pinned Node; actual production pure/schema/presentation modules. No live model or stage approval is claimed.",
+      "assertions": "tests/unit/control-history.test.ts :: P6-BOOT-U09 third round preserves exact prior retirement while current authorization chain contains only new transition",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-history.002",
+      "name": "P6-BOOT-U10 old retirement requires exact published mapping and cannot retire a new specimen scope",
+      "suiteId": "unit-control-history",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-bootstrap"
+      ],
+      "scenario": "P6-BOOT-U10 old retirement requires exact published mapping and cannot retire a new specimen scope",
+      "impactTags": [
+        "p6-control-bootstrap"
+      ],
+      "prerequisites": "Pinned Node; actual production pure/schema/presentation modules. No live model or stage approval is claimed.",
+      "assertions": "tests/unit/control-history.test.ts :: P6-BOOT-U10 old retirement requires exact published mapping and cannot retire a new specimen scope",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-history.003",
+      "name": "P6-BOOT-U11 published historical successor and retirement mappings cannot be rewritten in later round",
+      "suiteId": "unit-control-history",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-bootstrap"
+      ],
+      "scenario": "P6-BOOT-U11 published historical successor and retirement mappings cannot be rewritten in later round",
+      "impactTags": [
+        "p6-control-bootstrap"
+      ],
+      "prerequisites": "Pinned Node; actual production pure/schema/presentation modules. No live model or stage approval is claimed.",
+      "assertions": "tests/unit/control-history.test.ts :: P6-BOOT-U11 published historical successor and retirement mappings cannot be rewritten in later round",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-history.004",
+      "name": "P6-BOOT-U12 historical authorization cannot be injected into current chain or begin at another contract",
+      "suiteId": "unit-control-history",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-bootstrap"
+      ],
+      "scenario": "P6-BOOT-U12 historical authorization cannot be injected into current chain or begin at another contract",
+      "impactTags": [
+        "p6-control-bootstrap"
+      ],
+      "prerequisites": "Pinned Node; actual production pure/schema/presentation modules. No live model or stage approval is claimed.",
+      "assertions": "tests/unit/control-history.test.ts :: P6-BOOT-U12 historical authorization cannot be injected into current chain or begin at another contract",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-bootstrap.001",
+      "name": "P6-BOOT-I01 actual bootstrap supplies witnesses then complete matrix really reruns within same review job",
+      "suiteId": "integration-control-bootstrap",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-bootstrap"
+      ],
+      "scenario": "P6-BOOT-I01 actual bootstrap supplies witnesses then complete matrix really reruns within same review job",
+      "impactTags": [
+        "p6-control-bootstrap"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/control-bootstrap.test.ts :: P6-BOOT-I01 actual bootstrap supplies witnesses then complete matrix really reruns within same review job",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-bootstrap.002",
+      "name": "P6-BOOT-I02 actual always passing current detector cannot manufacture a FailureWitness",
+      "suiteId": "integration-control-bootstrap",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-bootstrap"
+      ],
+      "scenario": "P6-BOOT-I02 actual always passing current detector cannot manufacture a FailureWitness",
+      "impactTags": [
+        "p6-control-bootstrap"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/control-bootstrap.test.ts :: P6-BOOT-I02 actual always passing current detector cannot manufacture a FailureWitness",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-bootstrap.003",
+      "name": "P6-BOOT-I03 real verifier crash remains error evidence and never expected negative failure",
+      "suiteId": "integration-control-bootstrap",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-bootstrap"
+      ],
+      "scenario": "P6-BOOT-I03 real verifier crash remains error evidence and never expected negative failure",
+      "impactTags": [
+        "p6-control-bootstrap"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/control-bootstrap.test.ts :: P6-BOOT-I03 real verifier crash remains error evidence and never expected negative failure",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-bootstrap.004",
+      "name": "P6-BOOT-I04 unknown shared usage and cancellation reject dispatch while retaining actual job accounting",
+      "suiteId": "integration-control-bootstrap",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-bootstrap"
+      ],
+      "scenario": "P6-BOOT-I04 unknown shared usage and cancellation reject dispatch while retaining actual job accounting",
+      "impactTags": [
+        "p6-control-bootstrap"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/control-bootstrap.test.ts :: P6-BOOT-I04 unknown shared usage and cancellation reject dispatch while retaining actual job accounting",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-bootstrap.005",
+      "name": "P6-BOOT-I05 exact real bootstrap proof mutation is rejected before qualification assembly",
+      "suiteId": "integration-control-bootstrap",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-bootstrap"
+      ],
+      "scenario": "P6-BOOT-I05 exact real bootstrap proof mutation is rejected before qualification assembly",
+      "impactTags": [
+        "p6-control-bootstrap"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/control-bootstrap.test.ts :: P6-BOOT-I05 exact real bootstrap proof mutation is rejected before qualification assembly",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-bootstrap.006",
+      "name": "P6-BOOT-I06 late boundary cancellation preserves actual stopped proof but forbids applying bootstrap",
+      "suiteId": "integration-control-bootstrap",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-bootstrap"
+      ],
+      "scenario": "P6-BOOT-I06 late boundary cancellation preserves actual stopped proof but forbids applying bootstrap",
+      "impactTags": [
+        "p6-control-bootstrap"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/control-bootstrap.test.ts :: P6-BOOT-I06 late boundary cancellation preserves actual stopped proof but forbids applying bootstrap",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-bootstrap.007",
+      "name": "P6-BOOT-I07 altered or duplicate exact pair report is rejected even when evidence digest is recomputed",
+      "suiteId": "integration-control-bootstrap",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-bootstrap"
+      ],
+      "scenario": "P6-BOOT-I07 altered or duplicate exact pair report is rejected even when evidence digest is recomputed",
+      "impactTags": [
+        "p6-control-bootstrap"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/control-bootstrap.test.ts :: P6-BOOT-I07 altered or duplicate exact pair report is rejected even when evidence digest is recomputed",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-bootstrap.008",
+      "name": "P6-BOOT-I08 bootstrap requires exact external review ownership and rejects same job replay after actual observations",
+      "suiteId": "integration-control-bootstrap",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-bootstrap"
+      ],
+      "scenario": "P6-BOOT-I08 bootstrap requires exact external review ownership and rejects same job replay after actual observations",
+      "impactTags": [
+        "p6-control-bootstrap"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/control-bootstrap.test.ts :: P6-BOOT-I08 bootstrap requires exact external review ownership and rejects same job replay after actual observations",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-bootstrap.009",
+      "name": "P6-BOOT-I09 actual successor bootstrap reruns exact original detector and current revision on new frozen bytes",
+      "suiteId": "integration-control-bootstrap",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-bootstrap"
+      ],
+      "scenario": "P6-BOOT-I09 actual successor bootstrap reruns exact original detector and current revision on new frozen bytes",
+      "impactTags": [
+        "p6-control-bootstrap"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/control-bootstrap.test.ts :: P6-BOOT-I09 actual successor bootstrap reruns exact original detector and current revision on new frozen bytes",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-bootstrap.010",
+      "name": "P6-BOOT-I10 real weak detector proof cannot authorize forged verdict usable job identity or negative usage",
+      "suiteId": "integration-control-bootstrap",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-bootstrap"
+      ],
+      "scenario": "P6-BOOT-I10 real weak detector proof cannot authorize forged verdict usable job identity or negative usage",
+      "impactTags": [
+        "p6-control-bootstrap"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/control-bootstrap.test.ts :: P6-BOOT-I10 real weak detector proof cannot authorize forged verdict usable job identity or negative usage",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-authoring.001",
+      "name": "P6-CONTROL-AUTH-I01 proposed evolution binds exact contract and full sources and rejects invented permission fields",
+      "suiteId": "integration-control-authoring",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-control-authoring"
+      ],
+      "scenario": "P6-CONTROL-AUTH-I01 proposed evolution binds exact contract and full sources and rejects invented permission fields",
+      "impactTags": [
+        "p6-control-authoring"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/control-authoring.test.ts :: P6-CONTROL-AUTH-I01 proposed evolution binds exact contract and full sources and rejects invented permission fields",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-authoring.002",
+      "name": "P6-CONTROL-AUTH-I02 every current control and every frozen check remain mandatory independently of evolution suggestions",
+      "suiteId": "integration-control-authoring",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-control-authoring"
+      ],
+      "scenario": "P6-CONTROL-AUTH-I02 every current control and every frozen check remain mandatory independently of evolution suggestions",
+      "impactTags": [
+        "p6-control-authoring"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/control-authoring.test.ts :: P6-CONTROL-AUTH-I02 every current control and every frozen check remain mandatory independently of evolution suggestions",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-authoring.003",
+      "name": "P6-CONTROL-AUTH-I03 actual private materialization is immutable idempotent and never changes the live candidate",
+      "suiteId": "integration-control-authoring",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-control-authoring"
+      ],
+      "scenario": "P6-CONTROL-AUTH-I03 actual private materialization is immutable idempotent and never changes the live candidate",
+      "impactTags": [
+        "p6-control-authoring"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/control-authoring.test.ts :: P6-CONTROL-AUTH-I03 actual private materialization is immutable idempotent and never changes the live candidate",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-authoring.004",
+      "name": "P6-CONTROL-AUTH-I04 actual historical witnesses are supplied completely and only current frontier can be evolved",
+      "suiteId": "integration-control-authoring",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-control-authoring"
+      ],
+      "scenario": "P6-CONTROL-AUTH-I04 actual historical witnesses are supplied completely and only current frontier can be evolved",
+      "impactTags": [
+        "p6-control-authoring"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/control-authoring.test.ts :: P6-CONTROL-AUTH-I04 actual historical witnesses are supplied completely and only current frontier can be evolved",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-qualification-persistence.001",
+      "name": "P6-QUAL-I01 immutable draft full-payload idempotency survives real SQLite reopen and preserves proposal",
+      "suiteId": "integration-control-qualification-persistence",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-control-persistence"
+      ],
+      "scenario": "P6-QUAL-I01 immutable draft full-payload idempotency survives real SQLite reopen and preserves proposal",
+      "impactTags": [
+        "p6-control-persistence"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/control-qualification-persistence.test.ts :: P6-QUAL-I01 immutable draft full-payload idempotency survives real SQLite reopen and preserves proposal",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-qualification-persistence.002",
+      "name": "P6-QUAL-I02 staged review enforces exact running ownership sequence and parent rollback without committing parent",
+      "suiteId": "integration-control-qualification-persistence",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-control-persistence"
+      ],
+      "scenario": "P6-QUAL-I02 staged review enforces exact running ownership sequence and parent rollback without committing parent",
+      "impactTags": [
+        "p6-control-persistence"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/control-qualification-persistence.test.ts :: P6-QUAL-I02 staged review enforces exact running ownership sequence and parent rollback without committing parent",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-qualification-persistence.003",
+      "name": "P6-QUAL-I03 caller rehashed draft or altered frozen author bytes cannot enter immutable persistence",
+      "suiteId": "integration-control-qualification-persistence",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-control-persistence"
+      ],
+      "scenario": "P6-QUAL-I03 caller rehashed draft or altered frozen author bytes cannot enter immutable persistence",
+      "impactTags": [
+        "p6-control-persistence"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/control-qualification-persistence.test.ts :: P6-QUAL-I03 caller rehashed draft or altered frozen author bytes cannot enter immutable persistence",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-qualification-persistence.004",
+      "name": "P6-QUAL-I04 actual command qualification is atomically bound to final job and scoped publication then reloads exact history",
+      "suiteId": "integration-control-qualification-persistence",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-control-persistence"
+      ],
+      "scenario": "P6-QUAL-I04 actual command qualification is atomically bound to final job and scoped publication then reloads exact history",
+      "impactTags": [
+        "p6-control-persistence"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/control-qualification-persistence.test.ts :: P6-QUAL-I04 actual command qualification is atomically bound to final job and scoped publication then reloads exact history",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-qualification-persistence.005",
+      "name": "P6-QUAL-I05 actual DB row tamper unsettled costs raw review and proof mutations all reject final qualification",
+      "suiteId": "integration-control-qualification-persistence",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-control-persistence"
+      ],
+      "scenario": "P6-QUAL-I05 actual DB row tamper unsettled costs raw review and proof mutations all reject final qualification",
+      "impactTags": [
+        "p6-control-persistence"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/control-qualification-persistence.test.ts :: P6-QUAL-I05 actual DB row tamper unsettled costs raw review and proof mutations all reject final qualification",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-qualification-persistence.006",
+      "name": "P6-QUAL-I06 trusted V1 history uses actual original controls and refuses missing exact detector proof",
+      "suiteId": "integration-control-qualification-persistence",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-control-persistence"
+      ],
+      "scenario": "P6-QUAL-I06 trusted V1 history uses actual original controls and refuses missing exact detector proof",
+      "impactTags": [
+        "p6-control-persistence"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/control-qualification-persistence.test.ts :: P6-QUAL-I06 trusted V1 history uses actual original controls and refuses missing exact detector proof",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-delivery-status.001",
+      "name": "P6-HIST-I01 stored delivery audits exact frozen files and settled records without mutations across SQLite reopen",
+      "suiteId": "integration-delivery-status",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-delivery-history"
+      ],
+      "scenario": "P6-HIST-I01 stored delivery audits exact frozen files and settled records without mutations across SQLite reopen",
+      "impactTags": [
+        "p6-delivery-history"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/delivery-status.test.ts :: P6-HIST-I01 stored delivery audits exact frozen files and settled records without mutations across SQLite reopen",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-delivery-status.002",
+      "name": "P6-HIST-I02 child round head workspace and environment changes preserve the original historical delivery",
+      "suiteId": "integration-delivery-status",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-delivery-history"
+      ],
+      "scenario": "P6-HIST-I02 child round head workspace and environment changes preserve the original historical delivery",
+      "impactTags": [
+        "p6-delivery-history"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/delivery-status.test.ts :: P6-HIST-I02 child round head workspace and environment changes preserve the original historical delivery",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-delivery-status.003",
+      "name": "P6-HIST-I03 actual archived proof detector candidate artifact and delivery byte changes cannot remain intact",
+      "suiteId": "integration-delivery-status",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-delivery-history"
+      ],
+      "scenario": "P6-HIST-I03 actual archived proof detector candidate artifact and delivery byte changes cannot remain intact",
+      "impactTags": [
+        "p6-delivery-history"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/delivery-status.test.ts :: P6-HIST-I03 actual archived proof detector candidate artifact and delivery byte changes cannot remain intact",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-delivery-status.004",
+      "name": "P6-HIST-I04 expired source windows differ from damaged archival bytes without any remote refresh",
+      "suiteId": "integration-delivery-status",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-delivery-history"
+      ],
+      "scenario": "P6-HIST-I04 expired source windows differ from damaged archival bytes without any remote refresh",
+      "impactTags": [
+        "p6-delivery-history"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/delivery-status.test.ts :: P6-HIST-I04 expired source windows differ from damaged archival bytes without any remote refresh",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-delivery-status.005",
+      "name": "P6-HIST-I05 identity accounting partial scope and self-declared completion cannot replace historical evidence",
+      "suiteId": "integration-delivery-status",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-delivery-history"
+      ],
+      "scenario": "P6-HIST-I05 identity accounting partial scope and self-declared completion cannot replace historical evidence",
+      "impactTags": [
+        "p6-delivery-history"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/delivery-status.test.ts :: P6-HIST-I05 identity accounting partial scope and self-declared completion cannot replace historical evidence",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-delivery-status.006",
+      "name": "P6-HIST-I06 symlink and external proof paths fail while unsupported history remains explicitly unknown",
+      "suiteId": "integration-delivery-status",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-delivery-history"
+      ],
+      "scenario": "P6-HIST-I06 symlink and external proof paths fail while unsupported history remains explicitly unknown",
+      "impactTags": [
+        "p6-delivery-history"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/delivery-status.test.ts :: P6-HIST-I06 symlink and external proof paths fail while unsupported history remains explicitly unknown",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-delivery-status.007",
+      "name": "P6-HIST-I07 busy missing and changed read observations never erase the saved delivery or grant authority",
+      "suiteId": "integration-delivery-status",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-delivery-history"
+      ],
+      "scenario": "P6-HIST-I07 busy missing and changed read observations never erase the saved delivery or grant authority",
+      "impactTags": [
+        "p6-delivery-history"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/delivery-status.test.ts :: P6-HIST-I07 busy missing and changed read observations never erase the saved delivery or grant authority",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-task-results.001",
+      "name": "P7-RESULT-I01 actual stopped settled producer publishes exact immutable bytes without changing budget or P4 status",
+      "suiteId": "integration-task-results",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p7-result-persistence"
+      ],
+      "scenario": "P7-RESULT-I01 actual stopped settled producer publishes exact immutable bytes without changing budget or P4 status",
+      "impactTags": [
+        "p7-result-persistence"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/task-results.test.ts :: P7-RESULT-I01 actual stopped settled producer publishes exact immutable bytes without changing budget or P4 status",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-task-results.002",
+      "name": "P7-RESULT-I02 stale CAS and command conflicts reject without moving heads; exact replay survives second connection",
+      "suiteId": "integration-task-results",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p7-result-persistence"
+      ],
+      "scenario": "P7-RESULT-I02 stale CAS and command conflicts reject without moving heads; exact replay survives second connection",
+      "impactTags": [
+        "p7-result-persistence"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/task-results.test.ts :: P7-RESULT-I02 stale CAS and command conflicts reject without moving heads; exact replay survives second connection",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-task-results.003",
+      "name": "P7-RESULT-I03 SQLite publication failure rolls back ledger events package receipt while preserving sealed original",
+      "suiteId": "integration-task-results",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p7-result-persistence"
+      ],
+      "scenario": "P7-RESULT-I03 SQLite publication failure rolls back ledger events package receipt while preserving sealed original",
+      "impactTags": [
+        "p7-result-persistence"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/task-results.test.ts :: P7-RESULT-I03 SQLite publication failure rolls back ledger events package receipt while preserving sealed original",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-task-results.004",
+      "name": "P7-RESULT-I04 SIGKILL after durable package seal cannot publish head; recovery and exact explicit submit retain bytes",
+      "suiteId": "integration-task-results",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p7-result-persistence"
+      ],
+      "scenario": "P7-RESULT-I04 SIGKILL after durable package seal cannot publish head; recovery and exact explicit submit retain bytes",
+      "impactTags": [
+        "p7-result-persistence"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/task-results.test.ts :: P7-RESULT-I04 SIGKILL after durable package seal cannot publish head; recovery and exact explicit submit retain bytes",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-task-results.005",
+      "name": "P7-RESULT-I05 changed source symlink or extra sealed file rejects; no partial head becomes eligible",
+      "suiteId": "integration-task-results",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p7-result-persistence"
+      ],
+      "scenario": "P7-RESULT-I05 changed source symlink or extra sealed file rejects; no partial head becomes eligible",
+      "impactTags": [
+        "p7-result-persistence"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/task-results.test.ts :: P7-RESULT-I05 changed source symlink or extra sealed file rejects; no partial head becomes eligible",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-task-results.006",
+      "name": "P7-RESULT-I06 actual damaged package is rejected and exact evidence invalidates without deleting original receipts",
+      "suiteId": "integration-task-results",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p7-result-persistence"
+      ],
+      "scenario": "P7-RESULT-I06 actual damaged package is rejected and exact evidence invalidates without deleting original receipts",
+      "impactTags": [
+        "p7-result-persistence"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/task-results.test.ts :: P7-RESULT-I06 actual damaged package is rejected and exact evidence invalidates without deleting original receipts",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-task-results.007",
+      "name": "P7-RESULT-I07 alive writer unknown accounting and mismatched actual P2 binding cannot stage any result",
+      "suiteId": "integration-task-results",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p7-result-persistence"
+      ],
+      "scenario": "P7-RESULT-I07 alive writer unknown accounting and mismatched actual P2 binding cannot stage any result",
+      "impactTags": [
+        "p7-result-persistence"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/task-results.test.ts :: P7-RESULT-I07 alive writer unknown accounting and mismatched actual P2 binding cannot stage any result",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-task-results.008",
+      "name": "P7-RESULT-I08 unsupported retroactive dependencies and exact foreign intents cannot acquire publication authority",
+      "suiteId": "integration-task-results",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p7-result-persistence"
+      ],
+      "scenario": "P7-RESULT-I08 unsupported retroactive dependencies and exact foreign intents cannot acquire publication authority",
+      "impactTags": [
+        "p7-result-persistence"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/task-results.test.ts :: P7-RESULT-I08 unsupported retroactive dependencies and exact foreign intents cannot acquire publication authority",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-task-results.009",
+      "name": "P7-RESULT-I09 first slice rejects multi-step current workspace attribution before and after actual later writer",
+      "suiteId": "integration-task-results",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p7-result-persistence"
+      ],
+      "scenario": "P7-RESULT-I09 first slice rejects multi-step current workspace attribution before and after actual later writer",
+      "impactTags": [
+        "p7-result-persistence"
+      ],
+      "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
+      "assertions": "tests/integration/task-results.test.ts :: P7-RESULT-I09 first slice rejects multi-step current workspace attribution before and after actual later writer",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-desktop-presentation.001",
+      "name": "P6-DESKTOP-HISTORY-U01 history integrity current files and unknown observation scopes remain distinct",
+      "suiteId": "unit-desktop-presentation",
+      "module": "desktop",
+      "layer": "unit",
+      "covers": [
+        "p6-delivery-history"
+      ],
+      "scenario": "P6-DESKTOP-HISTORY-U01 history integrity current files and unknown observation scopes remain distinct",
+      "impactTags": [
+        "p6-delivery-history"
+      ],
+      "prerequisites": "Pinned Node; actual production pure/schema/presentation modules. No live model or stage approval is claimed.",
+      "assertions": "tests/unit/desktop-presentation.test.ts :: P6-DESKTOP-HISTORY-U01 history integrity current files and unknown observation scopes remain distinct",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-acceptance-authoring.008",
+      "name": "P6-AUTH-U08 historical case schema is typed and preserves exact parameters order shape and verifier without provider claims",
+      "suiteId": "unit-acceptance-authoring",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-acceptance-authoring"
+      ],
+      "scenario": "P6-AUTH-U08 historical case schema is typed and preserves exact parameters order shape and verifier without provider claims",
+      "impactTags": [
+        "p6-acceptance-authoring"
+      ],
+      "prerequisites": "Pinned Node; actual production pure/schema/presentation modules. No live model or stage approval is claimed.",
+      "assertions": "tests/unit/acceptance-authoring.test.ts :: P6-AUTH-U08 historical case schema is typed and preserves exact parameters order shape and verifier without provider claims",
+      "cleanup": "Stop owned processes, close database handles, retain formal evidence and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-controller.001",
+      "name": "P6-CCTL-I01 V2 proposal rejects unpaired declaration or author before mutating the actual ledger",
+      "suiteId": "integration-control-controller",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-controller"
+      ],
+      "scenario": "P6-CCTL-I01 V2 proposal rejects unpaired declaration or author before mutating the actual ledger",
+      "impactTags": [
+        "p6-control-controller"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, controller parsing and real runtime input completion. No model invocation or fabricated author approval.",
+      "assertions": "tests/integration/control-controller.test.ts :: P6-CCTL-I01 V2 proposal rejects unpaired declaration or author before mutating the actual ledger",
+      "cleanup": "Close actual store and preserve all formal reports and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-controller.002",
+      "name": "P6-CCTL-I02 V2 proposal fences active runtime then rejects missing authoritative author after actual input completion",
+      "suiteId": "integration-control-controller",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-controller"
+      ],
+      "scenario": "P6-CCTL-I02 V2 proposal fences active runtime then rejects missing authoritative author after actual input completion",
+      "impactTags": [
+        "p6-control-controller"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, controller parsing and real runtime input completion. No model invocation or fabricated author approval.",
+      "assertions": "tests/integration/control-controller.test.ts :: P6-CCTL-I02 V2 proposal fences active runtime then rejects missing authoritative author after actual input completion",
+      "cleanup": "Close actual store and preserve all formal reports and failures",
       "status": "active"
     }
   ]

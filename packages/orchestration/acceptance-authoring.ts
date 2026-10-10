@@ -3,7 +3,7 @@ import { lstat, mkdir, readdir, readFile, realpath, rename, rm, writeFile } from
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import type { TaskContract } from '../contracts/p1.js';
 import type { AcceptanceItem } from '../contracts/p5.js';
-import { parseVerificationSpec, type VerificationSpec } from '../contracts/p4.js';
+import { parseVerificationSpec, type VerificationSpec, type VerificationSpecCase } from '../contracts/p4.js';
 import { currentVerificationCases, validateSpecChange, verificationCanonical } from '../verification/rules.js';
 import { parseReasonerOutput, validateReasonerSchema } from './reasoner-schema.js';
 
@@ -114,21 +114,54 @@ export function acceptanceAuthoringContextDigest(context: AcceptanceAuthoringCon
 /** P4's minimal executable types with fixed criterion modules and unparameterized
  * cases; published revisions remain exact alternatives in maintenance output. */
 export function acceptanceAuthoringSchema(context: AcceptanceAuthoringContext): Record<string, unknown> {
+  const frozen = frozenContext(context);
+  return acceptanceAssetSchema(frozen, frozen.previousSpec?.cases ?? []);
+}
+/** Current assets only. Historical authorization is checked separately by the V2 controller. */
+export function currentAcceptanceAssetSchema(context: AcceptanceAuthoringContext, historicalCases: VerificationSpecCase[]): Record<string, unknown> {
+  const frozen = frozenContext(context);
+  ensure(frozen.previousSpec === null, 'Current assets require a separate historical binding');
+  return acceptanceAssetSchema(frozen, historicalCases);
+}
+/** Exact published literals retain their full object shape and parameter order.
+ * Types accompany every const, including typed items for empty frozen arrays.
+ * Local validation is independent of whether a provider supports these schemas. */
+function typedLiteral(value: unknown): Record<string, unknown> {
+  if (value === null) return { type: 'null', const: null };
+  if (Array.isArray(value)) {
+    const children = [...new Map(value.map(item => [canonical(item), item])).values()].map(typedLiteral);
+    return { type: 'array', items: children.length ? typedAlternatives(children) : { type: 'null' }, minItems: value.length, maxItems: value.length, const: value };
+  }
+  if (typeof value === 'object') return obj(Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, typedLiteral(item)])));
+  return { type: typeof value === 'number' && Number.isSafeInteger(value) ? 'integer' : typeof value, const: value };
+}
+function typedAlternatives(branches: Record<string, unknown>[]): Record<string, unknown> {
+  if (branches.length === 1) return branches[0]!;
+  if (branches.length > 32) {
+    const groups: Record<string, unknown>[] = [];
+    for (let i = 0; i < branches.length; i += 32) groups.push(typedAlternatives(branches.slice(i, i + 32)));
+    return typedAlternatives(groups);
+  }
+  return { anyOf: branches };
+}
+function acceptanceAssetSchema(context: AcceptanceAuthoringContext, historicalCases: VerificationSpecCase[]): Record<string, unknown> {
   const frozen = frozenContext(context), ids = frozen.criteria.map(item => item.id);
+  const historical = JSON.parse(safeJson(historicalCases)) as VerificationSpecCase[];
+  const historicalBranches = [...new Map(historical.map(item => [canonical(item), item])).values()].map(typedLiteral);
   const file = obj({ path: text, content: { type: 'string', maxLength: MAX_FILE_BYTES } });
   const strings = arr(text);
-  const build = obj({ kind: { const: 'typescript' }, sources: arr(text, 1), rootDir: text, outputDir: text, timeoutMs: num() });
-  const command = { kind: { const: 'command' }, version: text, entry: text, files: arr(text, 1), timeoutMs: num() };
-  const steps = { anyOf: [obj({ kind: { const: 'click' }, selector: text }), obj({ kind: { const: 'fill' }, selector: text, value: { type: 'string', maxLength: 12_000 } }), obj({ kind: { const: 'assertText' }, selector: text, text }), obj({ kind: { const: 'assertVisible' }, selector: text })] };
+  const build = obj({ kind: { type: 'string', const: 'typescript' }, sources: arr(text, 1), rootDir: text, outputDir: text, timeoutMs: num() });
+  const command = { kind: { type: 'string', const: 'command' }, version: text, entry: text, files: arr(text, 1), timeoutMs: num() };
+  const steps = { anyOf: [obj({ kind: { type: 'string', const: 'click' }, selector: text }), obj({ kind: { type: 'string', const: 'fill' }, selector: text, value: { type: 'string', maxLength: 12_000 } }), obj({ kind: { type: 'string', const: 'assertText' }, selector: text, text }), obj({ kind: { type: 'string', const: 'assertVisible' }, selector: text })] };
   const verifier = { anyOf: [obj(command), obj({ ...command, candidateEntries: arr(text, 1, 8) }), obj({ ...command, build }), obj({ ...command, build, candidateEntries: arr(text, 1, 8) }),
-    obj({ kind: { const: 'ui' }, version: text, entry: text, steps: arr(steps, 1), expectations: arr(text, 1), timeoutMs: num() }),
-    obj({ kind: { const: 'source' }, version: text, claimFile: text, sources: arr(obj({ id: text, url: text, excerpt: text, maxAgeMs: num(Number.MAX_SAFE_INTEGER) }), 1), timeoutMs: num() })] };
+    obj({ kind: { type: 'string', const: 'ui' }, version: text, entry: text, steps: arr(steps, 1), expectations: arr(text, 1), timeoutMs: num() }),
+    obj({ kind: { type: 'string', const: 'source' }, version: text, claimFile: text, sources: arr(obj({ id: text, url: text, excerpt: text, maxAgeMs: num(Number.MAX_SAFE_INTEGER) }), 1), timeoutMs: num() })] };
   const newCase = obj({ id: text, revision: num(Number.MAX_SAFE_INTEGER), obligationIds: arr(text, 1), parameters: arr(obj({}), 1, 1), modules: arr({ ...text, enum: ids }, 1), replaces: strings, defectRefs: strings, status: { type: 'string', enum: ['active', 'retired'] }, verifier });
   return validateReasonerSchema(obj({
-    contextDigest: { const: hash(canonical(frozen)) },
-    spec: obj({ schemaVersion: { const: 1 }, contractVersion: { const: frozen.contract.version }, standardsVersion: text,
-      obligations: arr(obj({ id: text, criterionId: { ...text, enum: ids }, expectation: text, required: { type: 'boolean' }, applicable: { const: true } }), 1),
-      cases: arr(frozen.previousSpec ? { anyOf: [newCase, { enum: frozen.previousSpec.cases }] } : newCase, 1),
+    contextDigest: { type: 'string', const: hash(canonical(frozen)) },
+    spec: obj({ schemaVersion: { type: 'integer', const: 1 }, contractVersion: { type: 'integer', const: frozen.contract.version }, standardsVersion: text,
+      obligations: arr(obj({ id: text, criterionId: { ...text, enum: ids }, expectation: text, required: { type: 'boolean' }, applicable: { type: 'boolean', const: true } }), 1),
+      cases: arr(historicalBranches.length ? typedAlternatives([newCase, typedAlternatives(historicalBranches)]) : newCase, 1),
       controls: arr(obj({ id: text, workspace: text, expect: { type: 'string', enum: ['passed', 'failed'] }, mustFail: strings }), 2, 32),
       moduleDependencies: obj(Object.fromEntries(ids.map(id => [id, arr({ ...text, enum: ids })]))),
     }), verifierFiles: arr(file), controls: arr(obj({ id: text, files: arr(file, 1) }), frozen.previousSpec ? 0 : 2, 32),
@@ -151,6 +184,15 @@ export function buildAcceptanceAuthoringPrompt(context: AcceptanceAuthoringConte
 export function validateAcceptanceBundle(value: unknown, context: AcceptanceAuthoringContext): AcceptanceBundle {
   const frozen = frozenContext(context);
   const bundle = parseReasonerOutput(safeJson(value), acceptanceAuthoringSchema(frozen)) as AcceptanceBundle;
+  return validateAcceptanceAssetSemantics(bundle, frozen);
+}
+/** Does not grant publication: V2 additionally requires immutable history, real controls and independent review. */
+export function validateCurrentAcceptanceAssets(value: unknown, context: AcceptanceAuthoringContext, historicalCases: VerificationSpecCase[]): AcceptanceBundle {
+  const frozen = frozenContext(context);
+  const bundle = parseReasonerOutput(safeJson(value), currentAcceptanceAssetSchema(frozen, historicalCases)) as AcceptanceBundle;
+  return validateAcceptanceAssetSemantics(bundle, frozen);
+}
+function validateAcceptanceAssetSemantics(bundle: AcceptanceBundle, frozen: AcceptanceAuthoringContext): AcceptanceBundle {
   const paths = new Set<string>(); let bytes = filesValid(bundle.verifierFiles, paths), count = bundle.verifierFiles.length;
   for (const file of bundle.verifierFiles) ensure(!['spec.json', 'manifest.json', 'controls'].includes(file.path.split('/')[0]!), 'Reserved asset path');
   const controlIds = new Set<string>();
@@ -248,13 +290,20 @@ async function canonicalLocation(path: string): Promise<string> {
     catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT' || dirname(ancestor) === ancestor) throw error; suffix.unshift(basename(ancestor)); ancestor = dirname(ancestor); }
   }
 }
-export async function materializeAcceptanceBundle(options: { privateRoot: string; jobId: string; context: AcceptanceAuthoringContext; bundle: unknown }): Promise<MaterializedAcceptanceBundle> {
+type MaterializeOptions = { privateRoot: string; jobId: string; context: AcceptanceAuthoringContext; bundle: unknown };
+export async function materializeAcceptanceBundle(options: MaterializeOptions): Promise<MaterializedAcceptanceBundle> {
+  return materializeValidatedAssets(options, validateAcceptanceBundle(options.bundle, options.context));
+}
+export async function materializeCurrentAcceptanceAssets(options: MaterializeOptions & { historicalCases: VerificationSpecCase[] }): Promise<MaterializedAcceptanceBundle> {
+  return materializeValidatedAssets(options, validateCurrentAcceptanceAssets(options.bundle, options.context, options.historicalCases));
+}
+async function materializeValidatedAssets(options: MaterializeOptions, bundle: AcceptanceBundle): Promise<MaterializedAcceptanceBundle> {
   identifier(options.jobId);
   const context = frozenContext(options.context);
   ensure(isAbsolute(options.privateRoot) && resolve(options.privateRoot) === options.privateRoot && options.privateRoot !== context.candidate.workspace && !options.privateRoot.startsWith(context.candidate.workspace + sep), 'Acceptance assets must live outside candidate workspace');
   const candidateRoot = await canonicalLocation(context.candidate.workspace), assetRoot = await canonicalLocation(options.privateRoot);
   ensure(assetRoot !== candidateRoot && !assetRoot.startsWith(candidateRoot + sep), 'Acceptance assets resolve inside candidate workspace');
-  const bundle = validateAcceptanceBundle(options.bundle, context), directory = join(options.privateRoot, options.jobId);
+  const directory = join(options.privateRoot, options.jobId);
   const spec = structuredClone(bundle.spec); for (const control of spec.controls) if (bundle.controls.some(asset => asset.id === control.id)) control.workspace = join(directory, 'controls', control.id);
   parseVerificationSpec(spec);
   const contextDigest = bundle.contextDigest, digest = hash(canonical(bundle));

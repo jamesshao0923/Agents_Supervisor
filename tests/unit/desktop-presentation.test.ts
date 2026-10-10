@@ -78,3 +78,17 @@ test('desktop invalidation guidance preserves uncertainty without exposing raw d
   assert.match(unknown.description, /未能确认/);
   assert.doesNotMatch(unknown.title, /环境已变化|文件与已验收/);
 });
+
+test('P6-DESKTOP-HISTORY-U01 history integrity current files and unknown observation scopes remain distinct', async () => {
+  const { describeDeliveryAssessment } = await import('../../apps/desktop/presentation.js');
+  const { unavailableDeliveryAssessment } = await import('../../packages/verification/delivery-status.js');
+  const value = unavailableDeliveryAssessment({id:'history',jobId:'job',planId:'plan',runtimeId:'runtime',projectId:'project',runId:'run',candidateDigest:'a'.repeat(64),definitionDigest:'b'.repeat(64),createdAt:timestamp,path:'/private/evidence/delivery.json'}, timestamp, {code:'history-unavailable',area:'history',message:'Explicit display fixture'});
+  assert.match(describeDeliveryAssessment(value).title, /待核对/);
+  value.historicalEvidenceIntact=true; value.workspaceMatches=true; value.isActiveRound=true; value.issues=[];
+  const unknown=describeDeliveryAssessment(value);assert.equal(unknown.error,false);assert.equal(unknown.notes.length,3);assert.match(unknown.notes.join(' '),/环境.*标准.*时效/);
+  value.environmentMatches=false;value.headMatches=true;value.sourceFreshness={state:'not-applicable',earliestExpiresAt:null,remoteChecked:false};
+  assert.match(describeDeliveryAssessment(value).detail,/环境、标准或来源时效已有变化/);assert.equal(describeDeliveryAssessment(value).error,false);
+  value.workspaceMatches=false;assert.match(describeDeliveryAssessment(value).title,/当前文件已有变化/);
+  value.isActiveRound=false;assert.match(describeDeliveryAssessment(value).title,/上一轮/);
+  value.historicalEvidenceIntact=false;assert.equal(describeDeliveryAssessment(value).error,true);assert.match(describeDeliveryAssessment(value).title,/核对未通过/);
+});

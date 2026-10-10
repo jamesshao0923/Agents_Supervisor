@@ -34,6 +34,10 @@ export class VerificationRepository {
   }
   remember(commandId: string, request: unknown, result: unknown): void { this.db.prepare('INSERT INTO verification_product_receipts(command_id,request,result) VALUES (?,?,?)').run(commandId, canonical(request), canonical(result)); }
   run(projectId: string, runId: string): Run { const row = this.db.prepare('SELECT snapshot FROM runs WHERE project_id=? AND id=?').get(projectId, runId); if (!row) throw new Error('Unknown verification Run'); return JSON.parse(String(row.snapshot)); }
+  artifactRecord(projectId: string, runId: string, id: string): Artifact | null {
+    const row = this.db.prepare('SELECT digest,path,contract_version FROM artifacts WHERE project_id=? AND run_id=? AND id=?').get(projectId, runId, id);
+    return row ? { id, digest: String(row.digest), path: String(row.path), contractVersion: Number(row.contract_version) } : null;
+  }
   act(projectId: string, runId: string, action: RunAction): Run {
     const { run, events } = applyAction(this.run(projectId, runId), action);
     this.db.prepare('UPDATE runs SET snapshot=?,revision=? WHERE project_id=? AND id=?').run(canonical(run), run.revision, projectId, runId);

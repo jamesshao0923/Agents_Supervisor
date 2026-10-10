@@ -4,6 +4,26 @@ import type { RuntimeEvent, RuntimeOperation, RuntimePhase, RuntimeRecord } from
 import type { ConversationInspection } from '../../packages/contracts/p6-actions.js';
 import type { ConversationMessageState } from '../../packages/contracts/p6.js';
 import type { GoalSession } from '../../packages/contracts/p5.js';
+import type { DeliveryAssessment } from '../../packages/contracts/p4-delivery-status.js';
+
+function deliverySummary(assessment: DeliveryAssessment): { title: string; detail: string; error: boolean } {
+  if (assessment.historicalEvidenceIntact === false) return { title: '历史交付证据核对未通过', detail: '原交付记录或证据文件缺失、损坏，或无法相互对应。请查看技术原因，保留原记录后定位问题。', error: true };
+  if (assessment.historicalEvidenceIntact === null) return { title: '历史交付证据待核对', detail: '尚不能确认原交付证据完整性。原记录保留，暂不显示为核对通过。', error: false };
+  if (assessment.isActiveRound === false) return { title: '上一轮已交付 · 历史证据完整', detail: '当前对话已进入后续工作。这份交付属于上一轮，可继续查看；后续改动需要新的独立验收。', error: false };
+  if (assessment.workspaceMatches === false) return { title: '已交付 · 当前文件已有变化', detail: '原交付证据完整；当前项目文件与当时交付的快照不同。继续构建后会生成新的验收与交付记录。', error: false };
+  if (assessment.workspaceMatches === null) return { title: '已交付 · 当前文件待核对', detail: '原交付证据完整。项目仍有活动或文件暂时不可读，当前目录是否匹配尚未确认。', error: false };
+  if (assessment.environmentMatches === false || assessment.headMatches === false || assessment.sourceFreshness.state === 'expired') return { title: '已交付 · 历史证据完整', detail: '当前文件仍匹配交付快照；验收环境、标准或来源时效已有变化，再次交付需要重新验收。', error: false };
+  return { title: '已交付 · 文件与历史证据一致', detail: '已核对原交付证据与当前项目文件。此状态展示历史结果，新的需求仍需单独执行和验收。', error: false };
+}
+
+export function describeDeliveryAssessment(assessment: DeliveryAssessment): { title: string; detail: string; error: boolean; notes: string[] } {
+  const notes: string[] = [];
+  if (assessment.environmentMatches === null) notes.push('当前验收环境尚未核对。');
+  if (assessment.headMatches === null) notes.push('当前验收标准归属尚未核对。');
+  if (assessment.sourceFreshness.state === 'unknown') notes.push('引用来源的当前时效尚未确认。');
+  if (assessment.issues.some(issue => issue.code === 'workspace-observation-changed')) notes.push('核对期间任务状态发生变化，需重新观察。');
+  return { ...deliverySummary(assessment), notes };
+}
 
 export const preferredTaskModel = 'gpt-6.1-sol';
 export const taskModelCatalog = [

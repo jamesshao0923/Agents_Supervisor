@@ -1,4 +1,6 @@
 import { VerificationLineageRepository } from './verification-lineage.js';
+import { ControlQualificationRepository } from './control-qualification.js';
+import { TaskResultRepository } from './task-results.js';
 import { SupervisionRepository } from './supervision.js';
 import { SupervisionInterruptionRepository } from './supervision-interruptions.js';
 import { SupervisionMonitorRepository } from './supervision-monitor.js';
@@ -47,6 +49,8 @@ export class SupervisorStore {
   readonly conversations: ConversationRepository;
   readonly verification: VerificationRepository;
   readonly verificationLineage: VerificationLineageRepository;
+  readonly controlQualification: ControlQualificationRepository;
+  readonly taskResults: TaskResultRepository;
   private readonly root: string;
   private readonly objects: string;
   private readonly fault: ((point: string) => void) | undefined;
@@ -72,6 +76,8 @@ export class SupervisorStore {
     this.conversations = new ConversationRepository(this.db);
     this.verification = new VerificationRepository(this.db);
     this.verificationLineage = new VerificationLineageRepository(this.db);
+    this.controlQualification = new ControlQualificationRepository(this.db, this.root);
+    this.taskResults = new TaskResultRepository(this.db, this.root);
   }
 
   managedSnapshot(content: string): {path:string;digest:string} { return this.snapshot(content); }
