@@ -124,7 +124,7 @@ export class VerificationController {
           const passed=control.expect==='passed'?evaluated.complete:results.every(r=>r.executionStatus==='executed')&&control.mustFail.every(id=>results.some(r=>r.checks.some(c=>c.obligationId===id&&c.verdict==='failed')));
           job.controls.push({id:control.id,passed,results});context.save();}
         ensure(job.controls.every(c=>c.passed),'Verifier did not classify the known good/bad controls correctly');
-        const prompt=await definitionReviewPrompt(proposal.spec,proposal.bundle,this.repo.head(proposal.projectId),this.repo.run(job.projectId,job.runId).contract.goal,job.controls);
+        const prompt=await definitionReviewPrompt(proposal.spec,proposal.bundle,this.repo.head(proposal.projectId),this.repo.run(job.projectId,job.runId).contract,job.controls);
         const review=await reviewModel(context,prompt,proposal.candidate.tree,join(output,'definition-review'));job.approved=review.verdict==='passed';if(!job.approved)job.error='Independent definition review: '+review.reason;
       }else {
         job.results=await executeInstances(context,proposal.spec,proposal.bundle,plan!.candidate,plan!.selection.instances,'candidate');

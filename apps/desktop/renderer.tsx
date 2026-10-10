@@ -2,33 +2,31 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { ExecutionEvent, ExecutionRecord, ExecutionState, ExecutorCapabilities } from '../../packages/contracts/p2.js';
 
-import type { RuntimeRecord, RuntimeSubmit, RuntimePhase, RuntimeOperation, RuntimeCheckpoint, RuntimeEvent } from '../../packages/contracts/p3.js';
+import type { RuntimeRecord, RuntimePhase, RuntimeOperation, RuntimeCheckpoint, RuntimeEvent } from '../../packages/contracts/p3.js';
 import type { Run } from '../../packages/contracts/p1.js';
 import type { Delivery, FrozenPlan, ModelConfig, Proposal, VerificationAction, VerificationJob } from '../../packages/verification/records.js';
-import { buildTimeline, describeTaskError, describeVerificationProblem } from './presentation.js';
-import type { TimelineEntry } from './presentation.js';
+import { buildTimeline, describeGoalProblem, describeTaskError, describeVerificationProblem, goalPhaseLabels, goalSessionId, mergeGoalSessions, taskViews } from './presentation.js';
+import type { DesktopTask as TaskRecord, TimelineEntry } from './presentation.js';
 
-type StartInput = Omit<RuntimeSubmit, 'type'>;
-type StartResult = { accepted: true; record: RuntimeRecord } | { accepted: false; error: string };
+import { parseOrchestrationAction } from '../../packages/contracts/p5.js';
+import type { GoalInspection, GoalSession, OrchestrationAction } from '../../packages/contracts/p5.js';
+
+type GoalStart = Extract<OrchestrationAction, { type: 'start' }>;
+type StartInput = Omit<GoalStart, 'type'>;
+type StartResult = { accepted: true; record: GoalInspection } | { accepted: false; error: string };
+type GoalMutation = Exclude<OrchestrationAction, { type: 'start' | 'list' | 'inspect' }>;
 interface RuntimeInspection { runtime: RuntimeRecord; run: Run; operations: RuntimeOperation[]; checkpoints: { checkpoint: RuntimeCheckpoint; digest: string; valid: boolean }[] }
 interface VerificationStatus { proposals: Proposal[]; plans: FrozenPlan[]; jobs: VerificationJob[]; deliveries: Delivery[]; currentDelivery: { current: boolean; reason: string; delivery: Delivery | null } }
 type VerificationMutation = Exclude<VerificationAction, { type: 'status' | 'job' }>;
-interface TaskRecord {
-  id: string; workspace: string; workspaceKind: 'project' | 'managed'; prompt: string; createdAt: string;
-  state: ExecutionState | RuntimePhase; error: string | null; message: string;
-  usage: ExecutionRecord['usage']; usageStatus: ExecutionRecord['usageStatus'];
-  runtime?: RuntimeRecord; execution?: ExecutionRecord;
-}
-function taskViews(runtimes: RuntimeRecord[], executions: ExecutionRecord[]): TaskRecord[] {
-  const durable = runtimes.map(runtime => {
-    const execution = executions.filter(item => item.runtimeBinding?.runtimeId === runtime.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
-    return { id: runtime.id, workspace: runtime.workspace, workspaceKind: runtime.workspaceKind, prompt: runtime.definition.goal, createdAt: runtime.createdAt, state: runtime.phase, error: runtime.error || execution?.error || null, message: execution?.message || '', usage: execution?.usage || null, usageStatus: execution?.usageStatus || 'unknown', runtime, ...(execution ? { execution } : {}) } satisfies TaskRecord;
-  });
-  const legacy = executions.filter(item => !item.runtimeBinding).map(execution => ({ ...execution, execution } satisfies TaskRecord));
-  return [...durable, ...legacy].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-}
 interface DesktopAPI {
   health(): Promise<unknown>;
+  orchestrationList(): Promise<GoalSession[]>;
+  orchestrationInspect(id: string): Promise<GoalInspection>;
+  orchestrationStart(input: StartInput): Promise<StartResult>;
+  orchestrationAnswer(input: Omit<Extract<GoalMutation, { type: 'answer' }>, 'type'>): Promise<GoalInspection>;
+  orchestrationAdmit(input: Omit<Extract<GoalMutation, { type: 'admit' }>, 'type'>): Promise<GoalInspection>;
+  orchestrationRestore(input: Omit<Extract<GoalMutation, { type: 'restore' }>, 'type'>): Promise<GoalInspection>;
+  orchestrationCancel(input: Omit<Extract<GoalMutation, { type: 'cancel' }>, 'type'>): Promise<GoalInspection>;
   list(): Promise<ExecutionRecord[]>;
   inspect(id: string): Promise<ExecutionRecord>;
   events(id: string, after: number): Promise<ExecutionEvent[]>;
@@ -36,7 +34,6 @@ interface DesktopAPI {
   runtimeList(): Promise<RuntimeRecord[]>;
   runtimeInspect(id: string): Promise<RuntimeInspection>;
   runtimeEvents(id: string, after: number): Promise<RuntimeEvent[]>;
-  runtimeSubmit(input: StartInput): Promise<StartResult>;
   runtimePause(id: string, commandId: string): Promise<RuntimeRecord>;
   runtimeResume(id: string, commandId: string): Promise<RuntimeRecord>;
   runtimeCancel(id: string, commandId: string): Promise<RuntimeRecord>;
@@ -64,8 +61,8 @@ const labels: Record<ExecutionState | RuntimePhase, string> = {
   ready: '等待派发', 'waiting-input': '等待输入', paused: '已暂停派发', blocked: '恢复阻塞 · 待核对', 'awaiting-verification': '步骤已结束 · 待独立验收',
   completed: '执行结束 · 待验收', cancelled: '已取消', failed: '执行失败', interrupted: '执行中断', unknown: '状态待核对'
 };
-const active = (record: TaskRecord) => ['ready', 'queued', 'starting', 'running', 'waiting', 'cancelling'].includes(record.state) || Boolean(record.execution && !record.execution.stopConfirmed && ['starting', 'running', 'waiting', 'cancelling'].includes(record.execution.state));
-const statusLabel = (record: TaskRecord) => record.runtime?.cancelled && record.execution && !record.execution.stopConfirmed ? '取消已请求 · 待停止核对' : labels[record.state];
+const active = (record: TaskRecord) => record.session ? record.session.phase === 'thinking' : ['ready', 'queued', 'starting', 'running', 'waiting', 'cancelling'].includes(record.state) || Boolean(record.execution && !record.execution.stopConfirmed && ['starting', 'running', 'waiting', 'cancelling'].includes(record.execution.state));
+const statusLabel = (record: TaskRecord) => record.session ? goalPhaseLabels[record.session.phase] : record.runtime?.cancelled && record.execution && !record.execution.stopConfirmed ? '取消已请求 · 待停止核对' : labels[record.state as ExecutionState | RuntimePhase];
 const basename = (path: string) => path.split('/').filter(Boolean).at(-1) || path;
 const time = (value: string) => new Date(value).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const date = (value: string) => new Date(value).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -89,6 +86,15 @@ function EventItem({ entry }: { entry: TimelineEntry }) {
 function App() {
   const [executions, setExecutions] = useState<ExecutionRecord[]>([]);
   const [runtimes, setRuntimes] = useState<RuntimeRecord[]>([]);
+  const [sessions, setSessions] = useState<GoalSession[]>([]);
+  const [goalDetail, setGoalDetail] = useState<GoalInspection | null>(null);
+  const [goalReadError, setGoalReadError] = useState('');
+  const [goalActionError, setGoalActionError] = useState('');
+  const [goalLoading, setGoalLoading] = useState(false);
+  const [answerText, setAnswerText] = useState('');
+  const [goalPending, setGoalPending] = useState<GoalMutation | null>(null);
+  const goalPendingRef = useRef<GoalMutation | null>(null);
+  const pendingSessionIdRef = useRef<string | null>(null);
   const [runtimeDetail, setRuntimeDetail] = useState<RuntimeInspection | null>(null);
   const [runtimeEvents, setRuntimeEvents] = useState<RuntimeEvent[]>([]);
   const [inputText, setInputText] = useState('');
@@ -105,7 +111,7 @@ function App() {
   const [reviewReservation, setReviewReservation] = useState(20000);
   const [reviewTimeout, setReviewTimeout] = useState(300);
   const [verificationPending, setVerificationPending] = useState<{ runtimeId: string; action: VerificationMutation } | null>(null);
-  const records = taskViews(runtimes, executions);
+  const records = taskViews(runtimes, executions, sessions);
   const [connection, setConnection] = useState<'connecting' | 'online' | 'offline' | 'detached'>('connecting');
   const [monitoring, setMonitoring] = useState(true);
   const [revision, setRevision] = useState(0);
@@ -126,18 +132,24 @@ function App() {
   const [prompt, setPrompt] = useState('');
   const [model, setModel] = useState('');
   const [effort, setEffort] = useState('');
-  const [images, setImages] = useState<string[]>([]);
+  const [maxContextChars, setMaxContextChars] = useState(60000);
   const [timeout, setTimeoutValue] = useState(300);
-  const [tokenLimit, setTokenLimit] = useState(170000);
-  const [reservation, setReservation] = useState(150000);
-  const [verificationReserve, setVerificationReserve] = useState(20000);
+  const [tokenLimit, setTokenLimit] = useState(500000);
+  const [reservation, setReservation] = useState(100000);
+  const [verificationReserve, setVerificationReserve] = useState(100000);
   const [pending, setPending] = useState<StartInput | null>(null);
   const pendingRef = useRef<StartInput | null>(null);
   const capabilityLoading = useRef(false);
   const selectedRef = useRef(selected); selectedRef.current = selected;
   const verificationPendingRef = useRef<typeof verificationPending>(null);
   const chosen = records.find(record => record.id === selected) ?? null;
+  const selectedSession = sessions.find(session => session.id === selected) ?? null;
+  const selectedGoal = goalDetail?.session.id === selected ? goalDetail : null;
+  const goalSession = selectedSession && (!selectedGoal || selectedSession.revision > selectedGoal.session.revision) ? selectedSession : selectedGoal?.session ?? selectedSession;
+  const latestRestore = goalSession?.jobs.filter(job => job.purpose === 'restore' && job.status === 'finished' && job.stopConfirmed && job.usage !== null && !job.error && job.proposal?.summary.trim()).slice().sort((a, b) => (b.finishedAt || b.startedAt).localeCompare(a.finishedAt || a.startedAt))[0];
   const chosenRuntime = chosen?.runtime;
+  const associatedSession = sessions.find(session => session.runtimeId === chosenRuntime?.id);
+  const sessionRuntime = runtimes.find(runtime => runtime.id === goalSession?.runtimeId);
   const chosenExecution = chosen?.execution;
   const detail = runtimeDetail?.runtime.id === selected ? runtimeDetail : null;
   const waitingStep = chosenRuntime?.definition.steps[chosenRuntime.cursor];
@@ -186,14 +198,14 @@ function App() {
     async function poll() {
       try {
         await api.health();
-        const [result, durable] = await Promise.all([api.list(), api.runtimeList()]);
+        const [result, durable, goals] = await Promise.all([api.list(), api.runtimeList(), api.orchestrationList()]);
         if (ended) return;
-        const ordered = taskViews(durable, result);
-        setExecutions(result); setRuntimes(durable);
+        const ordered = taskViews(durable, result, goals);
+        setExecutions(result); setRuntimes(durable); setSessions(current => mergeGoalSessions(current, goals));
         setProject(current => current && ordered.some(item => item.workspace === current) ? current : null);
         setConnection('online'); setConnectionError(''); setLastSync(new Date().toISOString());
-        const pendingRecord = pendingRef.current && durable.find(item => item.definition.commandId === pendingRef.current?.commandId);
-        if (pendingRecord) { pendingRef.current = null; setPending(null); setComposer(false); setSelected(pendingRecord.id); setProject(pendingRecord.workspace); setCollapsed(current => { const next = new Set(current); next.delete(pendingRecord.workspace); return next; }); setActionError(''); }
+        const pendingRecord = pendingRef.current && goals.find(item => item.id === pendingSessionIdRef.current);
+        if (pendingRecord) { pendingRef.current = null; pendingSessionIdRef.current = null; setPending(null); setComposer(false); setSelected(pendingRecord.id); setProject(pendingRecord.workspace); setCollapsed(current => { const next = new Set(current); next.delete(pendingRecord.workspace); return next; }); setActionError(''); }
       } catch (error) { if (!ended) { setConnection('offline'); setConnectionError(errorText(error)); } }
       if (!ended) timer = globalThis.setTimeout(poll, 2000);
     }
@@ -201,6 +213,26 @@ function App() {
     return () => { ended = true; globalThis.clearTimeout(timer); };
   }, [monitoring, revision]);
   useEffect(() => { if (connection === 'online' && composer && !capabilities && !capError) void loadCapabilities(); }, [connection, composer, capabilities, capError, loadCapabilities]);
+  useEffect(() => {
+    setGoalDetail(null); setGoalReadError(''); setGoalActionError(''); setAnswerText('');
+  }, [selected]);
+  useEffect(() => {
+    if (!selected?.startsWith('goal-') || !monitoring || connection !== 'online') { setGoalLoading(false); return; }
+    const sessionId = selected; let ended = false;
+    let timer: ReturnType<typeof globalThis.setTimeout>;
+    async function poll() {
+      setGoalLoading(true);
+      try {
+        const inspection = await api.orchestrationInspect(sessionId);
+        if (ended) return;
+        setGoalDetail(current => current?.session.id === sessionId && current.session.revision > inspection.session.revision ? current : inspection);
+        setSessions(current => mergeGoalSessions(current, [inspection.session])); setGoalReadError('');
+      } catch (error) { if (!ended) setGoalReadError(errorText(error)); }
+      finally { if (!ended) setGoalLoading(false); }
+      if (!ended) timer = globalThis.setTimeout(poll, 2000);
+    }
+    void poll(); return () => { ended = true; globalThis.clearTimeout(timer); };
+  }, [selected, monitoring, connection, revision]);
   useEffect(() => {
     setSpecPath(''); setProposalId(''); setPlanId(''); setVerificationError(''); setVerificationReadError(''); setVerificationData(null);
     setReviewModel(chosenExecution?.model || model); setReviewEffort(chosenExecution?.effort || effort);
@@ -233,7 +265,7 @@ function App() {
   }, [selected, isRuntime, monitoring, connection, verificationRevision]);
   useEffect(() => {
     setEvents([]); setRuntimeEvents([]); setRuntimeDetail(null); setInputText(''); setEventError('');
-    if (!selected || !monitoring) return;
+    if (!selected || !monitoring || selectedSession) return;
     const taskId = selected;
     let ended = false, cursor = 0, runtimeCursor = 0;
     let timer: ReturnType<typeof globalThis.setTimeout>;
@@ -263,28 +295,80 @@ function App() {
     }
     void poll();
     return () => { ended = true; globalThis.clearTimeout(timer); };
-  }, [selected, isRuntime, childExecutionId, monitoring, revision]);
+  }, [selected, isRuntime, childExecutionId, monitoring, revision, Boolean(selectedSession)]);
   const refresh = () => { setMonitoring(true); setConnection('connecting'); setRevision(value => value + 1); };
+  function rememberGoal(inspection: GoalInspection) {
+    setSessions(current => mergeGoalSessions(current, [inspection.session]));
+    if (selectedRef.current === inspection.session.id) setGoalDetail(current => current?.session.id === inspection.session.id && current.session.revision > inspection.session.revision ? current : inspection);
+  }
   async function start(event: React.FormEvent) {
     event.preventDefault(); setActionError('');
-    const input: StartInput = pending ?? { commandId: crypto.randomUUID(), ...(workspace.trim() ? { workspace: workspace.trim() } : {}), goal: prompt.trim(), tokenLimit, verificationReserve, steps: [{ id: 'codex-execution', kind: 'codex', prompt: prompt.trim(), model, effort, timeoutMs: timeout * 1000, reservation, ...(images.length ? { images } : {}) }] };
-    const codex = input.steps.find(step => step.kind === 'codex');
-    if ((input.workspace && !input.workspace.startsWith('/')) || !input.goal || !codex || codex.kind !== 'codex' || !codex.model || !codex.effort) { setActionError('请填写目标、模型和思考深度；工作区可留空，填写时须使用绝对路径。'); return; }
-    if (![codex.timeoutMs, input.tokenLimit, codex.reservation, input.verificationReserve].every(Number.isSafeInteger) || timeout < 1 || timeout > 3600 || reservation < 1 || verificationReserve < 1 || codex.reservation + input.verificationReserve > input.tokenLimit) { setActionError('超时须为 1–3600 秒；总额度须覆盖执行预留与独立验收预留。'); return; }
+    let input: StartInput;
+    try {
+      const action = parseOrchestrationAction({ type: 'start', ...(pending ?? { commandId: crypto.randomUUID(), ...(workspace.trim() ? { workspace: workspace.trim() } : {}), goal: prompt.trim(), tokenLimit, verificationReserve, model, effort, timeoutMs: timeout * 1000, reservation, maxContextChars }) });
+      if (action.type !== 'start') throw new Error('Invalid goal request');
+      if (action.workspace && !action.workspace.startsWith('/')) throw new Error('项目目录须使用绝对路径。');
+      const { type: _type, ...value } = action; input = value;
+    } catch (error) { setActionError(`请核对目标、模型、深度、超时与额度：${errorText(error)}`); return; }
     pendingRef.current = input; setPending(input); setBusy(true);
     try {
-      const result = await api.runtimeSubmit(input);
+      pendingSessionIdRef.current = await goalSessionId(input.commandId);
+      const result = await api.orchestrationStart(input);
       if (!result.accepted) {
-        pendingRef.current = null; setPending(null);
-        setActionError(`${result.error}。后台已拒绝本次请求；请修改后重新提交。`);
-        return;
+        pendingRef.current = null; pendingSessionIdRef.current = null; setPending(null);
+        setActionError(`${result.error}。后台已拒绝本次请求；请修改后重新提交。`); return;
       }
-      const record = result.record;
-      setRuntimes(current => [record, ...current.filter(item => item.id !== record.id)]);
-      pendingRef.current = null; setPending(null); setSelected(record.id); setProject(record.workspace); setCollapsed(current => { const next = new Set(current); next.delete(record.workspace); return next; }); setComposer(false);
+      const record = result.record.session;
+      setSessions(current => mergeGoalSessions(current, [record])); setGoalDetail(result.record);
+      pendingRef.current = null; pendingSessionIdRef.current = null; setPending(null); setSelected(record.id); setProject(record.workspace); setCollapsed(current => { const next = new Set(current); next.delete(record.workspace); return next; }); setComposer(false);
       setRevision(value => value + 1);
     } catch (error) { setActionError(`${errorText(error)}。请求编号已保留；请先重连核对，重试将使用同一编号。`); }
     finally { setBusy(false); }
+  }
+  async function openSessionRuntime(session: GoalSession) {
+    if (!session.runtimeId) return;
+    try {
+      const inspection = await api.runtimeInspect(session.runtimeId);
+      setRuntimes(current => [inspection.runtime, ...current.filter(item => item.id !== inspection.runtime.id)]);
+      setRuntimeDetail(inspection); setSelected(inspection.runtime.id); setProject(session.workspace); setComposer(false);
+    } catch (error) { setGoalActionError(`已准入的执行任务暂未读到，请重新核对：${errorText(error)}`); }
+  }
+  async function cancelSessionRuntime() {
+    if (!goalSession?.runtimeId) return;
+    setBusy(true); setGoalActionError('');
+    try {
+      const record = await api.runtimeCancel(goalSession.runtimeId, crypto.randomUUID());
+      setRuntimes(current => [record, ...current.filter(item => item.id !== record.id)]);
+      setRevision(value => value + 1);
+    } catch (error) { setGoalActionError(errorText(error)); }
+    finally { setBusy(false); }
+  }
+  async function performGoalAction(action: GoalMutation) {
+    if (goalPendingRef.current && goalPendingRef.current !== action) { setGoalActionError('有待核对请求，请先重试同一请求或清除待核对记录。'); return; }
+    goalPendingRef.current = action; setGoalPending(action); setBusy(true); setGoalActionError('');
+    try {
+      const { type, ...input } = action;
+      let inspection: GoalInspection;
+      switch (type) {
+        case 'answer': inspection = await api.orchestrationAnswer(input as Omit<Extract<GoalMutation, { type: 'answer' }>, 'type'>); break;
+        case 'admit': inspection = await api.orchestrationAdmit(input as Omit<Extract<GoalMutation, { type: 'admit' }>, 'type'>); break;
+        case 'restore': inspection = await api.orchestrationRestore(input as Omit<Extract<GoalMutation, { type: 'restore' }>, 'type'>); break;
+        case 'cancel': inspection = await api.orchestrationCancel(input); break;
+      }
+      goalPendingRef.current = null; setGoalPending(null); rememberGoal(inspection);
+      if (selectedRef.current === action.sessionId) {
+        if (type === 'answer') setAnswerText('');
+        if (type === 'admit') await openSessionRuntime(inspection.session);
+        setRevision(value => value + 1);
+      }
+    } catch (error) { if (selectedRef.current === action.sessionId) setGoalActionError(errorText(error)); }
+    finally { setBusy(false); }
+  }
+  function goalAction(type: 'answer' | 'admit' | 'restore' | 'cancel') {
+    if (!goalSession) return;
+    const base = { commandId: crypto.randomUUID(), sessionId: goalSession.id };
+    const action: GoalMutation = type === 'cancel' ? { type, ...base } : type === 'answer' ? { type, ...base, expectedRevision: goalSession.revision, text: answerText.trim() } : { type, ...base, expectedRevision: goalSession.revision };
+    void performGoalAction(action);
   }
   async function control(kind: 'pause' | 'resume' | 'cancel' | 'reconcile') {
     if (!chosen) return;
@@ -312,7 +396,7 @@ function App() {
     setComposer(true); setSelected(null); setActionError('');
     if (pendingRef.current) return;
     setProject(path);
-    setWorkspace(path ?? ''); setPrompt(''); setImages([]);
+    setWorkspace(path ?? ''); setPrompt('');
   }
   function renewTask() {
     if (!chosen) return;
@@ -323,7 +407,6 @@ function App() {
   function selectTask(record: TaskRecord) { setSelected(record.id); setProject(record.workspace); setComposer(false); }
   async function openWorkspace(id: string) { try { await api.openWorkspace(id); } catch (error) { setActionError(errorText(error)); } }
   async function chooseWorkspace() { try { const path = await api.chooseWorkspace(); if (path) setWorkspace(path); } catch (error) { setActionError(errorText(error)); } }
-  async function chooseImages() { try { const paths = await api.chooseImages(); setImages(current => Array.from(new Set([...current, ...paths])).slice(0, 5)); } catch (error) { setActionError(errorText(error)); } }
   async function chooseSpec() { try { const path = await api.chooseVerificationSpec(); if (path) setSpecPath(path); } catch (error) { setVerificationError(errorText(error)); } }
   function modelConfig(): ModelConfig {
     if (!reviewModel || !reviewEffort || !Number.isSafeInteger(reviewReservation) || reviewReservation < 1 || !Number.isSafeInteger(reviewTimeout) || reviewTimeout < 1 || reviewTimeout > 3600 || availableBudget !== null && reviewReservation > availableBudget) throw new Error('请选择实际模型和深度，设置可用累计额度内的验收预留，以及 1–3600 秒的超时。');
@@ -372,6 +455,8 @@ function App() {
     } catch (error) { setVerificationError(errorText(error)); }
   }
   const online = connection === 'online';
+  const goalReady = online && !busy && !goalPending && !goalReadError && Boolean(selectedGoal) && Boolean(goalSession && selectedGoal?.session.revision === goalSession.revision);
+  const restoreReady = goalReady && Boolean(goalSession?.runtimeId) && !['thinking', 'cancelled'].includes(goalSession?.phase || '') && Boolean(selectedGoal?.run.attempts.every(attempt => attempt.status !== 'running' && attempt.settled)) && Boolean(sessionRuntime && ['paused', 'blocked', 'awaiting-verification'].includes(sessionRuntime.phase));
   const verificationTerminal = Boolean(detail && ['succeeded', 'cancelled'].includes(detail.run.status));
   const verificationReady = online && !busy && !verificationLoading && !verificationReadError && Boolean(detail) && !verificationTerminal && !activeVerificationJob && !verificationPending && chosenRuntime?.phase === 'awaiting-verification' && !chosenRuntime.paused && !chosenRuntime.cancelled;
   const currentDeliveryKnown = online && Boolean(verification) && !verificationReadError;
@@ -393,7 +478,6 @@ function App() {
       <details><summary>查看证据与作业编号</summary><p className="mono form-hint">{job.id}</p><p className="form-hint">{Object.keys(job.proofs).length} 份摘要绑定的证据 · {job.modelStarted ? '已派发独立模型' : '尚未派发模型'}</p>{Object.entries(job.proofs).map(([path, digest]) => <p className="verification-proof mono" key={path} title={path}>{path}<br/>{digest}</p>)}</details>
     </div>;
   }
-  const modelSupportsImages = Boolean(capabilities?.imageInput && selectedModel?.inputModalities.includes('image'));
   return <div className="shell">
     <aside className="sidebar" aria-label="项目与任务">
       <button className="brand" aria-label="返回首页" onClick={() => { setProject(null); setSelected(null); setComposer(false); }}><span className="brand-mark"><Icon name="agent" size={21}/></span>Supervisor</button>
@@ -423,36 +507,60 @@ function App() {
         {actionError && <div className="notice error" role="alert">{actionError}</div>}
         {composer && <form className="composer" onSubmit={event => { void start(event); }} aria-label="新建真实 Codex 任务">
           <div className="composer-head"><h2>{workspace.trim() ? '在项目中创建任务' : '创建新任务'}</h2><button type="button" className="icon-button" aria-label="关闭新任务面板" onClick={() => setComposer(false)}><Icon name="close"/></button></div>
-          <p className="form-hint">选择已有项目目录，或留空使用独立暂存工作区。Codex 会在该目录实际读写文件。</p>
+          <p className="form-hint">先由主控分析目标、提出澄清问题与执行计划，点击开始执行后才派发任务。当前需求分析接收文字；选择项目目录或留空使用独立暂存工作区。</p>
           <fieldset disabled={busy || Boolean(pending)}>
             <label className="field"><span>项目目录（可选）</span><div className="input-action"><input aria-label="工作区路径" value={workspace} onChange={event => setWorkspace(event.target.value)} placeholder="留空，自动创建暂存工作区"/><button type="button" className="button" onClick={() => { void chooseWorkspace(); }}><Icon name="folder"/>选择文件夹</button></div></label>
             <div className="workspace-hint">{workspace.trim() ? <><p className="form-hint">任务将挂载到此目录对应的项目。</p><button type="button" className="button ghost" onClick={() => setWorkspace('')}>改用独立暂存目录</button></> : <p className="form-hint">自动创建 ~/.supervisor/workspace/…，用于保存本次任务的文件与资料。退出应用后仍保留。</p>}</div>
-            <label className="field"><span>本次目标</span><textarea aria-label="本次目标" value={prompt} onChange={event => setPrompt(event.target.value)} placeholder="描述需要修改的内容、边界与可验证的结果…" maxLength={200000} required/></label>
-            <div className="field-row"><label className="field"><span>执行模型</span><select aria-label="执行模型" value={model} onChange={event => { const next = capabilities?.models.find(item => item.id === event.target.value); setModel(event.target.value); setEffort(next?.defaultEffort || next?.reasoningEfforts[0] || ''); setImages([]); }} disabled={!capabilities}><option value="" disabled>{capLoading ? '正在发现真实模型…' : '请选择模型'}</option>{capabilities?.models.map(item => <option key={item.id} value={item.id}>{item.label || item.id}</option>)}</select></label>
+            <label className="field"><span>本次目标</span><textarea aria-label="本次目标" value={prompt} onChange={event => setPrompt(event.target.value)} placeholder="描述需要解决的问题、已有条件与期望结果；主控将先分析需求…" maxLength={40000} required/></label>
+            <div className="field-row"><label className="field"><span>主控模型</span><select aria-label="主控模型" value={model} onChange={event => { const next = capabilities?.models.find(item => item.id === event.target.value); setModel(event.target.value); setEffort(next?.defaultEffort || next?.reasoningEfforts[0] || ''); }} disabled={!capabilities}><option value="" disabled>{capLoading ? '正在发现真实模型…' : '请选择模型'}</option>{capabilities?.models.map(item => <option key={item.id} value={item.id}>{item.label || item.id}</option>)}</select></label>
             <label className="field"><span>思考深度</span><select aria-label="思考深度" value={effort} onChange={event => setEffort(event.target.value)} disabled={!selectedModel}><option value="" disabled>由执行器提供</option>{selectedModel?.reasoningEfforts.map(item => <option key={item} value={item}>{item}</option>)}</select></label></div>
-            <button type="button" className="button ghost" disabled={!modelSupportsImages || images.length >= 5} onClick={() => { void chooseImages(); }}><Icon name="image"/>附加真实截图（{images.length}/5）</button>
-            {images.length > 0 && <div className="image-list">{images.map(path => <p key={path}>{basename(path)}</p>)}<button type="button" className="plain-button" onClick={() => setImages([])}>移除图像附件</button></div>}
-            <details className="advanced"><summary>运行边界与预算</summary><div className="advanced-grid">
+            <details className="advanced"><summary>主控分析边界与累计预算</summary><div className="advanced-grid">
               <label className="field"><span>超时（秒）</span><input aria-label="超时秒数" type="number" min="1" max="3600" value={timeout} onChange={event => setTimeoutValue(Number(event.target.value))}/></label>
               <label className="field"><span>总额度（tokens）</span><input aria-label="总额度" type="number" min="1" value={tokenLimit} onChange={event => setTokenLimit(Number(event.target.value))}/></label>
-              <label className="field"><span>执行预留（tokens）</span><input aria-label="执行预留" type="number" min="1" value={reservation} onChange={event => setReservation(Number(event.target.value))}/></label>
+              <label className="field"><span>每次模型调用预留（tokens）</span><input aria-label="模型调用预留" type="number" min="1" value={reservation} onChange={event => setReservation(Number(event.target.value))}/></label>
+              <label className="field"><span>上下文容量（字符）</span><input aria-label="上下文容量" type="number" min="8000" max="200000" value={maxContextChars} onChange={event => setMaxContextChars(Number(event.target.value))}/></label>
               <label className="field"><span>验收预留（tokens）</span><input aria-label="验收预留" type="number" min="1" value={verificationReserve} onChange={event => setVerificationReserve(Number(event.target.value))}/></label>
-            </div><p className="form-hint">按执行器回报的原始 token 用量监控额度，包含缓存 token，不代表金额。验收额度单独保留；未知用量不当作零消耗。</p></details>
+            </div><p className="form-hint">主控分析与准入后的执行共用累计账本，每次模型调用沿用此预留。后台按真实用量与剩余额度控制派发；不足时拒绝，不会自动提高预算。验收额度单独保留，未知用量不计作零。</p></details>
           </fieldset>
           {capError && <div className="validation" role="alert">模型能力发现失败：{capError} <button type="button" className="plain-button" onClick={() => { void loadCapabilities(); }} disabled={!online || capLoading}>重新发现</button></div>}
           {pending && <p className="form-hint mono">待核对请求：{pending.commandId}</p>}
-          <div className="composer-footer"><p>执行结束仅表示本次尝试结束。<br/>交付仍须独立验收，本阶段不自动放行。</p><button className="button primary" type="submit" disabled={!online || busy || (!pending && (!model || !effort || !prompt.trim()))}>{busy ? '正在提交…' : pending ? '重试同一请求' : '启动 Codex'}<Icon name="arrow"/></button></div>
+          <div className="composer-footer"><p>主控输出是需求与计划提案。<br/>执行及独立验收通过后才可确认交付。</p><button className="button primary" type="submit" disabled={!online || busy || (!pending && (!model || !effort || !prompt.trim()))}>{busy ? '正在提交…' : pending ? '重试同一请求' : '分析需求'}<Icon name="arrow"/></button></div>
         </form>}
         <div className="board-head"><h2>{currentProject ? '项目任务' : '项目'}<span className="pill">{currentProject ? `${visible.length} 个任务` : `${projects.length} 个项目`}</span></h2>{currentProject && <span className="subtle">{visible.filter(active).length} 执行中</span>}</div>
-        {!currentProject && projects.length > 0 ? <div className="project-grid">{projects.map(item => <button className="project-card" key={item.path} onClick={() => { setProject(item.path); setSelected(null); setComposer(false); }} aria-label={`打开项目 ${projectName(item)}`}><div className="project-card-title"><Icon name="folder" size={20}/><strong>{projectName(item)}</strong>{item.managed && <span className="pill">暂存</span>}<Icon name="arrow"/></div><p className="mono" title={item.path}>{item.path}</p><span>{item.tasks.length} 个任务 · {item.tasks.filter(active).length} 执行中</span></button>)}</div> : visible.length ? <div className="grid">{visible.map(record => <button key={record.id} className={`agent-card ${selected === record.id ? 'selected' : ''}`} onClick={() => selectTask(record)} aria-label={`查看任务：${record.prompt}`}><div className="agent-top"><span className="agent-icon"><Icon name="agent" size={25}/></span><span className="pill">{record.runtime ? '持久任务' : 'Codex'}</span></div><div className="agent-role">{record.runtime ? '监督任务 / 固定步骤' : '执行 Agent / 单次尝试'}</div><h3>{record.prompt}</h3><Status record={record} deliveryLabel={selected === record.id ? deliveryLabel : ''}/><div className="agent-excerpt">{(record.error ? describeTaskError(record.error) : '') || record.message || (record.runtime ? `${Math.min(record.runtime.cursor + 1, record.runtime.definition.steps.length)} / ${record.runtime.definition.steps.length} 步 · ${record.runtime.definition.steps[record.runtime.cursor]?.kind || '执行步骤已结束'}` : '等待执行器事件。')}</div><div className="agent-bottom"><span title={record.workspace}>{record.workspaceKind === 'managed' ? '暂存工作区' : basename(record.workspace)}</span><span>{record.usageStatus === 'reported' && record.usage ? `${count(record.usage.totalTokens)} tokens${record.runtime ? ' · 当前尝试' : ''}` : record.runtime && !record.execution ? '执行阶段未调用模型' : '用量待回报'}</span></div></button>)}</div>
+        {!currentProject && projects.length > 0 ? <div className="project-grid">{projects.map(item => <button className="project-card" key={item.path} onClick={() => { setProject(item.path); setSelected(null); setComposer(false); }} aria-label={`打开项目 ${projectName(item)}`}><div className="project-card-title"><Icon name="folder" size={20}/><strong>{projectName(item)}</strong>{item.managed && <span className="pill">暂存</span>}<Icon name="arrow"/></div><p className="mono" title={item.path}>{item.path}</p><span>{item.tasks.length} 个任务 · {item.tasks.filter(active).length} 执行中</span></button>)}</div> : visible.length ? <div className="grid">{visible.map(record => <button key={record.id} className={`agent-card ${selected === record.id ? 'selected' : ''}`} onClick={() => selectTask(record)} aria-label={`查看任务：${record.prompt}`}><div className="agent-top"><span className="agent-icon"><Icon name="agent" size={25}/></span><span className="pill">{record.session ? '需求会话' : record.runtime ? '持久任务' : 'Codex'}</span></div><div className="agent-role">{record.session ? '主控 / 需求与计划提案' : record.runtime ? '监督任务 / 固定步骤' : '执行 Agent / 单次尝试'}</div><h3>{record.prompt}</h3><Status record={record} deliveryLabel={selected === record.id ? deliveryLabel : ''}/><div className="agent-excerpt">{(record.error ? record.session ? describeGoalProblem(record.error) : describeTaskError(record.error) : '') || record.message || (record.runtime ? `${Math.min(record.runtime.cursor + 1, record.runtime.definition.steps.length)} / ${record.runtime.definition.steps.length} 步 · ${record.runtime.definition.steps[record.runtime.cursor]?.kind || '执行步骤已结束'}` : record.session ? record.session.phase === 'thinking' ? '主控正在分析需求，尚未派发执行。' : '等待主控需求与计划提案。' : '等待执行器事件。')}</div><div className="agent-bottom"><span title={record.workspace}>{record.workspaceKind === 'managed' ? '暂存工作区' : basename(record.workspace)}</span><span>{record.usageStatus === 'reported' && record.usage ? `${count(record.usage.totalTokens)} tokens${record.runtime ? ' · 当前尝试' : ''}` : record.session ? `已记录 ${record.session.jobs.length} 次主控分析` : record.runtime && !record.execution ? '执行阶段未调用模型' : '用量待回报'}</span></div></button>)}</div>
           : <div className="empty"><Icon name="agent" size={36}/><h2>从一个明确的目标开始</h2><p>选择已有项目，或直接描述目标。没有项目目录时，Supervisor 会自动创建暂存工作区。</p><button className="button primary" onClick={() => newTask(project)}><Icon name="plus"/>创建第一个任务</button></div>}
         {!currentProject && !composer && <div className="single-note"><i className="dot"/>任务按项目目录管理；选择项目继续工作。</div>}
       </section>
-      {chosen && <aside className="detail" aria-label="任务详情"><header className="detail-header"><div className="detail-title"><h2>{chosenRuntime ? '任务详情' : '尝试详情'}</h2><button className="icon-button" aria-label="关闭任务详情" onClick={() => setSelected(null)}><Icon name="close"/></button></div><p className="detail-goal">{chosen.prompt}</p><Status record={chosen} deliveryLabel={deliveryLabel}/></header><div className="detail-body">
+      {goalSession && <aside className="detail goal-detail" aria-label="主控需求会话"><header className="detail-header"><div className="detail-title"><h2>需求与执行计划</h2><button className="icon-button" aria-label="关闭需求详情" onClick={() => setSelected(null)}><Icon name="close"/></button></div><p className="detail-goal">{goalSession.goal}</p><span className={`agent-status ${goalSession.phase === 'blocked' ? 'failed' : goalSession.phase === 'thinking' ? '' : 'stopped'}`}><i className="dot"/>{goalSession.phase === 'thinking' && goalSession.runtimeId ? '主控恢复分析中' : goalPhaseLabels[goalSession.phase]}</span></header><div className="detail-body">
+        <dl className="facts"><dt>项目目录</dt><dd>{goalSession.workspace}<br/><span className="subtle">{goalSession.workspaceKind === 'managed' ? 'Supervisor 暂存工作区' : '本地项目'}</span></dd><dt>主控模型</dt><dd>{goalSession.config.model} / {goalSession.config.effort}</dd><dt>累计额度</dt><dd>{selectedGoal ? `${count(selectedGoal.run.budget.spent)} / ${count(selectedGoal.run.budget.limit)} tokens` : '正在读取账本'}<br/>{selectedGoal ? `${selectedGoal.run.attempts.filter(attempt => !attempt.settled).length} 次用量待结算` : ''}</dd><dt>上下文容量</dt><dd>{count(goalSession.maxContextChars)} 字符</dd></dl>
+        {!online && <div className="notice compact">界面未连接后台，以下为上次已知需求记录；重新连接后核对再操作。</div>}
+        {goalReadError && <div className="notice error compact" role="alert">需求记录同步失败，操作已暂停。<details className="technical-details"><summary>查看同步错误</summary><pre>{goalReadError}</pre></details></div>}
+        {goalActionError && <div className="notice error compact" role="alert"><strong>{describeGoalProblem(goalActionError)}</strong><details className="technical-details"><summary>查看操作错误原文</summary><pre>{goalActionError}</pre></details></div>}
+        {goalSession.phase === 'thinking' && <div className="notice compact" role="status">{goalSession.runtimeId ? '主控正在新会话中读取当前任务与项目记忆。恢复分析不会自动重跑已经准入的执行步骤。' : '主控正在分析目标与已有条件。若必要信息不足，将提出问题；计划就绪后由你点击开始执行。'}</div>}
+        {goalSession.phase === 'blocked' && <div className="notice error compact"><strong>{describeGoalProblem(goalSession.error || '')}</strong><p>当前没有新增执行授权；请核对具体原因与账本，不会将阻塞计为完成。</p><details className="technical-details"><summary>查看主控错误与证据</summary><pre>{goalSession.error || '后台未提供具体错误，需重新核对。'}</pre></details></div>}
+        {goalSession.phase === 'cancelled' && <div className="notice compact">需求会话已取消。已保存的输入与分析记录仍保留。</div>}
+        {latestRestore?.proposal && <section className="goal-runtime" aria-label="最近恢复分析"><h3 className="section-title">最近恢复分析<time dateTime={latestRestore.finishedAt || latestRestore.startedAt} title={date(latestRestore.finishedAt || latestRestore.startedAt)}>{date(latestRestore.finishedAt || latestRestore.startedAt)}</time></h3><p className="goal-summary">{latestRestore.proposal.summary}</p><p className="form-hint">{goalSession.phase === 'thinking' ? '这是上次已完成的恢复分析，当前仍在分析。' : '这份摘要记录恢复时的任务判断。'}执行与验收继续沿用已准入方案。</p></section>}
+        {goalSession.proposal && <section className="goal-proposal" aria-label="主控需求与计划提案"><h3 className="section-title">主控提案<span className="pill">{goalSession.proposal.decision === 'ready' ? '计划就绪' : '需要澄清'}</span></h3><p className="goal-summary">{goalSession.proposal.summary}</p><p className="form-hint">这是主控提出的需求与计划；不会据此宣称执行完成或独立验收通过。</p>
+          {goalSession.proposal.questions.length > 0 && <><h3 className="section-title">待补充信息</h3><ol className="goal-questions">{goalSession.proposal.questions.map((question, index) => <li key={index}>{question}</li>)}</ol></>}
+          {goalSession.proposal.facts.length > 0 && <details className="goal-section"><summary>需求事实与来源（{goalSession.proposal.facts.length} 项）</summary><ul className="goal-list">{goalSession.proposal.facts.map((fact, index) => { const source = goalSession.messages.find(message => message.id === fact.sourceId); return <li key={index}><span className="pill">{fact.origin === 'explicit' ? '明确输入' : '主控推断 · 待核对'}</span><p>{fact.text}</p><details className="technical-details"><summary>查看依据</summary><p className="goal-source">{source?.text || '该引用未对应到已保存的用户输入，须由主控核对。'}</p><p className="mono subtle">{fact.sourceId}</p></details></li>; })}</ul></details>}
+          {goalSession.proposal.constraints.length > 0 && <><h3 className="section-title">执行边界</h3><ul className="goal-list">{goalSession.proposal.constraints.map((constraint, index) => <li key={index}>{constraint}</li>)}</ul></>}
+          {goalSession.proposal.style.length > 0 && <><h3 className="section-title">风格与偏好</h3><ul className="goal-list">{goalSession.proposal.style.map((style, index) => <li key={index}>{style}</li>)}</ul></>}
+          {goalSession.proposal.steps.length > 0 && <><h3 className="section-title">执行步骤</h3><ol className="goal-plan">{goalSession.proposal.steps.map((step, index) => <li key={step.id}><strong>{index + 1} · {step.description}</strong><p className="form-hint">{step.dependencies.length ? `依赖：${step.dependencies.map(id => { const dependency = goalSession.proposal?.steps.findIndex(item => item.id === id); return dependency !== undefined && dependency >= 0 ? `第 ${dependency + 1} 步` : id; }).join('、')}` : '起始步骤，无前置依赖'} · 验收 {step.acceptanceIds.length} 项</p></li>)}</ol></>}
+          {goalSession.proposal.criteria.length > 0 && <><h3 className="section-title">具体验收要求</h3><ol className="goal-criteria">{goalSession.proposal.criteria.map(item => <li key={item.id}><strong>{item.description}</strong><p className="form-hint">{item.kind === 'command' ? '工程检查' : item.kind === 'ui' ? '界面操作' : '来源核验'} · {item.target}</p><ul>{item.checks.map((check, index) => <li key={index}>{check}</li>)}</ul></li>)}</ol><p className="form-hint">这些是拟定的业务验收要求。准入后仍须独立复核并发布项目验收定义，冻结必要清单并实际验收。</p></>}
+        </section>}
+        {goalSession.phase === 'clarifying' && <form className="runtime-input" onSubmit={event => { event.preventDefault(); if (answerText.trim()) goalAction('answer'); }}><label className="field"><span>补充需求（可按问题编号一并回答）</span><textarea aria-label="补充需求" value={answerText} onChange={event => setAnswerText(event.target.value)} maxLength={40000} required disabled={!goalReady}/></label><button type="submit" className="button primary" disabled={!goalReady || !answerText.trim()}>提交回答并继续分析</button></form>}
+        {goalSession.phase === 'ready' && <div className="notice compact"><p>计划就绪。点击开始执行后，后台将按该提案准入并派发步骤；这一步不会跳过独立验收。</p><button className="button primary" disabled={!goalReady || goalSession.proposal?.decision !== 'ready'} onClick={() => goalAction('admit')}>开始执行</button></div>}
+        {goalSession.runtimeId && <section className="goal-runtime"><h3 className="section-title">已准入的执行任务</h3><p className="form-hint">需求记录与执行共用累计账本。恢复主控只读取保存的任务和记忆，不会自动重跑已准入步骤。</p><div className="verification-buttons"><button className="button primary" disabled={!online || busy} onClick={() => { void openSessionRuntime(goalSession); }}>查看执行任务</button><button className="button" disabled={!restoreReady} onClick={() => goalAction('restore')}>恢复主控会话</button></div>{!restoreReady && goalSession.phase !== 'thinking' && <p className="form-hint">恢复前需核对执行已暂停、阻塞或进入待验收阶段，且没有仍在运行或用量未结算的尝试。</p>}</section>}
+        <details className="goal-section"><summary>查看用户输入记录（{goalSession.messages.length} 条）</summary><ol className="goal-messages">{goalSession.messages.map(message => <li key={message.id}><time dateTime={message.createdAt}>{date(message.createdAt)}</time><p>{message.text}</p></li>)}</ol></details>
+        <details className="goal-section"><summary>查看主控调用与恢复证据（{goalSession.jobs.length} 次）</summary>{goalSession.jobs.map(job => <div className="verification-job" key={job.id}><h4>{job.purpose === 'restore' ? '记忆恢复分析' : '需求分析'}<span className="pill">{job.status === 'running' ? '分析中' : job.error ? '分析失败' : job.proposal ? '提案已记录' : '未形成提案'}</span></h4>{job.proposal && <p className="goal-summary">{job.proposal.summary}</p>}<p className="form-hint">{date(job.startedAt)} · {job.config.model} / {job.config.effort}<br/>{job.usage === null ? '用量未知 · 尚不能计作零' : `${count(job.usage)} tokens`} · {job.stopConfirmed ? '进程已确认停止' : '停止仍待核对'}</p>{job.error && <div className="notice error compact"><strong>{describeGoalProblem(job.error)}</strong><details className="technical-details"><summary>查看分析错误原文</summary><pre>{job.error}</pre></details></div>}<details className="technical-details"><summary>查看会话编号与摘要绑定的证据</summary><p className="mono subtle">会话 {job.threadId || '尚未创建'}<br/>作业 {job.id}</p>{Object.entries(job.proofs).map(([path, digest]) => <p className="verification-proof mono" key={path}>{path}<br/>{digest}</p>)}<pre>{JSON.stringify(job.context, null, 2)}</pre></details></div>)}</details>
+        {goalPending && goalPending.sessionId === goalSession.id && <div className="notice compact"><p>有待核对的主控请求。重试复用同一请求编号与原记录版本；不会创建第二次派发。</p><div className="verification-buttons"><button className="button" disabled={!online || busy} onClick={() => { void performGoalAction(goalPending); }}>重试同一主控请求</button><button className="button ghost" disabled={busy} onClick={() => { goalPendingRef.current = null; setGoalPending(null); setGoalActionError(''); }}>清除主控待核对记录</button></div><p className="form-hint">清除不会取消后台分析；请先核对实际状态。</p></div>}
+      </div><footer className="detail-actions"><button className="button ghost" disabled={!online || busy || goalLoading} onClick={() => setRevision(value => value + 1)}><Icon name="refresh"/>核对需求记录</button>{goalSession.runtimeId && goalSession.phase === 'thinking' && <button className="button danger" disabled={!online || busy || Boolean(goalPending) || sessionRuntime?.cancelled || selectedGoal?.run.status === 'succeeded'} onClick={() => { void cancelSessionRuntime(); }}><Icon name="stop"/>取消任务与主控分析</button>}{!goalSession.runtimeId && goalSession.phase !== 'cancelled' && <button className="button danger" disabled={!online || busy || Boolean(goalPending)} onClick={() => goalAction('cancel')}><Icon name="stop"/>取消需求会话</button>}<button className="button" disabled={busy} onClick={() => { void openWorkspace(goalSession.id); }}><Icon name="folder"/>打开目录</button></footer></aside>}
+      {chosen && !goalSession && <aside className="detail" aria-label="任务详情"><header className="detail-header"><div className="detail-title"><h2>{chosenRuntime ? '任务详情' : '尝试详情'}</h2><button className="icon-button" aria-label="关闭任务详情" onClick={() => setSelected(null)}><Icon name="close"/></button></div><p className="detail-goal">{chosen.prompt}</p><Status record={chosen} deliveryLabel={deliveryLabel}/></header><div className="detail-body">
         <dl className="facts"><dt>项目目录</dt><dd>{chosen.workspace}<br/><span className="subtle">{chosen.workspaceKind === 'managed' ? 'Supervisor 暂存工作区 · 持续保留' : '本地项目'}</span></dd><dt>创建时间</dt><dd>{date(chosen.createdAt)}</dd>
           {chosenRuntime && <><dt>步骤位置</dt><dd>{Math.min(chosenRuntime.cursor + 1, chosenRuntime.definition.steps.length)} / {chosenRuntime.definition.steps.length} · {waitingStep?.kind || '全部步骤结束'}</dd><dt>累计用量</dt><dd>{detail ? `${count(detail.run.budget.spent)} tokens · ${detail.run.attempts.filter(attempt => !attempt.settled).length} 次用量待结算` : '等待后台账本'}</dd><dt>预算</dt><dd>{count(chosenRuntime.definition.tokenLimit)} tokens · 验收预留 {count(chosenRuntime.definition.verificationReserve)}</dd></>}
           {chosenExecution && <><dt>模型 / 深度</dt><dd>{chosenExecution.model} / {chosenExecution.effort}</dd><dt>当前尝试</dt><dd>{chosenExecution.state === 'completed' ? '模型执行已结束' : labels[chosenExecution.state]}</dd><dt>进程状态</dt><dd>{chosenExecution.stopConfirmed ? '已确认停止' : '尚未确认停止'}{chosenExecution.pid ? ` · PID ${chosenExecution.pid}` : ''}</dd><dt>超时期限</dt><dd>{date(chosenExecution.deadline)}</dd>{!chosenRuntime && <><dt>用量</dt><dd>{chosenExecution.usageStatus === 'reported' && chosenExecution.usage ? `${count(chosenExecution.usage.totalTokens)} tokens` : '未知 · 待执行器回报'}</dd><dt>预算</dt><dd>{count(chosenExecution.tokenLimit)} tokens · 验收预留 {count(chosenExecution.verificationReserve)}</dd></>}</>}
         </dl>
+        {associatedSession && <section className="goal-origin"><h3 className="section-title">主控需求与项目记忆</h3><p className="form-hint">{associatedSession.proposal?.summary || '已保存需求准入记录。'}</p><button className="button" onClick={() => { setSelected(associatedSession.id); setProject(associatedSession.workspace); setComposer(false); }}>查看需求记录与恢复主控</button></section>}
         {chosenRuntime?.paused && <div className="notice compact">已暂停新的步骤派发。在途执行继续运行，可另行取消任务。</div>}
         {['completed', 'awaiting-verification'].includes(chosen.state) && !hasDelivery && <div className="notice compact">步骤或执行已结束，待独立验收。尚未判定为已交付。</div>}
         {chosenRuntime?.phase === 'blocked' && <div className="notice compact">恢复核对尚未完成。未知副作用不会自动重复执行。</div>}

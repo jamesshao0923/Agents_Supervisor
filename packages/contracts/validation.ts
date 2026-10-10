@@ -59,6 +59,7 @@ function action(v: unknown, p: string): void {
     case 'setOperation': keys = ['type', 'operationId', 'attemptId', 'status']; break;
     case 'releaseLease': keys = ['type', 'resource', 'attemptId']; break;
     case 'pause': case 'resume': case 'cancel': case 'complete': keys = ['type']; break;
+    case 'admit': keys = ['type', 'contract', 'nodes']; break;
     case 'replaceContract': keys = ['type', 'contract']; break;
     case 'recordEvidence': keys = ['type', 'evidence']; break;
     case 'setArtifact': keys = ['type', 'artifact']; break;
@@ -66,10 +67,11 @@ function action(v: unknown, p: string): void {
   }
   const o = object(v, p, keys);
   for (const k of ['attemptId', 'nodeId', 'operationId', 'resource']) if (keys.includes(k)) string(o[k], `${p}.${k}`);
-  if (t === 'startAttempt') { number(o.contractVersion, `${p}.contractVersion`, 1, true); number(o.reservation, `${p}.reservation`, 0, true); choice(o.purpose, `${p}.purpose`, ['execution', 'verification']); strings(o.resources, `${p}.resources`); }
+  if (t === 'startAttempt') { number(o.contractVersion, `${p}.contractVersion`, 1, true); number(o.reservation, `${p}.reservation`, 0, true); choice(o.purpose, `${p}.purpose`, ['execution', 'verification', 'reasoning']); strings(o.resources, `${p}.resources`); }
   if (t === 'finishAttempt') choice(o.outcome, `${p}.outcome`, ['succeeded', 'failed', 'cancelled']);
   if (t === 'settleAttempt') number(o.actual, `${p}.actual`, 0, true);
   if (t === 'setOperation') choice(o.status, `${p}.status`, ['pending', 'confirmed', 'unknown']);
+  if (t === 'admit') input({id:'admit',projectId:'admit',contract:o.contract,nodes:o.nodes,budget:{limit:1,verificationReserve:0}},p);
   if (t === 'replaceContract') contract(o.contract, `${p}.contract`);
   if (t === 'recordEvidence') evidence(o.evidence, `${p}.evidence`);
   if (t === 'setArtifact') artifact(o.artifact, `${p}.artifact`);

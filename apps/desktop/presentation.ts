@@ -1,5 +1,45 @@
-import type { ExecutionEvent } from '../../packages/contracts/p2.js';
-import type { RuntimeEvent, RuntimeOperation, RuntimeRecord } from '../../packages/contracts/p3.js';
+import type { ExecutionEvent, ExecutionRecord, ExecutionState } from '../../packages/contracts/p2.js';
+import type { RuntimeEvent, RuntimeOperation, RuntimePhase, RuntimeRecord } from '../../packages/contracts/p3.js';
+import type { GoalSession } from '../../packages/contracts/p5.js';
+
+export interface DesktopTask {
+  id: string; workspace: string; workspaceKind: 'project' | 'managed'; prompt: string; createdAt: string;
+  state: ExecutionState | RuntimePhase | GoalSession['phase']; error: string | null; message: string;
+  usage: ExecutionRecord['usage']; usageStatus: ExecutionRecord['usageStatus'];
+  runtime?: RuntimeRecord; execution?: ExecutionRecord; session?: GoalSession;
+}
+export function taskViews(runtimes: RuntimeRecord[], executions: ExecutionRecord[], sessions: GoalSession[] = []): DesktopTask[] {
+  const durable = runtimes.map(runtime => {
+    const execution = executions.filter(item => item.runtimeBinding?.runtimeId === runtime.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+    return { id: runtime.id, workspace: runtime.workspace, workspaceKind: runtime.workspaceKind, prompt: runtime.definition.goal, createdAt: runtime.createdAt, state: runtime.phase, error: runtime.error || execution?.error || null, message: execution?.message || '', usage: execution?.usage || null, usageStatus: execution?.usageStatus || 'unknown', runtime, ...(execution ? { execution } : {}) } satisfies DesktopTask;
+  });
+  const legacy = executions.filter(item => !item.runtimeBinding).map(execution => ({ ...execution, execution } satisfies DesktopTask));
+  const requirements = sessions.filter(session => !session.runtimeId).map(session => ({ id: session.id, workspace: session.workspace, workspaceKind: session.workspaceKind, prompt: session.goal, createdAt: session.createdAt, state: session.phase, error: session.error, message: session.proposal?.summary || '', usage: null, usageStatus: 'unknown', session } satisfies DesktopTask));
+  return [...durable, ...legacy, ...requirements].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+export function mergeGoalSessions(current: GoalSession[], incoming: GoalSession[]): GoalSession[] {
+  const values = new Map(current.map(session => [session.id, session]));
+  for (const session of incoming) {
+    const previous = values.get(session.id);
+    if (!previous || session.revision >= previous.revision) values.set(session.id, session);
+  }
+  return [...values.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+export const goalPhaseLabels: Record<GoalSession['phase'], string> = {
+  thinking: '主控分析中', clarifying: '需要补充需求', ready: '计划已提出 · 待开始执行', admitted: '已准入执行 · 待独立验收', blocked: '主控分析受阻', cancelled: '需求会话已取消'
+};
+export function describeGoalProblem(reason: string): string {
+  if (/revision|stale/i.test(reason)) return '需求记录已有更新，请重新核对后再操作。';
+  if (/budget|token|reservation|unsettled/i.test(reason)) return '累计额度或用量结算不满足继续分析的条件，请核对账本。';
+  if (/active|quiescent|running|writer|stop/i.test(reason)) return '仍有执行或进程状态待核对，请暂停派发或处理未决操作后再恢复主控。';
+  if (/context|capacity|memory|provenance/i.test(reason)) return '项目记忆或上下文无法满足恢复要求，请查看证据并补充必要信息。';
+  if (/deadline|timeout/i.test(reason)) return '主控分析达到超时期限，提案尚未确认。';
+  return '主控尚未形成可执行提案。请查看原因、核对后台状态后再处理。';
+}
+export async function goalSessionId(commandId: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(commandId));
+  return 'goal-' + [...new Uint8Array(digest)].map(value => value.toString(16).padStart(2, '0')).join('').slice(0, 24);
+}
 
 type ObjectValue = Record<string, unknown>;
 const object = (value: unknown): ObjectValue => value && typeof value === 'object' && !Array.isArray(value) ? value as ObjectValue : {};

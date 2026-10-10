@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { writeFileSync } from 'node:fs';
 import { execFile } from 'node:child_process';
 import { chmod, copyFile, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -7,9 +8,12 @@ import { promisify } from 'node:util';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import test, { type TestContext } from 'node:test';
-import { assertCandidate, captureCandidate, type Candidate } from '../../packages/verification/candidate.js';
-import { runCommandVerifier } from '../../packages/verification/command.js';
+import { assertCandidate, captureCandidate, digest, type Candidate } from '../../packages/verification/candidate.js';
+import { runCandidateEntry, runCommandVerifier } from '../../packages/verification/command.js';
 import { runCandidateBuild } from '../../packages/verification/build.js';
+import { executeInstances } from '../../packages/verification/engine.js';
+import type { VerificationSpec } from '../../packages/contracts/p4.js';
+import type { DefinitionBundle, VerificationJob } from '../../packages/verification/records.js';
 import { inspectProcess, type ProcessIdentity, type ProcessResult } from '../../packages/process-control/index.js';
 
 const execute = promisify(execFile), compiler = resolve('node_modules/typescript/bin/tsc');
@@ -84,6 +88,28 @@ test('verification actual independent build assertions pass correct program and 
     assert.equal(rejected.checks.find(c => c.obligationId === 'invalid')?.verdict, 'failed', 'A checker must reject accepting -Infinity in ' + argument);
     await assertCandidate(negativeInfinity);
   }
+  // Each real build preserves all invalid-input guards but wrongly excludes one legal boundary.
+  for (const [name, source] of [
+    ['amount-zero', correctSource.replace('amount<0', 'amount<=0')],
+    ['percent-zero', correctSource.replace('percent<0', 'percent<=0')],
+    ['percent-hundred', correctSource.replace('percent>100', 'percent>=100')],
+  ] as const) {
+    await f.build(source); const boundary = await captureCandidate(f.workspace, join(f.directory, name));
+    const rejected = await f.run(boundary, parameters, name + '-report');
+    assert.equal(rejected.executionStatus, 'executed', name + ': ' + rejected.reason); assert.equal(rejected.stopped, true);
+    assert.equal(rejected.checks.find(c => c.obligationId === 'normal')?.verdict, 'failed', 'Legal inclusive boundary regression: ' + name);
+    assert.equal(rejected.checks.find(c => c.obligationId === 'invalid')?.verdict, 'passed', 'This counterexample retains all invalid-input guards');
+    await assertCandidate(boundary);
+  }
+  for (const argument of ['amount', 'percent'] as const) {
+    await f.build(correctSource.replace(' { if(', ` { if(typeof ${argument}==='string')${argument}=Number(${argument}); if(`));
+    const coercion = await captureCandidate(f.workspace, join(f.directory, 'string-coercion-' + argument));
+    const rejected = await f.run(coercion, parameters, 'string-coercion-' + argument + '-report');
+    assert.equal(rejected.executionStatus, 'executed', rejected.reason); assert.equal(rejected.stopped, true);
+    assert.equal(rejected.checks.find(c => c.obligationId === 'normal')?.verdict, 'passed');
+    assert.equal(rejected.checks.find(c => c.obligationId === 'invalid')?.verdict, 'failed', 'Nonnumber coercion must be rejected in ' + argument);
+    await assertCandidate(coercion);
+  }
   assert.equal(await readFile(join(good.tree, 'src/price.ts'), 'utf8'), correctSource); assert.ok(passed.proofFiles.some(path => path.endsWith('report.json'))); assert.ok(failed.proofFiles.some(path => path.endsWith('stderr.log')));
 });
 
@@ -117,4 +143,64 @@ test('verification actual parameter instances execute independently and a later 
   const first = await f.run(candidate, inputs[0]!, 'parameter-one'), second = await f.run(candidate, inputs[1]!, 'parameter-two'); assert.equal(first.executionStatus, 'executed'); assert.equal(second.executionStatus, 'executed'); assert.equal(first.checks[0]?.verdict, 'failed'); assert.equal(second.checks[0]?.verdict, 'passed');
   const reportOne = JSON.parse(await readFile(join(f.directory, 'parameter-one/report.json'), 'utf8')) as { checks: { verdict: string; reason: string }[] }; const reportTwo = JSON.parse(await readFile(join(f.directory, 'parameter-two/report.json'), 'utf8')) as { checks: { verdict: string; reason: string }[] };
   assert.equal(reportOne.checks[0]?.verdict, 'failed'); assert.match(reportTwo.checks[0]!.reason, /"amount":"80"/); assert.notEqual(await readFile(join(f.directory, 'parameter-one/identity.json'), 'utf8'), await readFile(join(f.directory, 'parameter-two/identity.json'), 'utf8')); await assertCandidate(candidate);
+  // A checker cannot substitute inspection or an unconditional passed report
+  // for executing the declared candidate CLI entries.
+  const scripts:Record<string,string>={
+    'good.mjs':'import assert from "node:assert/strict"; assert.equal(process.env.SUPERVISOR_VERIFY_REPORT,undefined); assert.equal(process.env.SUPERVISOR_VERIFY_TYPESCRIPT_MODULE,undefined); console.log("actual candidate stdout"); console.error("actual candidate stderr");',
+    'good-again.cjs':'console.log("actual second candidate");',
+    'bad.cjs':'console.log("actual bad candidate"); process.exit(3);',
+    'rewrite.mjs':'import {writeFileSync} from "node:fs"; writeFileSync(new URL("./good.mjs",import.meta.url),"changed");',
+    'spawn.mjs':'import {spawnSync} from "node:child_process"; spawnSync(process.execPath,["-e","process.exit(0)"]);',
+    'network.mjs':'import net from "node:net"; net.createServer().listen(0);',
+    'dns.mjs':'import dns from "node:dns"; dns.lookup("example.org",()=>{});',
+    'hang.mjs':'setInterval(()=>{},1000);',
+  };
+  for(const [name,source]of Object.entries(scripts))await writeFile(join(f.workspace,name),source);
+  const entries=await captureCandidate(f.workspace,join(f.directory,'entry-candidate'));
+  const evidenceAlias=join(f.directory,'candidate-evidence-alias');await symlink(entries.tree,evidenceAlias);
+  for(const [id,output]of [['candidate-evidence-root',entries.tree],['candidate-evidence-symlink',evidenceAlias],['candidate-evidence-symlink-child',join(evidenceAlias,'forbidden-evidence-directory')]] as const){
+    let rejectedIntents=0;const rejected=await runCandidateEntry({id,cwd:entries.tree,entry:'good.mjs',timeoutMs:5000,output,onIntent:()=>{rejectedIntents++;}});
+    assert.equal(rejected.executionStatus,'verifier-error');assert.equal(rejected.stopped,true);assert.deepEqual(rejected.proofFiles,[]);assert.match(rejected.reason,/outside the candidate|inside the candidate/);assert.equal(rejectedIntents,0);await assertCandidate(entries);
+    await assert.rejects(readFile(join(entries.tree,'not-started.json')),{code:'ENOENT'});await assert.rejects(realpath(join(entries.tree,'forbidden-evidence-directory')),{code:'ENOENT'});
+  }
+  const inheritedParser=process.env.SUPERVISOR_VERIFY_TYPESCRIPT_MODULE;process.env.SUPERVISOR_VERIFY_TYPESCRIPT_MODULE='candidate-must-not-inherit-parser';
+  let good:Awaited<ReturnType<typeof runCandidateEntry>>;
+  try { good=await runCandidateEntry({id:'direct-good',cwd:entries.tree,entry:'good.mjs',timeoutMs:5000,output:join(f.directory,'direct-good')}); }
+  finally { if(inheritedParser===undefined)delete process.env.SUPERVISOR_VERIFY_TYPESCRIPT_MODULE;else process.env.SUPERVISOR_VERIFY_TYPESCRIPT_MODULE=inheritedParser; }
+  assert.equal(good.executionStatus,'executed',good.reason);assert.equal(good.passed,true);assert.equal(good.stopped,true);assert.equal(good.exitCode,0);
+  assert.match(await readFile(join(f.directory,'direct-good/stdout.log'),'utf8'),/actual candidate stdout/);assert.match(await readFile(join(f.directory,'direct-good/stderr.log'),'utf8'),/actual candidate stderr/);
+  const config=JSON.parse(await readFile(join(f.directory,'direct-good/configuration.json'),'utf8')) as {entry:string;entryDigest:string;permissions:{write:string[]}};
+  assert.equal(config.entry,'good.mjs');assert.equal(config.entryDigest,digest(await readFile(join(entries.tree,'good.mjs'))));assert.deepEqual(config.permissions.write,[]);
+  for(const entry of ['bad.cjs','rewrite.mjs','spawn.mjs','network.mjs','dns.mjs']){
+    const output=join(f.directory,'direct-'+entry),result=await runCandidateEntry({id:'direct-'+entry,cwd:entries.tree,entry,timeoutMs:5000,output});
+    assert.equal(result.executionStatus,'executed',result.reason);assert.equal(result.passed,false);assert.equal(result.stopped,true);assert.notEqual(result.exitCode,0);
+    const identity=JSON.parse(await readFile(join(output,'identity.json'),'utf8')) as ProcessIdentity;assert.equal((await inspectProcess(identity)).status,'stopped');await assertCandidate(entries);
+  }
+  const missing=await runCandidateEntry({id:'direct-missing',cwd:entries.tree,entry:'missing.mjs',timeoutMs:5000,output:join(f.directory,'direct-missing')});assert.equal(missing.executionStatus,'verifier-error');assert.equal(missing.passed,false);assert.ok(missing.proofFiles.some(p=>p.endsWith('not-started.json')));
+  const timeout=await runCandidateEntry({id:'direct-timeout',cwd:entries.tree,entry:'hang.mjs',timeoutMs:300,output:join(f.directory,'direct-timeout')});assert.equal(timeout.executionStatus,'verifier-error');assert.equal(timeout.stopped,true);
+  const cancelled=new AbortController();const cancel=await runCandidateEntry({id:'direct-cancel',cwd:entries.tree,entry:'good.mjs',timeoutMs:5000,output:join(f.directory,'direct-cancel'),signal:cancelled.signal,onIdentity:()=>cancelled.abort()});assert.equal(cancel.executionStatus,'verifier-error');assert.equal(cancel.stopped,true);assert.match(cancel.reason,/cancelled/);
+  const checker=`import assert from 'node:assert/strict';import {writeFileSync} from 'node:fs';import {pathToFileURL} from 'node:url';
+const {default:ts}=await import(pathToFileURL(process.env.SUPERVISOR_VERIFY_TYPESCRIPT_MODULE).href);assert.equal(ts.version,'6.0.3');
+const facts=[];for(const text of ["import/*comment*/'node:fs';","if(false)import /*comment*/ ('node:fs');","export/*comment*/{readFile}from/*comment*/'node:fs';"]){const source=ts.createSourceFile('scope.mjs',text,ts.ScriptTarget.ESNext,true,ts.ScriptKind.JS);assert.equal(source.parseDiagnostics.length,0);function walk(node){if(ts.isImportDeclaration(node)||ts.isExportDeclaration(node)&&node.moduleSpecifier)facts.push({kind:ts.SyntaxKind[node.kind],decoded:node.moduleSpecifier.text});if(ts.isCallExpression(node)&&node.expression.kind===ts.SyntaxKind.ImportKeyword)facts.push({kind:'DynamicImport'});ts.forEachChild(node,walk);}walk(source);}
+assert.deepEqual(facts,[{kind:'ImportDeclaration',decoded:'node:fs'},{kind:'DynamicImport'},{kind:'ExportDeclaration',decoded:'node:fs'}]);
+writeFileSync(process.env.SUPERVISOR_VERIFY_REPORT,JSON.stringify({schemaVersion:1,checks:[{obligationId:'entry',verdict:'passed',reason:'checker deliberately passes candidate while actual parser '+ts.version+' recognizes '+JSON.stringify(facts)}]}));`;
+  await writeFile(join(f.bundle,'always.mjs'),checker);
+  const spec:VerificationSpec={schemaVersion:1,contractVersion:1,standardsVersion:'direct-entry-v1',obligations:[{id:'entry',criterionId:'entry',expectation:'Declared CLI exits zero',required:true,applicable:true}],cases:[{id:'cli',revision:1,obligationIds:['entry'],parameters:[{}],modules:[],replaces:[],defectRefs:[],verifier:{kind:'command',version:'1',entry:'always.mjs',files:['always.mjs'],timeoutMs:5000,candidateEntries:['bad.cjs','good.mjs']}}],controls:[{id:'good',workspace:f.workspace,expect:'passed',mustFail:[]},{id:'bad',workspace:f.workspace,expect:'failed',mustFail:['entry']}],moduleDependencies:{}};
+  const job:VerificationJob={id:'direct-engine',runtimeId:'runtime',projectId:'project',runId:'run',workspace:f.workspace,kind:'verification',proposalId:'proposal',planId:'plan',request:{},status:'running',attemptId:'attempt',environmentDigest:'real-node',config:{model:'unused',effort:'low',reservation:100,timeoutMs:5000},startedAt:new Date().toISOString(),finishedAt:null,intents:[],identities:[],usage:0,modelStarted:false,usageUnknown:false,results:[],controls:[],evaluation:null,approved:false,stopConfirmed:false,error:null,proofs:{},sources:[]};
+  const bundle:DefinitionBundle={root:f.bundle,directory:f.bundle,specPath:'unused',specDigest:'unused',files:{'always.mjs':digest(checker)},digest:'unused',controls:[]};
+  const engine=await executeInstances({job,signal:new AbortController().signal,save:()=>writeFileSync(join(f.directory,'entry-engine-ledger.json'),JSON.stringify(job)),eligible:()=>{},output:join(f.directory,'entry-engine')},spec,bundle,entries,[{id:'cli-instance',caseId:'cli',revision:1,parameters:{},obligationIds:['entry'],required:true}],'actual');
+  assert.equal(engine[0]?.executionStatus,'executed');assert.equal(engine[0]?.checks[0]?.verdict,'failed','Actual nonzero candidate exit fails before an unconditional custom checker can pass');assert.match(engine[0]!.reason,/bad.cjs: exit 3, stopped true/);
+  assert.equal(job.identities.length,1,'Nonzero candidate exit prevents the remaining entry and custom checker from starting');assert.equal(job.intents.length,1);
+  assert.ok(engine[0]!.proofFiles!.some(path=>path.endsWith('/candidate-entries/entry-1/process.json')));assert.ok(!engine[0]!.proofFiles!.some(path=>path.includes('/command/')));
+  await assert.rejects(readFile(join(f.directory,'entry-engine/actual/cli-instance/command/report.json')),{code:'ENOENT'});
+  if(spec.cases[0]!.verifier.kind==='command')spec.cases[0]!.verifier.candidateEntries=['good.mjs','good-again.cjs'];
+  const positive=await executeInstances({job,signal:new AbortController().signal,save:()=>writeFileSync(join(f.directory,'entry-engine-ledger.json'),JSON.stringify(job)),eligible:()=>{},output:join(f.directory,'entry-engine')},spec,bundle,entries,[{id:'cli-instance',caseId:'cli',revision:1,parameters:{},obligationIds:['entry'],required:true}],'positive');
+  assert.equal(positive[0]?.executionStatus,'executed',positive[0]?.reason);assert.equal(positive[0]?.checks[0]?.verdict,'passed');assert.match(positive[0]!.reason,/good.mjs: exit 0, stopped true/);assert.match(positive[0]!.reason,/good-again.cjs: exit 0, stopped true/);
+  assert.equal(job.identities.length,4,'Both successful entries and the separate checker each use a managed process');assert.equal(job.intents.length,4);
+  const checkerReport=positive[0]!.proofFiles!.find(path=>path.endsWith('/command/report.json'))!;assert.equal((JSON.parse(await readFile(checkerReport,'utf8')) as {checks:{verdict:string}[]}).checks[0]?.verdict,'passed');
+  const parserProof=positive[0]!.proofFiles!.find(path=>path.endsWith('/command/parser-runtime.json'))!;
+  const parser=JSON.parse(await readFile(parserProof,'utf8')) as {version:string;module:string;moduleDigest:string;grant:string};assert.equal(parser.version,'6.0.3');assert.equal(parser.grant,'read-only');assert.equal(parser.moduleDigest,digest(await readFile(parser.module)));
+  const checkerIntent=JSON.parse(await readFile(positive[0]!.proofFiles!.find(path=>path.endsWith('/command/intent.json'))!,'utf8')) as {args:string[]};assert.ok(checkerIntent.args.some(arg=>arg.startsWith('--allow-fs-read=')&&arg.endsWith('/typescript')));
+  const directIntent=JSON.parse(await readFile(positive[0]!.proofFiles!.find(path=>path.endsWith('/candidate-entries/entry-1/intent.json'))!,'utf8')) as {args:string[]};assert.ok(!directIntent.args.some(arg=>arg.includes('typescript')),'Candidate CLI does not acquire parser library read access');
+  assert.ok(positive[0]!.checks[0]!.reason.includes('actual parser 6.0.3'));assert.ok(positive[0]!.proofFiles!.some(path=>path.endsWith('/candidate-entries/entry-2/process.json')));await assertCandidate(entries);
 });

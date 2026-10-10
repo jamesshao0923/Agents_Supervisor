@@ -6,7 +6,7 @@ export interface VerificationObligation {
   id: string; criterionId: string; expectation: string; required: boolean; applicable: boolean; notApplicableReason?: string;
 }
 export interface TypeScriptBuild { kind: 'typescript'; sources: string[]; rootDir: string; outputDir: string; timeoutMs: number }
-export interface CommandVerifier { kind: 'command'; version: string; entry: string; files: string[]; timeoutMs: number; build?: TypeScriptBuild }
+export interface CommandVerifier { kind: 'command'; version: string; entry: string; files: string[]; timeoutMs: number; build?: TypeScriptBuild; candidateEntries?: string[] }
 export type UiStep = { kind: 'click'; selector: string } | { kind: 'fill'; selector: string; value: string }
   | { kind: 'assertText'; selector: string; text: string } | { kind: 'assertVisible'; selector: string };
 export interface UiVerifier { kind: 'ui'; version: string; entry: string; steps: UiStep[]; expectations: string[]; timeoutMs: number }
@@ -67,9 +67,13 @@ function parameters(value: unknown, path: string) { const o = object(value, path
 function verifier(value: unknown, path: string) {
   const kind = object(value, path).kind;
   if (kind === 'command') {
-    const o = object(value, path, ['kind', 'version', 'entry', 'files', 'timeoutMs', 'build'], ['build']); relative(o.entry, `${path}.entry`); array(o.files, `${path}.files`, relative, 1);
+    const o = object(value, path, ['kind', 'version', 'entry', 'files', 'timeoutMs', 'build', 'candidateEntries'], ['build', 'candidateEntries']); relative(o.entry, `${path}.entry`); array(o.files, `${path}.files`, relative, 1);
     if (new Set(o.files as string[]).size !== (o.files as string[]).length || !(o.files as string[]).includes(o.entry as string)) fail(path, 'command files must contain the entry exactly once');
     string(o.version, `${path}.version`); integer(o.timeoutMs, `${path}.timeoutMs`, 1, 3_600_000);
+    if (Object.hasOwn(o, 'candidateEntries')) {
+      array(o.candidateEntries, `${path}.candidateEntries`, (entry, p) => { relative(entry, p); if (!/\.(js|mjs|cjs)$/.test(entry as string) || (entry as string).length > 1024) fail(p, 'candidate entry must be a bounded Node JavaScript file'); }, 1);
+      if ((o.candidateEntries as string[]).length > 8 || new Set(o.candidateEntries as string[]).size !== (o.candidateEntries as string[]).length) fail(`${path}.candidateEntries`, 'candidate entries need at most eight distinct files');
+    }
     if (Object.hasOwn(o, 'build')) {
       const build = object(o.build, `${path}.build`, ['kind', 'sources', 'rootDir', 'outputDir', 'timeoutMs']);
       choice(build.kind, `${path}.build.kind`, ['typescript']);

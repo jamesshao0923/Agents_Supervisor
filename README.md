@@ -2,9 +2,65 @@
 
 面向 macOS 的长程 Agent 任务监督管理器。将目标转成可验收契约，监督执行、验证、修复与交付。首接 Codex，后续保留其他执行器接口。
 
-**当前阶段：P4 独立验证器已通过真实运行、桌面操作及独立门禁审查。** P0–P3 已完成此前范围内的验收。工程构建、本地 HTML 页面、HTTPS 来源核验、项目用例迭代与当前交付判断已接入同一持久运行及累计预算。当前个人使用范围为“系统保持运行、允许息屏”，没有声明真实睡眠或息屏测试通过。下一阶段为 P5 需求准入、计划与项目文本记忆；自主 Loop 属于 P6。
+**当前阶段：P5 需求准入、计划与文本记忆已完成真实运行与独立验收。** P4 独立验证器此前已通过真实运行、桌面操作及独立门禁审查。 P0–P3 已完成此前范围内的验收。工程构建、本地 HTML 页面、HTTPS 来源核验、项目用例迭代与当前交付判断已接入同一持久运行及累计预算。当前个人使用范围为“系统保持运行、允许息屏”，没有声明真实睡眠或息屏测试通过。下一阶段为 P6 单任务自主监督 Loop。
 
-Supervisor 的需求理解、计划和 Loop 决策将由模型驱动。默认复用本机 Codex CLI 安装及已支持的登录方式，由 Supervisor 管理独立的 `codex app-server` 会话；P4 已实际使用它执行独立定义复核、图像验收和来源核验，P5/P6 的监督决策接口尚未实现。模型提出结构化方案，控制器核对权限、预算和证据后执行，不能由模型一句“完成”直接放行。它不是本地离线模型或通用模型 HTTP 代理；其他代理端点接入需要单独验证协议。见 [主监督模型与本机 Codex 接入](docs/architecture.md#codex-接入和执行器契约)。
+Supervisor 的需求理解与计划已由模型驱动，Loop 决策将在 P6 接入。默认复用本机 Codex CLI 安装及已支持的登录方式，由 Supervisor 管理独立的 `codex app-server` 会话；P4 已实际使用它执行独立定义复核、图像验收和来源核验，P5 已接入需求澄清、计划提案和新会话恢复；P6 的自主监督 Loop 尚未实现。模型提出结构化方案，控制器核对权限、预算和证据后执行，不能由模型一句“完成”直接放行。它不是本地离线模型或通用模型 HTTP 代理；其他代理端点接入需要单独验证协议。见 [主监督模型与本机 Codex 接入](docs/architecture.md#codex-接入和执行器契约)。
+
+## P5 需求、计划与记忆
+
+新任务先进入需求会话。含糊目标得到具体问题，回答后主控提出事实来源、约束、风格、步骤和可观察的验收项；点击「开始执行」后才准入。主控使用独立只读 Codex 会话，禁止命令、文件修改、联网及额外代理动作；真实环境清单、用户输入、账本与文本记忆由控制器提供。模型输出必须通过结构与语义校验，不以模型自报置信度放行。
+
+需求草稿没有虚构的验收条款或执行节点。澄清、执行和独立验收沿用同一 Run ID 与累计 token 账本；准入将正式契约、顺序执行节点、runtime 与 outbox 一次写入 SQLite。契约保留用户输入的时序、后续修改优先关系，以及验收类型、目标和检查点。P4 独立审查读取完整契约。调用前记录计费意图；途中观察值与可结算终值分开，未知用量保留预留，不能用换会话清零。
+
+项目文本记忆位于 `<workspace>/.supervisor/memory/`，支持项目、模块、子模块层级、来源、任务绑定和失效条件。更新提案通过摘要绑定与版本比较后串行发布，不可变 Markdown 原文和清单用于回溯；SQLite 原生锁仅用于跨进程发布互斥。ContextManifest 记录使用/排除项及原文摘要。当前要求、必要接口、失败原因和账本不能被截断；容量不足会拒绝调用。项目偏好可继承，其他项目与其他任务的接口/失败记录不会混入。直接修改已发布文本会触发完整性错误；需先恢复原版字节，再通过 MemoryStore 提案发布新版本，当前不支持对手改文件直接重建索引。
+
+任务完成部分工作、进入等待验收或暂停且所有调用结算后，可以点击「恢复主控会话」。新的独立主控会话读取持久数据，不自动重跑已有执行。当前采用固定顺序步骤；自主修复、定时监督、模型升级属于 P6，并行调度属于 P7。
+
+CLI 使用 `supervisor goal --data PATH --file REQUEST.json` 提交 `start/answer/admit/restore/cancel`，`supervisor goals --data PATH` 列出需求会话，`supervisor goal-show --data PATH --goal ID` 查看契约和账本。请求结构见 `packages/contracts/p5.ts`。例如：
+
+```json
+{
+  "type": "start",
+  "commandId": "my-project-goal-1",
+  "goal": "描述目标、已有条件和期望交付物",
+  "workspace": "/absolute/project/path",
+  "model": "gpt-5.6-sol",
+  "effort": "low",
+  "reservation": 100000,
+  "timeoutMs": 180000,
+  "tokenLimit": 500000,
+  "verificationReserve": 100000,
+  "maxContextChars": 60000
+}
+```
+
+`workspace` 可省略，系统在 `~/.supervisor/workspace/` 建立持久暂存目录。模型及思考深度须是本机实际公布的能力。`answer/admit/restore` 要携带当前 `expectedRevision`；同一个 `commandId` 重发不会再次计费。默认每次主控和执行步骤各预留 100,000 token，准入时仍须有足够余额，不会自动扩大总预算。
+
+P5 的范围限制：需求入口暂为文字；验收实现仍使用 P4 的 Node 命令、HTML 交互和 HTTPS 来源能力。生成验收提案不等于独立验收已经通过，自动建立/维护验收器的完整 Loop 留到 P6。未获权威终态的用量保持阻塞，不能无证据重试。文本版本与 SQLite 准入不是跨介质原子事务：极端并发工作区冲突下可能留下尚未适用的未来版本记忆，任务账本不会假准入；任务及契约绑定会排除这些记录，原始需求仍保留在账本。风格记录是有来源的推断偏好，不能改变显式要求或验收标准。
+
+P5 的完整模型链路使用预先声明语法范围的微型 Node 求和项目，验证澄清、准入、真实执行、新上下文恢复、共享预算与独立交付。标本检查器的词法限制只适用于该任务，不能推广为任意 JavaScript 的正确性证明，也不是 Supervisor 对所有项目的限制。另保留原始宽契约下的合法目录读取和局部变量正例，用来检查过窄的验收器是否会被禁止发布；这项拒绝由实际正控制门禁完成，不代表模型能发现所有验收器缺陷。
+
+### P5 验收与复现
+
+2026 年 10 月 10 日，最终冻结候选完整执行 **278/278 通过：175 单元 + 94 真实集成 + 9 真实模型场景**，30 套件，959 秒，无失败、跳过、TODO 或未运行项。保留原 234 个稳定 ID，新增 44 项；既有检查按具体缺口扩展，没有重复叠加历史阶段。随后 CLI 对当前候选复验证据，退出码 0。独立阶段审查已核对原始证据、停止状态、账本、契约及桌面边界，未发现阻断项，记录见下列证据路径。
+
+P5 真实主链路从含糊需求开始，经澄清、契约准入、实际写入并执行 Node 项目、读取文本记忆的新主控会话，到独立定义复核与交付，始终使用同一个 Run。五次模型调用的原始用量与账本合计 **141,727 token**；固定机器验收实际执行但不虚构模型费用。独立复核与执行使用不同上下文。13 组真实正负控制、27 个候选测试变体检查漏断言和错误异常类型；原始宽契约下两个合法正例能阻止过窄检查器发布，且不把合法业务产物改判失败。取消后的真实进程已停止，未知用量预留在重启后保留。
+
+真实 macOS 桌面另核对了无目录任务的暂存项目、具体澄清问题、重启保留、显式开始执行、可读恢复分析、项目归组及标准启动入口。该桌面任务实际生成并执行代码，累计 111,389 token，最终仍为「等待独立验收」；它不冒充桌面完成交付的证据。完整独立交付由上述真实集成链路证明。桌面检查不计入 278 项数量，也不宣称已完成 P9 安装包。
+
+本地证据由 `.gitignore` 排除，不随源码提交：
+
+- 最终正式运行：`.supervisor-dev/verification/2026-10-10T10-43-42-843Z-20730683-86d1-429d-8fca-3f274065c9ac/`，含冻结清单、JSON/HTML/JUnit 报告及真实模型、进程、编译、页面和来源证据。候选 SHA-256：`15c071fcc9759c7d0a68127371be06a5ad9d8546555ee3750a62e12f2fd331e9`，307 个文件。
+- 当前候选复验：`.supervisor-dev/p5-final-evidence-check.json`；独立阶段审查：`.supervisor-dev/p5-independent-review.json`。分项审计记录为 `p5-live-audit.json`、`p5-stop-audit.json`、`p5-regression-audit.json` 和 `p5-regression-stop-audit.json`。
+- 原生桌面证据与八份文件摘要：`.supervisor-dev/p5-ui/acceptance/manual-review.json`；实际界面截图为同目录 `ready.png`、`restored-final.png`、`launcher-final.png`。最终构建后台重启及实际桌面重连的补充记录为同目录 `final-backend-review.json`，持久任务与累计 111,389 token 保持不变。
+- 本阶段旧失败全部保留，包括需求来源误引、实际传输断连、测试覆盖缺口和验收器过度限制。修复与标本标准变化分别记录在 [测试目录变更记录](tests/catalog/CHANGELOG.md)。尤其 `10-24-44` 轮为 276/278，完成整轮后才修复并重新冻结；没有在运行中改变候选或删掉失败项。
+
+复现需本机可用的 Codex 登录、固定工具链和真实桌面截图；包含实际模型及网络调用：
+
+```sh
+SUPERVISOR_LIVE_SCREENSHOT=/absolute/path/supervisor-empty.png pnpm verify:p5
+pnpm verify:evidence --run .supervisor-dev/verification/2026-10-10T10-43-42-843Z-20730683-86d1-429d-8fca-3f274065c9ac
+```
 
 ## 本地运行
 
@@ -25,9 +81,9 @@ pnpm desktop
 | `pnpm typecheck` | 只检查类型 |
 | `pnpm check:boundaries` | 检查领域依赖与开发验收工具的边界 |
 | `pnpm doctor` | 只读检查本地工具、登录状态和环境能力，保存 JSON 报告 |
-| `pnpm test:unit` | 按 P4 配置选择 unit 套件，输出独立证据 |
+| `pnpm test:unit` | 按 P5 配置选择 unit 套件，输出独立证据 |
 | `pnpm test:integration` | 运行真实文件、进程、探测与仓库检查，输出独立证据 |
-| `pnpm verify:stage` | 默认执行 P4 当前必要套件及所选回归（含真实模型调用），并逐项对账 |
+| `pnpm verify:stage` | 默认执行 P5 当前必要套件及所选回归（含真实模型调用），并逐项对账 |
 | `pnpm verify:p0` | 在当前候选上执行 P0 基座回归，不表示 P1 完成 |
 | `pnpm verify:stage --modules domain` | 按模块影响及核心回归选择，保守扩大到完整套件；结果是局部检查 |
 | `pnpm verify:stage --reason "修复原因"` | 运行新一轮，保留原因和原失败历史 |
@@ -36,6 +92,7 @@ pnpm desktop
 | `pnpm verify:release` | 发布门禁尚未实现，明确非零退出 |
 | `pnpm verify:p1` | 当前候选的 P1 回归，不表示 P2 阶段通过 |
 | `pnpm verify:p2` | 当前候选的 P2 回归，不表示 P3 阶段通过 |
+| `pnpm verify:p5` | 运行 P5 冻结清单及必要回归，含真实主控和同账本独立交付 |
 | `pnpm verify:p4` | P4 完整自动检查，包括真实独立验证、验收定义维护与所需回归；另需桌面和独立复核 |
 | `pnpm verify:p3` | P3 完整自动检查；另需真实桌面及独立审查，系统睡眠恢复不在当前支持范围 |
 | `pnpm supervisor serve --data .supervisor/local` | 启动本地 SQLite 与 Unix socket 服务；先执行 `pnpm build` |
@@ -43,7 +100,7 @@ pnpm desktop
 
 `test:unit` 或 `test:integration` 通过只表示该层检查通过。阶段放行需要 `verify:stage` 全部必要检查通过以及独立审查。P1 及后续阶段不能借用 P0 的通过结果。
 
-测试用例按全局能力持续维护，允许有依据地新增、修改、合并和退役；不能只因上层使用了底层就认定覆盖了底层异常。[全局目录](tests/catalog/current.json) 保存稳定 ID、场景和风险映射，[P0](tests/acceptance/p0.json)/[P1](tests/acceptance/p1.json)/[P2](tests/acceptance/p2.json)/[P3](tests/acceptance/p3.json)/[P4](tests/acceptance/p4.json) 配置引用同一目录。选择时校验登记与源码声明，冻结后不从运行发现重建必要清单。当前按套件保守选测，未知影响扩大集合；局部结果 `stagePassed=false`，未选项目不算通过。迁移与用例变化见 [CHANGELOG](tests/catalog/CHANGELOG.md)。
+测试用例按全局能力持续维护，允许有依据地新增、修改、合并和退役；不能只因上层使用了底层就认定覆盖了底层异常。[全局目录](tests/catalog/current.json) 保存稳定 ID、场景和风险映射，[P0](tests/acceptance/p0.json)/[P1](tests/acceptance/p1.json)/[P2](tests/acceptance/p2.json)/[P3](tests/acceptance/p3.json)/[P4](tests/acceptance/p4.json)/[P5](tests/acceptance/p5.json) 配置引用同一目录。选择时校验登记与源码声明，冻结后不从运行发现重建必要清单。当前按套件保守选测，未知影响扩大集合；局部结果 `stagePassed=false`，未选项目不算通过。迁移与用例变化见 [CHANGELOG](tests/catalog/CHANGELOG.md)。
 
 [测试与验收用例的持续迭代](docs/architecture.md#测试与验收用例的持续迭代) 同时是 Supervisor 的关键产品设计。P1 提供项目用例修订、覆盖/替代关系、变更提案、快照发布、佐证产物引用和冻结计划的存储约束；产品独立复核与影响选择在 P4 接通，自主维护在 P6 接通。研发测试库与产品项目用例库分别管理。
 
@@ -91,7 +148,7 @@ SUPERVISOR_LIVE_SCREENSHOT=/absolute/path/supervisor-empty.png pnpm verify:p4
 pnpm verify:evidence --run .supervisor-dev/verification/2026-10-10T07-06-19-875Z-4271549e-b066-4faa-96ff-f7a790d41882
 ```
 
-P4 不包含自主需求理解、自动修复 Loop、多 Agent 调度或移动平台完整交付；下一阶段是 P5 需求准入、计划与项目文本记忆。
+P4 自身不包含需求理解、自动修复 Loop、多 Agent 调度或移动平台完整交付；需求准入、计划与文本记忆已由 P5 接入，自动监督属于后续 P6。
 
 ### P4 后续桌面修复：可读事件与交付状态
 
@@ -124,9 +181,9 @@ SUPERVISOR_LIVE_SCREENSHOT=/absolute/path/supervisor-empty.png pnpm verify:stage
 - 提交与 outbox、认领与预算/尝试、回报与 inbox/投影/检查点分别保持 SQLite 事务原子性。恢复读取已完成的 Codex 回执，跨输入边界可建立新上下文；失联且结果不明的 turn 不自动重发。
 - 暂停只阻止新派发，允许已启动的操作收尾；取消传播到实际进程或 HTTP 请求。取消不能撤回远端已提交的数据；未知效果仍占据恢复门禁，不自动补偿。
 - 检查点记录工作流版本、契约版本、原冻结计划、候选引用、失败操作与累计预算。检查点是编排恢复记录，不是整台电脑或任意文件系统的可回滚快照。预算、未结算额度和失败历史不能通过重启清零。
-- 桌面新任务默认走持久运行，可见暂停、恢复、取消、核对恢复、等待输入、步骤位置和累计预算。旧 P2 任务仍可查看。所有任务继续按真实路径归属；无路径任务使用 `~/.supervisor/workspace/…`。
+- P3 直接提交的持久任务可见暂停、恢复、取消、核对恢复、等待输入、步骤位置和累计预算。旧 P2 任务仍可查看。所有任务继续按真实路径归属；无路径任务使用 `~/.supervisor/workspace/…`。
 
-桌面每次提交一个 Codex 步骤。预先声明的多步骤工作流通过 CLI 提交：
+P5 桌面默认从需求会话生成计划后准入固定顺序步骤。直接声明的多步骤工作流仍可通过 CLI 提交：
 
 ```sh
 pnpm supervisor workflow --data .supervisor/local --file /absolute/path/workflow.json

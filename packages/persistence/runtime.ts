@@ -58,6 +58,20 @@ export class RuntimeRepository {
       this.db.prepare('INSERT INTO runtime_receipts(command_id,request,result) VALUES (?,?,?)').run(input.commandId,runtimeCanonical(input),runtimeCanonical(r));return r;
     });
   }
+  assertWorkspaceAvailable(workspace:string):void {
+    new VerificationRepository(this.db).assertNoVerificationWriter(workspace);
+    for(const active of this.list().filter(r=>r.workspace===workspace||r.workspace.startsWith(workspace+sep)||workspace.startsWith(r.workspace+sep)))ensure(['cancelled','awaiting-verification'].includes(active.phase)&&this.operations(active.id).every(o=>['confirmed','cancelled'].includes(o.state)),'Workspace has unresolved runtime work');
+    for(const row of this.db.prepare('SELECT record FROM executions').all()){const e=JSON.parse(String(row.record)) as {workspace:string;stopConfirmed:boolean};ensure(e.stopConfirmed||!(e.workspace===workspace||e.workspace.startsWith(workspace+sep)||workspace.startsWith(e.workspace+sep)),'Workspace has an active or unverified writer');}
+  }
+  /** Called only inside the goal admission transaction; retains the existing domain ledger. */
+  adoptGoal(input:RuntimeSubmit & {workspace:string;workspaceKind:'project'|'managed'},projectId:string,runId:string):RuntimeRecord {
+    const {workspaceKind,...request}=input;parseRuntimeAction(request);
+    this.assertWorkspaceAvailable(input.workspace);
+    const now=new Date().toISOString();
+    const r:RuntimeRecord={id:runId,engine:'local-v1',workflowVersion:1,projectionVersion:0,projectId,runId,workspace:input.workspace,workspaceKind,definition:request,cursor:0,phase:'ready',paused:false,cancelled:false,createdAt:now,updatedAt:now,error:null,inputs:{},checkpointId:null};
+    ensure(this.run(r).admission==='admitted','Draft cannot execute');
+    this.db.prepare('INSERT INTO runtime_runs(id,project_id,run_id,record) VALUES (?,?,?,?)').run(r.id,projectId,runId,runtimeCanonical(r));this.enqueue(r);this.checkpointWrite(r);this.save(r,'admitted',{definition:request});return r;
+  }
   control(input:RuntimeControl):RuntimeRecord {parseRuntimeAction(input);return this.tx(()=>{
     const receipt=this.db.prepare('SELECT request,result FROM runtime_receipts WHERE command_id=?').get(input.commandId);if(receipt){ensure(receipt.request===runtimeCanonical(input),'Runtime commandId conflicts with prior request');return JSON.parse(String(receipt.result)) as RuntimeRecord;}
     const r=this.get(input.runtimeId);this.compatible(r);

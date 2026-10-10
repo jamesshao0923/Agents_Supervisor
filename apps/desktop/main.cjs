@@ -11,6 +11,7 @@ const documentPath = join(__dirname, 'index.html');
 const documentURL = pathToFileURL(documentPath).href;
 let window;
 let request;
+let parseOrchestrationAction;
 
 function assertSender(event) {
   if (!window || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame || event.senderFrame.url !== documentURL) {
@@ -29,6 +30,7 @@ async function invoke(value) {
 function execution(action) { return invoke({ method: 'execution', action }); }
 function runtime(action) { return invoke({ method: 'runtime', action }); }
 function verification(action) { return invoke({ method: 'verification', action }); }
+function orchestration(action) { return invoke({ method: 'orchestration', action: parseOrchestrationAction(action) }); }
 function reviewConfig(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(key => !['model', 'effort', 'reservation', 'timeoutMs'].includes(key))) throw new Error('Invalid verification model configuration');
   if (!Number.isSafeInteger(value.reservation) || value.reservation < 1 || !Number.isSafeInteger(value.timeoutMs) || value.timeoutMs < 1000 || value.timeoutMs > 3600000) throw new Error('Invalid verification reservation or timeout');
@@ -39,6 +41,21 @@ function register(channel, handler) {
 }
 function installBridge() {
   register('health', () => invoke({ method: 'health' }));
+  register('orchestration-list', () => orchestration({ type: 'list' }));
+  register('orchestration-inspect', sessionId => orchestration({ type: 'inspect', sessionId: id(sessionId) }));
+  register('orchestration-start', async input => {
+    let action;
+    try {
+      if (!input || typeof input !== 'object' || Array.isArray(input) || Object.hasOwn(input, 'type')) throw new Error('Invalid goal input');
+      action = parseOrchestrationAction({ type: 'start', ...input });
+    } catch (error) { return { accepted: false, error: String(error) }; }
+    const response = await request(dataDir, { id: randomUUID(), method: 'orchestration', action });
+    return response.ok ? { accepted: true, record: response.value } : { accepted: false, error: response.error };
+  });
+  for (const type of ['answer', 'admit', 'restore', 'cancel']) register(`orchestration-${type}`, input => {
+    if (!input || typeof input !== 'object' || Array.isArray(input) || Object.hasOwn(input, 'type')) throw new Error('Invalid goal action');
+    return orchestration({ type, ...input });
+  });
   register('runtime-list', () => runtime({ type: 'list' }));
   register('runtime-inspect', runtimeId => runtime({ type: 'inspect', runtimeId: id(runtimeId) }));
   register('runtime-events', (runtimeId, after) => {
@@ -98,6 +115,7 @@ function installBridge() {
     executionId = id(executionId);
     const record = executionId.startsWith('runtime-')
       ? (await runtime({ type: 'inspect', runtimeId: id(executionId) })).runtime
+      : executionId.startsWith('goal-') ? (await orchestration({ type: 'inspect', sessionId: executionId })).session
       : await execution({ type: 'inspect', executionId: id(executionId) });
     if (!(await stat(record.workspace)).isDirectory()) throw new Error('项目目录已不可用');
     const error = await shell.openPath(record.workspace);
@@ -128,6 +146,7 @@ function createWindow() {
 }
 app.whenReady().then(async () => {
   ({ request } = await import(pathToFileURL(join(__dirname, '../cli/client.js')).href));
+  ({ parseOrchestrationAction } = await import(pathToFileURL(join(__dirname, '../../packages/contracts/p5.js')).href));
   installBridge();
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     { label: 'Supervisor', submenu: [{ role: 'about' }, { type: 'separator' }, { label: '退出界面（后台继续运行）', role: 'quit' }] },

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-catalog-v7",
+  "revision": "dev-catalog-v9",
   "modules": [
     {
       "id": "dev-contracts",
@@ -45,7 +45,8 @@
         "service",
         "execution",
         "runtime",
-        "verification"
+        "verification",
+        "orchestration"
       ]
     },
     {
@@ -54,7 +55,8 @@
         "persistence",
         "service",
         "execution",
-        "runtime"
+        "runtime",
+        "orchestration"
       ]
     },
     {
@@ -63,7 +65,8 @@
         "service",
         "execution",
         "runtime",
-        "verification"
+        "verification",
+        "orchestration"
       ]
     },
     {
@@ -86,7 +89,8 @@
       "affects": [
         "execution",
         "runtime",
-        "verification"
+        "verification",
+        "orchestration"
       ]
     },
     {
@@ -115,6 +119,20 @@
         "service",
         "desktop"
       ]
+    },
+    {
+      "id": "orchestration",
+      "affects": [
+        "runtime",
+        "verification",
+        "desktop"
+      ]
+    },
+    {
+      "id": "context",
+      "affects": [
+        "orchestration"
+      ]
     }
   ],
   "suites": [
@@ -137,6 +155,66 @@
       "timeoutMs": 30000
     },
     {
+      "id": "unit-catalog",
+      "layer": "unit",
+      "file": "dist/tests/unit/catalog.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "unit-domain",
+      "layer": "unit",
+      "file": "dist/tests/unit/domain.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "unit-executor-codex",
+      "layer": "unit",
+      "file": "dist/tests/unit/executor-codex.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "unit-runtime",
+      "layer": "unit",
+      "file": "dist/tests/unit/runtime.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "unit-verification",
+      "layer": "unit",
+      "file": "dist/tests/unit/verification.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "unit-desktop-presentation",
+      "layer": "unit",
+      "file": "dist/tests/unit/desktop-presentation.test.js",
+      "timeoutMs": 10000
+    },
+    {
+      "id": "unit-orchestration",
+      "layer": "unit",
+      "file": "dist/tests/unit/orchestration.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "unit-reasoner",
+      "layer": "unit",
+      "file": "dist/tests/unit/reasoner.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "unit-context",
+      "layer": "unit",
+      "file": "dist/tests/unit/context.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "unit-desktop-goals",
+      "layer": "unit",
+      "file": "dist/tests/unit/desktop-goals.test.js",
+      "timeoutMs": 30000
+    },
+    {
       "id": "integration-runner",
       "layer": "integration",
       "file": "dist/tests/integration/runner.test.js",
@@ -152,18 +230,6 @@
       "id": "integration-repository",
       "layer": "integration",
       "file": "dist/tests/integration/repository.test.js",
-      "timeoutMs": 30000
-    },
-    {
-      "id": "unit-catalog",
-      "layer": "unit",
-      "file": "dist/tests/unit/catalog.test.js",
-      "timeoutMs": 30000
-    },
-    {
-      "id": "unit-domain",
-      "layer": "unit",
-      "file": "dist/tests/unit/domain.test.js",
       "timeoutMs": 30000
     },
     {
@@ -185,46 +251,16 @@
       "timeoutMs": 60000
     },
     {
-      "id": "unit-executor-codex",
-      "layer": "unit",
-      "file": "dist/tests/unit/executor-codex.test.js",
-      "timeoutMs": 30000
-    },
-    {
-      "id": "live-execution",
-      "layer": "live",
-      "file": "dist/tests/live/execution.test.js",
-      "timeoutMs": 600000
-    },
-    {
       "id": "integration-execution",
       "layer": "integration",
       "file": "dist/tests/integration/execution.test.js",
       "timeoutMs": 90000
     },
     {
-      "id": "unit-runtime",
-      "layer": "unit",
-      "file": "dist/tests/unit/runtime.test.js",
-      "timeoutMs": 30000
-    },
-    {
       "id": "integration-runtime",
       "layer": "integration",
       "file": "dist/tests/integration/runtime.test.js",
       "timeoutMs": 300000
-    },
-    {
-      "id": "live-runtime",
-      "layer": "live",
-      "file": "dist/tests/live/runtime.test.js",
-      "timeoutMs": 600000
-    },
-    {
-      "id": "unit-verification",
-      "layer": "unit",
-      "file": "dist/tests/unit/verification.test.js",
-      "timeoutMs": 30000
     },
     {
       "id": "integration-verification",
@@ -239,6 +275,36 @@
       "timeoutMs": 120000
     },
     {
+      "id": "integration-orchestration",
+      "layer": "integration",
+      "file": "dist/tests/integration/orchestration.test.js",
+      "timeoutMs": 60000
+    },
+    {
+      "id": "integration-context",
+      "layer": "integration",
+      "file": "dist/tests/integration/context.test.js",
+      "timeoutMs": 60000
+    },
+    {
+      "id": "live-orchestration",
+      "layer": "live",
+      "file": "dist/tests/live/orchestration.test.js",
+      "timeoutMs": 600000
+    },
+    {
+      "id": "live-execution",
+      "layer": "live",
+      "file": "dist/tests/live/execution.test.js",
+      "timeoutMs": 600000
+    },
+    {
+      "id": "live-runtime",
+      "layer": "live",
+      "file": "dist/tests/live/runtime.test.js",
+      "timeoutMs": 600000
+    },
+    {
       "id": "live-verification",
       "layer": "live",
       "file": "dist/tests/live/verification.test.js",
@@ -249,12 +315,6 @@
       "layer": "live",
       "file": "dist/tests/live/verification-maintenance.test.js",
       "timeoutMs": 600000
-    },
-    {
-      "id": "unit-desktop-presentation",
-      "layer": "unit",
-      "file": "dist/tests/unit/desktop-presentation.test.js",
-      "timeoutMs": 10000
     }
   ],
   "cases": [
@@ -4960,6 +5020,842 @@
       "prerequisites": "Node runtime and compiled actual presentation module",
       "assertions": "Chinese guidance retains invalid status and unknown cause; no fabricated specific configuration diagnosis or raw error in overview",
       "cleanup": "No external writes; input events remain unchanged",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-orchestration.001",
+      "name": "P5 draft cannot dispatch work fabricate evidence or claim completion",
+      "suiteId": "unit-orchestration",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-orchestration"
+      ],
+      "scenario": "P5 draft cannot dispatch work fabricate evidence or claim completion",
+      "impactTags": [
+        "orchestration",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "P5 draft cannot dispatch work fabricate evidence or claim completion",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-orchestration.002",
+      "name": "P5 reasoning protects verification reserve and cannot manufacture node progress",
+      "suiteId": "unit-orchestration",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-orchestration"
+      ],
+      "scenario": "P5 reasoning protects verification reserve and cannot manufacture node progress",
+      "impactTags": [
+        "orchestration",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "P5 reasoning protects verification reserve and cannot manufacture node progress",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-orchestration.003",
+      "name": "P5 admission preserves effects and rejects stale contract revisions",
+      "suiteId": "unit-orchestration",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-orchestration"
+      ],
+      "scenario": "P5 admission preserves effects and rejects stale contract revisions",
+      "impactTags": [
+        "orchestration",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "P5 admission preserves effects and rejects stale contract revisions",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-orchestration.004",
+      "name": "P5 proposal gate rejects false provenance missing criteria uncovered work and escaped targets",
+      "suiteId": "unit-orchestration",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-orchestration"
+      ],
+      "scenario": "P5 proposal gate rejects false provenance missing criteria uncovered work and escaped targets",
+      "impactTags": [
+        "orchestration",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "P5 proposal gate rejects false provenance missing criteria uncovered work and escaped targets",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-orchestration.005",
+      "name": "P5 plan validates DAG and preserves verbatim user authority through serial admission",
+      "suiteId": "unit-orchestration",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-orchestration"
+      ],
+      "scenario": "P5 plan validates DAG and preserves verbatim user authority through serial admission",
+      "impactTags": [
+        "orchestration",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "P5 plan validates DAG and preserves verbatim user authority through serial admission",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-orchestration.006",
+      "name": "P5 orchestration boundary rejects invented actions extra authority and impossible limits",
+      "suiteId": "unit-orchestration",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-orchestration"
+      ],
+      "scenario": "P5 orchestration boundary rejects invented actions extra authority and impossible limits",
+      "impactTags": [
+        "orchestration",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "P5 orchestration boundary rejects invented actions extra authority and impossible limits",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-orchestration.007",
+      "name": "P5 read-only reasoning while paused preserves pause and never releases execution",
+      "suiteId": "unit-orchestration",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-orchestration"
+      ],
+      "scenario": "P5 read-only reasoning while paused preserves pause and never releases execution",
+      "impactTags": [
+        "orchestration",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "P5 read-only reasoning while paused preserves pause and never releases execution",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.integration-orchestration.001",
+      "name": "P5 real SQLite admission is atomic idempotent and retains the reasoning ledger after reopen",
+      "suiteId": "integration-orchestration",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p5-integration-orchestration"
+      ],
+      "scenario": "P5 real SQLite admission is atomic idempotent and retains the reasoning ledger after reopen",
+      "impactTags": [
+        "orchestration",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "P5 real SQLite admission is atomic idempotent and retains the reasoning ledger after reopen",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.integration-orchestration.002",
+      "name": "P5 unknown usage blocks admission and retry without resetting reservations",
+      "suiteId": "integration-orchestration",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p5-integration-orchestration"
+      ],
+      "scenario": "P5 unknown usage blocks admission and retry without resetting reservations",
+      "impactTags": [
+        "orchestration",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "P5 unknown usage blocks admission and retry without resetting reservations",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.integration-orchestration.003",
+      "name": "P5 cancelled reasoning accepts late accounting but never revives or admits",
+      "suiteId": "integration-orchestration",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p5-integration-orchestration"
+      ],
+      "scenario": "P5 cancelled reasoning accepts late accounting but never revives or admits",
+      "impactTags": [
+        "orchestration",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "P5 cancelled reasoning accepts late accounting but never revives or admits",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.integration-orchestration.004",
+      "name": "P5 service recovery blocks direct domain mutation and settles confirmed pre-model interruption without replay",
+      "suiteId": "integration-orchestration",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p5-integration-orchestration"
+      ],
+      "scenario": "P5 service recovery blocks direct domain mutation and settles confirmed pre-model interruption without replay",
+      "impactTags": [
+        "orchestration",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "P5 service recovery blocks direct domain mutation and settles confirmed pre-model interruption without replay",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-reasoner.001",
+      "name": "p5.reasoner.unit.structured-proposal-parses-and-schema-is-detached",
+      "suiteId": "unit-reasoner",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-reasoner"
+      ],
+      "scenario": "p5.reasoner.unit.structured-proposal-parses-and-schema-is-detached",
+      "impactTags": [
+        "orchestration",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "p5.reasoner.unit.structured-proposal-parses-and-schema-is-detached",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-reasoner.002",
+      "name": "p5.reasoner.unit.final-json-rejects-extra-fields-missing-constraints-and-prose",
+      "suiteId": "unit-reasoner",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-reasoner"
+      ],
+      "scenario": "p5.reasoner.unit.final-json-rejects-extra-fields-missing-constraints-and-prose",
+      "impactTags": [
+        "orchestration",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "p5.reasoner.unit.final-json-rejects-extra-fields-missing-constraints-and-prose",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-reasoner.003",
+      "name": "p5.reasoner.unit.schema-rejects-unsupported-and-malformed-constraints-before-inference",
+      "suiteId": "unit-reasoner",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-reasoner"
+      ],
+      "scenario": "p5.reasoner.unit.schema-rejects-unsupported-and-malformed-constraints-before-inference",
+      "impactTags": [
+        "orchestration",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "p5.reasoner.unit.schema-rejects-unsupported-and-malformed-constraints-before-inference",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-reasoner.004",
+      "name": "p5.reasoner.unit.nested-schema-unions-numeric-bounds-and-canonical-uniqueness",
+      "suiteId": "unit-reasoner",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-reasoner"
+      ],
+      "scenario": "p5.reasoner.unit.nested-schema-unions-numeric-bounds-and-canonical-uniqueness",
+      "impactTags": [
+        "orchestration",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "p5.reasoner.unit.nested-schema-unions-numeric-bounds-and-canonical-uniqueness",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-reasoner.005",
+      "name": "p5.reasoner.unit.untrusted-schema-and-output-reject-accessors-prototypes-and-unsafe-keys",
+      "suiteId": "unit-reasoner",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-reasoner"
+      ],
+      "scenario": "p5.reasoner.unit.untrusted-schema-and-output-reject-accessors-prototypes-and-unsafe-keys",
+      "impactTags": [
+        "orchestration",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "p5.reasoner.unit.untrusted-schema-and-output-reject-accessors-prototypes-and-unsafe-keys",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-reasoner.006",
+      "name": "p5.reasoner.unit.context-and-output-capacity-is-bounded-without-truncation",
+      "suiteId": "unit-reasoner",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-reasoner"
+      ],
+      "scenario": "p5.reasoner.unit.context-and-output-capacity-is-bounded-without-truncation",
+      "impactTags": [
+        "orchestration",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "p5.reasoner.unit.context-and-output-capacity-is-bounded-without-truncation",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-reasoner.007",
+      "name": "p5.reasoner.unit.event-identities-are-isolated-and-cannot-cross-threads-or-turns",
+      "suiteId": "unit-reasoner",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-reasoner"
+      ],
+      "scenario": "p5.reasoner.unit.event-identities-are-isolated-and-cannot-cross-threads-or-turns",
+      "impactTags": [
+        "orchestration",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "p5.reasoner.unit.event-identities-are-isolated-and-cannot-cross-threads-or-turns",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-reasoner.008",
+      "name": "p5.reasoner.unit.usage-preserves-unknown-zero-and-monotonic-cumulative-tokens",
+      "suiteId": "unit-reasoner",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-reasoner"
+      ],
+      "scenario": "p5.reasoner.unit.usage-preserves-unknown-zero-and-monotonic-cumulative-tokens",
+      "impactTags": [
+        "orchestration",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "p5.reasoner.unit.usage-preserves-unknown-zero-and-monotonic-cumulative-tokens",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-reasoner.009",
+      "name": "p5.reasoner.unit.partial-usage-remains-observed-until-authoritative-terminal-accounting",
+      "suiteId": "unit-reasoner",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-reasoner"
+      ],
+      "scenario": "p5.reasoner.unit.partial-usage-remains-observed-until-authoritative-terminal-accounting",
+      "impactTags": [
+        "orchestration",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "p5.reasoner.unit.partial-usage-remains-observed-until-authoritative-terminal-accounting",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-reasoner.010",
+      "name": "p5.reasoner.unit.durable-turn-intent-precedes-send-and-cancellation-remains-conservative",
+      "suiteId": "unit-reasoner",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-reasoner"
+      ],
+      "scenario": "p5.reasoner.unit.durable-turn-intent-precedes-send-and-cancellation-remains-conservative",
+      "impactTags": [
+        "orchestration",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "p5.reasoner.unit.durable-turn-intent-precedes-send-and-cancellation-remains-conservative",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-reasoner.011",
+      "name": "p5.reasoner.unit.reasoning-role-rejects-tools-approvals-input-and-unknown-actions",
+      "suiteId": "unit-reasoner",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-reasoner"
+      ],
+      "scenario": "p5.reasoner.unit.reasoning-role-rejects-tools-approvals-input-and-unknown-actions",
+      "impactTags": [
+        "orchestration",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "p5.reasoner.unit.reasoning-role-rejects-tools-approvals-input-and-unknown-actions",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-reasoner.012",
+      "name": "p5.reasoner.unit.only-authoritative-terminal-event-completes-and-deltas-are-not-final-output",
+      "suiteId": "unit-reasoner",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-reasoner"
+      ],
+      "scenario": "p5.reasoner.unit.only-authoritative-terminal-event-completes-and-deltas-are-not-final-output",
+      "impactTags": [
+        "orchestration",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "p5.reasoner.unit.only-authoritative-terminal-event-completes-and-deltas-are-not-final-output",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-reasoner.013",
+      "name": "p5.reasoner.unit.invalid-or-cancelled-request-never-starts-model-and-preserves-unknown-usage",
+      "suiteId": "unit-reasoner",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-reasoner"
+      ],
+      "scenario": "p5.reasoner.unit.invalid-or-cancelled-request-never-starts-model-and-preserves-unknown-usage",
+      "impactTags": [
+        "orchestration",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "p5.reasoner.unit.invalid-or-cancelled-request-never-starts-model-and-preserves-unknown-usage",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-context.001",
+      "name": "P5-CTX-U01 memory rejects missing sources unsafe scopes and model authority escalation",
+      "suiteId": "unit-context",
+      "module": "context",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-context"
+      ],
+      "scenario": "P5-CTX-U01 memory rejects missing sources unsafe scopes and model authority escalation",
+      "impactTags": [
+        "context",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "P5-CTX-U01 memory rejects missing sources unsafe scopes and model authority escalation",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-context.002",
+      "name": "P5-CTX-U02 memory proposal is inert until digest-bound CAS publication",
+      "suiteId": "unit-context",
+      "module": "context",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-context"
+      ],
+      "scenario": "P5-CTX-U02 memory proposal is inert until digest-bound CAS publication",
+      "impactTags": [
+        "context",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "P5-CTX-U02 memory proposal is inert until digest-bound CAS publication",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-context.003",
+      "name": "P5-CTX-U03 same-project scoped preferences inherit with contract precedence",
+      "suiteId": "unit-context",
+      "module": "context",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-context"
+      ],
+      "scenario": "P5-CTX-U03 same-project scoped preferences inherit with contract precedence",
+      "impactTags": [
+        "context",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "P5-CTX-U03 same-project scoped preferences inherit with contract precedence",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-context.004",
+      "name": "P5-CTX-U04 invalid expired and binding-stale memories explain exclusion",
+      "suiteId": "unit-context",
+      "module": "context",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-context"
+      ],
+      "scenario": "P5-CTX-U04 invalid expired and binding-stale memories explain exclusion",
+      "impactTags": [
+        "context",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "P5-CTX-U04 invalid expired and binding-stale memories explain exclusion",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-context.005",
+      "name": "P5-CTX-U05 bounded summary retains original digest and source references",
+      "suiteId": "unit-context",
+      "module": "context",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-context"
+      ],
+      "scenario": "P5-CTX-U05 bounded summary retains original digest and source references",
+      "impactTags": [
+        "context",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "P5-CTX-U05 bounded summary retains original digest and source references",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-context.006",
+      "name": "P5-CTX-U06 capacity never truncates explicit constraints hard memory or failure causes",
+      "suiteId": "unit-context",
+      "module": "context",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-context"
+      ],
+      "scenario": "P5-CTX-U06 capacity never truncates explicit constraints hard memory or failure causes",
+      "impactTags": [
+        "context",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "P5-CTX-U06 capacity never truncates explicit constraints hard memory or failure causes",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-context.007",
+      "name": "P5-CTX-U07 manual text metadata and proposal edits fail closed",
+      "suiteId": "unit-context",
+      "module": "context",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-context"
+      ],
+      "scenario": "P5-CTX-U07 manual text metadata and proposal edits fail closed",
+      "impactTags": [
+        "context",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "P5-CTX-U07 manual text metadata and proposal edits fail closed",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-context.008",
+      "name": "P5-CTX-U08 project identity and symlink isolation forbid foreign memory",
+      "suiteId": "unit-context",
+      "module": "context",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-context"
+      ],
+      "scenario": "P5-CTX-U08 project identity and symlink isolation forbid foreign memory",
+      "impactTags": [
+        "context",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "P5-CTX-U08 project identity and symlink isolation forbid foreign memory",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-context.009",
+      "name": "P5-CTX-U09 same-project same-version tasks isolate task knowledge while inheriting project preferences",
+      "suiteId": "unit-context",
+      "module": "context",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-context"
+      ],
+      "scenario": "P5-CTX-U09 same-project same-version tasks isolate task knowledge while inheriting project preferences",
+      "impactTags": [
+        "context",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "P5-CTX-U09 same-project same-version tasks isolate task knowledge while inheriting project preferences",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.integration-context.001",
+      "name": "P5-CTX-I01 durable revisions reconstruct context after restart without generated-file authority",
+      "suiteId": "integration-context",
+      "module": "context",
+      "layer": "integration",
+      "covers": [
+        "p5-integration-context"
+      ],
+      "scenario": "P5-CTX-I01 durable revisions reconstruct context after restart without generated-file authority",
+      "impactTags": [
+        "context",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "P5-CTX-I01 durable revisions reconstruct context after restart without generated-file authority",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.integration-context.002",
+      "name": "P5-CTX-I02 simultaneous real-process publishers serialize with one CAS winner",
+      "suiteId": "integration-context",
+      "module": "context",
+      "layer": "integration",
+      "covers": [
+        "p5-integration-context"
+      ],
+      "scenario": "P5-CTX-I02 simultaneous real-process publishers serialize with one CAS winner",
+      "impactTags": [
+        "context",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "P5-CTX-I02 simultaneous real-process publishers serialize with one CAS winner",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.integration-context.003",
+      "name": "P5-CTX-I03 killed publication-lock owner and unselected revision recover without partial state",
+      "suiteId": "integration-context",
+      "module": "context",
+      "layer": "integration",
+      "covers": [
+        "p5-integration-context"
+      ],
+      "scenario": "P5-CTX-I03 killed publication-lock owner and unselected revision recover without partial state",
+      "impactTags": [
+        "context",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "P5-CTX-I03 killed publication-lock owner and unselected revision recover without partial state",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-desktop-goals.001",
+      "name": "desktop goal projection groups requirements by workspace without duplicating admitted runtime or removing legacy tasks",
+      "suiteId": "unit-desktop-goals",
+      "module": "desktop",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-desktop-goals"
+      ],
+      "scenario": "desktop goal projection groups requirements by workspace without duplicating admitted runtime or removing legacy tasks",
+      "impactTags": [
+        "desktop",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "desktop goal projection groups requirements by workspace without duplicating admitted runtime or removing legacy tasks",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-desktop-goals.002",
+      "name": "desktop goal revision merge rejects late snapshots and retains admitted runtime linkage across restore",
+      "suiteId": "unit-desktop-goals",
+      "module": "desktop",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-desktop-goals"
+      ],
+      "scenario": "desktop goal revision merge rejects late snapshots and retains admitted runtime linkage across restore",
+      "impactTags": [
+        "desktop",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "desktop goal revision merge rejects late snapshots and retains admitted runtime linkage across restore",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-desktop-goals.003",
+      "name": "desktop pending start identity matches durable command hashing without issuing a second request",
+      "suiteId": "unit-desktop-goals",
+      "module": "desktop",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-desktop-goals"
+      ],
+      "scenario": "desktop pending start identity matches durable command hashing without issuing a second request",
+      "impactTags": [
+        "desktop",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "desktop pending start identity matches durable command hashing without issuing a second request",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.live-orchestration.001",
+      "name": "P5 live Codex clarifies then admits real work and restores a fresh context from text with cumulative budget",
+      "suiteId": "live-orchestration",
+      "module": "orchestration",
+      "layer": "live",
+      "covers": [
+        "p5-live-orchestration"
+      ],
+      "scenario": "P5 live Codex clarifies then admits real work and restores a fresh context from text with cumulative budget",
+      "impactTags": [
+        "orchestration",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "P5 live Codex clarifies then admits real work and restores a fresh context from text with cumulative budget",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-orchestration.008",
+      "name": "P5 restoration reservation prevents resume from racing unresolved master reasoning",
+      "suiteId": "unit-orchestration",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-orchestration"
+      ],
+      "scenario": "P5 restoration reservation prevents resume from racing unresolved master reasoning",
+      "impactTags": [
+        "orchestration",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node; live uses authenticated real local Codex app-server",
+      "assertions": "P5 restoration reservation prevents resume from racing unresolved master reasoning",
+      "cleanup": "Terminate only owned fixture processes; preserve raw failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p5.live-orchestration.002",
+      "name": "P5 live cancellation stops the real master turn and restart never replays or clears unknown usage",
+      "suiteId": "live-orchestration",
+      "module": "orchestration",
+      "layer": "live",
+      "covers": [
+        "p5-live-orchestration"
+      ],
+      "scenario": "P5 live cancellation stops the real master turn and restart never replays or clears unknown usage",
+      "impactTags": [
+        "orchestration",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node; live uses authenticated real local Codex app-server",
+      "assertions": "P5 live cancellation stops the real master turn and restart never replays or clears unknown usage",
+      "cleanup": "Terminate only owned fixture processes; preserve raw failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p5.integration-orchestration.005",
+      "name": "P5 managed directory rejects redirection and root while durable start retries never recreate files",
+      "suiteId": "integration-orchestration",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p5-integration-orchestration"
+      ],
+      "scenario": "P5 managed directory rejects redirection and root while durable start retries never recreate files",
+      "impactTags": [
+        "orchestration",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "P5 managed directory rejects redirection and root while durable start retries never recreate files",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.integration-orchestration.006",
+      "name": "P5 restoring persisted requirements never reactivates explicitly invalidated memory",
+      "suiteId": "integration-orchestration",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p5-integration-orchestration"
+      ],
+      "scenario": "P5 restoring persisted requirements never reactivates explicitly invalidated memory",
+      "impactTags": [
+        "orchestration",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
+      "assertions": "P5 restoring persisted requirements never reactivates explicitly invalidated memory",
+      "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
       "status": "active"
     }
   ]

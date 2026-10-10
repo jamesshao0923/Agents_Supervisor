@@ -2,7 +2,7 @@
 
 Supervisor（项目目录 Agents_Supervisor）定位为运行在 macOS 上的长程任务监督管理器：把用户目标转成可验证的任务契约，调度 Codex 执行，持续检查产物是否可用，并在失败、中断或需求变化后继续推进。产品价值集中在需求质量、执行控制、验收证据与恢复能力。
 
-已确认：产品采用独立 macOS App，先供个人长期自用验证，放弃作为 Codex 插件的产品路线；首接 Codex CLI，保留 Claude Code 适配接口。桌面工作台与独立本地监督服务共同组成产品，CLI 是同一服务的控制入口。本文是设计基线；P0 工程与测试基座、P1 领域内核与真实持久化已完成；P2 真实 Codex 单次执行与 Electron/React 桌面薄切片已通过阶段门禁及独立复核。P3 本地持久运行与 P4 产品独立验证器已完成；需求/计划主控与自主 Loop 分别在 P5/P6 落地。实际进度以 [README](../README.md) 为准。基础技术资料核对日期为 2026 年 10 月 9 日；监控、模型路由、UI 验收、记忆与 Temporal 决策更新于 2026 年 10 月 10 日。
+已确认：产品采用独立 macOS App，先供个人长期自用验证，放弃作为 Codex 插件的产品路线；首接 Codex CLI，保留 Claude Code 适配接口。桌面工作台与独立本地监督服务共同组成产品，CLI 是同一服务的控制入口。本文是设计基线；P0 工程与测试基座、P1 领域内核与真实持久化已完成；P2 真实 Codex 单次执行与 Electron/React 桌面薄切片已通过阶段门禁及独立复核。P3 本地持久运行与 P4 产品独立验证器已完成；P5 需求/计划主控和文本记忆已完成真实运行与独立验收，自主 Loop 留 P6。实际进度以 [README](../README.md) 为准。基础技术资料核对日期为 2026 年 10 月 9 日；监控、模型路由、UI 验收、记忆与 Temporal 决策更新于 2026 年 10 月 10 日。
 
 已确认的任务范围：代码开发、修复与项目交付是核心需求；研究、资料整理和 deep research 同样需要支持，并作为检验通用长程监督能力的重要场景。首版同时提供工程交付与研究整理的任务模板和验收方式，共用同一监督内核。
 
@@ -313,10 +313,12 @@ turn/start 支持 image 和 localImage 输入；model/list 提供模型、inputM
 
 适配器声明能力：结构化事件、指定会话恢复、中断、审批事件、用量、模型选择、工具约束和交互输入。缺失能力明确向上层报告，不能用超时等待模拟暂停或恢复成功。Claude Code 首版只定义契约和测试替身，不宣称已接入。
 
-**Supervisor 自身由大模型驱动。** 首版默认使用本机 Codex CLI `app-server` 作为主控推理后端，复用当前可用的安装与认证。Supervisor 启动自己的受管进程，不控制或接管用户正在使用的 Codex 窗口。需求理解、计划、巡检与诊断通过内部 `SupervisorReasoner` 接口调用首个 `CodexReasonerAdapter`；模型生成结构化提案，确定性控制器校验版本、授权、预算、资源及验收门禁后执行。该统一接口在 P5/P6 实施；P4 已通过同一 Codex 协议真实执行独立评审，但不代表主控规划闭环已经完成。[官方 App Server](https://learn.chatgpt.com/docs/app-server)
+**Supervisor 自身由大模型驱动。** 首版默认使用本机 Codex CLI `app-server` 作为主控推理后端，复用当前可用的安装与认证。Supervisor 启动自己的受管进程，不控制或接管用户正在使用的 Codex 窗口。需求理解、计划、巡检与诊断通过内部 `SupervisorReasoner` 接口调用首个 `CodexReasonerAdapter`；模型生成结构化提案，确定性控制器校验版本、授权、预算、资源及验收门禁后执行。统一推理接口及需求主控已在 P5 实现，P6 再接自主监督；P4 通过同一 Codex 协议真实执行独立评审。[官方 App Server](https://learn.chatgpt.com/docs/app-server)
 
-- P5 提供 `clarify`、`proposeContract`、`proposePlan` 和 `proposeMemoryUpdate`；P6 扩展 `inspectProgress`、`diagnose` 和 `proposePlanPatch`。
+- P5 的 `SupervisorReasoner.request` 输出澄清/契约/计划结构化提案，控制器执行 `start/answer/admit/restore/cancel`。记忆由 `MemoryStore.propose/publish` 维护，模型本身不写文件或直接发布。P6 再接进度判断、故障诊断和计划补丁。
 - 每次调用绑定 Run、用途、契约版本、ContextManifest、证据引用、稳定操作标识、模型/思考量、预算预留和时限；结果经过 schema 与领域约束校验，不直接写完成状态或修改验收标准。
+- P5 中主控与执行、验收沿用同一累计账本。草稿契约显式标为 draft，不带假验收或执行节点；准入写入新契约版本、固定顺序计划和 outbox。当前采用可审阅提案后的显式准入，需求对齐后全自动推进由 P6 闭环接通。
+- 模型事实字段只允许引用真实用户消息 ID，明确事实必须是该消息的原文片段，推断标注 inferred。账本和记忆观察进入分析摘要，不会因引用证据就变成用户授权；完整原始输入和模型证据持续保留。
 - 主控、执行者和独立验收者使用独立上下文。公共进程、认证、事件和用量设施可以复用，不能为了通用规划放宽 P4 独立验收的只读权限、原始证据和未知结果规则。
 - 首版采用“模型提出动作 → 控制器执行受管操作 → 回传事实与证据”的循环。当前适配器没有动态工具桥；如后续使用 `dynamicTools`，需对锁定 CLI 协议另做兼容验证，不能把接口设计当成已实现能力。
 - 主控和子任务的调用进入同一账本。换角色、换会话、重试或升级模型不清零预算；本机 Codex 是客户端接入，不等于本地离线模型，也不代表免费额度。实际认证方式决定使用订阅访问还是 API 计费，不能把 CLI 登录凭证当作任意 API 的通用密钥。[认证说明](https://learn.chatgpt.com/docs/auth)
@@ -386,15 +388,19 @@ M0 采用门槛是一条真实 Codex 闭环：启动、记录证据、等待用�
 
 ## 项目内分层记忆与上下文构建
 
-首版采用明文文本与可检查的提示词拼接。层级为项目全局、模块、子模块；“全局”默认指当前项目，不自动把项目 A 的风格或业务假设带入项目 B。示意目录如下，仅作为待实现布局：
+首版采用明文文本与可检查的提示词拼接。层级为项目全局、模块、子模块；“全局”默认指当前项目，不自动把项目 A 的风格或业务假设带入项目 B。P5 已实现的目录布局如下，记录文件名使用记录 ID 的摘要：
 
 ```text
-.supervisor/memory/project.md
-.supervisor/memory/modules/auth.md
-.supervisor/memory/modules/auth/login.md
+.supervisor/memory/HEAD.json
+.supervisor/memory/revisions/v1-<uuid>/manifest.json
+.supervisor/memory/revisions/v1-<uuid>/project/<digest>.md
+.supervisor/memory/revisions/v1-<uuid>/modules/auth/<digest>.md
+.supervisor/memory/revisions/v1-<uuid>/modules/auth/login/<digest>.md
+.supervisor/memory/proposals/
+.supervisor/memory/contexts/
 ```
 
-文本记录事实、已确认偏好、接口决定、约束和经验，各条目保存适用范围、来源、明确或推断属性、版本、更新时间及失效条件。执行 Agent 提交更新提案，监督器串行发布版本，避免并行覆盖；用户可直接查看和修改，修改后重新建立索引并保留历史。推断偏好可在同项目可逆选择中作为有依据的默认，不自动升级为用户明确要求。
+文本记录事实、已确认偏好、接口决定、约束和经验，各条目保存适用范围、来源、明确或推断属性、版本、更新时间及失效条件。通过控制器提交更新提案，监督器串行发布不可变版本，避免并行覆盖。用户可直接查看原文；P5 对已发布文件的手工修改会报告完整性错误，需要先恢复原版字节，再经 MemoryStore 提案发布新版本。手改内容重新建立索引的编辑流程尚未实现。推断偏好可在同项目可逆选择中作为有依据的默认，不自动升级为用户明确要求。
 
 上下文按当前任务与契约、项目全局、相关模块、相关子模块、有效依赖及必要失败记录构建，保存本次 ContextManifest。当前明确要求和契约优先，细粒度记忆可覆盖上层默认，但不能覆盖硬约束或扩大授权。来源文档、网页和日志作为证据材料加载，不因写入记忆就变成控制指令；旧验收、旧权限及研究结论需要重新核对适用性。
 

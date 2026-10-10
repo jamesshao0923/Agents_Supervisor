@@ -211,11 +211,17 @@ async function inspectAttempt(identity: ProcessIdentity, retries: number, emptyS
 
 /** TERM, bounded grace, KILL, then actual group inspection. Fails closed on PID reuse. */
 export async function terminateProcess(identity: ProcessIdentity, options: { graceMs?: number; killWaitMs?: number } = {}): Promise<StopEvidence> {
+  return terminateOwnedScope(identity, options, false);
+}
+/** Internal exit cleanup retains the guardian until its output relay is drained. */
+async function terminateOwnedScope(identity: ProcessIdentity, options: { graceMs?: number; killWaitMs?: number }, preserveGuardian: boolean): Promise<StopEvidence> {
   const graceMs = milliseconds(options.graceMs, 250);
   const killWaitMs = milliseconds(options.killWaitMs, 3000);
   const signals: StopEvidence['signals'] = [];
   let inspection = await inspectProcess(identity);
   const evidence = (): StopEvidence => ({ ...inspection, stopped: inspection.status === 'stopped', signals });
+  const scopeEmpty = (): boolean => preserveGuardian && inspection.status === 'verified'
+    && inspection.members.every(member => member.pid === identity.pid);
   async function signal(value: 'SIGTERM' | 'SIGKILL'): Promise<boolean> {
     // Recheck immediately before each signal; never trust a prior PID lookup.
     inspection = await inspectProcess(identity);
@@ -224,7 +230,8 @@ export async function terminateProcess(identity: ProcessIdentity, options: { gra
     // Signal individual verified members, never an escaped member's whole PGID:
     // that group can also contain unrelated processes with no ownership token.
     // Leader is last so it remains available for the other members' fencing.
-    const targets = [...inspection.members].sort((a, b) => Number(a.pid === identity.pid) - Number(b.pid === identity.pid));
+    const targets = inspection.members.filter(member => !preserveGuardian || member.pid !== identity.pid)
+      .sort((a, b) => Number(a.pid === identity.pid) - Number(b.pid === identity.pid));
     for (const member of targets) {
       const current = (await table()).find(row => row.pid === member.pid && !row.state.startsWith('Z'));
       if (!current) continue;
@@ -250,18 +257,18 @@ export async function terminateProcess(identity: ProcessIdentity, options: { gra
     inspection = await inspectProcess(identity);
     return sent.length > 0;
   }
-  if (inspection.status !== 'verified' || !await signal('SIGTERM')) return evidence();
+  if (inspection.status !== 'verified' || scopeEmpty() || !await signal('SIGTERM')) return evidence();
   const graceDeadline = performance.now() + graceMs;
   while (performance.now() < graceDeadline) {
     inspection = await inspectProcess(identity);
-    if (inspection.status !== 'verified') return evidence();
+    if (inspection.status !== 'verified' || scopeEmpty()) return evidence();
     await delay(Math.min(25, Math.max(1, graceDeadline - performance.now())));
   }
   if (!await signal('SIGKILL')) return evidence();
   const killDeadline = performance.now() + killWaitMs;
   do {
     inspection = await inspectProcess(identity);
-    if (inspection.status !== 'verified') return evidence();
+    if (inspection.status !== 'verified' || scopeEmpty()) return evidence();
     // Cover children born during the prior sweep; each new PID is fenced again.
     if (!await signal('SIGKILL')) return evidence();
     await delay(25);
@@ -289,6 +296,15 @@ export async function spawnManagedProcess(options: SpawnManagedOptions): Promise
   let identity!: ProcessIdentity;
   let timeout: ReturnType<typeof setTimeout> | undefined;
   let stopPromise: Promise<StopEvidence> | undefined;
+  let descendantStopPromise: Promise<StopEvidence> | undefined;
+  async function stopWithOutputDrained(): Promise<StopEvidence> {
+    await descendantStopPromise;
+    return terminateProcess(identity, { graceMs });
+  }
+  async function withDescendantSignals(stop: StopEvidence): Promise<StopEvidence> {
+    const descendants = await descendantStopPromise;
+    return { ...stop, signals: [...descendants?.signals ?? [], ...stop.signals] };
+  }
   let settle!: (result: ProcessResult) => void;
   const completion = new Promise<ProcessResult>(resolve => { settle = resolve; });
   let closed = false;
@@ -296,7 +312,7 @@ export async function spawnManagedProcess(options: SpawnManagedOptions): Promise
     if (timeout) clearTimeout(timeout);
     if (!identity) return;
     if (!resultReceived && reason === 'completed') reason = 'guardian-exit';
-    const stop = await (stopPromise ?? terminateProcess(identity, { graceMs }));
+    const stop = await withDescendantSignals(await (stopPromise ?? stopWithOutputDrained()));
     settle({ identity, exitCode: resultCode, signal: resultSignal, reason, stopped: stop.stopped, stop });
   }
   // Exit, rather than pipe close, also detects an abruptly killed guardian
@@ -312,8 +328,17 @@ export async function spawnManagedProcess(options: SpawnManagedOptions): Promise
     child.on('message', message => {
       const value = message as { type?: string; exitCode?: number | null; signal?: string | null };
       if (value.type === 'ready') { clearTimeout(timer); resolve(); }
+      if (value.type === 'target-exit') {
+        resultCode = value.exitCode ?? null; resultSignal = value.signal ?? null;
+        // Only this guardian owns the IPC channel; the target has no IPC FD.
+        // Retain it while cleaning descendants that may hold the relay open.
+        if (!stopPromise) {
+          descendantStopPromise ??= terminateOwnedScope(identity, { graceMs }, true);
+          void descendantStopPromise.catch(() => {});
+        }
+      }
       if (value.type === 'result') { resultReceived = true; resultCode = value.exitCode ?? null; resultSignal = value.signal ?? null;
-        stopPromise ??= terminateProcess(identity, { graceMs }); void stopPromise.catch(() => {}); }
+        stopPromise ??= stopWithOutputDrained(); void stopPromise.catch(() => {}); }
     });
   });
   try {
@@ -346,7 +371,7 @@ export async function spawnManagedProcess(options: SpawnManagedOptions): Promise
       const stop = await stopPromise;
       if (!stop.stopped) {
         if (timeout) clearTimeout(timeout);
-        settle({ identity, exitCode: resultCode, signal: resultSignal, reason, stopped: false, stop });
+        settle({ identity, exitCode: resultCode, signal: resultSignal, reason, stopped: false, stop: await withDescendantSignals(stop) });
       }
     }
     return completion;

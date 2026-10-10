@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -55,6 +56,40 @@ test('managed process transports stdin stdout stderr with cwd and environment', 
   assert.equal(result.reason, 'completed');
   assert.equal(result.stopped, true);
   assert.equal(result.identity.pid, result.identity.pgid);
+
+  // /bin/sh is a native writer: inherited Node O_NONBLOCK descriptors used to
+  // produce EAGAIN under this actual burst, rather than exercising Node's own
+  // retrying stdout implementation. Delay both consumers to force backpressure.
+  const block = '0123456789abcdef'.repeat(512);
+  const repetitions = 512, bodyBytes = block.length * repetitions;
+  const burst = await f.managed('', { command: '/bin/sh', args: ['-c',
+    'i=0; while [ "$i" -lt 512 ]; do printf "%s" "$SV_BURST_BLOCK"; printf "%s" "$SV_BURST_BLOCK" >&2; i=$((i+1)); done; printf "%s" stdout-tail; printf "%s" stderr-tail >&2; exit 7'],
+    env: { SV_BURST_BLOCK: block }, timeoutMs: 10_000 });
+  await delay(300);
+  async function collect(stream: NodeJS.ReadableStream): Promise<Buffer> {
+    const chunks: Buffer[] = [];
+    let bytes = 0, paused = false;
+    for await (const chunk of stream) {
+      const buffer = Buffer.from(chunk as Uint8Array); chunks.push(buffer); bytes += buffer.length;
+      // Keep the final burst queued past the normal TERM grace. The result IPC
+      // must not kill the guardian before those last bytes have drained.
+      if (!paused && bytes >= bodyBytes - 128 * 1024) { paused = true; await delay(750); }
+    }
+    return Buffer.concat(chunks);
+  }
+  const burstStdout = collect(burst.stdout), burstStderr = collect(burst.stderr);
+  const burstResult = await burst.completion;
+  const [out, err] = await Promise.all([burstStdout, burstStderr]);
+  const expectedOut = Buffer.from(block.repeat(repetitions) + 'stdout-tail');
+  const expectedErr = Buffer.from(block.repeat(repetitions) + 'stderr-tail');
+  assert.deepEqual(out, expectedOut, 'native stdout burst and final tail must arrive byte-for-byte');
+  assert.deepEqual(err, expectedErr, 'native stderr burst and final tail must arrive byte-for-byte');
+  assert.equal(burstResult.exitCode, 7);
+  assert.equal(burstResult.reason, 'completed');
+  assert.equal(burstResult.stopped, true);
+  t.diagnostic(JSON.stringify({ nativeWriter: '/bin/sh', stdoutBytes: out.length, stderrBytes: err.length,
+    stdoutSha256: createHash('sha256').update(out).digest('hex'), stderrSha256: createHash('sha256').update(err).digest('hex'),
+    exitCode: burstResult.exitCode, stopped: burstResult.stopped }));
 });
 
 test('managed process commits intent and identity before releasing target', async t => {
@@ -135,7 +170,10 @@ test('managed process recovers persisted identity after actual supervisor exit',
   const f = await fixture(t);
   const identityPath = join(f.root, 'restart-identity.json');
   const writes = join(f.root, 'actual-writes');
-  const target = `process.on('SIGTERM', () => process.exit(0)); const fs = require('node:fs'); fs.appendFileSync(${JSON.stringify(writes)}, 'start\\n'); setInterval(() => fs.appendFileSync(${JSON.stringify(writes)}, 'write\\n'), 30);`;
+  const target = `process.on('SIGTERM', () => process.exit(0)); const fs = require('node:fs'); fs.appendFileSync(${JSON.stringify(writes)}, 'start\\n'); setInterval(() => {
+    fs.writeSync(1, 'actual stdout after controller exit|'); fs.writeSync(2, 'actual stderr after controller exit|');
+    fs.appendFileSync(${JSON.stringify(writes)}, 'write\\n');
+  }, 30);`;
   const module = new URL('../../packages/process-control/index.js', import.meta.url).href;
   const source = `import { spawnManagedProcess } from ${JSON.stringify(module)};
     import { writeFile } from 'node:fs/promises';
@@ -152,6 +190,8 @@ test('managed process recovers persisted identity after actual supervisor exit',
   await delay(100);
   const before = await readFile(writes, 'utf8');
   assert.ok(before.includes('write'), 'real writer survives its original supervisor');
+  await delay(100);
+  assert.ok((await readFile(writes, 'utf8')).length > before.length, 'writer keeps producing bytes after both controller output pipes disconnect');
   assert.equal((await inspectProcess(identity)).status, 'verified');
   const stop = await terminateProcess(identity, { graceMs: 750 });
   assert.equal(stop.stopped, true);
@@ -194,6 +234,26 @@ test('managed process handles abrupt guardian death and stops surviving owned de
 test('managed process stops detached token-owned writers after cancellation natural exit and supervisor restart', async t => {
   const f = await fixture(t);
   const foreign = await f.managed('setInterval(() => {}, 1000);');
+  // The target exits while a descendant retains both output pipes. Early
+  // fenced cleanup must close those FDs without killing the guardian's relay.
+  const inheritedReady = join(f.root, 'inherited-output.ready');
+  const inheritedChild = `const fs = require('node:fs');
+    process.on('SIGTERM', () => { fs.writeSync(1, 'stdout-final-tail'); fs.writeSync(2, 'stderr-final-tail'); process.exit(0); });
+    fs.writeSync(1, 'stdout-before-exit|'); fs.writeSync(2, 'stderr-before-exit|');
+    fs.writeFileSync(${JSON.stringify(inheritedReady)}, String(process.pid)); setInterval(() => {}, 1000);`;
+  const inherited = await f.managed(`require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(inheritedChild)}], { stdio: 'inherit' });
+    process.stdin.once('data', () => process.exit(0));`, { graceMs: 750, timeoutMs: 10_000 });
+  const inheritedStdout = output(inherited.stdout), inheritedStderr = output(inherited.stderr);
+  const inheritedPid = Number(await waitFile(inheritedReady));
+  inherited.writeLine('exit with inherited output FDs still open');
+  const inheritedResult = await inherited.completion;
+  assert.equal(inheritedResult.reason, 'completed');
+  assert.equal(inheritedResult.exitCode, 0);
+  assert.equal(inheritedResult.stopped, true);
+  assert.equal(await inheritedStdout, 'stdout-before-exit|stdout-final-tail');
+  assert.equal(await inheritedStderr, 'stderr-before-exit|stderr-final-tail');
+  assert.ok(inheritedResult.stop.signals.some(signal => signal.pids?.includes(inheritedPid)), 'descendant cleanup signals belong in final stop proof');
+  t.diagnostic(JSON.stringify({ inheritedOutputPid: inheritedPid, exitCode: inheritedResult.exitCode, stopped: inheritedResult.stopped, stop: inheritedResult.stop }));
   for (const mode of ['cancelled', 'completed', 'restart'] as const) {
     const pidfile = join(f.root, `${mode}.pid`);
     const writes = join(f.root, `${mode}.writes`);

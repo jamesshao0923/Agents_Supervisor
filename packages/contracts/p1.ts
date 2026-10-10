@@ -5,7 +5,7 @@ export type RunStatus = 'ready' | 'running' | 'paused' | 'blocked' | 'cancelled'
 export interface TaskNode { id: string; dependencies: string[]; required: boolean; status: 'pending' | 'running' | 'succeeded' | 'failed' | 'blocked' }
 export interface Attempt {
   id: string; nodeId: string; contractVersion: number; status: 'running' | 'succeeded' | 'failed' | 'cancelled';
-  reservation: number; purpose: 'execution' | 'verification'; settled: boolean; actual: number | null;
+  reservation: number; purpose: 'execution' | 'verification' | 'reasoning'; settled: boolean; actual: number | null;
 }
 export interface Budget { unit: 'work-unit' | 'token'; limit: number; spent: number; verificationReserve: number }
 export interface Lease { resource: string; attemptId: string; released: boolean }
@@ -32,6 +32,7 @@ export interface VerificationPlan {
   evidenceRefs?: EvidenceRef[];
 }
 export interface Run {
+  admission?: 'draft' | 'admitted';
   id: string; projectId: string; revision: number; contract: TaskContract; status: RunStatus;
   nodes: TaskNode[]; attempts: Attempt[]; budget: Budget; leases: Lease[]; operations: Operation[];
   artifact: Artifact | null; evidence: Evidence[];
@@ -43,13 +44,14 @@ export interface CreateRunInput {
   budget: { limit: number; verificationReserve: number; unit?: 'work-unit' | 'token' };
 }
 export type RunAction =
-  | { type: 'startAttempt'; attemptId: string; nodeId: string; contractVersion: number; reservation: number; purpose: 'execution' | 'verification'; resources: string[] }
+  | { type: 'startAttempt'; attemptId: string; nodeId: string; contractVersion: number; reservation: number; purpose: 'execution' | 'verification' | 'reasoning'; resources: string[] }
   | { type: 'finishAttempt'; attemptId: string; outcome: 'succeeded' | 'failed' | 'cancelled' }
   | { type: 'settleAttempt'; attemptId: string; actual: number }
   | { type: 'setOperation'; operationId: string; attemptId: string; status: Operation['status'] }
   | { type: 'releaseLease'; resource: string; attemptId: string }
   | { type: 'pause' | 'resume' | 'cancel' | 'complete' }
   | { type: 'replaceContract'; contract: TaskContract }
+  | { type: 'admit'; contract: TaskContract; nodes: CreateRunInput['nodes'] }
   | { type: 'recordEvidence'; evidence: Evidence }
   | { type: 'setArtifact'; artifact: Artifact };
 export interface DomainEvent { type: string; runId: string; revision: number; details: Record<string, unknown> }
@@ -74,5 +76,5 @@ export type Query =
   | { type: 'catalog'; projectId: string }
   | { type: 'changes'; projectId: string }
   | { type: 'plans'; projectId: string; runId: string };
-export type Request = { id: string } & ({ method: 'command'; command: Command } | { method: 'query'; query: Query } | { method: 'health' } | { method: 'execution'; action: import('./p2.js').ExecutionAction } | { method: 'verification'; action: import('../verification/records.js').VerificationAction } | { method: 'runtime'; action: import('./p3.js').RuntimeAction });
+export type Request = { id: string } & ({ method: 'command'; command: Command } | { method: 'query'; query: Query } | { method: 'health' } | { method: 'execution'; action: import('./p2.js').ExecutionAction } | { method: 'verification'; action: import('../verification/records.js').VerificationAction } | { method: 'orchestration'; action: import('./p5.js').OrchestrationAction } | { method: 'runtime'; action: import('./p3.js').RuntimeAction });
 export type Response = { id: string; ok: true; value: unknown } | { id: string; ok: false; error: string };

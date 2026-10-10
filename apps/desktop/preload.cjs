@@ -2,6 +2,13 @@ const { contextBridge, ipcRenderer } = require('electron');
 // Deliberately expose named operations, never arbitrary IPC or filesystem access.
 contextBridge.exposeInMainWorld('supervisor', Object.freeze({
   health: () => ipcRenderer.invoke('supervisor:health'),
+  orchestrationList: () => ipcRenderer.invoke('supervisor:orchestration-list'),
+  orchestrationInspect: sessionId => ipcRenderer.invoke('supervisor:orchestration-inspect', sessionId),
+  orchestrationStart: input => ipcRenderer.invoke('supervisor:orchestration-start', input),
+  orchestrationAnswer: input => ipcRenderer.invoke('supervisor:orchestration-answer', input),
+  orchestrationAdmit: input => ipcRenderer.invoke('supervisor:orchestration-admit', input),
+  orchestrationRestore: input => ipcRenderer.invoke('supervisor:orchestration-restore', input),
+  orchestrationCancel: input => ipcRenderer.invoke('supervisor:orchestration-cancel', input),
   runtimeList: () => ipcRenderer.invoke('supervisor:runtime-list'),
   runtimeInspect: runtimeId => ipcRenderer.invoke('supervisor:runtime-inspect', runtimeId),
   runtimeEvents: (runtimeId, after) => ipcRenderer.invoke('supervisor:runtime-events', runtimeId, after),

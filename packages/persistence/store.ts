@@ -1,3 +1,4 @@
+import { GoalRepository } from './goals.js';
 import { VerificationRepository } from './verification.js';
 import { RuntimeRepository } from './runtime.js';
 import { createHash, randomUUID } from 'node:crypto';
@@ -34,6 +35,7 @@ function digest(content: string | Uint8Array): string {
 export class SupervisorStore {
   private readonly db: DatabaseSync;
   readonly runtime: RuntimeRepository;
+  readonly goals: GoalRepository;
   readonly verification: VerificationRepository;
   private readonly root: string;
   private readonly objects: string;
@@ -53,11 +55,12 @@ export class SupervisorStore {
     this.db = new DatabaseSync(database);
     try { migrate(this.db); } catch (error) { this.db.close(); throw error; }
     this.runtime = new RuntimeRepository(this.db);
+    this.goals = new GoalRepository(this.db);
     this.verification = new VerificationRepository(this.db);
   }
 
   managedSnapshot(content: string): {path:string;digest:string} { return this.snapshot(content); }
-  isManagedProject(projectId: string): boolean { return !!this.db.prepare('SELECT id FROM runtime_runs WHERE project_id=? UNION ALL SELECT id FROM executions WHERE project_id=? LIMIT 1').get(projectId,projectId); }
+  isManagedProject(projectId: string): boolean { return !!this.db.prepare('SELECT id FROM runtime_runs WHERE project_id=? UNION ALL SELECT id FROM executions WHERE project_id=? UNION ALL SELECT id FROM goal_sessions WHERE project_id=? LIMIT 1').get(projectId,projectId,projectId); }
   close(): void { this.db.close(); }
 
   executionCreate(input: ResolvedExecutionStart, binding?: import('../contracts/p3.js').RuntimeBinding) { return executionCreate(this.db, input, binding); }
@@ -68,7 +71,7 @@ export class SupervisorStore {
     return executionUpdate(this.db, id, patch, kind, payload, actions);
   }
   isManagedRun(projectId: string, runId: string): boolean {
-    return !!this.db.prepare('SELECT id FROM executions WHERE project_id=? AND run_id=?').get(projectId, runId) || !!this.db.prepare('SELECT id FROM runtime_runs WHERE project_id=? AND run_id=?').get(projectId, runId);
+    return !!this.db.prepare('SELECT id FROM goal_sessions WHERE project_id=? AND run_id=?').get(projectId, runId) || !!this.db.prepare('SELECT id FROM executions WHERE project_id=? AND run_id=?').get(projectId, runId) || !!this.db.prepare('SELECT id FROM runtime_runs WHERE project_id=? AND run_id=?').get(projectId, runId);
   }
 
   command(input: Command): CommandResult {

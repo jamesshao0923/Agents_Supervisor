@@ -15,10 +15,16 @@ export function createRun(input: CreateRunInput): Run {
   for (const id of nodes.keys()) visit(id);
   return { id: value.id, projectId: value.projectId, revision: 0, contract: value.contract, status: 'ready', nodes: value.nodes.map((node) => ({ ...node, status: 'pending' })), attempts: [], budget: { unit: 'work-unit', ...value.budget, spent: 0 }, leases: [], operations: [], artifact: null, evidence: [] };
 }
+/** Draft requirements have no executable nodes or invented acceptance criteria. */
+export function createDraftRun(input: Omit<CreateRunInput, 'contract' | 'nodes'> & {goal:string}): Run {
+  const checked = parseCreateRunInput({id:input.id,projectId:input.projectId,budget:input.budget,contract:{version:1,goal:input.goal,criteria:[]},nodes:[]});
+  return {admission:'draft',id:checked.id,projectId:checked.projectId,revision:0,contract:checked.contract,status:'ready',nodes:[],attempts:[],budget:{unit:'token',...checked.budget,spent:0},leases:[],operations:[],artifact:null,evidence:[]};
+}
 function reservations(run: Run): number { return run.attempts.filter((a) => !a.settled).reduce((sum, a) => sum + a.reservation, 0); }
 function protectedReserve(run: Run): number { return Math.max(0, run.budget.verificationReserve - run.attempts.filter((a) => a.purpose === 'verification').reduce((sum, a) => sum + (a.settled ? a.actual! : a.reservation), 0)); }
 function completionReasons(run: Run): string[] {
   const reasons: string[] = [];
+  if(run.admission==='draft') reasons.push('requirements not admitted');
   if (run.nodes.some((n) => n.required && n.status !== 'succeeded')) reasons.push('required nodes unfinished');
   if (run.attempts.some((a) => a.status === 'running')) reasons.push('active attempts');
   if (run.attempts.some((a) => !a.settled)) reasons.push('unsettled attempts');
@@ -39,6 +45,7 @@ export function readiness(run: Run): Readiness {
   if (run.attempts.some((a) => a.status === 'running')) return result('active');
   const reasons = completionReasons(run);
   if (run.operations.some((o) => o.status !== 'confirmed') || run.leases.some((l) => !l.released) || run.attempts.some((a) => !a.settled)) return result('blocked', [], reasons);
+  if(run.admission==='draft') return result('blocked',[],['requirements not admitted']);
   // Budget limits gate new work. They do not erase an already verified result.
   if (!reasons.length) return result('complete');
   const ready = run.nodes.filter((n) => (n.status === 'pending' || n.status === 'failed') && n.dependencies.every((id) => run.nodes.find((d) => d.id === id)?.status === 'succeeded'));
@@ -59,20 +66,23 @@ export function applyAction(input: Run, unparsed: RunAction): { run: Run; events
   if (run.status === 'cancelled') ensure(['cancel', 'finishAttempt', 'settleAttempt', 'releaseLease', 'setOperation'].includes(action.type), 'cancelled run cannot execute');
   switch (action.type) {
     case 'startAttempt': {
-      ensure(!['paused', 'cancelled'].includes(run.status), 'dispatch prohibited by run state'); ensure(action.contractVersion === run.contract.version, 'stale contract version');
+      ensure(run.status!=='cancelled'&&(run.status!=='paused'||action.purpose==='reasoning'), 'dispatch prohibited by run state'); ensure(action.contractVersion === run.contract.version, 'stale contract version');
       ensure(!run.attempts.some((a) => a.id === action.attemptId), 'attempt id already exists');
-      const node = run.nodes.find((n) => n.id === action.nodeId); ensure(node, 'unknown node');
+      ensure(action.purpose==='reasoning'||run.admission!=='draft','requirements not admitted');
+      if(action.purpose!=='reasoning')ensure(run.attempts.filter(a=>a.purpose==='reasoning').every(a=>a.settled),'unsettled reasoning prevents dispatch');
+      const node = action.purpose==='reasoning'?{id:'@supervisor',dependencies:[] as string[],status:'pending'}:run.nodes.find((n) => n.id === action.nodeId); ensure(node && node.id===action.nodeId, 'unknown node');
+      if(action.purpose==='reasoning') ensure(!run.attempts.some(a=>!a.settled),'unsettled attempts prevent reasoning');
       ensure(!run.attempts.some((a) => a.nodeId === node.id && a.status === 'running'), 'node has active attempt');
       ensure(run.operations.every((o) => o.status === 'confirmed'), 'unresolved operation prevents dispatch');
       ensure(node.dependencies.every((id) => run.nodes.find((n) => n.id === id)?.status === 'succeeded'), 'dependencies unfinished');
       if (action.purpose === 'execution') ensure(node.status === 'pending' || node.status === 'failed', 'node not dispatchable');
-      else ensure(run.artifact?.contractVersion === run.contract.version && run.nodes.every((n) => !n.required || n.status === 'succeeded'), 'verification needs current candidate and completed required nodes');
+      else if(action.purpose==='verification') ensure(run.artifact?.contractVersion === run.contract.version && run.nodes.every((n) => !n.required || n.status === 'succeeded'), 'verification needs current candidate and completed required nodes');
       unique(action.resources, 'resource'); for (const resource of action.resources) ensure(!run.leases.some((l) => l.resource === resource && !l.released), `resource ${resource} still leased`);
-      const protection = action.purpose === 'execution' ? protectedReserve(run) : 0;
+      const protection = action.purpose !== 'verification' ? protectedReserve(run) : 0;
       ensure(run.budget.spent <= run.budget.limit && run.budget.spent + reservations(run) + action.reservation + protection <= run.budget.limit, 'insufficient budget');
       run.attempts.push({ id: action.attemptId, nodeId: node.id, contractVersion: action.contractVersion, status: 'running', reservation: action.reservation, purpose: action.purpose, settled: false, actual: null });
       for (const resource of action.resources) run.leases.push({ resource, attemptId: action.attemptId, released: false });
-      if (action.purpose === 'execution') node.status = 'running'; run.status = 'running'; break;
+      if (action.purpose === 'execution') node.status = 'running'; if(run.status!=='paused')run.status = 'running'; break;
     }
     case 'finishAttempt': {
       const attempt = run.attempts.find((a) => a.id === action.attemptId); ensure(attempt, 'unknown attempt');
@@ -107,7 +117,15 @@ export function applyAction(input: Run, unparsed: RunAction): { run: Run; events
       for (const attempt of run.attempts.filter((a) => a.status === 'running')) { attempt.status = 'cancelled'; if (attempt.purpose === 'execution') run.nodes.find((n) => n.id === attempt.nodeId)!.status = 'failed'; }
       break;
     }
+    case 'admit': {
+      ensure(run.admission==='draft','only draft requirements can be admitted');
+      ensure(!run.attempts.some(a=>!a.settled||a.status==='running')&&run.operations.every(o=>o.status==='confirmed')&&run.leases.every(l=>l.released),'unresolved reasoning prevents admission');
+      ensure(action.contract.version===run.contract.version+1,'contract version must increment');
+      const approved=createRun({id:run.id,projectId:run.projectId,contract:action.contract,nodes:action.nodes,budget:{unit:run.budget.unit,limit:run.budget.limit,verificationReserve:run.budget.verificationReserve}});
+      run.contract=approved.contract;run.nodes=approved.nodes;run.admission='admitted';break;
+    }
     case 'replaceContract': {
+      ensure(run.admission!=='draft','draft contract changes require admission');
       contractValid(action.contract); ensure(action.contract.version === run.contract.version + 1, 'contract version must increment'); run.contract = action.contract;
       const invalidatedEvidence = run.evidence; run.evidence = [];
       for (const attempt of run.attempts.filter((a) => a.status === 'running')) attempt.status = 'cancelled';
@@ -115,12 +133,14 @@ export function applyAction(input: Run, unparsed: RunAction): { run: Run; events
       if (run.status !== 'paused') run.status = 'ready'; return audit({ invalidatedEvidence });
     }
     case 'setArtifact': {
+      ensure(run.admission!=='draft','requirements not admitted');
       ensure(action.artifact.contractVersion === run.contract.version, 'stale artifact contract');
       if (run.artifact && same(run.artifact, action.artifact)) return noChange();
       const invalidatedEvidence = run.artifact?.digest !== action.artifact.digest ? run.evidence : []; if (invalidatedEvidence.length) run.evidence = [];
       run.artifact = action.artifact; return audit({ invalidatedEvidence });
     }
     case 'recordEvidence': {
+      ensure(run.admission!=='draft','requirements not admitted');
       const evidence = action.evidence; ensure(evidence.contractVersion === run.contract.version, 'stale evidence contract'); ensure(run.artifact?.digest === evidence.artifactDigest, 'stale evidence artifact');
       ensure(run.contract.criteria.some((c) => c.id === evidence.criterionId), 'unknown evidence criterion'); const previous = run.evidence.find((e) => e.id === evidence.id);
       if (previous) { ensure(same(previous, evidence), 'evidence id is immutable'); return noChange(); } run.evidence.push(evidence); break;

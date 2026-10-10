@@ -90,10 +90,19 @@ const parameters = JSON.parse(process.argv[3]);
 const { discountedPrice } = await import(pathToFileURL(join(candidate, 'build/price.js')).href);
 const checks = [];
 for (const [obligationId, check] of [
-  ['normal', () => assert.equal(discountedPrice(Number(parameters.amount), Number(parameters.percent)), Number(parameters.expected))],
+  ['normal', () => {
+    assert.equal(discountedPrice(Number(parameters.amount), Number(parameters.percent)), Number(parameters.expected));
+    assert.ok(discountedPrice(-0, 25) === 0);
+    for (const [amount, percent, expected] of [[0, 0, 0], [0, 25, 0], [0, 100, 0], [200, -0, 200], [200, 0, 200], [200, 100, 0], [0.5, 50, 0.25], [Number.MIN_VALUE, 0, Number.MIN_VALUE], [Number.MAX_VALUE, 0, Number.MAX_VALUE]])
+      assert.equal(discountedPrice(amount, percent), expected);
+  }],
   ['invalid', () => {
-    for (const [amount, percent] of [[-1, 5], [1, -1], [1, 101], [NaN, 5], [Infinity, 5], [-Infinity, 5], [1, NaN], [1, Infinity], [1, -Infinity]])
+    for (const [amount, percent] of [[-1, 5], [-Number.MIN_VALUE, 5], [1, -1], [1, -Number.MIN_VALUE], [1, 101], [1, 100 + Number.EPSILON * 128]])
       assert.throws(() => discountedPrice(amount, percent), RangeError);
+    for (const value of [NaN, Infinity, -Infinity, '1', '', undefined, null, true, false, [], {}, new Number(1), 1n, Symbol('not-number')]) {
+      assert.throws(() => discountedPrice(value, 5), RangeError);
+      assert.throws(() => discountedPrice(1, value), RangeError);
+    }
   }]
 ]) {
   try { check(); checks.push({ obligationId, verdict: 'passed', reason: 'Actual assertion passed for ' + JSON.stringify(parameters) }); }
@@ -106,6 +115,10 @@ process.exitCode = checks.some(check => check.verdict === 'failed' || check.verd
 命令校验器收到两个参数：候选副本目录、参数 JSON。必须向 `SUPERVISOR_VERIFY_REPORT` 写报告；每个声明义务恰好一个 check，包含 `obligationId`、`verdict` 和非空 `reason`。允许的 verdict 为 `passed`、`failed`、`unknown`、`not-applicable`。全部 passed/not-applicable 时退出码为 `0`；存在 failed/unknown 时为 `1`。崩溃、超时、缺失或错误报告、退出码与报告冲突都是验收器错误，不能作为产品通过或有效负控制。
 
 `build` 是可选字段。本例保留它：Supervisor 用锁定的 TypeScript 实际重编译冻结源码，在证据目录输出，再按全部输出文件、字节与执行权限比对 `build/`。源码错误或源码与旧二进制不一致会失败。省略 `build` 只运行声明的 Node 校验器，不应据此声称已验证编译一致性。当前构建器支持指定源码的 TypeScript 构建；它不自动安装项目依赖，不继承项目配置或任意构建插件。
+
+P5 增加可选的 `candidateEntries`，例如 `['sum.mjs', 'sum.test.mjs']`。它声明候选目录中的 1–8 个不同 Node 入口，仅接受规范化相对路径与 `.js/.mjs/.cjs` 扩展名。引擎先为每个入口启动真实受管 Node 进程，全部正常退出后才运行独立检查器；不是通过导入文件冒充直接执行。每个入口记录配置、文件摘要、进程身份、原始输出、退出码及停止证明。入口不需要写验收报告，也不获得报告路径或写入权限。入口非零退出使用例失败；超时、取消、无法确认停止及缺失入口不能作为有效负控制。此功能仍限制子进程和网络，不是任意 shell 命令执行接口；测试实际有效性仍需检查器、正反控制与独立复核共同验证。
+
+独立 Node 检查器可从 `SUPERVISOR_VERIFY_TYPESCRIPT_MODULE` 读取 Supervisor 固定的 TypeScript 6.0.3 解析器，使用真实语法树检查源码依赖，避免用正则匹配冒充语法分析。引擎核对版本，给予该工具包只读权限，并保存 `parser-runtime.json` 的模块摘要；工具链全文已经绑定环境指纹。候选入口不获得此权限或环境变量。解析器只提供语法事实：具体准入规则仍由被冻结并独立复核的检查器实现，须保留可通过样本与绕过写法的反控制，不等于证明任意 JavaScript 的所有执行行为。
 
 ## 连接工作流
 

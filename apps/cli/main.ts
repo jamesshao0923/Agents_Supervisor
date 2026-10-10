@@ -15,6 +15,7 @@ async function main(): Promise<void> {
     options[key] = value;
   }
   const allowed: Record<string, string[]> = {
+    goal: ['--data','--file'], goals:['--data'], 'goal-show':['--data','--goal'],
     verify: ['--data','--file'], 'verification-status':['--data','--runtime'], serve: ['--data'], health: ['--data'], projects: ['--data'],
     runs: ['--data', '--project'], show: ['--data', '--project', '--run'],
     events: ['--data', '--project', '--after'], send: ['--data', '--file'],
@@ -31,7 +32,7 @@ async function main(): Promise<void> {
   const dataDir = resolve(options['--data'] ?? '.supervisor/local');
   if (command === 'serve') {
     const service = await startService(dataDir);
-    console.log(JSON.stringify({ event: 'listening', socket: service.socket, dataDir, stage: 'P4' }));
+    console.log(JSON.stringify({ event: 'listening', socket: service.socket, dataDir, stage: 'P5' }));
     const stop = () => { void service.close().catch(error => { console.error(error); process.exitCode = 1; }); };
     process.once('SIGINT', stop);
     process.once('SIGTERM', stop);
@@ -40,7 +41,10 @@ async function main(): Promise<void> {
   const required = (flag: string): string => { const value = options[flag]; if (!value) throw new Error(`${flag} is required`); return value; };
   let payload: Request;
   const id = randomUUID();
-  if(command==='verify')payload={id,method:'verification',action:JSON.parse(await readFile(required('--file'),'utf8'))};
+  if(command==='goal')payload={id,method:'orchestration',action:JSON.parse(await readFile(required('--file'),'utf8'))};
+  else if(command==='goals')payload={id,method:'orchestration',action:{type:'list'}};
+  else if(command==='goal-show')payload={id,method:'orchestration',action:{type:'inspect',sessionId:required('--goal')}};
+  else if(command==='verify')payload={id,method:'verification',action:JSON.parse(await readFile(required('--file'),'utf8'))};
   else if(command==='verification-status')payload={id,method:'verification',action:{type:'status',runtimeId:required('--runtime')}};
   else if (command === 'send') {
     const input: unknown = JSON.parse(await readFile(required('--file'), 'utf8'));

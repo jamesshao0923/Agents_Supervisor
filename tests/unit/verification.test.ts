@@ -22,6 +22,7 @@ function replacement(input = spec()): VerificationSpec {
 
 test('verification spec parses independent command UI and source definitions without retaining caller objects', () => {
   const value = spec(); const ui: VerificationSpecCase = { ...structuredClone(value.cases[0]!), id: 'ui-check', modules: ['ui'], verifier: { kind: 'ui', version: 'ui-v1', entry: 'index.html', steps: [{ kind: 'fill', selector: '#amount', value: '200' }, { kind: 'click', selector: '#quote' }, { kind: 'assertText', selector: '#result', text: '150' }, { kind: 'assertVisible', selector: '#result' }], expectations: ['Result is visible and readable'], timeoutMs: 5000 } };
+  if(value.cases[0]!.verifier.kind==='command')value.cases[0]!.verifier.candidateEntries=['app.js','test.mjs','legacy.cjs'];
   value.cases.push(ui, { ...structuredClone(value.cases[0]!), id: 'source-check', verifier: { kind: 'source', version: 'source-v1', claimFile: 'claims.json', sources: [{ id: 'primary', url: 'https://example.org/primary', excerpt: 'The original source actually states this fact.', maxAgeMs: 1000 }], timeoutMs: 5000 } });
   const parsed = parseVerificationSpec(value); assert.deepEqual(parsed, value); parsed.cases[0]!.parameters[0]!.platform = 'changed'; assert.equal(value.cases[0]!.parameters[0]!.platform, 'mac'); validateSpecChange(null, value, contract);
 });
@@ -36,6 +37,9 @@ test('verification spec rejects unknown fields accessors prototypes sparse array
 test('verification spec rejects escaping command and UI paths invalid source URLs and missing good bad controls', () => {
   for (const entry of ['../outside.mjs', '/absolute.mjs', 'checks/../outside.mjs', 'C:\\outside.mjs', 'checks//entry.mjs']) { const value = spec(); value.cases[0]!.verifier = { kind: 'command', version: 'v1', entry, files: [entry], timeoutMs: 1 }; assert.throws(() => parseVerificationSpec(value), /relative path/); }
   const value = spec(); value.cases[0]!.verifier = { kind: 'command', version: 'v1', entry: 'check.mjs', files: ['different.mjs'], timeoutMs: 1 }; assert.throws(() => parseVerificationSpec(value), /contain the entry/);
+  for(const candidateEntries of [[],['../outside.mjs'],['/absolute.mjs'],['C:/outside.js'],['nested/../outside.js'],['nested\\entry.cjs'],['entry.ts'],['entry.mjs?escaped'],['entry.mjs','entry.mjs'],Array.from({length:9},(_,i)=>`entry-${i}.mjs`)]) {
+    const input=spec();if(input.cases[0]!.verifier.kind==='command')input.cases[0]!.verifier.candidateEntries=candidateEntries;assert.throws(()=>parseVerificationSpec(input),/candidate|relative path|array/);
+  }
   for (const url of ['http://example.org/source', 'https://user:secret@example.org/source', 'file:///source', 'https://example.org/source#unbound']) { const input = spec(); input.cases[0]!.verifier = { kind: 'source', version: 'v1', claimFile: 'claim.json', sources: [{ id: 'source', url, excerpt: 'actual passage', maxAgeMs: 1 }], timeoutMs: 1 }; assert.throws(() => parseVerificationSpec(input), /HTTPS/); }
   assert.throws(() => parseVerificationSpec({ ...spec(), controls: [spec().controls[0], { ...spec().controls[1], expect: 'passed', mustFail: [] }] }), /good and bad/);
 });
