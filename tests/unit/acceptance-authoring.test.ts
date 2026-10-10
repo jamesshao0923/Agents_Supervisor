@@ -1,0 +1,147 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { createHash } from 'node:crypto';
+import { mkdtemp, readFile, realpath, rm, symlink, writeFile, mkdir } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { parseVerificationSpec } from '../../packages/contracts/p4.js';
+import { parseReasonerOutput } from '../../packages/orchestration/reasoner-schema.js';
+import { acceptanceAuthoringContextDigest, acceptanceAuthoringSchema, buildAcceptanceAuthoringPrompt, materializeAcceptanceBundle, validateAcceptanceBundle, type AcceptanceAuthoringContext, type AcceptanceBundle } from '../../packages/orchestration/acceptance-authoring.js';
+const hash = (text: string) => createHash('sha256').update(text).digest('hex');
+function context(): AcceptanceAuthoringContext {
+  const content = 'export function sum(a,b) { return a+b; }\n';
+  const criterion = { id: 'sum', description: 'Add finite numbers', kind: 'command' as const, target: 'math.mjs', checks: ['sum(2,3) equals 5', 'invalid inputs are rejected'] };
+  return { contract: { version: 2, goal: 'Compute sum', criteria: [{ id: 'sum', required: true, description: [criterion.description, 'Acceptance kind: command; target: math.mjs', ...criterion.checks].join('\n') }] }, criteria: [criterion],
+    candidate: { workspace: '/private/candidate', digest: hash('frozen-external-candidate-digest'), files: [{ path: 'math.mjs', content, sha256: hash(content) }] }, environment: { node: process.version, platform: process.platform }, failureContext: { actual: 'Invalid input accepted', proof: 'failed-proof-sha' }, previousSpec: null };
+}
+function bundle(c = context()): AcceptanceBundle {
+  const checks = c.criteria[0]!.checks;
+  return { contextDigest: acceptanceAuthoringContextDigest(c), spec: { schemaVersion: 1, contractVersion: 2, standardsVersion: 'author-v1', obligations: [{ id: 'sum-ok', criterionId: 'sum', expectation: 'Normal sum and exceptions', required: true, applicable: true }],
+    cases: [{ id: 'sum-check', revision: 1, obligationIds: ['sum-ok'], parameters: [{}], modules: ['sum'], replaces: [], defectRefs: ['invalid-input'], status: 'active', verifier: { kind: 'command', version: 'independent-v1', entry: 'check.mjs', files: ['check.mjs'], timeoutMs: 1000 } }], controls: [{ id: 'good', workspace: 'good', expect: 'passed', mustFail: [] }, { id: 'bad', workspace: 'bad', expect: 'failed', mustFail: ['sum-ok'] }], moduleDependencies: { sum: [] } },
+    verifierFiles: [{ path: 'check.mjs', content: '/* independently authored checker; executed only by P4 after proposal */\n' }], controls: [{ id: 'good', files: [{ path: 'math.mjs', content: 'export const sum=(a,b)=>{if(typeof a!=="number"||typeof b!=="number")throw Error();return a+b};\n' }] }, { id: 'bad', files: [{ path: 'math.mjs', content: 'export const sum=(a,b)=>a-b;\n' }] }], coverageExplanation: checks.map(check => ({ criterionId: 'sum', check, caseIds: ['sum-check'], explanation: 'Separate assertions exercise values and exception behavior; P4 independently assesses effectiveness.' })) };
+}
+
+test('P6-AUTH-U01 strict proposed assets bind complete contract source environment and failure context without granting success', () => {
+  const c = context(), b = bundle(c), schema = acceptanceAuthoringSchema(c);
+  assert.deepEqual(validateAcceptanceBundle(b, c), b);
+  assert.doesNotThrow(() => parseReasonerOutput(JSON.stringify(b), schema));
+  const prompt = buildAcceptanceAuthoringPrompt(c);
+  for (const text of [c.candidate.files[0]!.content, c.contract.criteria[0]!.description, 'Invalid input accepted', process.version]) assert.ok(prompt.includes(JSON.stringify(text).slice(1, -1)));
+  assert.match(prompt, /untrusted project data/); assert.match(prompt, /PROPOSALS/);
+  assert.throws(() => validateAcceptanceBundle({ ...b, passed: true }, c));
+  const modified = context(); modified.candidate.files[0]!.content += 'changed'; assert.throws(() => acceptanceAuthoringSchema(modified), /source hash/);
+  modified.candidate.files[0]!.sha256 = hash(modified.candidate.files[0]!.content); assert.throws(() => validateAcceptanceBundle(b, modified), /const/);
+  let getterCalled = false;
+  const unsafe = Object.defineProperty({ ...b }, 'sideEffect', { enumerable: true, get() { getterCalled = true; return 'passed'; } });
+  assert.throws(() => validateAcceptanceBundle(unsafe, c), /Unsafe JSON/); assert.equal(getterCalled, false);
+});
+
+test('P6-AUTH-U02 semantic checks reject weakened necessity coverage controls and copied candidate tests', () => {
+  const c = context();
+  const mutations: ((b: AcceptanceBundle) => void)[] = [
+    b => { b.spec.obligations[0]!.required = false; }, b => { b.spec.obligations[0]!.applicable = false; },
+    b => { b.coverageExplanation.pop(); }, b => { b.coverageExplanation[0]!.caseIds = ['invented']; },
+    b => { b.spec.controls[1]!.mustFail = []; }, b => { b.controls[1]!.files = [{ path: 'irrelevant.mjs', content: 'wrong' }]; },
+    b => { b.verifierFiles[0]!.content = c.candidate.files[0]!.content; }, b => { b.spec.controls[1]!.workspace = '/escape'; },
+    b => { b.controls.push(structuredClone(b.controls[0]!)); }, b => { b.coverageExplanation[0]!.caseIds.push('sum-check'); },
+  ];
+  for (const mutate of mutations) { const b = bundle(c); mutate(b); assert.throws(() => validateAcceptanceBundle(b, c)); }
+});
+
+test('P6-AUTH-U03 preserves native HTML and source acceptance and rejects command downgrade', () => {
+  for (const kind of ['ui', 'source'] as const) {
+    const c = context(), item = c.criteria[0]!; item.kind = kind;
+    item.target = kind === 'ui' ? 'index.html' : 'https://nodejs.org/api/assert.html';
+    const claimFile = 'research/claim.txt', localFile = kind === 'ui' ? item.target : claimFile;
+    c.candidate.files[0]!.path = localFile;
+    if (kind === 'source') {
+      item.description = 'Explain the strict assertion API using the official Node.js documentation';
+      item.checks = ['Claim is supported by the exact official source', 'Supporting excerpt and current provenance are independently verified'];
+      c.candidate.files[0]!.content = 'Node.js provides strict assertion functions for testing invariants.\n';
+      c.candidate.files[0]!.sha256 = hash(c.candidate.files[0]!.content);
+    }
+    c.contract.criteria[0]!.description = [item.description, `Acceptance kind: ${kind}; target: ${item.target}`, ...item.checks].join('\n');
+    const originalContract = structuredClone(c.contract);
+    assert.doesNotThrow(() => acceptanceAuthoringSchema(c));
+    const b = bundle(c); for (const control of b.controls) control.files[0]!.path = localFile;
+    assert.throws(() => validateAcceptanceBundle(b, c), /kind/);
+    b.verifierFiles = []; b.spec.cases[0]!.verifier = kind === 'ui'
+      ? { kind, version: 'ui-v1', entry: item.target, steps: [{ kind: 'assertText', selector: '#sum', text: '5' }], expectations: item.checks, timeoutMs: 1000 }
+      : { kind, version: 'source-v1', claimFile, sources: [{ id: 'primary', url: item.target, excerpt: 'assert', maxAgeMs: 1000 }], timeoutMs: 1000 };
+    assert.doesNotThrow(() => validateAcceptanceBundle(b, c));
+    assert.deepEqual(c.contract, originalContract, 'HTTPS target authority is never rewritten to a local file');
+    const verifier = b.spec.cases[0]!.verifier;
+    if (verifier.kind === 'ui') { verifier.entry = 'other.html'; assert.throws(() => validateAcceptanceBundle(b, c), /target/); }
+    else if (verifier.kind === 'source') {
+      const prompt = buildAcceptanceAuthoringPrompt(c); assert.match(prompt, /exact HTTPS sourceURL/); assert.match(prompt, /separate project-relative claimFile/);
+      verifier.sources[0]!.url = 'https://nodejs.org/api/other.html'; assert.throws(() => validateAcceptanceBundle(b, c), /authoritative HTTPS target/);
+      verifier.sources[0]!.url = item.target; verifier.claimFile = 'missing-claim.txt'; assert.throws(() => validateAcceptanceBundle(b, c), /missing frozen candidate input/);
+      verifier.claimFile = claimFile; b.controls[0]!.files[0]!.path = 'other-claim.txt'; assert.throws(() => validateAcceptanceBundle(b, c), /required verifier input/);
+      b.controls[0]!.files[0]!.path = claimFile;
+      const weakened = structuredClone(b); weakened.spec.obligations[0]!.required = false; assert.throws(() => validateAcceptanceBundle(weakened, c), /necessary obligation/);
+      const downgrade = structuredClone(b); downgrade.verifierFiles = bundle(c).verifierFiles; downgrade.spec.cases[0]!.verifier = bundle(c).spec.cases[0]!.verifier; assert.throws(() => validateAcceptanceBundle(downgrade, c), /kind/);
+      for (const target of ['claim.txt', 'http://nodejs.org/api/assert.html', 'https://user:secret@nodejs.org/api/assert.html']) {
+        const invalid = structuredClone(c); invalid.criteria[0]!.target = target;
+        invalid.contract.criteria[0]!.description = [item.description, `Acceptance kind: source; target: ${target}`, ...item.checks].join('\n');
+        assert.throws(() => acceptanceAuthoringSchema(invalid), /HTTPS/);
+      }
+    }
+  }
+});
+
+test('P6-AUTH-U04 rejects escaping conflicting oversized unreferenced and unauthorized asset types', () => {
+  for (const path of ['../escape', '/escape', 'a/../escape', 'a\\escape', '.git/config', 'node_modules/pkg.js', 'spec.json', 'controls/good/x', 'check.mjs?x']) {
+    const b = bundle(); b.verifierFiles[0]!.path = path; assert.throws(() => validateAcceptanceBundle(b, context()));
+  }
+  const b = bundle(); b.verifierFiles.push({ path: 'unreferenced', content: 'junk' }); assert.throws(() => validateAcceptanceBundle(b, context()), /Unreferenced/);
+  b.verifierFiles[1]!.path = 'check.mjs/child'; assert.throws(() => validateAcceptanceBundle(b, context()), /conflicting/);
+  b.verifierFiles.pop(); b.verifierFiles[0]!.content = 'x'.repeat(128 * 1024 + 1); assert.throws(() => validateAcceptanceBundle(b, context()));
+  const tooMany = bundle(); tooMany.controls[0]!.files.push(...Array.from({ length: 126 }, (_, i) => ({ path: `input-${i}.txt`, content: 'control text' }))); assert.throws(() => validateAcceptanceBundle(tooMany, context()), /file or byte limits/);
+  const oversized = bundle(); oversized.verifierFiles = Array.from({ length: 7 }, (_, i) => ({ path: `checker-${i}.mjs`, content: 'x'.repeat(120_000) })); assert.throws(() => validateAcceptanceBundle(oversized, context()), /file or byte limits/);
+  const unauthorized = bundle(); (unauthorized.spec.cases[0]!.verifier as unknown as Record<string, unknown>).kind = 'shell'; assert.throws(() => validateAcceptanceBundle(unauthorized, context()));
+});
+
+test('P6-AUTH-U05 materializes immutable proposed P4 spec idempotently and detects edits extra paths and symlinks', async () => {
+  const temporary = await realpath(await mkdtemp(join(tmpdir(), 'supervisor-author-'))); const privateRoot = join(temporary, 'private');
+  try {
+    const options = { privateRoot, jobId: 'author-1', context: context(), bundle: bundle() };
+    const [first, second] = await Promise.all([materializeAcceptanceBundle(options), materializeAcceptanceBundle(options)]);
+    assert.deepEqual(first, second); assert.equal(first.status, 'proposed');
+    const spec = parseVerificationSpec(JSON.parse(await readFile(first.specPath, 'utf8')));
+    assert.equal(spec.controls[0]!.workspace, join(first.directory, 'controls', 'good'));
+    assert.equal((JSON.parse(await readFile(join(first.directory, 'manifest.json'), 'utf8')) as { status: string }).status, 'proposed');
+    await writeFile(join(first.directory, 'check.mjs'), 'tampered'); await assert.rejects(materializeAcceptanceBundle(options), /tampered/);
+    await writeFile(join(first.directory, 'check.mjs'), options.bundle.verifierFiles[0]!.content);
+    await mkdir(join(first.directory, 'extra-empty-directory')); await assert.rejects(materializeAcceptanceBundle(options), /tampered/); await rm(join(first.directory, 'extra-empty-directory'), { recursive: true });
+    await rm(join(first.directory, 'check.mjs')); await symlink(join(first.directory, 'spec.json'), join(first.directory, 'check.mjs')); await assert.rejects(materializeAcceptanceBundle(options), /symlink/);
+    const linkedRoot = join(temporary, 'linked'); await symlink(privateRoot, linkedRoot); await assert.rejects(materializeAcceptanceBundle({ ...options, privateRoot: linkedRoot, jobId: 'new-job' }), /symlink/);
+    await assert.rejects(materializeAcceptanceBundle({ ...options, privateRoot: '/private/candidate/assets' }), /outside/);
+  } finally { await rm(temporary, { recursive: true, force: true }); }
+});
+
+test('P6-AUTH-U06 retains published controls and historical revisions and rejects reused changed definitions', async () => {
+  const temporary = await realpath(await mkdtemp(join(tmpdir(), 'supervisor-author-history-')));
+  try {
+    const c = context(), b = bundle(c); const first = await materializeAcceptanceBundle({ privateRoot: temporary, jobId: 'first', context: c, bundle: b });
+    c.previousSpec = first.spec;
+    const next = bundle(c); next.spec.controls = structuredClone(first.spec.controls); next.controls = []; next.spec.standardsVersion = 'author-v2';
+    assert.doesNotThrow(() => validateAcceptanceBundle(next, c));
+    next.spec.cases[0]!.defectRefs.push('invented-change'); assert.throws(() => validateAcceptanceBundle(next, c), /revision/);
+    next.spec.cases = structuredClone(first.spec.cases); next.spec.controls[0]!.workspace = 'good'; assert.throws(() => validateAcceptanceBundle(next, c), /Published control/);
+  } finally { await rm(temporary, { recursive: true, force: true }); }
+});
+
+
+test('P6-AUTH-U07 retains P4 TypeScript build semantics and actual CLI input declarations', () => {
+  const c = context();
+  const source = 'export const sum = (a: number, b: number): number => a+b;\n';
+  c.candidate.files.push({ path: 'src/math.ts', content: source, sha256: hash(source) }, { path: 'build/math.js', content: 'exports.sum = (a,b) => a+b;\n', sha256: hash('exports.sum = (a,b) => a+b;\n') });
+  const b = bundle(c), verifier = b.spec.cases[0]!.verifier;
+  assert.equal(verifier.kind, 'command'); if (verifier.kind !== 'command') throw Error('fixture');
+  verifier.build = { kind: 'typescript', sources: ['src/math.ts'], rootDir: 'src', outputDir: 'build', timeoutMs: 1000 };
+  verifier.candidateEntries = ['math.mjs'];
+  for (const control of b.controls) control.files.push({ path: 'build/math.js', content: 'exports.sum = (a,b) => a+b;\n' }, { path: 'src/math.ts', content: source });
+  assert.doesNotThrow(() => validateAcceptanceBundle(b, c));
+  verifier.candidateEntries = ['missing.mjs']; assert.throws(() => validateAcceptanceBundle(b, c), /missing frozen candidate input/);
+  verifier.candidateEntries = ['math.mjs']; b.controls[0]!.files.pop(); assert.throws(() => validateAcceptanceBundle(b, c), /required verifier input/);
+});

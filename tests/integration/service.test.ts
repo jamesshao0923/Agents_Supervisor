@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createConnection } from 'node:net';
-import { mkdtemp, readFile, readdir, rm, writeFile, stat } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, writeFile, stat, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
@@ -9,6 +9,7 @@ import { once } from 'node:events';
 import { tmpdir } from 'node:os';
 import test, { type TestContext } from 'node:test';
 import { request } from '../../apps/cli/client.js';
+import { SupervisorStore } from '../../packages/persistence/store.js';
 import type { Command, CommandResult, Query, Run, StoredEvent } from '../../packages/contracts/p1.js';
 
 const cli = fileURLToPath(new URL('../../apps/cli/main.js', import.meta.url));
@@ -150,12 +151,31 @@ test('service rejects malformed IPC and continues serving actual health requests
   assert.equal(JSON.parse(raw).ok, false);
   const health = await request(f.data, { id: 'health', method: 'health' });
   assert.deepEqual(health, { id: 'health', ok: true, value: {
-    status: 'ready', stage: 'P5', requirementsReasoner:'codex-v1', conversationProtocol:'v1', modelExecution: true, workspaceManagement: 'path-v1', durableRuntime: 'local-v1',
+    status: 'ready', stage: 'P5', requirementsReasoner:'codex-v1', conversationProtocol:'v1', supervisionProtocol:'v1', modelExecution: true, workspaceManagement: 'path-v1', durableRuntime: 'local-v1',
     runtime: { active: false, worker: null, capabilities: {
       engine: 'local-v1', workflowVersions: [1], pause: 'dispatch-only', input: 'declared-wait', automaticCodexReplay: false,
     } },
   } });
   assert.equal((await stat(join(f.data, 'supervisor.sock'))).mode & 0o777, 0o600);
+  // Explicit repository boundary fixture: no model, approval or actual delivery is claimed.
+  const workspace=join(f.data,'cancel-boundary');await mkdir(workspace);const ledger=new SupervisorStore(f.data);
+  try {
+    const runtime=ledger.runtime.submit({type:'submit',commandId:'cancel-conflict',workspace,workspaceKind:'project',goal:'Cancellation ordering',tokenLimit:100,verificationReserve:20,steps:[{id:'input',kind:'input',prompt:'Wait for a real input'}]});
+    const attached=ledger.supervision.attach({commandId:'supervision-fixture',runtimeId:runtime.id,config:{model:'never-dispatched',effort:'low',reservation:10,timeoutMs:1000},limits:{maxRepairs:1,maxReasoningCalls:2,maxDurationMs:60000,maxContextChars:8000}});
+    ledger.supervision.update(attached.id,attached.revision,{paused:true});const before=JSON.stringify(ledger.supervision.get(attached.id));
+    for(const action of [{type:'cancel' as const,runtimeId:runtime.id,commandId:'bad-cancel',extra:true},{type:'cancel' as const,runtimeId:runtime.id,commandId:'cancel-conflict'}]){
+      const rejected=await request(f.data,{id:randomUUID(),method:'runtime',action});assert.equal(rejected.ok,false);
+      assert.equal(JSON.stringify(ledger.supervision.get(attached.id)),before);assert.equal(ledger.runtime.get(runtime.id).cancelled,false);assert.equal(ledger.supervision.jobs(attached.id).length,0);
+    }
+    const cancel={type:'cancel' as const,runtimeId:runtime.id,commandId:'valid-cancel'};
+    assert.equal((await request(f.data,{id:randomUUID(),method:'runtime',action:cancel})).ok,true);
+    assert.equal(ledger.runtime.get(runtime.id).cancelled,true);assert.equal(ledger.supervision.get(attached.id).stopped,true);
+    const stopped=ledger.supervision.get(attached.id);
+    assert.equal((await request(f.data,{id:randomUUID(),method:'runtime',action:cancel})).ok,true);
+    assert.deepEqual(ledger.supervision.get(attached.id),stopped,'Idempotent cancel must not duplicate supervision changes');
+    assert.equal(ledger.supervision.jobs(attached.id).length,0);
+  } finally {ledger.close();}
+
 });
 
 test('service refuses a second owner and preserves the running service', async t => {

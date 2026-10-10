@@ -1,10 +1,16 @@
 const { contextBridge, ipcRenderer } = require('electron');
 // Deliberately expose named operations, never arbitrary IPC or filesystem access.
 contextBridge.exposeInMainWorld('supervisor', Object.freeze({
+  supervisionList: () => ipcRenderer.invoke('supervisor:supervision-list'),
+  supervisionAttach: input => ipcRenderer.invoke('supervisor:supervision-attach',input),
+  supervisionPause: loopId => ipcRenderer.invoke('supervisor:supervision-pause',loopId),
+  supervisionResume: loopId => ipcRenderer.invoke('supervisor:supervision-resume',loopId),
+  supervisionStop: loopId => ipcRenderer.invoke('supervisor:supervision-stop',loopId),
   conversationList: () => ipcRenderer.invoke('supervisor:conversation-list'),
   conversationForSession: sessionId => ipcRenderer.invoke('supervisor:conversation-for-session', sessionId),
   conversationInspect: conversationId => ipcRenderer.invoke('supervisor:conversation-inspect', conversationId),
   conversationSend: input => ipcRenderer.invoke('supervisor:conversation-send', input),
+  conversationCancelAssessment: input => ipcRenderer.invoke('supervisor:conversation-cancelAssessment', input),
   conversationRetry: input => ipcRenderer.invoke('supervisor:conversation-retry', input),
   health: () => ipcRenderer.invoke('supervisor:health'),
   orchestrationList: () => ipcRenderer.invoke('supervisor:orchestration-list'),

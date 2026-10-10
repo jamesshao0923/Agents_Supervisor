@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-catalog-v12",
+  "revision": "dev-catalog-v14",
   "modules": [
     {
       "id": "dev-contracts",
@@ -356,6 +356,66 @@
       "id": "live-conversation",
       "layer": "live",
       "file": "dist/tests/live/conversation.test.js",
+      "timeoutMs": 600000
+    },
+    {
+      "id": "unit-terminal-assessment",
+      "layer": "unit",
+      "file": "dist/tests/unit/terminal-assessment.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "integration-terminal-inquiry",
+      "layer": "integration",
+      "file": "dist/tests/integration/terminal-inquiry.test.js",
+      "timeoutMs": 120000
+    },
+    {
+      "id": "unit-acceptance-authoring",
+      "layer": "unit",
+      "file": "dist/tests/unit/acceptance-authoring.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "integration-supervision-ledger",
+      "layer": "integration",
+      "file": "dist/tests/integration/supervision-ledger.test.js",
+      "timeoutMs": 120000
+    },
+    {
+      "id": "unit-repair-domain",
+      "layer": "unit",
+      "file": "dist/tests/unit/repair-domain.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "integration-runtime-repair",
+      "layer": "integration",
+      "file": "dist/tests/integration/runtime-repair.test.js",
+      "timeoutMs": 120000
+    },
+    {
+      "id": "live-terminal-inquiry",
+      "layer": "live",
+      "file": "dist/tests/live/terminal-inquiry.test.js",
+      "timeoutMs": 600000
+    },
+    {
+      "id": "integration-supervision-controller",
+      "layer": "integration",
+      "file": "dist/tests/integration/supervision-controller.test.js",
+      "timeoutMs": 120000
+    },
+    {
+      "id": "integration-supervision-reasoning",
+      "layer": "integration",
+      "file": "dist/tests/integration/supervision-reasoning.test.js",
+      "timeoutMs": 120000
+    },
+    {
+      "id": "live-supervision-loop",
+      "layer": "live",
+      "file": "dist/tests/live/supervision-loop.test.js",
       "timeoutMs": 600000
     }
   ],
@@ -7175,6 +7235,1410 @@
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/live/conversation.test.ts :: P6 live conversation answers read only then applies additive changes before execution and at verification with original criteria and cumulative accounting",
       "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-terminal-assessment.001",
+      "name": "P6-TERM-U01 terminal assessment schema carries no plan or authority; explicit inquiries cannot request continuation",
+      "suiteId": "unit-terminal-assessment",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-terminal-assessment"
+      ],
+      "scenario": "P6-TERM-U01 terminal assessment schema carries no plan or authority; explicit inquiries cannot request continuation",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/unit/terminal-assessment.test.ts :: P6-TERM-U01 terminal assessment schema carries no plan or authority; explicit inquiries cannot request continuation",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-terminal-assessment.002",
+      "name": "P6-TERM-U02 clarification and actual-change ancestors preserve unresolved intent until an executable followup is planned",
+      "suiteId": "unit-terminal-assessment",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-terminal-assessment"
+      ],
+      "scenario": "P6-TERM-U02 clarification and actual-change ancestors preserve unresolved intent until an executable followup is planned",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/unit/terminal-assessment.test.ts :: P6-TERM-U02 clarification and actual-change ancestors preserve unresolved intent until an executable followup is planned",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-terminal-assessment.003",
+      "name": "P6-TERM-U03 cancellation binds the exact assessment identity and rejects caller supplied accounting",
+      "suiteId": "unit-terminal-assessment",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-terminal-assessment"
+      ],
+      "scenario": "P6-TERM-U03 cancellation binds the exact assessment identity and rejects caller supplied accounting",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/unit/terminal-assessment.test.ts :: P6-TERM-U03 cancellation binds the exact assessment identity and rejects caller supplied accounting",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-terminal-inquiry.001",
+      "name": "P6-TERM-I01 terminal question publishes once across SQLite reopen without changing historical Run Goal runtime or delivery bytes",
+      "suiteId": "integration-terminal-inquiry",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-terminal-inquiry"
+      ],
+      "scenario": "P6-TERM-I01 terminal question publishes once across SQLite reopen without changing historical Run Goal runtime or delivery bytes",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/integration/terminal-inquiry.test.ts :: P6-TERM-I01 terminal question publishes once across SQLite reopen without changing historical Run Goal runtime or delivery bytes",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-terminal-inquiry.002",
+      "name": "P6-TERM-I02 external reasoning budget reserves actual cost once preserves unknown usage and authorizes exact remaining child limit",
+      "suiteId": "integration-terminal-inquiry",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-terminal-inquiry"
+      ],
+      "scenario": "P6-TERM-I02 external reasoning budget reserves actual cost once preserves unknown usage and authorizes exact remaining child limit",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/integration/terminal-inquiry.test.ts :: P6-TERM-I02 external reasoning budget reserves actual cost once preserves unknown usage and authorizes exact remaining child limit",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-terminal-inquiry.003",
+      "name": "P6-TERM-I03 unclassified answer and clarification keep old round; a clarified inquiry clears only its own parent chain",
+      "suiteId": "integration-terminal-inquiry",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-terminal-inquiry"
+      ],
+      "scenario": "P6-TERM-I03 unclassified answer and clarification keep old round; a clarified inquiry clears only its own parent chain",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/integration/terminal-inquiry.test.ts :: P6-TERM-I03 unclassified answer and clarification keep old round; a clarified inquiry clears only its own parent chain",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-terminal-inquiry.004",
+      "name": "P6-TERM-I04 continue promotion rolls back completely then creates one exact-budget child and applies terminal clarification ancestors atomically",
+      "suiteId": "integration-terminal-inquiry",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-terminal-inquiry"
+      ],
+      "scenario": "P6-TERM-I04 continue promotion rolls back completely then creates one exact-budget child and applies terminal clarification ancestors atomically",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/integration/terminal-inquiry.test.ts :: P6-TERM-I04 continue promotion rolls back completely then creates one exact-budget child and applies terminal clarification ancestors atomically",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-terminal-inquiry.005",
+      "name": "P6-TERM-I05 scoped cancellation suppresses late publication and stale cancel never cancels a retried assessment",
+      "suiteId": "integration-terminal-inquiry",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-terminal-inquiry"
+      ],
+      "scenario": "P6-TERM-I05 scoped cancellation suppresses late publication and stale cancel never cancels a retried assessment",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/integration/terminal-inquiry.test.ts :: P6-TERM-I05 scoped cancellation suppresses late publication and stale cancel never cancels a retried assessment",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-terminal-inquiry.006",
+      "name": "P6-TERM-I06 proof tampering rejects terminal publication; interrupted possible turn remains unknown and never replays on restart",
+      "suiteId": "integration-terminal-inquiry",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-terminal-inquiry"
+      ],
+      "scenario": "P6-TERM-I06 proof tampering rejects terminal publication; interrupted possible turn remains unknown and never replays on restart",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/integration/terminal-inquiry.test.ts :: P6-TERM-I06 proof tampering rejects terminal publication; interrupted possible turn remains unknown and never replays on restart",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-terminal-inquiry.007",
+      "name": "P6-TERM-I07 terminal capacity rejection occurs before process intent and cannot replace delivered status",
+      "suiteId": "integration-terminal-inquiry",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-terminal-inquiry"
+      ],
+      "scenario": "P6-TERM-I07 terminal capacity rejection occurs before process intent and cannot replace delivered status",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/integration/terminal-inquiry.test.ts :: P6-TERM-I07 terminal capacity rejection occurs before process intent and cannot replace delivered status",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-terminal-inquiry.008",
+      "name": "P6-TERM-I08 assessment overruns remain actual spend while contradictory final usage stays unknown with its original report",
+      "suiteId": "integration-terminal-inquiry",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-terminal-inquiry"
+      ],
+      "scenario": "P6-TERM-I08 assessment overruns remain actual spend while contradictory final usage stays unknown with its original report",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/integration/terminal-inquiry.test.ts :: P6-TERM-I08 assessment overruns remain actual spend while contradictory final usage stays unknown with its original report",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-acceptance-authoring.001",
+      "name": "P6-AUTH-U01 strict proposed assets bind complete contract source environment and failure context without granting success",
+      "suiteId": "unit-acceptance-authoring",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-acceptance-authoring"
+      ],
+      "scenario": "P6-AUTH-U01 strict proposed assets bind complete contract source environment and failure context without granting success",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/unit/acceptance-authoring.test.ts :: P6-AUTH-U01 strict proposed assets bind complete contract source environment and failure context without granting success",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-acceptance-authoring.002",
+      "name": "P6-AUTH-U02 semantic checks reject weakened necessity coverage controls and copied candidate tests",
+      "suiteId": "unit-acceptance-authoring",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-acceptance-authoring"
+      ],
+      "scenario": "P6-AUTH-U02 semantic checks reject weakened necessity coverage controls and copied candidate tests",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/unit/acceptance-authoring.test.ts :: P6-AUTH-U02 semantic checks reject weakened necessity coverage controls and copied candidate tests",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-acceptance-authoring.003",
+      "name": "P6-AUTH-U03 preserves native HTML and source acceptance and rejects command downgrade",
+      "suiteId": "unit-acceptance-authoring",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-acceptance-authoring"
+      ],
+      "scenario": "P6-AUTH-U03 preserves native HTML and source acceptance and rejects command downgrade",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/unit/acceptance-authoring.test.ts :: P6-AUTH-U03 preserves native HTML and source acceptance and rejects command downgrade",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-acceptance-authoring.004",
+      "name": "P6-AUTH-U04 rejects escaping conflicting oversized unreferenced and unauthorized asset types",
+      "suiteId": "unit-acceptance-authoring",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-acceptance-authoring"
+      ],
+      "scenario": "P6-AUTH-U04 rejects escaping conflicting oversized unreferenced and unauthorized asset types",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/unit/acceptance-authoring.test.ts :: P6-AUTH-U04 rejects escaping conflicting oversized unreferenced and unauthorized asset types",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-acceptance-authoring.005",
+      "name": "P6-AUTH-U05 materializes immutable proposed P4 spec idempotently and detects edits extra paths and symlinks",
+      "suiteId": "unit-acceptance-authoring",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-acceptance-authoring"
+      ],
+      "scenario": "P6-AUTH-U05 materializes immutable proposed P4 spec idempotently and detects edits extra paths and symlinks",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/unit/acceptance-authoring.test.ts :: P6-AUTH-U05 materializes immutable proposed P4 spec idempotently and detects edits extra paths and symlinks",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-acceptance-authoring.006",
+      "name": "P6-AUTH-U06 retains published controls and historical revisions and rejects reused changed definitions",
+      "suiteId": "unit-acceptance-authoring",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-acceptance-authoring"
+      ],
+      "scenario": "P6-AUTH-U06 retains published controls and historical revisions and rejects reused changed definitions",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/unit/acceptance-authoring.test.ts :: P6-AUTH-U06 retains published controls and historical revisions and rejects reused changed definitions",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-acceptance-authoring.007",
+      "name": "P6-AUTH-U07 retains P4 TypeScript build semantics and actual CLI input declarations",
+      "suiteId": "unit-acceptance-authoring",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-acceptance-authoring"
+      ],
+      "scenario": "P6-AUTH-U07 retains P4 TypeScript build semantics and actual CLI input declarations",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/unit/acceptance-authoring.test.ts :: P6-AUTH-U07 retains P4 TypeScript build semantics and actual CLI input declarations",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-ledger.001",
+      "name": "P6-SUP-I01 supervisor attachment and prepared intent survive reopen with exact idempotent requests",
+      "suiteId": "integration-supervision-ledger",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-ledger"
+      ],
+      "scenario": "P6-SUP-I01 supervisor attachment and prepared intent survive reopen with exact idempotent requests",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/integration/supervision-ledger.test.ts :: P6-SUP-I01 supervisor attachment and prepared intent survive reopen with exact idempotent requests",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-ledger.002",
+      "name": "P6-SUP-I02 supervision reasoning reserves and settles original Run budget exactly once without changing requirements",
+      "suiteId": "integration-supervision-ledger",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-ledger"
+      ],
+      "scenario": "P6-SUP-I02 supervision reasoning reserves and settles original Run budget exactly once without changing requirements",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/integration/supervision-ledger.test.ts :: P6-SUP-I02 supervision reasoning reserves and settles original Run budget exactly once without changing requirements",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-ledger.003",
+      "name": "P6-SUP-I03 unknown reasoning usage retains reservation and blocks another job or intent across reopen",
+      "suiteId": "integration-supervision-ledger",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-ledger"
+      ],
+      "scenario": "P6-SUP-I03 unknown reasoning usage retains reservation and blocks another job or intent across reopen",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/integration/supervision-ledger.test.ts :: P6-SUP-I03 unknown reasoning usage retains reservation and blocks another job or intent across reopen",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-ledger.004",
+      "name": "P6-SUP-I04 outer rollback preserves loop counters original ledger and command receipt absence",
+      "suiteId": "integration-supervision-ledger",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-ledger"
+      ],
+      "scenario": "P6-SUP-I04 outer rollback preserves loop counters original ledger and command receipt absence",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/integration/supervision-ledger.test.ts :: P6-SUP-I04 outer rollback preserves loop counters original ledger and command receipt absence",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-ledger.005",
+      "name": "P6-SUP-I05 context and budget failures precede intents while overrun remains charged and completion cannot be fabricated",
+      "suiteId": "integration-supervision-ledger",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-ledger"
+      ],
+      "scenario": "P6-SUP-I05 context and budget failures precede intents while overrun remains charged and completion cannot be fabricated",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/integration/supervision-ledger.test.ts :: P6-SUP-I05 context and budget failures precede intents while overrun remains charged and completion cannot be fabricated",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-ledger.006",
+      "name": "P6-SUP-I06 pause stop repair cap and implementation readiness gate supervision dispatch",
+      "suiteId": "integration-supervision-ledger",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-ledger"
+      ],
+      "scenario": "P6-SUP-I06 pause stop repair cap and implementation readiness gate supervision dispatch",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/integration/supervision-ledger.test.ts :: P6-SUP-I06 pause stop repair cap and implementation readiness gate supervision dispatch",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-ledger.007",
+      "name": "P6-SUP-I07 underreported final usage keeps observed cost unresolved and reservation overrun cannot publish a result",
+      "suiteId": "integration-supervision-ledger",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-ledger"
+      ],
+      "scenario": "P6-SUP-I07 underreported final usage keeps observed cost unresolved and reservation overrun cannot publish a result",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/integration/supervision-ledger.test.ts :: P6-SUP-I07 underreported final usage keeps observed cost unresolved and reservation overrun cannot publish a result",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-repair-domain.001",
+      "name": "P6-REPAIR-U01 same-contract append preserves original standards nodes budget and audit history",
+      "suiteId": "unit-repair-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-repair-domain"
+      ],
+      "scenario": "P6-REPAIR-U01 same-contract append preserves original standards nodes budget and audit history",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/unit/repair-domain.test.ts :: P6-REPAIR-U01 same-contract append preserves original standards nodes budget and audit history",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-repair-domain.002",
+      "name": "P6-REPAIR-U02 append rejects duplicate ids unknown dependencies optional repairs and stale contract",
+      "suiteId": "unit-repair-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-repair-domain"
+      ],
+      "scenario": "P6-REPAIR-U02 append rejects duplicate ids unknown dependencies optional repairs and stale contract",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/unit/repair-domain.test.ts :: P6-REPAIR-U02 append rejects duplicate ids unknown dependencies optional repairs and stale contract",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-repair-domain.003",
+      "name": "P6-REPAIR-U03 repair is prohibited by pause cancellation terminal success or unknown accounting",
+      "suiteId": "unit-repair-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-repair-domain"
+      ],
+      "scenario": "P6-REPAIR-U03 repair is prohibited by pause cancellation terminal success or unknown accounting",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/unit/repair-domain.test.ts :: P6-REPAIR-U03 repair is prohibited by pause cancellation terminal success or unknown accounting",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-repair-domain.004",
+      "name": "P6-REPAIR-U04 future floor overlaps original reserve and bounds subsequent execution exactly",
+      "suiteId": "unit-repair-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-repair-domain"
+      ],
+      "scenario": "P6-REPAIR-U04 future floor overlaps original reserve and bounds subsequent execution exactly",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/unit/repair-domain.test.ts :: P6-REPAIR-U04 future floor overlaps original reserve and bounds subsequent execution exactly",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-repair-domain.005",
+      "name": "P6-REPAIR-U05 legacy reserve is retained when greater than future allocation",
+      "suiteId": "unit-repair-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-repair-domain"
+      ],
+      "scenario": "P6-REPAIR-U05 legacy reserve is retained when greater than future allocation",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/unit/repair-domain.test.ts :: P6-REPAIR-U05 legacy reserve is retained when greater than future allocation",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-repair-domain.006",
+      "name": "P6-REPAIR-U06 ordinary review cannot consume final verification allocation",
+      "suiteId": "unit-repair-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-repair-domain"
+      ],
+      "scenario": "P6-REPAIR-U06 ordinary review cannot consume final verification allocation",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/unit/repair-domain.test.ts :: P6-REPAIR-U06 ordinary review cannot consume final verification allocation",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-repair-domain.007",
+      "name": "P6-REPAIR-U07 matching final allocation converts atomically into actual reservation without double counting",
+      "suiteId": "unit-repair-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-repair-domain"
+      ],
+      "scenario": "P6-REPAIR-U07 matching final allocation converts atomically into actual reservation without double counting",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/unit/repair-domain.test.ts :: P6-REPAIR-U07 matching final allocation converts atomically into actual reservation without double counting",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-repair-domain.008",
+      "name": "P6-REPAIR-U08 mismatched amount id purpose or stale allocation cannot bypass protection",
+      "suiteId": "unit-repair-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-repair-domain"
+      ],
+      "scenario": "P6-REPAIR-U08 mismatched amount id purpose or stale allocation cannot bypass protection",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/unit/repair-domain.test.ts :: P6-REPAIR-U08 mismatched amount id purpose or stale allocation cannot bypass protection",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-repair-domain.009",
+      "name": "P6-REPAIR-U09 allocation rejects noninteger unavailable and unsafe amounts",
+      "suiteId": "unit-repair-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-repair-domain"
+      ],
+      "scenario": "P6-REPAIR-U09 allocation rejects noninteger unavailable and unsafe amounts",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/unit/repair-domain.test.ts :: P6-REPAIR-U09 allocation rejects noninteger unavailable and unsafe amounts",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-repair-domain.010",
+      "name": "P6-REPAIR-U10 explicit quiet release retains mandatory completion gate and release audit",
+      "suiteId": "unit-repair-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-repair-domain"
+      ],
+      "scenario": "P6-REPAIR-U10 explicit quiet release retains mandatory completion gate and release audit",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/unit/repair-domain.test.ts :: P6-REPAIR-U10 explicit quiet release retains mandatory completion gate and release audit",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-repair-domain.011",
+      "name": "P6-REPAIR-U11 legitimate contract revision audits and invalidates stale future allocation",
+      "suiteId": "unit-repair-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-repair-domain"
+      ],
+      "scenario": "P6-REPAIR-U11 legitimate contract revision audits and invalidates stale future allocation",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/unit/repair-domain.test.ts :: P6-REPAIR-U11 legitimate contract revision audits and invalidates stale future allocation",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-repair-domain.012",
+      "name": "P6-REPAIR-U12 passed evidence does not complete a run with unconsumed future allocation",
+      "suiteId": "unit-repair-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-repair-domain"
+      ],
+      "scenario": "P6-REPAIR-U12 passed evidence does not complete a run with unconsumed future allocation",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/unit/repair-domain.test.ts :: P6-REPAIR-U12 passed evidence does not complete a run with unconsumed future allocation",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-runtime-repair.001",
+      "name": "P6-REPAIR-I01 real verifier failure appends once preserving contract failed evidence and checkpoint ancestry",
+      "suiteId": "integration-runtime-repair",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p6-runtime-repair"
+      ],
+      "scenario": "P6-REPAIR-I01 real verifier failure appends once preserving contract failed evidence and checkpoint ancestry",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/integration/runtime-repair.test.ts :: P6-REPAIR-I01 real verifier failure appends once preserving contract failed evidence and checkpoint ancestry",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-runtime-repair.002",
+      "name": "P6-REPAIR-I02 failed commit rolls back domain repair artifact checkpoint outbox events and receipt",
+      "suiteId": "integration-runtime-repair",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p6-runtime-repair"
+      ],
+      "scenario": "P6-REPAIR-I02 failed commit rolls back domain repair artifact checkpoint outbox events and receipt",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/integration/runtime-repair.test.ts :: P6-REPAIR-I02 failed commit rolls back domain repair artifact checkpoint outbox events and receipt",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-runtime-repair.003",
+      "name": "P6-REPAIR-I03 current candidate or actual proof tampering cannot authorize product repair",
+      "suiteId": "integration-runtime-repair",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p6-runtime-repair"
+      ],
+      "scenario": "P6-REPAIR-I03 current candidate or actual proof tampering cannot authorize product repair",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/integration/runtime-repair.test.ts :: P6-REPAIR-I03 current candidate or actual proof tampering cannot authorize product repair",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-runtime-repair.004",
+      "name": "P6-REPAIR-I04 verifier error unknown usage or nonexecuted result remains blocked and never becomes repair",
+      "suiteId": "integration-runtime-repair",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p6-runtime-repair"
+      ],
+      "scenario": "P6-REPAIR-I04 verifier error unknown usage or nonexecuted result remains blocked and never becomes repair",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/integration/runtime-repair.test.ts :: P6-REPAIR-I04 verifier error unknown usage or nonexecuted result remains blocked and never becomes repair",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-runtime-repair.005",
+      "name": "P6-REPAIR-I05 stale revision pause cancellation and an unfundable repair cannot mutate old standards",
+      "suiteId": "integration-runtime-repair",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p6-runtime-repair"
+      ],
+      "scenario": "P6-REPAIR-I05 stale revision pause cancellation and an unfundable repair cannot mutate old standards",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/integration/runtime-repair.test.ts :: P6-REPAIR-I05 stale revision pause cancellation and an unfundable repair cannot mutate old standards",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-runtime-repair.006",
+      "name": "P6-REPAIR-I06 confirmed failure creates a new generation once and restart selects it preserving old receipt",
+      "suiteId": "integration-runtime-repair",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p6-runtime-repair"
+      ],
+      "scenario": "P6-REPAIR-I06 confirmed failure creates a new generation once and restart selects it preserving old receipt",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/integration/runtime-repair.test.ts :: P6-REPAIR-I06 confirmed failure creates a new generation once and restart selects it preserving old receipt",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-runtime-repair.007",
+      "name": "P6-REPAIR-I07 retry rollback unknown usage changed step id and cancellation do not release a new operation",
+      "suiteId": "integration-runtime-repair",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p6-runtime-repair"
+      ],
+      "scenario": "P6-REPAIR-I07 retry rollback unknown usage changed step id and cancellation do not release a new operation",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/integration/runtime-repair.test.ts :: P6-REPAIR-I07 retry rollback unknown usage changed step id and cancellation do not release a new operation",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-runtime-repair.008",
+      "name": "P6-REPAIR-I08 allocation persists through restart and constrains real claim without double charging legacy reserve",
+      "suiteId": "integration-runtime-repair",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p6-runtime-repair"
+      ],
+      "scenario": "P6-REPAIR-I08 allocation persists through restart and constrains real claim without double charging legacy reserve",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/integration/runtime-repair.test.ts :: P6-REPAIR-I08 allocation persists through restart and constrains real claim without double charging legacy reserve",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-runtime-repair.009",
+      "name": "P6-REPAIR-I09 enclosing SQLite rollback retains budget allocation checkpoint and receipt consistency",
+      "suiteId": "integration-runtime-repair",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p6-runtime-repair"
+      ],
+      "scenario": "P6-REPAIR-I09 enclosing SQLite rollback retains budget allocation checkpoint and receipt consistency",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/integration/runtime-repair.test.ts :: P6-REPAIR-I09 enclosing SQLite rollback retains budget allocation checkpoint and receipt consistency",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-runtime-repair.010",
+      "name": "P6-REPAIR-I10 asynchronous commit callbacks are rejected without partial allocation publication",
+      "suiteId": "integration-runtime-repair",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p6-runtime-repair"
+      ],
+      "scenario": "P6-REPAIR-I10 asynchronous commit callbacks are rejected without partial allocation publication",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/integration/runtime-repair.test.ts :: P6-REPAIR-I10 asynchronous commit callbacks are rejected without partial allocation publication",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-runtime-repair.011",
+      "name": "P6-REPAIR-I11 a job id alone cannot authorize repair with mismatched frozen results or actual settlement",
+      "suiteId": "integration-runtime-repair",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p6-runtime-repair"
+      ],
+      "scenario": "P6-REPAIR-I11 a job id alone cannot authorize repair with mismatched frozen results or actual settlement",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
+      "assertions": "tests/integration/runtime-repair.test.ts :: P6-REPAIR-I11 a job id alone cannot authorize repair with mismatched frozen results or actual settlement",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.live-terminal-inquiry.001",
+      "name": "P6 terminal inquiries charge real conversation usage without changing delivered records then independently deliver a linked additive round",
+      "suiteId": "live-terminal-inquiry",
+      "module": "orchestration",
+      "layer": "live",
+      "covers": [
+        "p6-terminal-live"
+      ],
+      "scenario": "P6 terminal inquiries charge real conversation usage without changing delivered records then independently deliver a linked additive round",
+      "impactTags": [
+        "p6-terminal-live"
+      ],
+      "prerequisites": "Pinned Node and actual components; authenticated local Codex; two real independent deliveries required",
+      "assertions": "tests/live/terminal-inquiry.test.ts :: P6 terminal inquiries charge real conversation usage without changing delivered records then independently deliver a linked additive round",
+      "cleanup": "Stop owned processes; preserve real evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-controller.001",
+      "name": "P6-SCTL-I01 attach is payload idempotent and restart preserves a waiting runtime without model dispatch",
+      "suiteId": "integration-supervision-controller",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-controller"
+      ],
+      "scenario": "P6-SCTL-I01 attach is payload idempotent and restart preserves a waiting runtime without model dispatch",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
+      "assertions": "tests/integration/supervision-controller.test.ts :: P6-SCTL-I01 attach is payload idempotent and restart preserves a waiting runtime without model dispatch",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-controller.002",
+      "name": "P6-SCTL-I02 pending user requirements fence supervision without allocating or revising the task",
+      "suiteId": "integration-supervision-controller",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-controller"
+      ],
+      "scenario": "P6-SCTL-I02 pending user requirements fence supervision without allocating or revising the task",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
+      "assertions": "tests/integration/supervision-controller.test.ts :: P6-SCTL-I02 pending user requirements fence supervision without allocating or revising the task",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-controller.003",
+      "name": "P6-SCTL-I03 supervision pause resume stop and task cancellation hooks do not mutate the main execution ledger",
+      "suiteId": "integration-supervision-controller",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-controller"
+      ],
+      "scenario": "P6-SCTL-I03 supervision pause resume stop and task cancellation hooks do not mutate the main execution ledger",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
+      "assertions": "tests/integration/supervision-controller.test.ts :: P6-SCTL-I03 supervision pause resume stop and task cancellation hooks do not mutate the main execution ledger",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-controller.004",
+      "name": "P6-SCTL-I04 raw runtime without authoritative structured criteria blocks before any reasoning reservation",
+      "suiteId": "integration-supervision-controller",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-controller"
+      ],
+      "scenario": "P6-SCTL-I04 raw runtime without authoritative structured criteria blocks before any reasoning reservation",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
+      "assertions": "tests/integration/supervision-controller.test.ts :: P6-SCTL-I04 raw runtime without authoritative structured criteria blocks before any reasoning reservation",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-controller.005",
+      "name": "P6-SCTL-I05 full bounded context rejection rolls back future floor checkpoint and reasoning reservation",
+      "suiteId": "integration-supervision-controller",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-controller"
+      ],
+      "scenario": "P6-SCTL-I05 full bounded context rejection rolls back future floor checkpoint and reasoning reservation",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
+      "assertions": "tests/integration/supervision-controller.test.ts :: P6-SCTL-I05 full bounded context rejection rolls back future floor checkpoint and reasoning reservation",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-controller.006",
+      "name": "P6-SCTL-I06 restart acknowledges an actual P4 proposal receipt while paused without launching its review",
+      "suiteId": "integration-supervision-controller",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-controller"
+      ],
+      "scenario": "P6-SCTL-I06 restart acknowledges an actual P4 proposal receipt while paused without launching its review",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
+      "assertions": "tests/integration/supervision-controller.test.ts :: P6-SCTL-I06 restart acknowledges an actual P4 proposal receipt while paused without launching its review",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-controller.007",
+      "name": "P6-SCTL-I07 recovery never relaunches a durable started reasoning job with unknown usage",
+      "suiteId": "integration-supervision-controller",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-controller"
+      ],
+      "scenario": "P6-SCTL-I07 recovery never relaunches a durable started reasoning job with unknown usage",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
+      "assertions": "tests/integration/supervision-controller.test.ts :: P6-SCTL-I07 recovery never relaunches a durable started reasoning job with unknown usage",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-controller.008",
+      "name": "P6-SCTL-I08 pause stops an actual pre-turn process and explicit resume reserves a distinct request preserving frozen input",
+      "suiteId": "integration-supervision-controller",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-controller"
+      ],
+      "scenario": "P6-SCTL-I08 pause stops an actual pre-turn process and explicit resume reserves a distinct request preserving frozen input",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
+      "assertions": "tests/integration/supervision-controller.test.ts :: P6-SCTL-I08 pause stops an actual pre-turn process and explicit resume reserves a distinct request preserving frozen input",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-reasoning.001",
+      "name": "P6-SRR-I01 frozen prompt schema context and one real process settle once without completing the Run",
+      "suiteId": "integration-supervision-reasoning",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-reasoning"
+      ],
+      "scenario": "P6-SRR-I01 frozen prompt schema context and one real process settle once without completing the Run",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
+      "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I01 frozen prompt schema context and one real process settle once without completing the Run",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-reasoning.002",
+      "name": "P6-SRR-I02 tampered frozen input digest is rejected before any process with zero known cost",
+      "suiteId": "integration-supervision-reasoning",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-reasoning"
+      ],
+      "scenario": "P6-SRR-I02 tampered frozen input digest is rejected before any process with zero known cost",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
+      "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I02 tampered frozen input digest is rejected before any process with zero known cost",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-reasoning.003",
+      "name": "P6-SRR-I03 missing context and unsupported output schema fail before model transport",
+      "suiteId": "integration-supervision-reasoning",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-reasoning"
+      ],
+      "scenario": "P6-SRR-I03 missing context and unsupported output schema fail before model transport",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
+      "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I03 missing context and unsupported output schema fail before model transport",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-reasoning.004",
+      "name": "P6-SRR-I04 finished result rechecks actual proof bytes across reopen without replay",
+      "suiteId": "integration-supervision-reasoning",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-reasoning"
+      ],
+      "scenario": "P6-SRR-I04 finished result rechecks actual proof bytes across reopen without replay",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
+      "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I04 finished result rechecks actual proof bytes across reopen without replay",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-reasoning.005",
+      "name": "P6-SRR-I05 pause after actual process stop preserves cost and rejects the late result",
+      "suiteId": "integration-supervision-reasoning",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-reasoning"
+      ],
+      "scenario": "P6-SRR-I05 pause after actual process stop preserves cost and rejects the late result",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
+      "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I05 pause after actual process stop preserves cost and rejects the late result",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-reasoning.006",
+      "name": "P6-SRR-I06 cancel stops a real child and unknown authoritative usage remains reserved",
+      "suiteId": "integration-supervision-reasoning",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-reasoning"
+      ],
+      "scenario": "P6-SRR-I06 cancel stops a real child and unknown authoritative usage remains reserved",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
+      "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I06 cancel stops a real child and unknown authoritative usage remains reserved",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-reasoning.007",
+      "name": "P6-SRR-I07 restart terminates persisted real orphan and never replays an interrupted turn",
+      "suiteId": "integration-supervision-reasoning",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-reasoning"
+      ],
+      "scenario": "P6-SRR-I07 restart terminates persisted real orphan and never replays an interrupted turn",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
+      "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I07 restart terminates persisted real orphan and never replays an interrupted turn",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-reasoning.008",
+      "name": "P6-SRR-I08 restart before process intent settles zero and no transport is requested",
+      "suiteId": "integration-supervision-reasoning",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-reasoning"
+      ],
+      "scenario": "P6-SRR-I08 restart before process intent settles zero and no transport is requested",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
+      "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I08 restart before process intent settles zero and no transport is requested",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-reasoning.009",
+      "name": "P6-SRR-I09 claimed stopped live process is independently rejected and terminated",
+      "suiteId": "integration-supervision-reasoning",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-reasoning"
+      ],
+      "scenario": "P6-SRR-I09 claimed stopped live process is independently rejected and terminated",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
+      "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I09 claimed stopped live process is independently rejected and terminated",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-reasoning.010",
+      "name": "P6-SRR-I10 malformed output or absent actual proof cannot become an applicable result",
+      "suiteId": "integration-supervision-reasoning",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-reasoning"
+      ],
+      "scenario": "P6-SRR-I10 malformed output or absent actual proof cannot become an applicable result",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
+      "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I10 malformed output or absent actual proof cannot become an applicable result",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-reasoning.011",
+      "name": "P6-SRR-I11 underreported usage retains observed cost unresolved and overrun is charged without result",
+      "suiteId": "integration-supervision-reasoning",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-reasoning"
+      ],
+      "scenario": "P6-SRR-I11 underreported usage retains observed cost unresolved and overrun is charged without result",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
+      "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I11 underreported usage retains observed cost unresolved and overrun is charged without result",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-reasoning.012",
+      "name": "P6-SRR-I12 exact reserved usage permits current completion and rejects another turn intent",
+      "suiteId": "integration-supervision-reasoning",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-reasoning"
+      ],
+      "scenario": "P6-SRR-I12 exact reserved usage permits current completion and rejects another turn intent",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
+      "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I12 exact reserved usage permits current completion and rejects another turn intent",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-reasoning.013",
+      "name": "P6-SRR-I13 close during result await blocks publication and retains unknown final usage",
+      "suiteId": "integration-supervision-reasoning",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-reasoning"
+      ],
+      "scenario": "P6-SRR-I13 close during result await blocks publication and retains unknown final usage",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
+      "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I13 close during result await blocks publication and retains unknown final usage",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-reasoning.014",
+      "name": "P6-SRR-I14 finished proof cannot bypass a newer pause or changed immutable contract",
+      "suiteId": "integration-supervision-reasoning",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-reasoning"
+      ],
+      "scenario": "P6-SRR-I14 finished proof cannot bypass a newer pause or changed immutable contract",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
+      "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I14 finished proof cannot bypass a newer pause or changed immutable contract",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-reasoning.015",
+      "name": "P6-SRR-I15 finished result mutation is rejected even when proof files remain unchanged",
+      "suiteId": "integration-supervision-reasoning",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-reasoning"
+      ],
+      "scenario": "P6-SRR-I15 finished result mutation is rejected even when proof files remain unchanged",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
+      "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I15 finished result mutation is rejected even when proof files remain unchanged",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-reasoning.016",
+      "name": "P6-SRR-I16 saved process intent without matching identity keeps stop unknown across recovery",
+      "suiteId": "integration-supervision-reasoning",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-reasoning"
+      ],
+      "scenario": "P6-SRR-I16 saved process intent without matching identity keeps stop unknown across recovery",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
+      "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I16 saved process intent without matching identity keeps stop unknown across recovery",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-reasoning.017",
+      "name": "P6-SRR-I17 close settles unclaimed prelaunch jobs without a model request",
+      "suiteId": "integration-supervision-reasoning",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-reasoning"
+      ],
+      "scenario": "P6-SRR-I17 close settles unclaimed prelaunch jobs without a model request",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
+      "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I17 close settles unclaimed prelaunch jobs without a model request",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-reasoning.018",
+      "name": "P6-SRR-I18 contradictory transport start flag cannot turn durable turn intent into known zero cost",
+      "suiteId": "integration-supervision-reasoning",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-reasoning"
+      ],
+      "scenario": "P6-SRR-I18 contradictory transport start flag cannot turn durable turn intent into known zero cost",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
+      "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I18 contradictory transport start flag cannot turn durable turn intent into known zero cost",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-reasoning.019",
+      "name": "P6-SRR-I19 runtime cancellation after stopped process retains real cost without applying late output",
+      "suiteId": "integration-supervision-reasoning",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-reasoning"
+      ],
+      "scenario": "P6-SRR-I19 runtime cancellation after stopped process retains real cost without applying late output",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
+      "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I19 runtime cancellation after stopped process retains real cost without applying late output",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.live-supervision-loop.001",
+      "name": "P6-LOOP-L01 real autonomous supervision authors reviews rejects repairs and delivers one immutable contract",
+      "suiteId": "live-supervision-loop",
+      "module": "orchestration",
+      "layer": "live",
+      "covers": [
+        "p6-autoloop-live"
+      ],
+      "scenario": "P6-LOOP-L01 real autonomous supervision authors reviews rejects repairs and delivers one immutable contract",
+      "impactTags": [
+        "p6-autoloop-live"
+      ],
+      "prerequisites": "Pinned Node and authenticated actual local Codex; production adapters; real P4 controls/review and unchanged-contract repair required",
+      "assertions": "tests/live/supervision-loop.test.ts :: P6-LOOP-L01 real autonomous supervision authors reviews rejects repairs and delivers one immutable contract",
+      "cleanup": "Stop owned processes; preserve partial attempts, raw proof files, failure and candidate snapshots",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-controller.009",
+      "name": "P6-SCTL-I09 actual duration deadline stops a silent owned process and retains unknown cost without cancelling main execution",
+      "suiteId": "integration-supervision-controller",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-controller"
+      ],
+      "scenario": "P6-SCTL-I09 actual duration deadline stops a silent owned process and retains unknown cost without cancelling main execution",
+      "impactTags": [
+        "p6-autoloop-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
+      "assertions": "tests/integration/supervision-controller.test.ts :: P6-SCTL-I09 actual duration deadline stops a silent owned process and retains unknown cost without cancelling main execution",
+      "cleanup": "Stop owned processes; preserve formal evidence and failures",
       "status": "active"
     }
   ]

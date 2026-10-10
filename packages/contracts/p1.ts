@@ -7,7 +7,7 @@ export interface Attempt {
   id: string; nodeId: string; contractVersion: number; status: 'running' | 'succeeded' | 'failed' | 'cancelled';
   reservation: number; purpose: 'execution' | 'verification' | 'reasoning'; settled: boolean; actual: number | null;
 }
-export interface Budget { unit: 'work-unit' | 'token'; limit: number; spent: number; verificationReserve: number }
+export interface Budget { unit: 'work-unit' | 'token'; limit: number; spent: number; verificationReserve: number; futureVerification?: import('./p6-loop.js').FutureVerificationAllocation }
 export interface Lease { resource: string; attemptId: string; released: boolean }
 export interface Operation { id: string; attemptId: string; status: 'pending' | 'confirmed' | 'unknown' }
 export interface Artifact { id: string; digest: string; path: string; contractVersion: number }
@@ -44,7 +44,7 @@ export interface CreateRunInput {
   budget: { limit: number; verificationReserve: number; unit?: 'work-unit' | 'token' };
 }
 export type RunAction =
-  | { type: 'startAttempt'; attemptId: string; nodeId: string; contractVersion: number; reservation: number; purpose: 'execution' | 'verification' | 'reasoning'; resources: string[] }
+  | { type: 'startAttempt'; attemptId: string; nodeId: string; contractVersion: number; reservation: number; purpose: 'execution' | 'verification' | 'reasoning'; resources: string[]; futureVerificationAllocationId?: string }
   | { type: 'finishAttempt'; attemptId: string; outcome: 'succeeded' | 'failed' | 'cancelled' }
   | { type: 'settleAttempt'; attemptId: string; actual: number }
   | { type: 'setOperation'; operationId: string; attemptId: string; status: Operation['status'] }
@@ -52,6 +52,8 @@ export type RunAction =
   | { type: 'pause' | 'resume' | 'cancel' | 'complete' }
   | { type: 'replaceContract'; contract: TaskContract }
   | { type: 'revisePlan'; contract: TaskContract; nodes: CreateRunInput['nodes']; reason: string }
+  | { type: 'appendRepairNodes'; contractVersion: number; nodes: CreateRunInput['nodes']; reason: string; failureJobId: string; failedObligationIds: string[] }
+  | { type: 'setFutureVerification'; contractVersion: number; allocationId: string; amount: number; reason: string }
   | { type: 'admit'; contract: TaskContract; nodes: CreateRunInput['nodes'] }
   | { type: 'recordEvidence'; evidence: Evidence }
   | { type: 'setArtifact'; artifact: Artifact };
@@ -77,5 +79,5 @@ export type Query =
   | { type: 'catalog'; projectId: string }
   | { type: 'changes'; projectId: string }
   | { type: 'plans'; projectId: string; runId: string };
-export type Request = { id: string } & ({ method: 'command'; command: Command } | { method: 'query'; query: Query } | { method: 'health' } | { method: 'execution'; action: import('./p2.js').ExecutionAction } | { method: 'verification'; action: import('../verification/records.js').VerificationAction } | { method: 'orchestration'; action: import('./p5.js').OrchestrationAction } | { method: 'conversation'; action: import('./p6-actions.js').ConversationAction } | { method: 'runtime'; action: import('./p3.js').RuntimeAction });
+export type Request = { id: string } & ({ method: 'command'; command: Command } | { method: 'query'; query: Query } | { method: 'health' } | { method: 'execution'; action: import('./p2.js').ExecutionAction } | { method: 'verification'; action: import('../verification/records.js').VerificationAction } | { method: 'orchestration'; action: import('./p5.js').OrchestrationAction } | { method: 'supervision'; action: import('./p6-supervision-actions.js').SupervisionAction } | { method: 'conversation'; action: import('./p6-actions.js').ConversationAction } | { method: 'runtime'; action: import('./p3.js').RuntimeAction });
 export type Response = { id: string; ok: true; value: unknown } | { id: string; ok: false; error: string };

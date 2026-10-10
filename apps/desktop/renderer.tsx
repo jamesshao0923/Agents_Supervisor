@@ -1,3 +1,4 @@
+import {SupervisionPanel,type SupervisionDesktopAPI} from './supervision-panel.js';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { ExecutionEvent, ExecutionRecord, ExecutionState, ExecutorCapabilities } from '../../packages/contracts/p2.js';
@@ -21,11 +22,12 @@ interface RuntimeInspection { runtime: RuntimeRecord; run: Run; operations: Runt
 interface VerificationStatus { proposals: Proposal[]; plans: FrozenPlan[]; jobs: VerificationJob[]; deliveries: Delivery[]; currentDelivery: { current: boolean; reason: string; delivery: Delivery | null } }
 type VerificationMutation = Exclude<VerificationAction, { type: 'status' | 'job' }>;
 type ConversationSend = Omit<Extract<ConversationAction, {type: 'send'}>, 'type'>;
-interface DesktopAPI {
+interface DesktopAPI extends SupervisionDesktopAPI {
   conversationList(): Promise<ConversationInspection[]>;
   conversationForSession(sessionId: string): Promise<ConversationInspection>;
   conversationInspect(conversationId: string): Promise<ConversationInspection>;
   conversationSend(input: ConversationSend): Promise<ConversationInspection>;
+  conversationCancelAssessment(input: Omit<Extract<ConversationAction, {type: 'cancelAssessment'}>, 'type'>): Promise<ConversationInspection>;
   conversationRetry(input: Omit<Extract<ConversationAction, {type: 'retry'}>, 'type'>): Promise<ConversationInspection>;
   health(): Promise<unknown>;
   orchestrationList(): Promise<GoalSession[]>;
@@ -400,6 +402,14 @@ function App() {
     catch (error) { if (selectedConversationRef.current === conversationId) setConversationError(`重试处理未能确认，请重新核对消息状态：${errorText(error)}`); }
     finally { setConversationBusy(false); }
   }
+  async function cancelAssessment(messageId: string, assessmentId: string) {
+    if (!selectedConversation || conversationBusy) return;
+    const conversationId = selectedConversation.conversation.id;
+    setConversationBusy(true); setConversationError(''); conversationGeneration.current++;
+    try { const value = await api.conversationCancelAssessment({conversationId,messageId,assessmentId}); conversationGeneration.current++; rememberConversation(value); setRevision(v => v+1); }
+    catch (error) { if (selectedConversationRef.current === conversationId) setConversationError(`停止询问结果待核对：${errorText(error)}`); }
+    finally { setConversationBusy(false); }
+  }
   async function inspectRound(round: ConversationRound) {
     setHistoryError(''); setRoundHistory(null);
     const conversationId = selectedConversation?.conversation.id;
@@ -419,11 +429,13 @@ function App() {
       <p className="form-hint">执行中也可发送补充要求。后台会等待安全时机再应用；询问仅答复，交付后追加工作会保留历史交付并开启下一轮。</p>
       <dl className="facts conversation-budget"><dt>累计授权</dt><dd>{count(value.budget.limit)} tokens</dd><dt>实际支出</dt><dd>{count(value.budget.spent)} tokens</dd><dt>待结算预留</dt><dd>{count(value.budget.reserved)} tokens</dd><dt>当前可用</dt><dd>{count(value.budget.available)} tokens</dd></dl>
       {!online && <div className="notice compact">后台连接已断开，消息与预算为上次已知状态；重连后继续核对。</div>}
+      {(value.budget.reasoningSpent > 0 || value.budget.reasoningReserved > 0) && <p className="form-hint">其中交付后询问已花费 {count(value.budget.reasoningSpent)} tokens，待结算 {count(value.budget.reasoningReserved)} tokens；已计入上方累计费用。</p>}
       <ol className="conversation-messages" aria-label="持续跟进消息">{value.messages.map(message => <li key={message.id} className={`conversation-message ${message.state}`}>
         <div className="event-meta"><span>{message.kind === 'question' ? '仅询问' : message.kind === 'change' ? '补充要求' : '用户消息'}</span><time dateTime={message.createdAt}>{date(message.createdAt)}</time></div>
         <p>{message.text}</p><span className="pill" role="status">{conversationStateLabels[message.state]}{message.appliedContractVersion !== null ? ` · 要求 v${message.appliedContractVersion}` : ''}</span>
         {message.response && <div className="conversation-response"><strong>主控答复</strong><p>{message.response}</p></div>}
         {message.history.at(-1)?.reason && <p className="form-hint">{message.history.at(-1)?.reason}</p>}
+        {value.assessmentJobs.filter(job => job.messageId === message.id && job.status === 'running').map(job => <button key={job.id} className="button danger" disabled={!online || conversationBusy || job.cancelRequested} onClick={() => {void cancelAssessment(message.id,job.id);}}>{job.cancelRequested ? '正在停止询问…' : '停止这次询问'}</button>)}
         {message.state === 'clarifying' && <button className="button" disabled={!online || conversationBusy || Boolean(chatPending)} onClick={() => { setReplyToMessageId(message.id); setChatKind('unclassified'); }}>回答这条澄清</button>}
         {message.state === 'failed' && <button className="button" disabled={!online || conversationBusy || Boolean(chatPending)} onClick={() => { void retryChat(message.id); }}>重试处理</button>}
       </li>)}</ol>
@@ -660,7 +672,7 @@ function App() {
         </section>}
         {goalCanAnswer(goalSession) && !selectedConversation && <form className="runtime-input" onSubmit={event => { event.preventDefault(); if (answerText.trim()) goalAction('answer'); }}><label className="field"><span>{goalSession.phase === 'ready' ? '修改或补充计划（尚未开始执行）' : '补充需求（可按问题编号一并回答）'}</span><textarea aria-label="补充需求" value={answerText} onChange={event => setAnswerText(event.target.value)} maxLength={40000} required disabled={!goalReady}/></label><button type="submit" className="button primary" disabled={!goalReady || !answerText.trim()}>{goalSession.phase === 'ready' ? '更新需求并重新分析' : '提交回答并继续分析'}</button></form>}
         {goalSession.phase === 'ready' && <div className="notice compact"><p>计划就绪。点击开始执行后，后台将按该提案准入并派发步骤；这一步不会跳过独立验收。</p><button className="button primary" disabled={!goalReady || goalSession.proposal?.decision !== 'ready'} onClick={() => goalAction('admit')}>开始执行</button></div>}
-        {goalSession.runtimeId && <section className="goal-runtime"><h3 className="section-title">已准入的执行任务</h3><p className="form-hint">需求记录与执行共用累计账本。恢复主控只读取保存的任务和记忆，不会自动重跑已准入步骤。</p><div className="verification-buttons"><button className="button primary" disabled={!online || busy} onClick={() => { void openSessionRuntime(goalSession); }}>查看执行任务</button><button className="button" disabled={!restoreReady} onClick={() => goalAction('restore')}>恢复主控会话</button></div>{!restoreReady && goalSession.phase !== 'thinking' && <p className="form-hint">{goalTerminal ? '此轮任务已结束，不能通过恢复主控追加执行。当前可在同项目新建任务；同一对话内的持续跟进将在 P6 接入。' : '恢复前需核对执行已暂停、阻塞或进入待验收阶段，且没有仍在运行或用量未结算的尝试。'}</p>}</section>}
+        {goalSession.runtimeId && <section className="goal-runtime"><h3 className="section-title">已准入的执行任务</h3><p className="form-hint">需求记录与执行共用累计账本。恢复主控只读取保存的任务和记忆，不会自动重跑已准入步骤。</p><div className="verification-buttons"><button className="button primary" disabled={!online || busy} onClick={() => { void openSessionRuntime(goalSession); }}>查看执行任务</button><button className="button" disabled={!restoreReady} onClick={() => goalAction('restore')}>恢复主控会话</button></div>{!restoreReady && goalSession.phase !== 'thinking' && <p className="form-hint">{goalTerminal ? '此轮已结束；可在本任务的对话框继续询问或提出新要求。继续开发会保留原交付并建立关联轮次。' : '恢复前需核对执行已暂停、阻塞或进入待验收阶段，且没有仍在运行或用量未结算的尝试。'}</p>}</section>}
         <details className="goal-section"><summary>查看用户输入记录（{goalSession.messages.length} 条）</summary><ol className="goal-messages">{goalSession.messages.map(message => <li key={message.id}><time dateTime={message.createdAt}>{date(message.createdAt)}</time><p>{message.text}</p></li>)}</ol></details>
         <details className="goal-section"><summary>查看主控调用与恢复证据（{goalSession.jobs.length} 次）</summary>{goalSession.jobs.map(job => <div className="verification-job" key={job.id}><h4>{job.purpose === 'restore' ? '记忆恢复分析' : '需求分析'}<span className="pill">{job.status === 'running' ? '分析中' : job.error ? '分析失败' : job.proposal ? '提案已记录' : '未形成提案'}</span></h4>{job.proposal && <p className="goal-summary">{job.proposal.summary}</p>}<p className="form-hint">{date(job.startedAt)} · {job.config.model} / {job.config.effort}<br/>{job.usage === null ? '用量未知 · 尚不能计作零' : `${count(job.usage)} tokens`} · {job.stopConfirmed ? '进程已确认停止' : '停止仍待核对'}</p>{job.error && <div className="notice error compact"><strong>{describeGoalProblem(job.error)}</strong><details className="technical-details"><summary>查看分析错误原文</summary><pre>{job.error}</pre></details></div>}<details className="technical-details"><summary>查看会话编号与摘要绑定的证据</summary><p className="mono subtle">会话 {job.threadId || '尚未创建'}<br/>作业 {job.id}</p>{Object.entries(job.proofs).map(([path, digest]) => <p className="verification-proof mono" key={path}>{path}<br/>{digest}</p>)}<pre>{JSON.stringify(job.context, null, 2)}</pre></details></div>)}</details>
         {goalPending && goalPending.sessionId === goalSession.id && <div className="notice compact"><p>有待核对的主控请求。重试复用同一请求编号与原记录版本；不会创建第二次派发。</p><div className="verification-buttons"><button className="button" disabled={!online || busy} onClick={() => { void performGoalAction(goalPending); }}>重试同一主控请求</button><button className="button ghost" disabled={busy} onClick={() => { goalPendingRef.current = null; setGoalPending(null); setGoalActionError(''); }}>清除主控待核对记录</button></div><p className="form-hint">清除不会取消后台分析；请先核对实际状态。</p></div>}
@@ -676,6 +688,7 @@ function App() {
         {['completed', 'awaiting-verification'].includes(chosen.state) && !hasDelivery && <div className="notice compact">步骤或执行已结束，待独立验收。尚未判定为已交付。</div>}
         {chosenRuntime?.phase === 'blocked' && <div className="notice compact">恢复核对尚未完成。未知副作用不会自动重复执行。</div>}
         {chosen.error && <div className="notice error compact"><strong>{describeTaskError(chosen.error)}</strong><details className="technical-details"><summary>查看执行或恢复错误原文</summary><pre>{chosen.error}</pre></details></div>}
+        {chosenRuntime && <SupervisionPanel key={chosenRuntime.id} api={api} runtime={chosenRuntime} config={sessions.find(session=>session.runtimeId===chosenRuntime.id)?.config??null} maxContextChars={sessions.find(session=>session.runtimeId===chosenRuntime.id)?.maxContextChars??60000} online={online} terminal={detail?.run.status==='succeeded'}/> }
         {chosenRuntime && (chosenRuntime.phase === 'awaiting-verification' || Boolean(verification?.proposals.length || verification?.jobs.length)) && <section className="verification-panel" aria-label="独立验收与交付">
           <div className="verification-heading"><h3>独立验收与交付</h3><button className="button ghost" disabled={!online || verificationLoading} onClick={() => setVerificationRevision(value => value + 1)} aria-label="重新核对验收状态"><Icon name="refresh"/>核对</button></div>
           <p className="form-hint">先独立复核验收定义，再发布、冻结并实际验收；每一步单独确认。UI 验证当前支持候选目录内的本地 HTML 页面操作和截图。</p>

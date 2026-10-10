@@ -14,10 +14,10 @@ function ensure(value:unknown,message:string):asserts value {if(!value)throw new
 const overlap=(a:string,b:string)=>a===b||a.startsWith(b+'/')||b.startsWith(a+'/');
 function parseAction(value:unknown):VerificationAction {
   ensure(value&&typeof value==='object'&&!Array.isArray(value),'Invalid verification action');const o=value as Record<string,unknown>;
-  const fields:Record<string,string[]>={propose:['commandId','runtimeId','specPath'],review:['commandId','proposalId','model','effort','reservation','timeoutMs'],publish:['commandId','proposalId','reviewId'],freeze:['commandId','runtimeId','mode','changedModules'],run:['commandId','planId','model','effort','reservation','timeoutMs'],deliver:['commandId','jobId'],cancel:['jobId'],job:['jobId'],status:['runtimeId']};
+  const fields:Record<string,string[]>={propose:['commandId','runtimeId','specPath'],review:['commandId','proposalId','model','effort','reservation','timeoutMs'],publish:['commandId','proposalId','reviewId'],freeze:['commandId','runtimeId','mode','changedModules'],run:['commandId','planId','model','effort','reservation','timeoutMs','futureVerificationAllocationId'],deliver:['commandId','jobId'],cancel:['jobId'],job:['jobId'],status:['runtimeId']};
   ensure(typeof o.type==='string'&&fields[o.type],'Unknown verification action');const keys=fields[o.type]!;
   ensure(Object.keys(o).every(k=>k==='type'||keys.includes(k)),'Unknown verification action field');
-  for(const key of keys.filter(k=>!['changedModules','reservation','timeoutMs'].includes(k)))ensure(typeof o[key]==='string'&&(o[key] as string).trim()&&(o[key] as string).length<=4096&&!(o[key] as string).includes('\0'),'Invalid verification '+key);
+  for(const key of keys.filter(k=>!['changedModules','reservation','timeoutMs'].includes(k)&&(k!=='futureVerificationAllocationId'||o[k]!==undefined)))ensure(typeof o[key]==='string'&&(o[key] as string).trim()&&(o[key] as string).length<=4096&&!(o[key] as string).includes('\0'),'Invalid verification '+key);
   if(o.type==='freeze'){ensure(['final','impact'].includes(String(o.mode)),'Invalid verification mode');if(o.changedModules!==undefined)ensure(Array.isArray(o.changedModules)&&o.changedModules.every(x=>typeof x==='string'&&x.length>0),'Invalid changed modules');}
   if(o.type==='review'||o.type==='run'){ensure(Number.isSafeInteger(o.reservation)&&Number(o.reservation)>0,'Invalid model reservation');ensure(Number.isSafeInteger(o.timeoutMs)&&Number(o.timeoutMs)>=1000&&Number(o.timeoutMs)<=3600000,'Invalid model timeout');}
   return structuredClone(o) as unknown as VerificationAction;
@@ -43,6 +43,12 @@ export class VerificationController {
   }
   cancelRuntime(runtimeId:string):void {for(const [id,active]of this.pending)if(this.repo.get('job',id).runtimeId===runtimeId)active.abort.abort();}
   async dispatch(value:unknown):Promise<unknown> {const action=parseAction(value);const next=this.queue.then(()=>this.handle(action));this.queue=next.catch(()=>{});return next;}
+  private assertFinalAllocationPlan(plan:FrozenPlan):void {
+    ensure(plan.selection.mode==='final'&&plan.selection.completeScope,'Future verification allocation requires a complete final plan');
+    const run=this.repo.run(plan.projectId,plan.runId),head=this.repo.head(plan.projectId);
+    ensure(run.artifact?.id===plan.id&&head?.id===plan.proposalId&&head.version===plan.catalogVersion,'Future verification allocation requires the current artifact and published catalog');
+    ensure(digest(canonical(run.contract))===plan.contractDigest,'Future verification allocation contract changed');
+  }
   private assertQuietWorkspace(workspace:string):void {
     for(const runtime of this.store.runtime.list().filter(r=>overlap(r.workspace,workspace)))ensure(!this.store.conversations.hasPendingForRun(runtime.projectId,runtime.runId),'Pending follow-up must be resolved before verification publication');
     ensure(this.store.runtime.list().filter(r=>overlap(r.workspace,workspace)).every(r=>['cancelled','awaiting-verification'].includes(r.phase)&&this.store.runtime.currentOperations(r.id).every(o=>['confirmed','cancelled'].includes(o.state))),'Workspace has unresolved runtime work');
@@ -95,6 +101,7 @@ export class VerificationController {
     }
     if(action.type==='review'||action.type==='run') {
       const plan=action.type==='run'?this.repo.get('plan',action.planId):null;
+      if(action.type==='run'&&action.futureVerificationAllocationId)this.assertFinalAllocationPlan(plan!);
       const proposal=this.repo.get('proposal',plan?.proposalId??(action as Extract<VerificationAction,{type:'review'}>).proposalId),runtime=this.store.runtime.get(plan?.runtimeId??proposal.runtimeId);
       await this.writers(runtime);await assertDefinition(proposal.spec,proposal.bundle);await assertCandidate(plan?.candidate??proposal.candidate);
       const run=this.repo.run(runtime.projectId,runtime.runId);ensure(!['succeeded','cancelled','paused'].includes(run.status),'Run is terminal or paused');
@@ -103,7 +110,7 @@ export class VerificationController {
       const id='verify-'+randomUUID(),config:ModelConfig={model:action.model,effort:action.effort,reservation:action.reservation,timeoutMs:action.timeoutMs};
       const environmentDigest=(await environmentFingerprint()).digest;
       const job:VerificationJob={id,environmentDigest,runtimeId:runtime.id,projectId:runtime.projectId,runId:runtime.runId,workspace:runtime.workspace,kind:action.type==='review'?'review':'verification',proposalId:proposal.id,planId:plan?.id??null,request:action,status:'running',attemptId:id,config,startedAt:new Date().toISOString(),finishedAt:null,intents:[],identities:[],usage:0,modelStarted:false,usageUnknown:false,results:[],controls:[],evaluation:null,approved:false,stopConfirmed:false,error:null,proofs:{},sources:[]};
-      this.repo.transaction(()=>{this.assertQuietWorkspace(runtime.workspace);this.repo.assertNoVerificationWriter(runtime.workspace);this.repo.act(run.projectId,run.id,{type:'startAttempt',attemptId:id,nodeId:run.nodes.at(-1)!.id,contractVersion:run.contract.version,reservation:config.reservation,purpose:'verification',resources:['verification:'+runtime.workspace]});this.repo.insert('job',job);this.repo.remember(action.commandId,action,job);});
+      this.repo.transaction(()=>{this.assertQuietWorkspace(runtime.workspace);this.repo.assertNoVerificationWriter(runtime.workspace);if(action.type==='run'&&action.futureVerificationAllocationId)this.assertFinalAllocationPlan(plan!);this.repo.act(run.projectId,run.id,{type:'startAttempt',attemptId:id,nodeId:run.nodes.at(-1)!.id,contractVersion:run.contract.version,reservation:config.reservation,purpose:'verification',resources:['verification:'+runtime.workspace],...(action.type==='run'&&action.futureVerificationAllocationId?{futureVerificationAllocationId:action.futureVerificationAllocationId}:{})});this.repo.insert('job',job);this.repo.remember(action.commandId,action,job);});
       const abort=new AbortController(),promise=this.execute(job,proposal,plan,abort.signal).finally(()=>this.pending.delete(id));this.pending.set(id,{abort,promise});return job;
     }
     const job=this.repo.get('job',action.jobId);ensure(job.kind==='verification'&&job.planId&&job.status==='finished'&&job.approved&&job.evaluation?.complete,'Delivery requires a complete actual verification');

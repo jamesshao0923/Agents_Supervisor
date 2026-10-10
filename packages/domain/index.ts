@@ -22,9 +22,19 @@ export function createDraftRun(input: Omit<CreateRunInput, 'contract' | 'nodes'>
 }
 function reservations(run: Run): number { return run.attempts.filter((a) => !a.settled).reduce((sum, a) => sum + a.reservation, 0); }
 function protectedReserve(run: Run): number { return Math.max(0, run.budget.verificationReserve - run.attempts.filter((a) => a.purpose === 'verification' && a.contractVersion === run.contract.version).reduce((sum, a) => sum + (a.settled ? a.actual! : a.reservation), 0)); }
+/** The future floor overlaps the legacy reserve; it is never charged twice. */
+export function futureVerificationFloor(run: Run): number {
+  const allocation=run.budget.futureVerification;if(!allocation)return 0;
+  ensure(allocation.contractVersion===run.contract.version,'stale future verification allocation');
+  ensure(typeof allocation.allocationId==='string'&&allocation.allocationId.trim()&&!allocation.allocationId.includes('\0'),'invalid future verification allocation id');
+  ensure(Number.isSafeInteger(allocation.amount)&&allocation.amount>0,'invalid future verification allocation amount');
+  return allocation.amount;
+}
+function quiet(run:Run):void {ensure(run.attempts.every(a=>a.status!=='running'&&a.settled)&&run.operations.every(o=>o.status==='confirmed')&&run.leases.every(l=>l.released),'repair requires settled attempts, confirmed effects and released writers');}
 function completionReasons(run: Run): string[] {
   const reasons: string[] = [];
   if(run.admission==='draft') reasons.push('requirements not admitted');
+  if(futureVerificationFloor(run)>0) reasons.push('future verification allocation not consumed');
   if (run.nodes.some((n) => n.required && n.status !== 'succeeded')) reasons.push('required nodes unfinished');
   if (run.attempts.some((a) => a.status === 'running')) reasons.push('active attempts');
   if (run.attempts.some((a) => !a.settled)) reasons.push('unsettled attempts');
@@ -50,7 +60,7 @@ export function readiness(run: Run): Readiness {
   if (!reasons.length) return result('complete');
   const ready = run.nodes.filter((n) => (n.status === 'pending' || n.status === 'failed') && n.dependencies.every((id) => run.nodes.find((d) => d.id === id)?.status === 'succeeded'));
   if (run.budget.spent > run.budget.limit) return result('blocked', [], ['budget overspent']);
-  if (ready.length && run.budget.limit - run.budget.spent - reservations(run) - protectedReserve(run) > 0) return result('ready', ready.map((n) => n.id));
+  if (ready.length && run.budget.limit - run.budget.spent - reservations(run) - Math.max(protectedReserve(run),futureVerificationFloor(run)) > 0) return result('ready', ready.map((n) => n.id));
   if (ready.length) return result('blocked', [], ['execution budget exhausted']);
   if (run.nodes.some((n) => n.required && n.status !== 'succeeded')) return result('blocked', [], reasons);
   return result('verification', [], reasons);
@@ -78,11 +88,17 @@ export function applyAction(input: Run, unparsed: RunAction): { run: Run; events
       if (action.purpose === 'execution') ensure(node.status === 'pending' || node.status === 'failed', 'node not dispatchable');
       else if(action.purpose==='verification') ensure(run.artifact?.contractVersion === run.contract.version && run.nodes.every((n) => !n.required || n.status === 'succeeded'), 'verification needs current candidate and completed required nodes');
       unique(action.resources, 'resource'); for (const resource of action.resources) ensure(!run.leases.some((l) => l.resource === resource && !l.released), `resource ${resource} still leased`);
-      const protection = action.purpose !== 'verification' ? protectedReserve(run) : 0;
-      ensure(run.budget.spent <= run.budget.limit && run.budget.spent + reservations(run) + action.reservation + protection <= run.budget.limit, 'insufficient budget');
+      const floor=futureVerificationFloor(run),allocation=run.budget.futureVerification;
+      const consume=action.futureVerificationAllocationId!==undefined;
+      if(consume)ensure(action.purpose==='verification'&&allocation&&allocation.allocationId===action.futureVerificationAllocationId&&allocation.contractVersion===action.contractVersion&&allocation.amount===action.reservation,'future verification allocation does not match this verification reservation');
+      const protection = action.purpose !== 'verification' ? Math.max(protectedReserve(run),floor) : consume?0:floor;
+      const reservedTotal=run.budget.spent+reservations(run)+action.reservation+protection;
+      ensure(Number.isSafeInteger(reservedTotal)&&run.budget.spent <= run.budget.limit && reservedTotal <= run.budget.limit, 'insufficient budget');
+      if(consume)delete run.budget.futureVerification;
       run.attempts.push({ id: action.attemptId, nodeId: node.id, contractVersion: action.contractVersion, status: 'running', reservation: action.reservation, purpose: action.purpose, settled: false, actual: null });
       for (const resource of action.resources) run.leases.push({ resource, attemptId: action.attemptId, released: false });
-      if (action.purpose === 'execution') node.status = 'running'; if(run.status!=='paused')run.status = 'running'; break;
+      if (action.purpose === 'execution') node.status = 'running'; if(run.status!=='paused')run.status = 'running';
+      if(consume)return audit({consumedFutureVerification:allocation});break;
     }
     case 'finishAttempt': {
       const attempt = run.attempts.find((a) => a.id === action.attemptId); ensure(attempt, 'unknown attempt');
@@ -129,14 +145,38 @@ export function applyAction(input: Run, unparsed: RunAction): { run: Run; events
       ensure(run.attempts.every(a => a.status !== 'running' && a.settled) && run.operations.every(o => o.status === 'confirmed') && run.leases.every(l => l.released), 'plan revision requires settled attempts, confirmed effects and released writers');
       ensure(action.contract.version === run.contract.version + 1, 'contract version must increment');
       const revised = createRun({id:run.id, projectId:run.projectId, contract:action.contract, nodes:action.nodes, budget:{unit:run.budget.unit, limit:run.budget.limit, verificationReserve:run.budget.verificationReserve}});
-      const prior = {previousContract:run.contract, previousNodes:run.nodes, invalidatedArtifact:run.artifact, invalidatedEvidence:run.evidence};
+      const prior = {previousContract:run.contract, previousNodes:run.nodes, invalidatedArtifact:run.artifact, invalidatedEvidence:run.evidence,invalidatedFutureVerification:run.budget.futureVerification??null};
       run.contract = revised.contract; run.nodes = revised.nodes; run.artifact = null; run.evidence = [];
+      delete run.budget.futureVerification;
       if(run.status !== 'paused') run.status = 'ready';
+      return audit(prior);
+    }
+    case 'setFutureVerification': {
+      ensure(run.admission!=='draft'&&run.status!=='paused','future verification needs an active admitted run');quiet(run);
+      ensure(action.contractVersion===run.contract.version,'stale future verification contract');
+      const previous=run.budget.futureVerification??null;
+      if(action.amount===0){ensure(previous?.allocationId===action.allocationId,'unknown future verification allocation');delete run.budget.futureVerification;}
+      else {
+        ensure(Number.isSafeInteger(run.budget.spent+action.amount)&&run.budget.spent+action.amount<=run.budget.limit,'insufficient future verification budget');
+        run.budget.futureVerification={allocationId:action.allocationId,contractVersion:action.contractVersion,amount:action.amount};
+      }
+      return audit({previousAllocation:previous});
+    }
+    case 'appendRepairNodes': {
+      ensure(run.admission!=='draft'&&run.status!=='paused','repair needs an active admitted run');quiet(run);
+      ensure(action.contractVersion===run.contract.version,'stale repair contract');
+      ensure(run.nodes.length>0&&run.nodes.every(n=>!n.required||n.status==='succeeded'),'repair append needs completed required nodes');
+      ensure(action.nodes.length>0&&action.nodes.every(n=>n.required),'repair needs required nodes');
+      ensure(action.failedObligationIds.length>0,'repair needs failed obligations');unique(action.failedObligationIds,'failed obligation');
+      const validated=createRun({id:run.id,projectId:run.projectId,contract:run.contract,nodes:[...run.nodes.map(({id,dependencies,required})=>({id,dependencies,required})),...action.nodes],budget:{unit:run.budget.unit,limit:run.budget.limit,verificationReserve:run.budget.verificationReserve}});
+      const prior={invalidatedArtifact:run.artifact,invalidatedEvidence:run.evidence};
+      run.nodes.push(...validated.nodes.slice(run.nodes.length));run.artifact=null;run.evidence=[];run.status='ready';
       return audit(prior);
     }
     case 'replaceContract': {
       ensure(run.admission!=='draft','draft contract changes require admission');
       contractValid(action.contract); ensure(action.contract.version === run.contract.version + 1, 'contract version must increment'); run.contract = action.contract;
+      delete run.budget.futureVerification;
       const invalidatedEvidence = run.evidence; run.evidence = [];
       for (const attempt of run.attempts.filter((a) => a.status === 'running')) attempt.status = 'cancelled';
       for (const node of run.nodes) node.status = 'pending'; run.artifact = null;

@@ -53,7 +53,7 @@ function action(v: unknown, p: string): void {
   const t = object(v, p).type;
   let keys: string[];
   switch (t) {
-    case 'startAttempt': keys = ['type', 'attemptId', 'nodeId', 'contractVersion', 'reservation', 'purpose', 'resources']; break;
+    case 'startAttempt': keys = ['type', 'attemptId', 'nodeId', 'contractVersion', 'reservation', 'purpose', 'resources', 'futureVerificationAllocationId']; break;
     case 'finishAttempt': keys = ['type', 'attemptId', 'outcome']; break;
     case 'settleAttempt': keys = ['type', 'attemptId', 'actual']; break;
     case 'setOperation': keys = ['type', 'operationId', 'attemptId', 'status']; break;
@@ -61,19 +61,27 @@ function action(v: unknown, p: string): void {
     case 'pause': case 'resume': case 'cancel': case 'complete': keys = ['type']; break;
     case 'admit': keys = ['type', 'contract', 'nodes']; break;
     case 'revisePlan': keys = ['type', 'contract', 'nodes', 'reason']; break;
+    case 'appendRepairNodes': keys = ['type', 'contractVersion', 'nodes', 'reason', 'failureJobId', 'failedObligationIds']; break;
+    case 'setFutureVerification': keys = ['type', 'contractVersion', 'allocationId', 'amount', 'reason']; break;
     case 'replaceContract': keys = ['type', 'contract']; break;
     case 'recordEvidence': keys = ['type', 'evidence']; break;
     case 'setArtifact': keys = ['type', 'artifact']; break;
     default: fail(`${p}.type`, 'unknown action');
   }
-  const o = object(v, p, keys);
+  const o = object(v, p, keys, t === 'startAttempt' ? ['futureVerificationAllocationId'] : []);
   for (const k of ['attemptId', 'nodeId', 'operationId', 'resource']) if (keys.includes(k)) string(o[k], `${p}.${k}`);
   if (t === 'startAttempt') { number(o.contractVersion, `${p}.contractVersion`, 1, true); number(o.reservation, `${p}.reservation`, 0, true); choice(o.purpose, `${p}.purpose`, ['execution', 'verification', 'reasoning']); strings(o.resources, `${p}.resources`); }
+  if (t === 'startAttempt' && Object.hasOwn(o, 'futureVerificationAllocationId')) string(o.futureVerificationAllocationId, `${p}.futureVerificationAllocationId`);
   if (t === 'finishAttempt') choice(o.outcome, `${p}.outcome`, ['succeeded', 'failed', 'cancelled']);
   if (t === 'settleAttempt') number(o.actual, `${p}.actual`, 0, true);
   if (t === 'setOperation') choice(o.status, `${p}.status`, ['pending', 'confirmed', 'unknown']);
   if (t === 'admit' || t === 'revisePlan') input({id:'admit',projectId:'admit',contract:o.contract,nodes:o.nodes,budget:{limit:1,verificationReserve:0}},p);
   if (t === 'revisePlan') string(o.reason, `${p}.reason`);
+  if (t === 'appendRepairNodes') {
+    number(o.contractVersion, `${p}.contractVersion`, 1, true); string(o.reason, `${p}.reason`); string(o.failureJobId, `${p}.failureJobId`); strings(o.failedObligationIds, `${p}.failedObligationIds`);
+    array(o.nodes, `${p}.nodes`, (v,p) => {const n=object(v,p,['id','dependencies','required']);string(n.id,`${p}.id`);strings(n.dependencies,`${p}.dependencies`);bool(n.required,`${p}.required`);});
+  }
+  if (t === 'setFutureVerification') {number(o.contractVersion, `${p}.contractVersion`, 1, true);string(o.allocationId, `${p}.allocationId`);number(o.amount, `${p}.amount`, 0, true);string(o.reason, `${p}.reason`);}
   if (t === 'replaceContract') contract(o.contract, `${p}.contract`);
   if (t === 'recordEvidence') evidence(o.evidence, `${p}.evidence`);
   if (t === 'setArtifact') artifact(o.artifact, `${p}.artifact`);

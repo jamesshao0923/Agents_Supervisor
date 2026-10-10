@@ -2,12 +2,13 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { GoalSession, ReasoningJob } from '../contracts/p5.js';
-import type { FollowupProposal, ConversationMessage } from '../contracts/p6.js';
+import type { FollowupProposal, ConversationMessage, TerminalAssessmentJob, TerminalAssessmentResult } from '../contracts/p6.js';
 import { parseConversationAction, type ConversationAction, type ConversationInspection } from '../contracts/p6-actions.js';
 import { SupervisorStore } from '../persistence/store.js';
 import { LocalRuntimeAdapter } from '../runtime/index.js';
-import { inspectProcess } from '../process-control/index.js';
+import { inspectProcess, terminateProcess } from '../process-control/index.js';
 import { CodexReasonerAdapter, ReasonerError, type SupervisorReasoner } from './reasoner.js';
+import { TERMINAL_ASSESSMENT_SCHEMA, terminalAssessmentPrompt, validateTerminalAssessment } from './terminal-assessment.js';
 import { followupProposalSchema, validateFollowupProposal } from './followup-proposal.js';
 
 const hash=(value:string|Uint8Array)=>createHash('sha256').update(value).digest('hex');
@@ -24,6 +25,11 @@ export class ConversationController {
   async initialize():Promise<void>{
     // OrchestrationController first reconciles interrupted running reasoners.
     for(const session of this.store.goals.list())this.store.conversations.ensureForGoal(session.id);
+    for(const conversation of this.store.conversations.list())for(const job of this.store.conversations.assessments(conversation.id).filter(value=>value.status==='running')){
+      let stopped=job.intents.length===job.identities.length;
+      for(const identity of job.identities)try{stopped=(await terminateProcess(identity)).stopped&&stopped;}catch{stopped=false;}
+      this.store.conversations.finishAssessment(job.id,{usage:job.modelStarted||!stopped?null:0,stopConfirmed:stopped,proofs:job.proofs,threadId:job.threadId,result:null,error:'询问分析被中断；未知用量保留，模型不会自动重发。'});
+    }
     this.timer=setInterval(()=>{void this.scan().catch(()=>{});},15_000);this.timer.unref();
     await this.scan();
   }
@@ -35,6 +41,11 @@ export class ConversationController {
     if(action.type==='list')return this.store.conversations.list().map(conversation=>this.inspect(conversation.id));
     if(action.type==='forSession'){const conversation=this.store.conversations.ensureForGoal(action.sessionId);return this.inspect(conversation.id);}
     if(action.type==='inspect')return this.inspect(action.conversationId);
+    if(action.type==='cancelAssessment'){
+      const message=this.store.conversations.message(action.messageId);
+      if(message.conversationId!==action.conversationId)throw new Error('Message belongs to another conversation');
+      const job=this.store.conversations.cancelAssessment(message.id,action.assessmentId);this.pending.get(job.id)?.abort.abort();return this.inspect(action.conversationId);
+    }
     if(action.type==='send'){
       const {type,...input}=action;
       this.store.conversations.receive({...input,source:'user'});
@@ -52,6 +63,8 @@ export class ConversationController {
     const repository=this.store.conversations,messages=repository.messages(conversationId);
     const processing=messages.find(message=>message.state==='processing');
     if(processing){
+      const assessment=repository.assessments(conversationId).findLast(job=>job.messageId===processing.id&&job.processingAttempt===processing.processing?.attempt);
+      if(assessment){if(assessment.status==='finished'&&!this.pending.has(assessment.id))await this.publishAssessment(assessment.id);return;}
       const session=this.store.goals.get(repository.get(conversationId).activeSessionId);
       const job=session.jobs.findLast(j=>j.followup?.messageId===processing.id&&j.followup.processingAttempt===processing.processing?.attempt);
       if(job?.status==='finished'&&!this.pending.has(job.id))await this.publish(session.id,job.id);
@@ -71,19 +84,73 @@ export class ConversationController {
       this.fail(message,'先前操作的用量、执行结果或资源释放尚未确认；为避免重复执行，跟进暂时停止。');return;
     }
     try{
-      if(active.run.status==='succeeded')active=this.store.goals.createContinuation(conversationId,`continue:${message.id}`);
-      const begun=this.store.goals.beginFollowup(active.session.id,message.id),job=begun.session.jobs.at(-1)!;
-      if(job.status!=='running'||this.pending.has(job.id))return;
-      const abort=new AbortController();
-      const promise=this.reason(begun.session.id,job.id,abort.signal).catch(error=>{
-        // Even an infrastructure failure leaves an explicit durable message state.
-        const current=repository.message(message.id);if(current.state==='processing')this.fail(current,errorText(error));
-      }).finally(()=>{this.pending.delete(job.id);if(!this.closing)void this.scan().catch(()=>{});});
-      this.pending.set(job.id,{abort,promise});
+      if(active.run.status==='succeeded'){
+        if(message.kind!=='change'||message.replyToMessageId){this.launchAssessment(repository.beginAssessment(message.id));return;}
+        active=this.store.goals.createContinuation(conversationId,`continue:${message.id}`);
+      }
+      this.launchFollowup(this.store.goals.beginFollowup(active.session.id,message.id).session);
     }catch(error){
       const current=repository.message(message.id);
       if(['received','waiting','processing'].includes(current.state))this.fail(current,errorText(error));
     }
+  }
+  private launchFollowup(session:GoalSession):void {
+    const job=session.jobs.at(-1)!;if(job.status!=='running'||this.pending.has(job.id))return;
+    const abort=new AbortController();
+    const promise=this.reason(session.id,job.id,abort.signal).catch(error=>{
+      const message=this.store.conversations.message(job.followup!.messageId);if(message.state==='processing')this.fail(message,errorText(error));
+    }).finally(()=>{this.pending.delete(job.id);if(!this.closing)void this.scan().catch(()=>{});});
+    this.pending.set(job.id,{abort,promise});
+  }
+  private launchAssessment(job:TerminalAssessmentJob):void {
+    if(job.status!=='running'||this.pending.has(job.id))return;
+    const abort=new AbortController();
+    const promise=this.reasonAssessment(job.id,abort.signal).catch(error=>{
+      const current=this.store.conversations.assessment(job.id);
+      if(current.status==='running')this.store.conversations.finishAssessment(job.id,{usage:null,stopConfirmed:false,proofs:current.proofs,threadId:current.threadId,result:null,error:errorText(error)});
+      const message=this.store.conversations.message(job.messageId);if(message.processing?.attempt===job.processingAttempt)this.fail(message,errorText(error));
+    }).finally(()=>{this.pending.delete(job.id);if(!this.closing)void this.scan().catch(()=>{});});
+    this.pending.set(job.id,{abort,promise});
+  }
+  private async reasonAssessment(id:string,signal:AbortSignal):Promise<void>{
+    const repository=this.store.conversations,job=repository.assessment(id);
+    let result:Awaited<ReturnType<SupervisorReasoner['request']>>|undefined,decision:TerminalAssessmentResult|null=null,error:string|null=null;
+    let usage:number|null=0,stopped=true;const proofs:Record<string,string>={};
+    const eligible=()=>{if(this.closing||signal.aborted)throw new Error('询问分析已取消或服务正在关闭');const current=repository.assertAssessmentBoundary(id);if(current.status!=='running')throw new Error('Assessment already finished');};
+    try{
+      eligible();const prompt=terminalAssessmentPrompt(job);
+      if(prompt.length+6000>job.maxContextChars)throw new Error('询问上下文超过容量；完整要求已保留，尚未发送模型。');
+      try{result=await this.reasoner.request({id:job.id,cwd:job.workspace,logDir:join(this.dataDir,'reasoning',job.id),prompt,outputSchema:TERMINAL_ASSESSMENT_SCHEMA,...job.config,signal,assertEligible:eligible,
+        onIntent:intent=>{eligible();repository.observeAssessment(id,{intents:[...repository.assessment(id).intents,intent]});},
+        onIdentity:identity=>{repository.observeAssessment(id,{identities:[...repository.assessment(id).identities,identity]});},
+        onTurnIntent:()=>{eligible();repository.observeAssessment(id,{modelStarted:true});},
+        onUsage:observedUsage=>{repository.observeAssessment(id,{observedUsage});if(observedUsage>job.config.reservation)throw new Error('询问分析超出本次预留额度。');},
+      });}catch(caught){if(caught instanceof ReasonerError)result=caught.result;throw caught;}
+      decision=validateTerminalAssessment(result.value,repository.message(job.messageId),repository.clarificationParents(job.messageId));
+    }catch(caught){error=errorText(caught);}
+    if(result){
+      usage=(result.modelStarted||repository.assessment(id).modelStarted)?result.usage:result.stopConfirmed?0:null;stopped=result.stopConfirmed;
+      if(result.modelStarted&&!repository.assessment(id).modelStarted)repository.observeAssessment(id,{modelStarted:true});
+      try{for(const path of result.proofFiles)proofs[path]=hash(await readFile(path));}catch(caught){error??=errorText(caught);}
+    }else if(repository.assessment(id).intents.length){usage=null;stopped=false;}
+    repository.finishAssessment(id,{usage,stopConfirmed:stopped,proofs,threadId:result?.threadId??null,result:!error?decision:null,error});
+    await this.serial(()=>this.publishAssessment(id));
+  }
+  private async publishAssessment(id:string):Promise<void>{
+    if(this.closing)return;const repository=this.store.conversations,job=repository.assessment(id);
+    const message=repository.message(job.messageId);
+    if(job.publishedAt||message.state!=='processing'||message.processing?.attempt!==job.processingAttempt)return;
+    try{
+      repository.assertAssessmentBoundary(id);
+      if(job.status!=='finished'||!job.settled||job.error||!job.result)throw new Error(job.error??'询问分析尚未可靠结算。');
+      for(const identity of job.identities)if((await inspectProcess(identity)).status!=='stopped')throw new Error('询问进程尚未确认停止。');
+      if(!Object.keys(job.proofs).length)throw new Error('缺少询问模型证据。');
+      for(const [path,digest] of Object.entries(job.proofs))if(hash(await readFile(path))!==digest)throw new Error('询问分析证据已经改变。');
+      if(this.closing)return;repository.assertAssessmentBoundary(id);
+      validateTerminalAssessment(job.result,repository.message(job.messageId),repository.clarificationParents(job.messageId));
+      if(job.result.decision==='continue')this.launchFollowup(this.store.goals.promoteAssessment(id).session);
+      else repository.publishAssessment(id);
+    }catch(caught){const current=repository.message(job.messageId);if(current.processing?.attempt===job.processingAttempt)this.fail(current,errorText(caught));}
   }
   private wait(message:ConversationMessage,reason:string):void{if(message.state==='received')this.store.conversations.transition(message.id,'waiting',{reason});}
   private fail(message:ConversationMessage,reason:string):void{if(['received','waiting','processing','clarifying'].includes(message.state))this.store.conversations.transition(message.id,'failed',{reason});}

@@ -21,6 +21,9 @@ export interface RuntimeOperation {
   id: string; runtimeId: string; stepIndex: number; step: RuntimeStep; attemptId: string; contractVersion: number;
   owner: string | null; state: 'queued' | 'claimed' | 'started' | 'confirmed' | 'unknown' | 'failed' | 'cancelled';
   executionId: string | null; result: unknown; error: string | null;
+  /** Absent on legacy records means the first generation. Earlier records remain immutable. */
+  generation?: number;
+  supersedes?: string;
 }
 export interface RuntimeCheckpoint {
   parentId?: string;

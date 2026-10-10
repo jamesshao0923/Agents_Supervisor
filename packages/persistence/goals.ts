@@ -76,6 +76,16 @@ export class GoalRepository {
     this.db.prepare('INSERT INTO goal_sessions(id,project_id,run_id,record) VALUES (?,?,?,?)').run(id,s.projectId,id,canonical(s));
     repository.attachRound(conversationId,id,authorization.predecessorDeliveryId);this.receipted(request,id,commandId);return this.inspect(id);
   });}
+  /** Controller verifies the assessment proof bytes and stopped identities first. */
+  promoteAssessment(assessmentId:string):GoalInspection {return this.tx(()=>{
+    const repository=new ConversationRepository(this.db),job=repository.assessment(assessmentId);
+    if(job.promotion)return this.inspect(job.promotion.childSessionId);
+    return repository.promoteAssessment(assessmentId,()=>{
+      const child=this.createContinuation(job.conversationId,`assessment-continuation:${job.id}`);
+      const begun=this.beginFollowup(child.session.id,job.messageId);
+      return {value:begun,childSessionId:begun.session.id,childRunId:begun.run.id,childProcessingAttempt:repository.message(job.messageId).processing!.attempt};
+    });
+  });}
   /** Controller must inspect actual process identities and rehash proof files before this call. */
   applyFollowup(sessionId:string,jobId:string):GoalInspection {return this.tx(()=>{
     const s=this.get(sessionId),job=s.jobs.find(j=>j.id===jobId);ensure(job?.purpose==='followup'&&job.followup,'Missing follow-up job');

@@ -35,7 +35,7 @@ export type VerificationAction =
   | ({ type: 'review'; commandId: string; proposalId: string } & ModelConfig)
   | { type: 'publish'; commandId: string; proposalId: string; reviewId: string }
   | { type: 'freeze'; commandId: string; runtimeId: string; mode: 'final' | 'impact'; changedModules?: string[] }
-  | ({ type: 'run'; commandId: string; planId: string } & ModelConfig)
+  | ({ type: 'run'; commandId: string; planId: string; futureVerificationAllocationId?:string } & ModelConfig)
   | { type: 'deliver'; commandId: string; jobId: string }
   | { type: 'cancel'; jobId: string }
   | { type: 'job'; jobId: string }
