@@ -10,7 +10,7 @@ test('repository production module boundaries pass on actual source files', asyn
 });
 
 test('repository ignores runtime secrets outputs and dependencies but retains sources and lockfile', async () => {
-  const ignored = ['node_modules/pkg/file.js', 'dist/a.js', 'coverage/index.html', '.supervisor-dev/verification/run/manifest.json', '.supervisor/memory/project.md', '.env', '.env.local', 'private.key', 'certificate.p12', '.DS_Store'];
+  const ignored = ['node_modules/pkg/file.js', 'dist/a.js', 'coverage/index.html', '.supervisor-dev/verification/run/manifest.json', '.supervisor/memory/project.md', 'local/supervisor.sqlite', 'local/supervisor.sqlite-wal', 'local/supervisor.sqlite-shm', 'local/supervisor.sock', 'local/service.lock', '.env', '.env.local', 'private.key', 'certificate.p12', '.DS_Store'];
   for (const path of ignored) {
     const result = spawnSync('git', ['check-ignore', '--no-index', '-q', path], { cwd: process.cwd(), encoding: 'utf8' });
     assert.equal(result.status, 0, `${path} must be ignored: ${result.stderr}`);

@@ -7,6 +7,7 @@ import { join, relative, resolve, isAbsolute, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseManifest, evaluateSuite } from './contracts.js';
 import type { StageManifest, SuiteSpec, TestResult } from './contracts.js';
+import { loadSelection, loadLegacyManifest, type SelectionSnapshot } from './catalog.js';
 
 export const sha256 = (value: string | Buffer): string => createHash('sha256').update(value).digest('hex');
 const json = (value: unknown) => JSON.stringify(value, null, 2) + '\n';
@@ -19,14 +20,16 @@ export interface Execution {
   report: EvidenceFile; stdout: EvidenceFile; stderr: EvidenceFile;
 }
 export interface RunManifest {
-  schemaVersion: 1; runId: string; scope: 'stage' | 'unit' | 'integration'; reason: string;
+  schemaVersion: 1; runId: string; scope: 'stage' | 'unit' | 'integration' | 'partial'; reason: string;
+  selection?: SelectionSnapshot;
   startedAt: string; finishedAt: string; manifest: StageManifest; manifestDigest: string;
   candidateDigest: string; candidateFiles: Record<string, string>;
   environment: { node: string; executable: string; platform: string; arch: string };
   executions: Execution[];
 }
 export interface GateResult {
-  runId: string; scope: string; passed: boolean; issues: string[];
+  runId: string; scope: string; passed: boolean; stagePassed: boolean; issues: string[];
+  selection?: SelectionSnapshot;
   counts: { required: number; executed: number; passed: number; failed: number; skipped: number; todo: number; notRun: number };
   suites: { id: string; passed: boolean; issues: string[]; tests: TestResult[] }[];
 }
@@ -109,26 +112,41 @@ async function execute(root: string, dir: string, runId: string, suite: SuiteSpe
   };
 }
 
-export async function checkRun(root: string, dir: string, expected: StageManifest): Promise<GateResult> {
-  const result: GateResult = { runId: 'unknown', scope: 'unknown', passed: false, issues: [], suites: [], counts: { required: 0, executed: 0, passed: 0, failed: 0, skipped: 0, todo: 0, notRun: 0 } };
+export async function checkRun(root: string, dir: string, expected?: StageManifest): Promise<GateResult> {
+  const result: GateResult = { runId: 'unknown', scope: 'unknown', passed: false, stagePassed: false, issues: [], suites: [], counts: { required: 0, executed: 0, passed: 0, failed: 0, skipped: 0, todo: 0, notRun: 0 } };
   let required: SuiteSpec[] = [];
   try {
     const record: RunManifest = JSON.parse(await readFile(join(dir, 'manifest.json'), 'utf8'));
     const frozen: RunManifest = JSON.parse(await readFile(join(dir, 'input.json'), 'utf8'));
-    if (record.schemaVersion !== 1 || typeof record.runId !== 'string' || !record.runId || !['stage', 'unit', 'integration'].includes(record.scope)) throw new Error('Invalid run manifest');
+    if (record.schemaVersion !== 1 || typeof record.runId !== 'string' || !record.runId || !['stage', 'unit', 'integration', 'partial'].includes(record.scope)) throw new Error('Invalid run manifest');
     result.runId = record.runId; result.scope = record.scope;
-    for (const key of ['schemaVersion', 'runId', 'scope', 'reason', 'startedAt', 'manifest', 'manifestDigest', 'candidateDigest', 'candidateFiles', 'environment'] as const) {
+    for (const key of ['schemaVersion', 'runId', 'scope', 'reason', 'startedAt', 'manifest', 'manifestDigest', 'candidateDigest', 'candidateFiles', 'environment', 'selection'] as const) {
       if (json(frozen[key]) !== json(record[key])) result.issues.push(`Run differs from frozen input: ${key}`);
     }
     if (frozen.finishedAt !== '' || !Array.isArray(frozen.executions) || frozen.executions.length) result.issues.push('Invalid frozen input lifecycle');
     const manifest = parseManifest(record.manifest);
+    if (frozen.selection !== undefined) {
+      const selected = frozen.selection;
+      if (selected.schemaVersion !== 1 || selected.stage !== manifest.stage || !selected.requested || !Array.isArray(selected.requested.modules)
+        || (selected.requested.layer !== null && selected.requested.layer !== 'unit' && selected.requested.layer !== 'integration')) throw new Error('Invalid frozen selection request');
+      const current = await loadSelection(root, selected.stage, { ...(selected.requested.layer ? { layer: selected.requested.layer } : {}),
+        ...(selected.requested.modules.length ? { modules: selected.requested.modules } : {}) });
+      if (json(selected) !== json(current.selection)) result.issues.push('Frozen selection does not match current catalog/profile');
+      expected = current.manifest;
+      result.selection = current.selection;
+      const scope = current.selection.mode === 'stage' ? 'stage' : current.selection.requested.layer ?? 'partial';
+      if (record.scope !== scope) result.issues.push('Partial selection cannot be presented as a stage run');
+    } else {
+      if (record.scope === 'partial') result.issues.push('Partial run lacks a frozen selection');
+      expected ??= await loadLegacyManifest(root, manifest.stage, manifest.revision);
+    }
     if (record.manifestDigest !== sha256(json(manifest)) || record.manifestDigest !== sha256(json(parseManifest(expected)))) result.issues.push('Frozen manifest does not match current required manifest');
     if (record.candidateDigest !== sha256(json(record.candidateFiles)) || record.candidateDigest !== sha256(json(await candidateSnapshot(root)))) result.issues.push('Candidate changed or candidate digest is invalid');
     if (record.environment.node !== process.versions.node || record.environment.platform !== process.platform || record.environment.arch !== process.arch) result.issues.push('Runtime differs from recorded environment');
     const start = Date.parse(record.startedAt), end = Date.parse(record.finishedAt);
     if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) result.issues.push('Invalid or incomplete run timestamps');
     if (!Array.isArray(record.executions)) throw new Error('Missing executions');
-    required = expected.suites.filter(s => record.scope === 'stage' || s.layer === record.scope);
+    required = expected.suites.filter(s => !!record.selection || record.scope === 'stage' || s.layer === record.scope);
     if (!required.length) result.issues.push('Zero required suites');
     if (record.executions.length !== required.length) result.issues.push('Execution count does not match required suites');
     if (new Set(record.executions.map(e => e.suiteId)).size !== record.executions.length) result.issues.push('Duplicate suite execution');
@@ -153,6 +171,7 @@ export async function checkRun(root: string, dir: string, expected: StageManifes
       result.suites.push({ id: spec.id, passed: verdict.passed && !issues.length, issues: [...issues, ...verdict.issues], tests: verdict.tests });
     }
     result.passed = !result.issues.length && result.suites.length > 0 && result.suites.every(s => s.passed);
+    result.stagePassed = result.passed && record.scope === 'stage';
   } catch (e) { result.issues.push((e as Error).message); }
   result.counts.required = required.reduce((n, s) => n + s.expectedTests.length, 0);
   for (const spec of required) {
@@ -173,16 +192,26 @@ async function writeReports(dir: string, result: GateResult): Promise<void> {
   await writeFile(join(dir, 'results.json'), json(result), { flag: 'wx' });
   const tests = result.suites.flatMap(s => s.tests.map(t => ({ ...t, suite: s.id })));
   const rows = result.suites.map(s => `<section><h2>${escape(s.id)} — ${s.passed ? 'PASS' : 'FAIL'}</h2><p>${escape(s.issues.join('; '))}</p><p><a href="logs/${escape(s.id)}.stdout.log">stdout</a> · <a href="logs/${escape(s.id)}.stderr.log">stderr</a> · <a href="artifacts/${escape(s.id)}.json">原始测试报告</a></p><table><tr><th>测试</th><th>结果</th><th>毫秒</th></tr>${s.tests.map(t => `<tr><td>${escape(t.name)}</td><td>${escape(t.status)}</td><td>${escape(t.durationMs.toFixed(2))}</td></tr>`).join('')}</table></section>`).join('');
-  const html = `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>Supervisor P0 验证 ${escape(result.runId)}</title><style>body{font:15px system-ui;max-width:1050px;margin:40px auto;padding:0 24px;color:#19222e}h1{font-size:26px}table{border-collapse:collapse;width:100%}td,th{padding:9px;text-align:left;border-bottom:1px solid #ddd}section{margin:32px 0}a{color:#075bb5}code{word-break:break-all}</style><h1>${escape(result.scope)} 验证：${result.passed ? 'PASS' : 'FAIL'}</h1><p><code>${escape(result.runId)}</code></p><p>套件 ${result.suites.length}；通过 ${result.suites.filter(s => s.passed).length}。</p><p>必需 ${result.counts.required}；已报告 ${result.counts.executed}；通过 ${result.counts.passed}；失败 ${result.counts.failed}；跳过 ${result.counts.skipped}；待实现 ${result.counts.todo}；未运行或无法核实 ${result.counts.notRun}。</p><p>${escape(result.issues.join('; '))}</p><p>仅 stage 范围表示阶段自动检查。负向用例通过表示成功拦截坏候选，并非坏候选验收通过。历史报告不自动证明当前候选仍然有效。阶段放行还需独立审查；环境能力缺口详见 doctor 报告。</p><p><a href="input.json">运行前冻结记录</a> · <a href="manifest.json">最终执行凭证</a> · <a href="results.json">机器结果</a> · <a href="events.jsonl">事件</a></p>${rows}</html>`;
+  const html = `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>Supervisor 验证 ${escape(result.runId)}</title><style>body{font:15px system-ui;max-width:1050px;margin:40px auto;padding:0 24px;color:#19222e}h1{font-size:26px}table{border-collapse:collapse;width:100%}td,th{padding:9px;text-align:left;border-bottom:1px solid #ddd}section{margin:32px 0}a{color:#075bb5}code{word-break:break-all}</style><h1>${escape(result.scope)} 验证：${result.passed ? 'PASS' : 'FAIL'}</h1><p><code>${escape(result.runId)}</code></p><p>套件 ${result.suites.length}；通过 ${result.suites.filter(s => s.passed).length}。</p><p>必需 ${result.counts.required}；已报告 ${result.counts.executed}；通过 ${result.counts.passed}；失败 ${result.counts.failed}；跳过 ${result.counts.skipped}；待实现 ${result.counts.todo}；未运行或无法核实 ${result.counts.notRun}。</p><p>${escape(result.issues.join('; '))}</p>${result.selection ? `<p>目录有效用例 ${result.selection.globalActiveCaseIds.length} / 覆盖 ${result.selection.globalCoveredRisks.length} 个条款或风险；本次覆盖 ${result.selection.selectedCoveredRisks.length} 个；本次选中 ${result.selection.selectedCaseIds.length}；本次未选 ${result.selection.excluded.length}（未选不表示通过）。</p><p>${escape(result.selection.reasons.join('; '))}</p><details><summary>本次未选范围</summary>${result.selection.excluded.map(c => `<p>${escape(c.id)}: ${escape(c.reason)}</p>`).join('')}</details>` : ''}<p>仅 stage 范围表示阶段自动检查。负向用例通过表示成功拦截坏候选，并非坏候选验收通过。历史报告不自动证明当前候选仍然有效。阶段放行还需独立审查；环境能力缺口详见 doctor 报告。</p><p><a href="input.json">运行前冻结记录</a> · <a href="manifest.json">最终执行凭证</a> · <a href="results.json">机器结果</a> · <a href="events.jsonl">事件</a></p>${rows}</html>`;
   await writeFile(join(dir, 'summary.html'), html, { flag: 'wx' });
   const cases = tests.map(t => `<testcase classname="${escape(t.suite)}" name="${escape(t.name)}" time="${t.durationMs / 1000}">${t.status === 'passed' ? '' : `<failure message="${escape(t.status)}">${escape(t.message ?? '')}</failure>`}</testcase>`);
   for (const issue of [...result.issues, ...result.suites.flatMap(s => s.issues.map(i => `${s.id}: ${i}`))]) cases.push(`<testcase name="gate"><failure message="${escape(issue)}"/></testcase>`);
-  await writeFile(join(dir, 'junit.xml'), `<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="P0 ${escape(result.scope)}" tests="${cases.length}" failures="${cases.filter(c => c.includes('<failure')).length}">${cases.join('')}</testsuite></testsuites>\n`, { flag: 'wx' });
+  await writeFile(join(dir, 'junit.xml'), `<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="${escape(result.scope)}" tests="${cases.length}" failures="${cases.filter(c => c.includes('<failure')).length}">${cases.join('')}</testsuite></testsuites>\n`, { flag: 'wx' });
 }
 
-export async function runStage(root: string, input: unknown, options: { layer?: 'unit' | 'integration'; reason: string } ): Promise<{ dir: string; result: GateResult }> {
+export async function runStage(root: string, input: unknown, options: { layer?: 'unit' | 'integration'; reason: string; selection?: SelectionSnapshot } ): Promise<{ dir: string; result: GateResult }> {
   root = await realpath(root);
   const manifest = parseManifest(input);
+  if (options.selection) {
+    const selected = options.selection;
+    if (selected.stage !== manifest.stage || !selected.requested || !Array.isArray(selected.requested.modules)
+      || (selected.requested.layer !== null && selected.requested.layer !== 'unit' && selected.requested.layer !== 'integration')) throw new Error('Invalid selection before freeze');
+    const current = await loadSelection(root, selected.stage, { ...(selected.requested.layer ? { layer: selected.requested.layer } : {}),
+      ...(selected.requested.modules.length ? { modules: selected.requested.modules } : {}) });
+    if (json(current.selection) !== json(selected) || json(current.manifest) !== json(manifest)) throw new Error('Selection/manifest does not match current catalog/profile before freeze');
+    if (options.layer && options.layer !== selected.requested.layer) throw new Error('Selection conflicts with the requested layer before freeze');
+  }
+  for (const suite of manifest.suites.filter(s => !!options.selection || !options.layer || s.layer === options.layer)) await safeFile(root, suite.file);
   const runId = new Date().toISOString().replaceAll(/[:.]/g, '-') + '-' + randomUUID();
   const dir = join(root, '.supervisor-dev', 'verification', runId);
   await mkdir(dirname(dir), { recursive: true });
@@ -190,7 +219,8 @@ export async function runStage(root: string, input: unknown, options: { layer?: 
   await mkdir(join(dir, 'logs')); await mkdir(join(dir, 'artifacts'));
   const files = await candidateSnapshot(root);
   const record: RunManifest = {
-    schemaVersion: 1, runId, scope: options.layer ?? 'stage', reason: options.reason,
+    schemaVersion: 1, runId, scope: options.selection?.mode === 'partial' ? options.selection.requested.layer ?? 'partial' : options.layer ?? 'stage', reason: options.reason,
+    ...(options.selection ? { selection: options.selection } : {}),
     startedAt: new Date().toISOString(), finishedAt: '', manifest, manifestDigest: sha256(json(manifest)),
     candidateDigest: sha256(json(files)), candidateFiles: files,
     environment: { node: process.versions.node, executable: process.execPath, platform: process.platform, arch: process.arch }, executions: [],
@@ -198,7 +228,7 @@ export async function runStage(root: string, input: unknown, options: { layer?: 
   await writeFile(join(dir, 'input.json'), json(record), { flag: 'wx' });
   const events: object[] = [{ type: 'run-started', runId, at: record.startedAt }];
   try {
-    for (const suite of manifest.suites.filter(s => !options.layer || s.layer === options.layer)) {
+    for (const suite of manifest.suites.filter(s => !!options.selection || !options.layer || s.layer === options.layer)) {
       const execution = await execute(root, dir, runId, suite);
       record.executions.push(execution);
       events.push({ type: 'suite-finished', suiteId: suite.id, at: execution.finishedAt, exitCode: execution.exitCode, timedOut: execution.timedOut });

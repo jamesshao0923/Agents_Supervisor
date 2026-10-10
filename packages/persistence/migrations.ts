@@ -1,0 +1,75 @@
+import type { DatabaseSync } from 'node:sqlite';
+
+export const SCHEMA_VERSION = 2;
+
+const migrations = [
+  `CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
+   CREATE TABLE projects(id TEXT PRIMARY KEY, name TEXT NOT NULL);
+   CREATE TABLE runs(project_id TEXT NOT NULL REFERENCES projects(id), id TEXT NOT NULL,
+     revision INTEGER NOT NULL CHECK(revision >= 0), snapshot TEXT NOT NULL CHECK(json_valid(snapshot)),
+     PRIMARY KEY(project_id,id));
+   CREATE TABLE events(seq INTEGER PRIMARY KEY AUTOINCREMENT, command_id TEXT NOT NULL,
+     project_id TEXT NOT NULL REFERENCES projects(id), run_id TEXT, type TEXT NOT NULL,
+     payload TEXT NOT NULL CHECK(json_valid(payload)), FOREIGN KEY(project_id,run_id) REFERENCES runs(project_id,id));
+   CREATE INDEX events_project_cursor ON events(project_id,seq);
+   CREATE TABLE command_receipts(command_id TEXT PRIMARY KEY, request TEXT NOT NULL CHECK(json_valid(request)),
+     result TEXT NOT NULL CHECK(json_valid(result)), event_seq INTEGER NOT NULL REFERENCES events(seq));
+   CREATE TABLE artifacts(project_id TEXT NOT NULL, run_id TEXT NOT NULL, id TEXT NOT NULL,
+     digest TEXT NOT NULL CHECK(length(digest)=64), path TEXT NOT NULL, contract_version INTEGER NOT NULL CHECK(contract_version>0),
+     PRIMARY KEY(project_id,run_id,id), FOREIGN KEY(project_id,run_id) REFERENCES runs(project_id,id));`,
+  `CREATE TABLE verification_changes(project_id TEXT NOT NULL REFERENCES projects(id), id TEXT NOT NULL,
+     base_version INTEGER NOT NULL CHECK(base_version>=0), status TEXT NOT NULL CHECK(status IN ('proposed','published','rejected')),
+     definition TEXT NOT NULL CHECK(json_valid(definition)), PRIMARY KEY(project_id,id));
+   CREATE TABLE verification_catalogs(project_id TEXT NOT NULL REFERENCES projects(id), version INTEGER NOT NULL CHECK(version>0),
+     digest TEXT NOT NULL CHECK(length(digest)=64), path TEXT NOT NULL, definition TEXT NOT NULL CHECK(json_valid(definition)),
+     PRIMARY KEY(project_id,version));
+   CREATE TABLE verification_catalog_heads(project_id TEXT PRIMARY KEY REFERENCES projects(id), version INTEGER NOT NULL,
+     FOREIGN KEY(project_id,version) REFERENCES verification_catalogs(project_id,version));
+   CREATE TABLE verification_cases(project_id TEXT NOT NULL REFERENCES projects(id), id TEXT NOT NULL,
+     revision INTEGER NOT NULL CHECK(revision>0), definition TEXT NOT NULL CHECK(json_valid(definition)), PRIMARY KEY(project_id,id,revision));
+   CREATE TABLE verification_catalog_cases(project_id TEXT NOT NULL, version INTEGER NOT NULL, case_id TEXT NOT NULL, revision INTEGER NOT NULL,
+     PRIMARY KEY(project_id,version,case_id,revision),
+     FOREIGN KEY(project_id,version) REFERENCES verification_catalogs(project_id,version),
+     FOREIGN KEY(project_id,case_id,revision) REFERENCES verification_cases(project_id,id,revision));
+   CREATE TABLE verification_coverage(project_id TEXT NOT NULL, version INTEGER NOT NULL, case_id TEXT NOT NULL,
+     revision INTEGER NOT NULL, criterion_id TEXT NOT NULL, PRIMARY KEY(project_id,version,case_id,revision,criterion_id),
+     FOREIGN KEY(project_id,version,case_id,revision) REFERENCES verification_catalog_cases(project_id,version,case_id,revision));
+   CREATE TABLE verification_replacements(project_id TEXT NOT NULL, version INTEGER NOT NULL, case_id TEXT NOT NULL,
+     revision INTEGER NOT NULL, replaced_id TEXT NOT NULL, PRIMARY KEY(project_id,version,case_id,revision,replaced_id),
+     FOREIGN KEY(project_id,version,case_id,revision) REFERENCES verification_catalog_cases(project_id,version,case_id,revision));
+   CREATE TABLE verification_plans(project_id TEXT NOT NULL, run_id TEXT NOT NULL, id TEXT NOT NULL,
+     catalog_version INTEGER NOT NULL, definition TEXT NOT NULL CHECK(json_valid(definition)), PRIMARY KEY(project_id,id),
+     FOREIGN KEY(project_id,run_id) REFERENCES runs(project_id,id),
+     FOREIGN KEY(project_id,catalog_version) REFERENCES verification_catalogs(project_id,version));`,
+];
+
+export function migrate(db: DatabaseSync): void {
+  // Configure lock waiting before the first schema read: another connection may
+  // still be initializing WAL when this real process opens the same database.
+  db.exec('PRAGMA busy_timeout=5000');
+  const row = db.prepare('PRAGMA user_version').get();
+  const version = Number(row?.['user_version']);
+  if (!Number.isInteger(version) || version < 0 || version > SCHEMA_VERSION) {
+    throw new Error(`Unsupported database schema version ${version}; supported through ${SCHEMA_VERSION}`);
+  }
+  // WAL and FULL durability are set for every connection, not merely at creation.
+  db.exec('PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;');
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    // An opener may have migrated while we waited. Decide the next migration
+    // under the writer lock, never from the earlier unlocked observation.
+    const lockedVersion = Number(db.prepare('PRAGMA user_version').get()?.['user_version']);
+    if (!Number.isInteger(lockedVersion) || lockedVersion < 0 || lockedVersion > SCHEMA_VERSION) {
+      throw new Error(`Unsupported database schema version ${lockedVersion}; supported through ${SCHEMA_VERSION}`);
+    }
+    for (let next = lockedVersion + 1; next <= SCHEMA_VERSION; next++) {
+      db.exec(migrations[next - 1]!);
+      db.prepare('INSERT INTO schema_migrations(version,applied_at) VALUES (?,?)').run(next, new Date().toISOString());
+      db.exec(`PRAGMA user_version=${next}`);
+    }
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+}

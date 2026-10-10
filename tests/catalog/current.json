@@ -1,0 +1,3126 @@
+{
+  "schemaVersion": 1,
+  "revision": "dev-catalog-v2",
+  "modules": [
+    {
+      "id": "dev-contracts",
+      "affects": [
+        "dev-runner",
+        "dev-catalog"
+      ]
+    },
+    {
+      "id": "dev-environment",
+      "affects": []
+    },
+    {
+      "id": "dev-boundaries",
+      "affects": [
+        "dev-repository"
+      ]
+    },
+    {
+      "id": "dev-runner",
+      "affects": [
+        "dev-catalog",
+        "dev-repository"
+      ]
+    },
+    {
+      "id": "dev-repository",
+      "affects": []
+    },
+    {
+      "id": "dev-catalog",
+      "affects": [
+        "dev-runner"
+      ]
+    },
+    {
+      "id": "contracts",
+      "affects": [
+        "domain",
+        "persistence",
+        "service"
+      ]
+    },
+    {
+      "id": "domain",
+      "affects": [
+        "persistence",
+        "service"
+      ]
+    },
+    {
+      "id": "persistence",
+      "affects": [
+        "service"
+      ]
+    },
+    {
+      "id": "service",
+      "affects": []
+    }
+  ],
+  "suites": [
+    {
+      "id": "unit-contracts",
+      "layer": "unit",
+      "file": "dist/tests/unit/contracts.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "unit-environment",
+      "layer": "unit",
+      "file": "dist/tests/unit/environment.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "unit-boundaries",
+      "layer": "unit",
+      "file": "dist/tests/unit/boundaries.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "integration-runner",
+      "layer": "integration",
+      "file": "dist/tests/integration/runner.test.js",
+      "timeoutMs": 60000
+    },
+    {
+      "id": "integration-environment",
+      "layer": "integration",
+      "file": "dist/tests/integration/environment.test.js",
+      "timeoutMs": 120000
+    },
+    {
+      "id": "integration-repository",
+      "layer": "integration",
+      "file": "dist/tests/integration/repository.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "unit-catalog",
+      "layer": "unit",
+      "file": "dist/tests/unit/catalog.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "unit-domain",
+      "layer": "unit",
+      "file": "dist/tests/unit/domain.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "integration-persistence",
+      "layer": "integration",
+      "file": "dist/tests/integration/persistence.test.js",
+      "timeoutMs": 60000
+    },
+    {
+      "id": "integration-service",
+      "layer": "integration",
+      "file": "dist/tests/integration/service.test.js",
+      "timeoutMs": 30000
+    }
+  ],
+  "cases": [
+    {
+      "id": "dev.unit-contracts.001",
+      "name": "manifest accepts valid required suites and returns an independent copy",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.001",
+        "p0.dev-contracts"
+      ],
+      "scenario": "manifest accepts valid required suites and returns an independent copy",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: manifest accepts valid required suites and returns an independent copy",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.002",
+      "name": "manifest accepts both layers and inclusive timeout limits",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.002",
+        "p0.dev-contracts"
+      ],
+      "scenario": "manifest accepts both layers and inclusive timeout limits",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: manifest accepts both layers and inclusive timeout limits",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.003",
+      "name": "manifest rejects nonobject inputs and serialized JSON",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.003",
+        "p0.dev-contracts"
+      ],
+      "scenario": "manifest rejects nonobject inputs and serialized JSON",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: manifest rejects nonobject inputs and serialized JSON",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.004",
+      "name": "manifest rejects invalid schema stage and revision",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.004",
+        "p0.dev-contracts"
+      ],
+      "scenario": "manifest rejects invalid schema stage and revision",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: manifest rejects invalid schema stage and revision",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.005",
+      "name": "manifest rejects missing empty and malformed suites",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.005",
+        "p0.dev-contracts"
+      ],
+      "scenario": "manifest rejects missing empty and malformed suites",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: manifest rejects missing empty and malformed suites",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.006",
+      "name": "manifest rejects unsafe and duplicate suite identifiers",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.006",
+        "p0.dev-contracts"
+      ],
+      "scenario": "manifest rejects unsafe and duplicate suite identifiers",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: manifest rejects unsafe and duplicate suite identifiers",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.007",
+      "name": "manifest rejects invalid layer and optional suites",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.007",
+        "p0.dev-contracts"
+      ],
+      "scenario": "manifest rejects invalid layer and optional suites",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: manifest rejects invalid layer and optional suites",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.008",
+      "name": "manifest rejects escaping absolute encoded and nonjavascript paths",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.008",
+        "p0.dev-contracts"
+      ],
+      "scenario": "manifest rejects escaping absolute encoded and nonjavascript paths",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: manifest rejects escaping absolute encoded and nonjavascript paths",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.009",
+      "name": "manifest rejects empty malformed and duplicate expected names",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.009",
+        "p0.dev-contracts"
+      ],
+      "scenario": "manifest rejects empty malformed and duplicate expected names",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: manifest rejects empty malformed and duplicate expected names",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.010",
+      "name": "manifest permits the same expected name across different suites",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.010",
+        "p0.dev-contracts"
+      ],
+      "scenario": "manifest permits the same expected name across different suites",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: manifest permits the same expected name across different suites",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.011",
+      "name": "manifest rejects noninteger nonfinite and out of range timeouts",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.011",
+        "p0.dev-contracts"
+      ],
+      "scenario": "manifest rejects noninteger nonfinite and out of range timeouts",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: manifest rejects noninteger nonfinite and out of range timeouts",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.012",
+      "name": "manifest rejects sparse suite and expected name arrays",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.012",
+        "p0.dev-contracts"
+      ],
+      "scenario": "manifest rejects sparse suite and expected name arrays",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: manifest rejects sparse suite and expected name arrays",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.013",
+      "name": "suite accepts only a complete matching successful report",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.013",
+        "p0.dev-contracts"
+      ],
+      "scenario": "suite accepts only a complete matching successful report",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: suite accepts only a complete matching successful report",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.014",
+      "name": "suite matches expected names regardless of result ordering",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.014",
+        "p0.dev-contracts"
+      ],
+      "scenario": "suite matches expected names regardless of result ordering",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: suite matches expected names regardless of result ordering",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.015",
+      "name": "suite rejects missing malformed and serialized reports without throwing",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.015",
+        "p0.dev-contracts"
+      ],
+      "scenario": "suite rejects missing malformed and serialized reports without throwing",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: suite rejects missing malformed and serialized reports without throwing",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.016",
+      "name": "suite rejects unsupported report schemas",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.016",
+        "p0.dev-contracts"
+      ],
+      "scenario": "suite rejects unsupported report schemas",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: suite rejects unsupported report schemas",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.017",
+      "name": "suite rejects stale missing and invalid run identifiers",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.017",
+        "p0.dev-contracts"
+      ],
+      "scenario": "suite rejects stale missing and invalid run identifiers",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: suite rejects stale missing and invalid run identifiers",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.018",
+      "name": "suite rejects reports from another suite",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.018",
+        "p0.dev-contracts"
+      ],
+      "scenario": "suite rejects reports from another suite",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: suite rejects reports from another suite",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.019",
+      "name": "suite rejects incomplete and truthy nonboolean completion",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.019",
+        "p0.dev-contracts"
+      ],
+      "scenario": "suite rejects incomplete and truthy nonboolean completion",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: suite rejects incomplete and truthy nonboolean completion",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.020",
+      "name": "suite rejects absent malformed and zero actual tests",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.020",
+        "p0.dev-contracts"
+      ],
+      "scenario": "suite rejects absent malformed and zero actual tests",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: suite rejects absent malformed and zero actual tests",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.021",
+      "name": "suite never passes a spec with zero expected tests",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.021",
+        "p0.dev-contracts"
+      ],
+      "scenario": "suite never passes a spec with zero expected tests",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: suite never passes a spec with zero expected tests",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.022",
+      "name": "suite rejects missing duplicate and extra actual test names",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.022",
+        "p0.dev-contracts"
+      ],
+      "scenario": "suite rejects missing duplicate and extra actual test names",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: suite rejects missing duplicate and extra actual test names",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.023",
+      "name": "suite rejects failed skipped and todo tests despite reconciled summaries",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.023",
+        "p0.dev-contracts"
+      ],
+      "scenario": "suite rejects failed skipped and todo tests despite reconciled summaries",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: suite rejects failed skipped and todo tests despite reconciled summaries",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.024",
+      "name": "suite rejects unknown statuses and malformed test objects",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.024",
+        "p0.dev-contracts"
+      ],
+      "scenario": "suite rejects unknown statuses and malformed test objects",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: suite rejects unknown statuses and malformed test objects",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.025",
+      "name": "suite rejects negative nonfinite and nonnumeric durations",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.025",
+        "p0.dev-contracts"
+      ],
+      "scenario": "suite rejects negative nonfinite and nonnumeric durations",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: suite rejects negative nonfinite and nonnumeric durations",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.026",
+      "name": "suite validates optional diagnostic messages",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.026",
+        "p0.dev-contracts"
+      ],
+      "scenario": "suite validates optional diagnostic messages",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: suite validates optional diagnostic messages",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.027",
+      "name": "suite rejects missing malformed and unreconciled summary totals",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.027",
+        "p0.dev-contracts"
+      ],
+      "scenario": "suite rejects missing malformed and unreconciled summary totals",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: suite rejects missing malformed and unreconciled summary totals",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.028",
+      "name": "suite rejects noninteger negative missing and nonfinite summary fields",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.028",
+        "p0.dev-contracts"
+      ],
+      "scenario": "suite rejects noninteger negative missing and nonfinite summary fields",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: suite rejects noninteger negative missing and nonfinite summary fields",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.029",
+      "name": "suite rejects nonzero and absent execution exit codes",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.029",
+        "p0.dev-contracts"
+      ],
+      "scenario": "suite rejects nonzero and absent execution exit codes",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: suite rejects nonzero and absent execution exit codes",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.030",
+      "name": "suite rejects signalled and timed out executions",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.030",
+        "p0.dev-contracts"
+      ],
+      "scenario": "suite rejects signalled and timed out executions",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: suite rejects signalled and timed out executions",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.031",
+      "name": "suite retains execution failures when the report is missing",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.031",
+        "p0.dev-contracts"
+      ],
+      "scenario": "suite retains execution failures when the report is missing",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: suite retains execution failures when the report is missing",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.032",
+      "name": "suite rejects throwing report accessors without propagating errors",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.032",
+        "p0.dev-contracts"
+      ],
+      "scenario": "suite rejects throwing report accessors without propagating errors",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: suite rejects throwing report accessors without propagating errors",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-contracts.033",
+      "name": "suite rejects sparse actual test arrays",
+      "suiteId": "unit-contracts",
+      "module": "dev-contracts",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-contracts.033",
+        "p0.dev-contracts"
+      ],
+      "scenario": "suite rejects sparse actual test arrays",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-contracts"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/contracts.test.ts",
+      "assertions": "tests/unit/contracts.test.ts: suite rejects sparse actual test arrays",
+      "cleanup": "Test implementation cleanup in tests/unit/contracts.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "p0.environment.unit.version-extracts-complete-prefixed-and-multisegment-tokens",
+      "name": "p0.environment.unit.version-extracts-complete-prefixed-and-multisegment-tokens",
+      "suiteId": "unit-environment",
+      "module": "dev-environment",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-environment.001",
+        "p0.dev-environment"
+      ],
+      "scenario": "p0.environment.unit.version-extracts-complete-prefixed-and-multisegment-tokens",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-environment"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/environment.test.ts",
+      "assertions": "tests/unit/environment.test.ts: p0.environment.unit.version-extracts-complete-prefixed-and-multisegment-tokens",
+      "cleanup": "Test implementation cleanup in tests/unit/environment.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "p0.environment.unit.version-rejects-partial-or-unbounded-tokens-without-retaining-output",
+      "name": "p0.environment.unit.version-rejects-partial-or-unbounded-tokens-without-retaining-output",
+      "suiteId": "unit-environment",
+      "module": "dev-environment",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-environment.002",
+        "p0.dev-environment"
+      ],
+      "scenario": "p0.environment.unit.version-rejects-partial-or-unbounded-tokens-without-retaining-output",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-environment"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/environment.test.ts",
+      "assertions": "tests/unit/environment.test.ts: p0.environment.unit.version-rejects-partial-or-unbounded-tokens-without-retaining-output",
+      "cleanup": "Test implementation cleanup in tests/unit/environment.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "p0.environment.unit.path-posix-excludes-implicit-cwd-and-deduplicates",
+      "name": "p0.environment.unit.path-posix-excludes-implicit-cwd-and-deduplicates",
+      "suiteId": "unit-environment",
+      "module": "dev-environment",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-environment.003",
+        "p0.dev-environment"
+      ],
+      "scenario": "p0.environment.unit.path-posix-excludes-implicit-cwd-and-deduplicates",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-environment"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/environment.test.ts",
+      "assertions": "tests/unit/environment.test.ts: p0.environment.unit.path-posix-excludes-implicit-cwd-and-deduplicates",
+      "cleanup": "Test implementation cleanup in tests/unit/environment.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "p0.environment.unit.path-windows-respects-pathext-and-absolute-directories",
+      "name": "p0.environment.unit.path-windows-respects-pathext-and-absolute-directories",
+      "suiteId": "unit-environment",
+      "module": "dev-environment",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-environment.004",
+        "p0.dev-environment"
+      ],
+      "scenario": "p0.environment.unit.path-windows-respects-pathext-and-absolute-directories",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-environment"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/environment.test.ts",
+      "assertions": "tests/unit/environment.test.ts: p0.environment.unit.path-windows-respects-pathext-and-absolute-directories",
+      "cleanup": "Test implementation cleanup in tests/unit/environment.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "p0.environment.unit.auth-known-labels-do-not-claim-api-access-or-retain-secrets",
+      "name": "p0.environment.unit.auth-known-labels-do-not-claim-api-access-or-retain-secrets",
+      "suiteId": "unit-environment",
+      "module": "dev-environment",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-environment.005",
+        "p0.dev-environment"
+      ],
+      "scenario": "p0.environment.unit.auth-known-labels-do-not-claim-api-access-or-retain-secrets",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-environment"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/environment.test.ts",
+      "assertions": "tests/unit/environment.test.ts: p0.environment.unit.auth-known-labels-do-not-claim-api-access-or-retain-secrets",
+      "cleanup": "Test implementation cleanup in tests/unit/environment.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "p0.environment.unit.auth-unrecognized-or-failed-status-is-unknown",
+      "name": "p0.environment.unit.auth-unrecognized-or-failed-status-is-unknown",
+      "suiteId": "unit-environment",
+      "module": "dev-environment",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-environment.006",
+        "p0.dev-environment"
+      ],
+      "scenario": "p0.environment.unit.auth-unrecognized-or-failed-status-is-unknown",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-environment"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/environment.test.ts",
+      "assertions": "tests/unit/environment.test.ts: p0.environment.unit.auth-unrecognized-or-failed-status-is-unknown",
+      "cleanup": "Test implementation cleanup in tests/unit/environment.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "p0.environment.unit.command-real-process-captures-exit-without-shell",
+      "name": "p0.environment.unit.command-real-process-captures-exit-without-shell",
+      "suiteId": "unit-environment",
+      "module": "dev-environment",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-environment.007",
+        "p0.dev-environment"
+      ],
+      "scenario": "p0.environment.unit.command-real-process-captures-exit-without-shell",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-environment"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/environment.test.ts",
+      "assertions": "tests/unit/environment.test.ts: p0.environment.unit.command-real-process-captures-exit-without-shell",
+      "cleanup": "Test implementation cleanup in tests/unit/environment.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "p0.environment.unit.command-real-process-enforces-output-limit",
+      "name": "p0.environment.unit.command-real-process-enforces-output-limit",
+      "suiteId": "unit-environment",
+      "module": "dev-environment",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-environment.008",
+        "p0.dev-environment"
+      ],
+      "scenario": "p0.environment.unit.command-real-process-enforces-output-limit",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-environment"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/environment.test.ts",
+      "assertions": "tests/unit/environment.test.ts: p0.environment.unit.command-real-process-enforces-output-limit",
+      "cleanup": "Test implementation cleanup in tests/unit/environment.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "p0.environment.unit.command-real-process-enforces-five-second-deadline",
+      "name": "p0.environment.unit.command-real-process-enforces-five-second-deadline",
+      "suiteId": "unit-environment",
+      "module": "dev-environment",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-environment.009",
+        "p0.dev-environment"
+      ],
+      "scenario": "p0.environment.unit.command-real-process-enforces-five-second-deadline",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-environment"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/environment.test.ts",
+      "assertions": "tests/unit/environment.test.ts: p0.environment.unit.command-real-process-enforces-five-second-deadline",
+      "cleanup": "Test implementation cleanup in tests/unit/environment.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "p0.environment.unit.command-missing-executable-is-explicit-spawn-failure",
+      "name": "p0.environment.unit.command-missing-executable-is-explicit-spawn-failure",
+      "suiteId": "unit-environment",
+      "module": "dev-environment",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-environment.010",
+        "p0.dev-environment"
+      ],
+      "scenario": "p0.environment.unit.command-missing-executable-is-explicit-spawn-failure",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-environment"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/environment.test.ts",
+      "assertions": "tests/unit/environment.test.ts: p0.environment.unit.command-missing-executable-is-explicit-spawn-failure",
+      "cleanup": "Test implementation cleanup in tests/unit/environment.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-boundaries.001",
+      "name": "boundaries allow pure domain and contract imports",
+      "suiteId": "unit-boundaries",
+      "module": "dev-boundaries",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-boundaries.001",
+        "p0.dev-boundaries"
+      ],
+      "scenario": "boundaries allow pure domain and contract imports",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-boundaries"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/boundaries.test.ts",
+      "assertions": "tests/unit/boundaries.test.ts: boundaries allow pure domain and contract imports",
+      "cleanup": "Test implementation cleanup in tests/unit/boundaries.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-boundaries.002",
+      "name": "boundaries reject product and external effects inside domain",
+      "suiteId": "unit-boundaries",
+      "module": "dev-boundaries",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-boundaries.002",
+        "p0.dev-boundaries"
+      ],
+      "scenario": "boundaries reject product and external effects inside domain",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-boundaries"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/boundaries.test.ts",
+      "assertions": "tests/unit/boundaries.test.ts: boundaries reject product and external effects inside domain",
+      "cleanup": "Test implementation cleanup in tests/unit/boundaries.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-boundaries.003",
+      "name": "boundaries keep development verifier independent from product",
+      "suiteId": "unit-boundaries",
+      "module": "dev-boundaries",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-boundaries.003",
+        "p0.dev-boundaries"
+      ],
+      "scenario": "boundaries keep development verifier independent from product",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-boundaries"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/boundaries.test.ts",
+      "assertions": "tests/unit/boundaries.test.ts: boundaries keep development verifier independent from product",
+      "cleanup": "Test implementation cleanup in tests/unit/boundaries.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.unit-boundaries.004",
+      "name": "boundaries reject import equals and import types across TypeScript extensions",
+      "suiteId": "unit-boundaries",
+      "module": "dev-boundaries",
+      "layer": "unit",
+      "covers": [
+        "p0.unit-boundaries.004",
+        "p0.dev-boundaries"
+      ],
+      "scenario": "boundaries reject import equals and import types across TypeScript extensions",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-boundaries"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/unit/boundaries.test.ts",
+      "assertions": "tests/unit/boundaries.test.ts: boundaries reject import equals and import types across TypeScript extensions",
+      "cleanup": "Test implementation cleanup in tests/unit/boundaries.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.integration-runner.001",
+      "name": "runner records passing real child execution and complete hashed evidence",
+      "suiteId": "integration-runner",
+      "module": "dev-runner",
+      "layer": "integration",
+      "covers": [
+        "p0.integration-runner.001",
+        "p0.dev-runner"
+      ],
+      "scenario": "runner records passing real child execution and complete hashed evidence",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-runner"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/integration/runner.test.ts",
+      "assertions": "tests/integration/runner.test.ts: runner records passing real child execution and complete hashed evidence",
+      "cleanup": "Test implementation cleanup in tests/integration/runner.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.integration-runner.002",
+      "name": "runner rejects an actual failed assertion and preserves failing child evidence",
+      "suiteId": "integration-runner",
+      "module": "dev-runner",
+      "layer": "integration",
+      "covers": [
+        "p0.integration-runner.002",
+        "p0.dev-runner"
+      ],
+      "scenario": "runner rejects an actual failed assertion and preserves failing child evidence",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-runner"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/integration/runner.test.ts",
+      "assertions": "tests/integration/runner.test.ts: runner rejects an actual failed assertion and preserves failing child evidence",
+      "cleanup": "Test implementation cleanup in tests/integration/runner.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.integration-runner.003",
+      "name": "runner rejects a real fixture that declares zero tests",
+      "suiteId": "integration-runner",
+      "module": "dev-runner",
+      "layer": "integration",
+      "covers": [
+        "p0.integration-runner.003",
+        "p0.dev-runner"
+      ],
+      "scenario": "runner rejects a real fixture that declares zero tests",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-runner"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/integration/runner.test.ts",
+      "assertions": "tests/integration/runner.test.ts: runner rejects a real fixture that declares zero tests",
+      "cleanup": "Test implementation cleanup in tests/integration/runner.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.integration-runner.004",
+      "name": "runner rejects a genuinely skipped required Node test",
+      "suiteId": "integration-runner",
+      "module": "dev-runner",
+      "layer": "integration",
+      "covers": [
+        "p0.integration-runner.004",
+        "p0.dev-runner"
+      ],
+      "scenario": "runner rejects a genuinely skipped required Node test",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-runner"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/integration/runner.test.ts",
+      "assertions": "tests/integration/runner.test.ts: runner rejects a genuinely skipped required Node test",
+      "cleanup": "Test implementation cleanup in tests/integration/runner.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.integration-runner.005",
+      "name": "runner rejects a missing required name even when the actual test passes",
+      "suiteId": "integration-runner",
+      "module": "dev-runner",
+      "layer": "integration",
+      "covers": [
+        "p0.integration-runner.005",
+        "p0.dev-runner"
+      ],
+      "scenario": "runner rejects a missing required name even when the actual test passes",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-runner"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/integration/runner.test.ts",
+      "assertions": "tests/integration/runner.test.ts: runner rejects a missing required name even when the actual test passes",
+      "cleanup": "Test implementation cleanup in tests/integration/runner.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.integration-runner.006",
+      "name": "runner rejects and terminates a genuinely timed out child process",
+      "suiteId": "integration-runner",
+      "module": "dev-runner",
+      "layer": "integration",
+      "covers": [
+        "p0.integration-runner.006",
+        "p0.dev-runner"
+      ],
+      "scenario": "runner rejects and terminates a genuinely timed out child process",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-runner"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/integration/runner.test.ts",
+      "assertions": "tests/integration/runner.test.ts: runner rejects and terminates a genuinely timed out child process",
+      "cleanup": "Test implementation cleanup in tests/integration/runner.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.integration-runner.007",
+      "name": "runner kills a real SIGTERM ignoring descendant after its timeout",
+      "suiteId": "integration-runner",
+      "module": "dev-runner",
+      "layer": "integration",
+      "covers": [
+        "p0.integration-runner.007",
+        "p0.dev-runner"
+      ],
+      "scenario": "runner kills a real SIGTERM ignoring descendant after its timeout",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-runner"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/integration/runner.test.ts",
+      "assertions": "tests/integration/runner.test.ts: runner kills a real SIGTERM ignoring descendant after its timeout",
+      "cleanup": "Test implementation cleanup in tests/integration/runner.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.integration-runner.008",
+      "name": "checkRun rejects a deleted child report without replacing original results",
+      "suiteId": "integration-runner",
+      "module": "dev-runner",
+      "layer": "integration",
+      "covers": [
+        "p0.integration-runner.008",
+        "p0.dev-runner"
+      ],
+      "scenario": "checkRun rejects a deleted child report without replacing original results",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-runner"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/integration/runner.test.ts",
+      "assertions": "tests/integration/runner.test.ts: checkRun rejects a deleted child report without replacing original results",
+      "cleanup": "Test implementation cleanup in tests/integration/runner.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.integration-runner.009",
+      "name": "checkRun rejects changed report bytes without replacing original results",
+      "suiteId": "integration-runner",
+      "module": "dev-runner",
+      "layer": "integration",
+      "covers": [
+        "p0.integration-runner.009",
+        "p0.dev-runner"
+      ],
+      "scenario": "checkRun rejects changed report bytes without replacing original results",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-runner"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/integration/runner.test.ts",
+      "assertions": "tests/integration/runner.test.ts: checkRun rejects changed report bytes without replacing original results",
+      "cleanup": "Test implementation cleanup in tests/integration/runner.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.integration-runner.010",
+      "name": "checkRun rejects a forged report digest without replacing original results",
+      "suiteId": "integration-runner",
+      "module": "dev-runner",
+      "layer": "integration",
+      "covers": [
+        "p0.integration-runner.010",
+        "p0.dev-runner"
+      ],
+      "scenario": "checkRun rejects a forged report digest without replacing original results",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-runner"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/integration/runner.test.ts",
+      "assertions": "tests/integration/runner.test.ts: checkRun rejects a forged report digest without replacing original results",
+      "cleanup": "Test implementation cleanup in tests/integration/runner.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.integration-runner.011",
+      "name": "checkRun rejects a foreign report runId even with a matching content digest",
+      "suiteId": "integration-runner",
+      "module": "dev-runner",
+      "layer": "integration",
+      "covers": [
+        "p0.integration-runner.011",
+        "p0.dev-runner"
+      ],
+      "scenario": "checkRun rejects a foreign report runId even with a matching content digest",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-runner"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/integration/runner.test.ts",
+      "assertions": "tests/integration/runner.test.ts: checkRun rejects a foreign report runId even with a matching content digest",
+      "cleanup": "Test implementation cleanup in tests/integration/runner.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.integration-runner.012",
+      "name": "checkRun rejects changed candidate source without replacing original results",
+      "suiteId": "integration-runner",
+      "module": "dev-runner",
+      "layer": "integration",
+      "covers": [
+        "p0.integration-runner.012",
+        "p0.dev-runner"
+      ],
+      "scenario": "checkRun rejects changed candidate source without replacing original results",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-runner"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/integration/runner.test.ts",
+      "assertions": "tests/integration/runner.test.ts: checkRun rejects changed candidate source without replacing original results",
+      "cleanup": "Test implementation cleanup in tests/integration/runner.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.integration-runner.013",
+      "name": "checkRun rejects a deleted initial freeze record without replacing original results",
+      "suiteId": "integration-runner",
+      "module": "dev-runner",
+      "layer": "integration",
+      "covers": [
+        "p0.integration-runner.013",
+        "p0.dev-runner"
+      ],
+      "scenario": "checkRun rejects a deleted initial freeze record without replacing original results",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-runner"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/integration/runner.test.ts",
+      "assertions": "tests/integration/runner.test.ts: checkRun rejects a deleted initial freeze record without replacing original results",
+      "cleanup": "Test implementation cleanup in tests/integration/runner.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.integration-runner.014",
+      "name": "checkRun rejects rewriting only final candidate digests to bless changed source",
+      "suiteId": "integration-runner",
+      "module": "dev-runner",
+      "layer": "integration",
+      "covers": [
+        "p0.integration-runner.014",
+        "p0.dev-runner"
+      ],
+      "scenario": "checkRun rejects rewriting only final candidate digests to bless changed source",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-runner"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/integration/runner.test.ts",
+      "assertions": "tests/integration/runner.test.ts: checkRun rejects rewriting only final candidate digests to bless changed source",
+      "cleanup": "Test implementation cleanup in tests/integration/runner.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.integration-runner.015",
+      "name": "runner rejects a suite path escaping the isolated candidate root",
+      "suiteId": "integration-runner",
+      "module": "dev-runner",
+      "layer": "integration",
+      "covers": [
+        "p0.integration-runner.015",
+        "p0.dev-runner"
+      ],
+      "scenario": "runner rejects a suite path escaping the isolated candidate root",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-runner"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/integration/runner.test.ts",
+      "assertions": "tests/integration/runner.test.ts: runner rejects a suite path escaping the isolated candidate root",
+      "cleanup": "Test implementation cleanup in tests/integration/runner.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.integration-runner.016",
+      "name": "runner rejects a symlinked suite before any child can execute it",
+      "suiteId": "integration-runner",
+      "module": "dev-runner",
+      "layer": "integration",
+      "covers": [
+        "p0.integration-runner.016",
+        "p0.dev-runner"
+      ],
+      "scenario": "runner rejects a symlinked suite before any child can execute it",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-runner"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/integration/runner.test.ts",
+      "assertions": "tests/integration/runner.test.ts: runner rejects a symlinked suite before any child can execute it",
+      "cleanup": "Test implementation cleanup in tests/integration/runner.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.integration-runner.017",
+      "name": "checkRun rejects a report symlink escaping its evidence directory",
+      "suiteId": "integration-runner",
+      "module": "dev-runner",
+      "layer": "integration",
+      "covers": [
+        "p0.integration-runner.017",
+        "p0.dev-runner"
+      ],
+      "scenario": "checkRun rejects a report symlink escaping its evidence directory",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-runner"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/integration/runner.test.ts",
+      "assertions": "tests/integration/runner.test.ts: checkRun rejects a report symlink escaping its evidence directory",
+      "cleanup": "Test implementation cleanup in tests/integration/runner.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.integration-runner.018",
+      "name": "CLI check reads the frozen fixture manifest and exits nonzero for bad evidence",
+      "suiteId": "integration-runner",
+      "module": "dev-runner",
+      "layer": "integration",
+      "covers": [
+        "p0.integration-runner.018",
+        "p0.dev-runner"
+      ],
+      "scenario": "CLI check reads the frozen fixture manifest and exits nonzero for bad evidence",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-runner"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/integration/runner.test.ts",
+      "assertions": "tests/integration/runner.test.ts: CLI check reads the frozen fixture manifest and exits nonzero for bad evidence",
+      "cleanup": "Test implementation cleanup in tests/integration/runner.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "p0.environment.integration.real-probe-preserves-project-and-cwd",
+      "name": "p0.environment.integration.real-probe-preserves-project-and-cwd",
+      "suiteId": "integration-environment",
+      "module": "dev-environment",
+      "layer": "integration",
+      "covers": [
+        "p0.integration-environment.001",
+        "p0.dev-environment"
+      ],
+      "scenario": "p0.environment.integration.real-probe-preserves-project-and-cwd",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-environment"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/integration/environment.test.ts",
+      "assertions": "tests/integration/environment.test.ts: p0.environment.integration.real-probe-preserves-project-and-cwd",
+      "cleanup": "Test implementation cleanup in tests/integration/environment.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "p0.environment.integration.missing-project-still-reports-host-capabilities",
+      "name": "p0.environment.integration.missing-project-still-reports-host-capabilities",
+      "suiteId": "integration-environment",
+      "module": "dev-environment",
+      "layer": "integration",
+      "covers": [
+        "p0.integration-environment.002",
+        "p0.dev-environment"
+      ],
+      "scenario": "p0.environment.integration.missing-project-still-reports-host-capabilities",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-environment"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/integration/environment.test.ts",
+      "assertions": "tests/integration/environment.test.ts: p0.environment.integration.missing-project-still-reports-host-capabilities",
+      "cleanup": "Test implementation cleanup in tests/integration/environment.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.integration-repository.001",
+      "name": "repository production module boundaries pass on actual source files",
+      "suiteId": "integration-repository",
+      "module": "dev-repository",
+      "layer": "integration",
+      "covers": [
+        "p0.integration-repository.001",
+        "p0.dev-repository"
+      ],
+      "scenario": "repository production module boundaries pass on actual source files",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-repository"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/integration/repository.test.ts",
+      "assertions": "tests/integration/repository.test.ts: repository production module boundaries pass on actual source files",
+      "cleanup": "Test implementation cleanup in tests/integration/repository.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.integration-repository.002",
+      "name": "repository ignores runtime secrets outputs and dependencies but retains sources and lockfile",
+      "suiteId": "integration-repository",
+      "module": "dev-repository",
+      "layer": "integration",
+      "covers": [
+        "p0.integration-repository.002",
+        "p0.dev-repository"
+      ],
+      "scenario": "repository ignores runtime secrets outputs and dependencies but retains sources and lockfile",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-repository"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/integration/repository.test.ts",
+      "assertions": "tests/integration/repository.test.ts: repository ignores runtime secrets outputs and dependencies but retains sources and lockfile",
+      "cleanup": "Test implementation cleanup in tests/integration/repository.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.integration-repository.003",
+      "name": "repository rejects unavailable live and release gates with a nonzero exit",
+      "suiteId": "integration-repository",
+      "module": "dev-repository",
+      "layer": "integration",
+      "covers": [
+        "p0.integration-repository.003",
+        "p0.dev-repository"
+      ],
+      "scenario": "repository rejects unavailable live and release gates with a nonzero exit",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-repository"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/integration/repository.test.ts",
+      "assertions": "tests/integration/repository.test.ts: repository rejects unavailable live and release gates with a nonzero exit",
+      "cleanup": "Test implementation cleanup in tests/integration/repository.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.integration-repository.004",
+      "name": "repository running compiler and runtime match pinned versions",
+      "suiteId": "integration-repository",
+      "module": "dev-repository",
+      "layer": "integration",
+      "covers": [
+        "p0.integration-repository.004",
+        "p0.dev-repository"
+      ],
+      "scenario": "repository running compiler and runtime match pinned versions",
+      "impactTags": [
+        "test-infrastructure",
+        "dev-repository"
+      ],
+      "prerequisites": "Pinned Node runtime; see tests/integration/repository.test.ts",
+      "assertions": "tests/integration/repository.test.ts: repository running compiler and runtime match pinned versions",
+      "cleanup": "Test implementation cleanup in tests/integration/repository.test.ts",
+      "status": "active"
+    },
+    {
+      "id": "dev.catalog.001",
+      "name": "catalog registers stable IDs and validates execution metadata without sharing product code",
+      "suiteId": "unit-catalog",
+      "module": "dev-catalog",
+      "layer": "unit",
+      "covers": [
+        "p1.catalog.001",
+        "p1.development-catalog"
+      ],
+      "scenario": "catalog registers stable IDs and validates execution metadata without sharing product code",
+      "impactTags": [
+        "test-infrastructure",
+        "catalog",
+        "profiles"
+      ],
+      "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
+      "assertions": "tests/unit/catalog.test.ts: catalog registers stable IDs and validates execution metadata without sharing product code",
+      "cleanup": "TestContext removes each isolated directory",
+      "status": "active"
+    },
+    {
+      "id": "dev.catalog.002",
+      "name": "catalog rejects missing malformed empty and conflicting stable registrations",
+      "suiteId": "unit-catalog",
+      "module": "dev-catalog",
+      "layer": "unit",
+      "covers": [
+        "p1.catalog.002",
+        "p1.development-catalog"
+      ],
+      "scenario": "catalog rejects missing malformed empty and conflicting stable registrations",
+      "impactTags": [
+        "test-infrastructure",
+        "catalog",
+        "profiles"
+      ],
+      "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
+      "assertions": "tests/unit/catalog.test.ts: catalog rejects missing malformed empty and conflicting stable registrations",
+      "cleanup": "TestContext removes each isolated directory",
+      "status": "active"
+    },
+    {
+      "id": "dev.catalog.003",
+      "name": "catalog rejects unsafe suite files duplicate files and conflicting layers or modules",
+      "suiteId": "unit-catalog",
+      "module": "dev-catalog",
+      "layer": "unit",
+      "covers": [
+        "p1.catalog.003",
+        "p1.development-catalog"
+      ],
+      "scenario": "catalog rejects unsafe suite files duplicate files and conflicting layers or modules",
+      "impactTags": [
+        "test-infrastructure",
+        "catalog",
+        "profiles"
+      ],
+      "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
+      "assertions": "tests/unit/catalog.test.ts: catalog rejects unsafe suite files duplicate files and conflicting layers or modules",
+      "cleanup": "TestContext removes each isolated directory",
+      "status": "active"
+    },
+    {
+      "id": "dev.catalog.004",
+      "name": "catalog rejects duplicate active names but permits equal names in separate suites",
+      "suiteId": "unit-catalog",
+      "module": "dev-catalog",
+      "layer": "unit",
+      "covers": [
+        "p1.catalog.004",
+        "p1.development-catalog"
+      ],
+      "scenario": "catalog rejects duplicate active names but permits equal names in separate suites",
+      "impactTags": [
+        "test-infrastructure",
+        "catalog",
+        "profiles"
+      ],
+      "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
+      "assertions": "tests/unit/catalog.test.ts: catalog rejects duplicate active names but permits equal names in separate suites",
+      "cleanup": "TestContext removes each isolated directory",
+      "status": "active"
+    },
+    {
+      "id": "dev.catalog.005",
+      "name": "catalog rejects retirement without reason and assertion fault coverage review",
+      "suiteId": "unit-catalog",
+      "module": "dev-catalog",
+      "layer": "unit",
+      "covers": [
+        "p1.catalog.005",
+        "p1.development-catalog"
+      ],
+      "scenario": "catalog rejects retirement without reason and assertion fault coverage review",
+      "impactTags": [
+        "test-infrastructure",
+        "catalog",
+        "profiles"
+      ],
+      "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
+      "assertions": "tests/unit/catalog.test.ts: catalog rejects retirement without reason and assertion fault coverage review",
+      "cleanup": "TestContext removes each isolated directory",
+      "status": "active"
+    },
+    {
+      "id": "dev.catalog.006",
+      "name": "catalog resolves reviewed replacement chains and preserves every necessary risk",
+      "suiteId": "unit-catalog",
+      "module": "dev-catalog",
+      "layer": "unit",
+      "covers": [
+        "p1.catalog.006",
+        "p1.development-catalog"
+      ],
+      "scenario": "catalog resolves reviewed replacement chains and preserves every necessary risk",
+      "impactTags": [
+        "test-infrastructure",
+        "catalog",
+        "profiles"
+      ],
+      "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
+      "assertions": "tests/unit/catalog.test.ts: catalog resolves reviewed replacement chains and preserves every necessary risk",
+      "cleanup": "TestContext removes each isolated directory",
+      "status": "active"
+    },
+    {
+      "id": "dev.catalog.007",
+      "name": "catalog rejects dangling replacement references and replacement cycles",
+      "suiteId": "unit-catalog",
+      "module": "dev-catalog",
+      "layer": "unit",
+      "covers": [
+        "p1.catalog.007",
+        "p1.development-catalog"
+      ],
+      "scenario": "catalog rejects dangling replacement references and replacement cycles",
+      "impactTags": [
+        "test-infrastructure",
+        "catalog",
+        "profiles"
+      ],
+      "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
+      "assertions": "tests/unit/catalog.test.ts: catalog rejects dangling replacement references and replacement cycles",
+      "cleanup": "TestContext removes each isolated directory",
+      "status": "active"
+    },
+    {
+      "id": "dev.catalog.008",
+      "name": "catalog permits explained removed scope but refuses loss of necessary profile coverage",
+      "suiteId": "unit-catalog",
+      "module": "dev-catalog",
+      "layer": "unit",
+      "covers": [
+        "p1.catalog.008",
+        "p1.development-catalog"
+      ],
+      "scenario": "catalog permits explained removed scope but refuses loss of necessary profile coverage",
+      "impactTags": [
+        "test-infrastructure",
+        "catalog",
+        "profiles"
+      ],
+      "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
+      "assertions": "tests/unit/catalog.test.ts: catalog permits explained removed scope but refuses loss of necessary profile coverage",
+      "cleanup": "TestContext removes each isolated directory",
+      "status": "active"
+    },
+    {
+      "id": "dev.catalog.009",
+      "name": "profiles reject unknown stages stale references empty selection and uncovered necessary risks",
+      "suiteId": "unit-catalog",
+      "module": "dev-catalog",
+      "layer": "unit",
+      "covers": [
+        "p1.catalog.009",
+        "p1.development-catalog"
+      ],
+      "scenario": "profiles reject unknown stages stale references empty selection and uncovered necessary risks",
+      "impactTags": [
+        "test-infrastructure",
+        "catalog",
+        "profiles"
+      ],
+      "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
+      "assertions": "tests/unit/catalog.test.ts: profiles reject unknown stages stale references empty selection and uncovered necessary risks",
+      "cleanup": "TestContext removes each isolated directory",
+      "status": "active"
+    },
+    {
+      "id": "dev.catalog.010",
+      "name": "profiles deduplicate repeated stable IDs across stage requirements and core regressions",
+      "suiteId": "unit-catalog",
+      "module": "dev-catalog",
+      "layer": "unit",
+      "covers": [
+        "p1.catalog.010",
+        "p1.development-catalog"
+      ],
+      "scenario": "profiles deduplicate repeated stable IDs across stage requirements and core regressions",
+      "impactTags": [
+        "test-infrastructure",
+        "catalog",
+        "profiles"
+      ],
+      "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
+      "assertions": "tests/unit/catalog.test.ts: profiles deduplicate repeated stable IDs across stage requirements and core regressions",
+      "cleanup": "TestContext removes each isolated directory",
+      "status": "active"
+    },
+    {
+      "id": "dev.catalog.011",
+      "name": "impact selection expands transitive modules and conservatively deduplicates full suites",
+      "suiteId": "unit-catalog",
+      "module": "dev-catalog",
+      "layer": "unit",
+      "covers": [
+        "p1.catalog.011",
+        "p1.development-catalog"
+      ],
+      "scenario": "impact selection expands transitive modules and conservatively deduplicates full suites",
+      "impactTags": [
+        "test-infrastructure",
+        "catalog",
+        "profiles"
+      ],
+      "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
+      "assertions": "tests/unit/catalog.test.ts: impact selection expands transitive modules and conservatively deduplicates full suites",
+      "cleanup": "TestContext removes each isolated directory",
+      "status": "active"
+    },
+    {
+      "id": "dev.catalog.012",
+      "name": "impact selection broadens unknown impact and retains necessary core regressions",
+      "suiteId": "unit-catalog",
+      "module": "dev-catalog",
+      "layer": "unit",
+      "covers": [
+        "p1.catalog.012",
+        "p1.development-catalog"
+      ],
+      "scenario": "impact selection broadens unknown impact and retains necessary core regressions",
+      "impactTags": [
+        "test-infrastructure",
+        "catalog",
+        "profiles"
+      ],
+      "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
+      "assertions": "tests/unit/catalog.test.ts: impact selection broadens unknown impact and retains necessary core regressions",
+      "cleanup": "TestContext removes each isolated directory",
+      "status": "active"
+    },
+    {
+      "id": "dev.catalog.013",
+      "name": "layer and impact selections never claim stage completion even when all suites expand",
+      "suiteId": "unit-catalog",
+      "module": "dev-catalog",
+      "layer": "unit",
+      "covers": [
+        "p1.catalog.013",
+        "p1.development-catalog"
+      ],
+      "scenario": "layer and impact selections never claim stage completion even when all suites expand",
+      "impactTags": [
+        "test-infrastructure",
+        "catalog",
+        "profiles"
+      ],
+      "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
+      "assertions": "tests/unit/catalog.test.ts: layer and impact selections never claim stage completion even when all suites expand",
+      "cleanup": "TestContext removes each isolated directory",
+      "status": "active"
+    },
+    {
+      "id": "dev.catalog.014",
+      "name": "catalog validates actual registered source declarations without reconstructing expected lists",
+      "suiteId": "unit-catalog",
+      "module": "dev-catalog",
+      "layer": "unit",
+      "covers": [
+        "p1.catalog.014",
+        "p1.development-catalog"
+      ],
+      "scenario": "catalog validates actual registered source declarations without reconstructing expected lists",
+      "impactTags": [
+        "test-infrastructure",
+        "catalog",
+        "profiles"
+      ],
+      "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
+      "assertions": "tests/unit/catalog.test.ts: catalog validates actual registered source declarations without reconstructing expected lists",
+      "cleanup": "TestContext removes each isolated directory",
+      "status": "active"
+    },
+    {
+      "id": "dev.catalog.015",
+      "name": "catalog rejects missing registered sources and unregistered real suite files before freeze",
+      "suiteId": "unit-catalog",
+      "module": "dev-catalog",
+      "layer": "unit",
+      "covers": [
+        "p1.catalog.015",
+        "p1.development-catalog"
+      ],
+      "scenario": "catalog rejects missing registered sources and unregistered real suite files before freeze",
+      "impactTags": [
+        "test-infrastructure",
+        "catalog",
+        "profiles"
+      ],
+      "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
+      "assertions": "tests/unit/catalog.test.ts: catalog rejects missing registered sources and unregistered real suite files before freeze",
+      "cleanup": "TestContext removes each isolated directory",
+      "status": "active"
+    },
+    {
+      "id": "dev.catalog.016",
+      "name": "catalog rejects real source symlinks and wrong profile stage bindings",
+      "suiteId": "unit-catalog",
+      "module": "dev-catalog",
+      "layer": "unit",
+      "covers": [
+        "p1.catalog.016",
+        "p1.development-catalog"
+      ],
+      "scenario": "catalog rejects real source symlinks and wrong profile stage bindings",
+      "impactTags": [
+        "test-infrastructure",
+        "catalog",
+        "profiles"
+      ],
+      "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
+      "assertions": "tests/unit/catalog.test.ts: catalog rejects real source symlinks and wrong profile stage bindings",
+      "cleanup": "TestContext removes each isolated directory",
+      "status": "active"
+    },
+    {
+      "id": "dev.catalog.017",
+      "name": "catalog preserves immutable legacy manifest parsing alongside current profiles",
+      "suiteId": "unit-catalog",
+      "module": "dev-catalog",
+      "layer": "unit",
+      "covers": [
+        "p1.catalog.017",
+        "p1.development-catalog"
+      ],
+      "scenario": "catalog preserves immutable legacy manifest parsing alongside current profiles",
+      "impactTags": [
+        "test-infrastructure",
+        "catalog",
+        "profiles"
+      ],
+      "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
+      "assertions": "tests/unit/catalog.test.ts: catalog preserves immutable legacy manifest parsing alongside current profiles",
+      "cleanup": "TestContext removes each isolated directory",
+      "status": "active"
+    },
+    {
+      "id": "dev.catalog.018",
+      "name": "catalog recheck resolves current frozen profile and rejects changed standards without overwriting evidence",
+      "suiteId": "unit-catalog",
+      "module": "dev-catalog",
+      "layer": "unit",
+      "covers": [
+        "p1.catalog.018",
+        "p1.development-catalog"
+      ],
+      "scenario": "catalog recheck resolves current frozen profile and rejects changed standards without overwriting evidence",
+      "impactTags": [
+        "test-infrastructure",
+        "catalog",
+        "profiles"
+      ],
+      "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
+      "assertions": "tests/unit/catalog.test.ts: catalog recheck resolves current frozen profile and rejects changed standards without overwriting evidence",
+      "cleanup": "TestContext removes each isolated directory",
+      "status": "active"
+    },
+    {
+      "id": "dev.catalog.019",
+      "name": "catalog recheck rejects forged final stage scope and missing current registry",
+      "suiteId": "unit-catalog",
+      "module": "dev-catalog",
+      "layer": "unit",
+      "covers": [
+        "p1.catalog.019",
+        "p1.development-catalog"
+      ],
+      "scenario": "catalog recheck rejects forged final stage scope and missing current registry",
+      "impactTags": [
+        "test-infrastructure",
+        "catalog",
+        "profiles"
+      ],
+      "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
+      "assertions": "tests/unit/catalog.test.ts: catalog recheck rejects forged final stage scope and missing current registry",
+      "cleanup": "TestContext removes each isolated directory",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.001",
+      "name": "run creation validates acyclic known dependencies and copies contract inputs",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.001"
+      ],
+      "scenario": "run creation validates acyclic known dependencies and copies contract inputs",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: run creation validates acyclic known dependencies and copies contract inputs",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.002",
+      "name": "run creation rejects duplicate nodes criteria dependencies and empty contracts",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.002"
+      ],
+      "scenario": "run creation rejects duplicate nodes criteria dependencies and empty contracts",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: run creation rejects duplicate nodes criteria dependencies and empty contracts",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.003",
+      "name": "dispatch enforces contract version dependencies and unique attempt ownership",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.003"
+      ],
+      "scenario": "dispatch enforces contract version dependencies and unique attempt ownership",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: dispatch enforces contract version dependencies and unique attempt ownership",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.004",
+      "name": "reservations conflict across parallel nodes and preserve verification allowance",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.004"
+      ],
+      "scenario": "reservations conflict across parallel nodes and preserve verification allowance",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: reservations conflict across parallel nodes and preserve verification allowance",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.005",
+      "name": "budget rejects negative nonfinite and malformed reservations without mutation",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.005"
+      ],
+      "scenario": "budget rejects negative nonfinite and malformed reservations without mutation",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: budget rejects negative nonfinite and malformed reservations without mutation",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.006",
+      "name": "actual overspend is recorded and prevents new dispatch",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.006"
+      ],
+      "scenario": "actual overspend is recorded and prevents new dispatch",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: actual overspend is recorded and prevents new dispatch",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.007",
+      "name": "settlement releases reservation exactly once and rejects conflicting totals",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.007"
+      ],
+      "scenario": "settlement releases reservation exactly once and rejects conflicting totals",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: settlement releases reservation exactly once and rejects conflicting totals",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.008",
+      "name": "lease ownership persists after finish until explicit release",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.008"
+      ],
+      "scenario": "lease ownership persists after finish until explicit release",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: lease ownership persists after finish until explicit release",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.009",
+      "name": "cancelled attempts accept late settlement but late success never revives nodes",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.009"
+      ],
+      "scenario": "cancelled attempts accept late settlement but late success never revives nodes",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: cancelled attempts accept late settlement but late success never revives nodes",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.010",
+      "name": "duplicate finishes are idempotent and conflicting terminal results reject",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.010"
+      ],
+      "scenario": "duplicate finishes are idempotent and conflicting terminal results reject",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: duplicate finishes are idempotent and conflicting terminal results reject",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.011",
+      "name": "pause gates new dispatch while allowing in-flight finish and explicit resume",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.011"
+      ],
+      "scenario": "pause gates new dispatch while allowing in-flight finish and explicit resume",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: pause gates new dispatch while allowing in-flight finish and explicit resume",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.012",
+      "name": "completion requires nodes artifact and all required passed evidence",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.012"
+      ],
+      "scenario": "completion requires nodes artifact and all required passed evidence",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: completion requires nodes artifact and all required passed evidence",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.013",
+      "name": "completion rejects active optional attempts unsettled usage and unreleased leases",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.013"
+      ],
+      "scenario": "completion rejects active optional attempts unsettled usage and unreleased leases",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: completion rejects active optional attempts unsettled usage and unreleased leases",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.014",
+      "name": "unresolved operations block completion and dispatch until explicit confirmation",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.014"
+      ],
+      "scenario": "unresolved operations block completion and dispatch until explicit confirmation",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: unresolved operations block completion and dispatch until explicit confirmation",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.015",
+      "name": "artifact changes invalidate evidence and returning to an old digest cannot revive it",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.015"
+      ],
+      "scenario": "artifact changes invalidate evidence and returning to an old digest cannot revive it",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: artifact changes invalidate evidence and returning to an old digest cannot revive it",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.016",
+      "name": "contract replacement cancels old writers preserves budget and invalidates old candidate",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.016"
+      ],
+      "scenario": "contract replacement cancels old writers preserves budget and invalidates old candidate",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: contract replacement cancels old writers preserves budget and invalidates old candidate",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.017",
+      "name": "evidence ids are immutable and a newer failed verdict supersedes an earlier pass",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.017"
+      ],
+      "scenario": "evidence ids are immutable and a newer failed verdict supersedes an earlier pass",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: evidence ids are immutable and a newer failed verdict supersedes an earlier pass",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.018",
+      "name": "readiness distinguishes active paused cancelled blocked verification and complete",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.018"
+      ],
+      "scenario": "readiness distinguishes active paused cancelled blocked verification and complete",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: readiness distinguishes active paused cancelled blocked verification and complete",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.019",
+      "name": "verification attempts can consume protected allowance without rewriting execution success",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.019"
+      ],
+      "scenario": "verification attempts can consume protected allowance without rewriting execution success",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: verification attempts can consume protected allowance without rewriting execution success",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.020",
+      "name": "completed runs are terminal and duplicate completion preserves revision",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.020"
+      ],
+      "scenario": "completed runs are terminal and duplicate completion preserves revision",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: completed runs are terminal and duplicate completion preserves revision",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.021",
+      "name": "verification catalog publication retains immutable revisions and rejects stale bases",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.021"
+      ],
+      "scenario": "verification catalog publication retains immutable revisions and rejects stale bases",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: verification catalog publication retains immutable revisions and rejects stale bases",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.022",
+      "name": "verification replacement and retirement preserve defects and required coverage",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.022"
+      ],
+      "scenario": "verification replacement and retirement preserve defects and required coverage",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: verification replacement and retirement preserve defects and required coverage",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.023",
+      "name": "verification catalog rejects skipped revisions duplicate definitions and unknown replacements",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.023"
+      ],
+      "scenario": "verification catalog rejects skipped revisions duplicate definitions and unknown replacements",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: verification catalog rejects skipped revisions duplicate definitions and unknown replacements",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.024",
+      "name": "frozen verification plan binds current catalog contract candidate and active revisions",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.024"
+      ],
+      "scenario": "frozen verification plan binds current catalog contract candidate and active revisions",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: frozen verification plan binds current catalog contract candidate and active revisions",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.025",
+      "name": "frozen verification plan rejects missing necessary criteria and duplicate parameter instances",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.025"
+      ],
+      "scenario": "frozen verification plan rejects missing necessary criteria and duplicate parameter instances",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: frozen verification plan rejects missing necessary criteria and duplicate parameter instances",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.026",
+      "name": "frozen verification plan preserves distinct platform and fault parameter coverage",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.026"
+      ],
+      "scenario": "frozen verification plan preserves distinct platform and fault parameter coverage",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: frozen verification plan preserves distinct platform and fault parameter coverage",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.027",
+      "name": "command parser validates every command family and returns independent nested copies",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.027"
+      ],
+      "scenario": "command parser validates every command family and returns independent nested copies",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: command parser validates every command family and returns independent nested copies",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.028",
+      "name": "command parser rejects extra missing inherited accessor and unknown action fields",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.028"
+      ],
+      "scenario": "command parser rejects extra missing inherited accessor and unknown action fields",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: command parser rejects extra missing inherited accessor and unknown action fields",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.029",
+      "name": "command parser rejects unsafe numeric revisions nonbooleans and sparse arrays",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.029"
+      ],
+      "scenario": "command parser rejects unsafe numeric revisions nonbooleans and sparse arrays",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: command parser rejects unsafe numeric revisions nonbooleans and sparse arrays",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.030",
+      "name": "query parser validates all query families and rejects malformed cursors and fields",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.030"
+      ],
+      "scenario": "query parser validates all query families and rejects malformed cursors and fields",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: query parser validates all query families and rejects malformed cursors and fields",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.persistence.001",
+      "name": "persistence migrates real disk database and reopens state events budgets and receipts",
+      "suiteId": "integration-persistence",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p1.persistence.invariant.001"
+      ],
+      "scenario": "persistence migrates real disk database and reopens state events budgets and receipts",
+      "impactTags": [
+        "persistence",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
+      "assertions": "tests/integration/persistence.test.ts: persistence migrates real disk database and reopens state events budgets and receipts",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.persistence.002",
+      "name": "persistence refuses future schema without overwriting existing database data",
+      "suiteId": "integration-persistence",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p1.persistence.invariant.002"
+      ],
+      "scenario": "persistence refuses future schema without overwriting existing database data",
+      "impactTags": [
+        "persistence",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
+      "assertions": "tests/integration/persistence.test.ts: persistence refuses future schema without overwriting existing database data",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.persistence.003",
+      "name": "persistence rolls back staged state event reservation and command receipt together",
+      "suiteId": "integration-persistence",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p1.persistence.invariant.003"
+      ],
+      "scenario": "persistence rolls back staged state event reservation and command receipt together",
+      "impactTags": [
+        "persistence",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
+      "assertions": "tests/integration/persistence.test.ts: persistence rolls back staged state event reservation and command receipt together",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.persistence.004",
+      "name": "persistence canonical command receipts reject changed payloads and isolate project cursors",
+      "suiteId": "integration-persistence",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p1.persistence.invariant.004"
+      ],
+      "scenario": "persistence canonical command receipts reject changed payloads and isolate project cursors",
+      "impactTags": [
+        "persistence",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
+      "assertions": "tests/integration/persistence.test.ts: persistence canonical command receipts reject changed payloads and isolate project cursors",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.persistence.005",
+      "name": "persistence simultaneous real writers cannot oversubscribe budget reservations",
+      "suiteId": "integration-persistence",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p1.persistence.invariant.005"
+      ],
+      "scenario": "persistence simultaneous real writers cannot oversubscribe budget reservations",
+      "impactTags": [
+        "persistence",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
+      "assertions": "tests/integration/persistence.test.ts: persistence simultaneous real writers cannot oversubscribe budget reservations",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.persistence.006",
+      "name": "persistence global resource keys reject cross run leases until terminal owner releases",
+      "suiteId": "integration-persistence",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p1.persistence.invariant.006"
+      ],
+      "scenario": "persistence global resource keys reject cross run leases until terminal owner releases",
+      "impactTags": [
+        "persistence",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
+      "assertions": "tests/integration/persistence.test.ts: persistence global resource keys reject cross run leases until terminal owner releases",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.persistence.007",
+      "name": "persistence SIGKILL before commit preserves no partial state event budget or receipt",
+      "suiteId": "integration-persistence",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p1.persistence.invariant.007"
+      ],
+      "scenario": "persistence SIGKILL before commit preserves no partial state event budget or receipt",
+      "impactTags": [
+        "persistence",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
+      "assertions": "tests/integration/persistence.test.ts: persistence SIGKILL before commit preserves no partial state event budget or receipt",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.persistence.008",
+      "name": "persistence SIGKILL after commit retains state event budget and idempotent receipt",
+      "suiteId": "integration-persistence",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p1.persistence.invariant.008"
+      ],
+      "scenario": "persistence SIGKILL after commit retains state event budget and idempotent receipt",
+      "impactTags": [
+        "persistence",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
+      "assertions": "tests/integration/persistence.test.ts: persistence SIGKILL after commit retains state event budget and idempotent receipt",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.persistence.009",
+      "name": "persistence durable artifact orphan remains invisible after real process termination",
+      "suiteId": "integration-persistence",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p1.persistence.invariant.009"
+      ],
+      "scenario": "persistence durable artifact orphan remains invisible after real process termination",
+      "impactTags": [
+        "persistence",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
+      "assertions": "tests/integration/persistence.test.ts: persistence durable artifact orphan remains invisible after real process termination",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.persistence.010",
+      "name": "persistence published artifact digest checks reject tampering missing bytes and arbitrary paths",
+      "suiteId": "integration-persistence",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p1.persistence.invariant.010"
+      ],
+      "scenario": "persistence published artifact digest checks reject tampering missing bytes and arbitrary paths",
+      "impactTags": [
+        "persistence",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
+      "assertions": "tests/integration/persistence.test.ts: persistence published artifact digest checks reject tampering missing bytes and arbitrary paths",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.persistence.011",
+      "name": "persistence rejects symlink object directories and records actual permission failure without publication",
+      "suiteId": "integration-persistence",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p1.persistence.invariant.011"
+      ],
+      "scenario": "persistence rejects symlink object directories and records actual permission failure without publication",
+      "impactTags": [
+        "persistence",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
+      "assertions": "tests/integration/persistence.test.ts: persistence rejects symlink object directories and records actual permission failure without publication",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.persistence.012",
+      "name": "persistence unwritable real database refuses writes and preserves previous committed data",
+      "suiteId": "integration-persistence",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p1.persistence.invariant.012"
+      ],
+      "scenario": "persistence unwritable real database refuses writes and preserves previous committed data",
+      "impactTags": [
+        "persistence",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
+      "assertions": "tests/integration/persistence.test.ts: persistence unwritable real database refuses writes and preserves previous committed data",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.persistence.013",
+      "name": "persistence project verification catalogs retain immutable revisions coverage and defect inheritance",
+      "suiteId": "integration-persistence",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p1.persistence.invariant.013"
+      ],
+      "scenario": "persistence project verification catalogs retain immutable revisions coverage and defect inheritance",
+      "impactTags": [
+        "persistence",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
+      "assertions": "tests/integration/persistence.test.ts: persistence project verification catalogs retain immutable revisions coverage and defect inheritance",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.persistence.014",
+      "name": "persistence stale verification proposal cannot publish over a newer catalog pointer",
+      "suiteId": "integration-persistence",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p1.persistence.invariant.014"
+      ],
+      "scenario": "persistence stale verification proposal cannot publish over a newer catalog pointer",
+      "impactTags": [
+        "persistence",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
+      "assertions": "tests/integration/persistence.test.ts: persistence stale verification proposal cannot publish over a newer catalog pointer",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.persistence.015",
+      "name": "persistence killed catalog snapshot publishes neither pointer coverage nor proposal status",
+      "suiteId": "integration-persistence",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p1.persistence.invariant.015"
+      ],
+      "scenario": "persistence killed catalog snapshot publishes neither pointer coverage nor proposal status",
+      "impactTags": [
+        "persistence",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
+      "assertions": "tests/integration/persistence.test.ts: persistence killed catalog snapshot publishes neither pointer coverage nor proposal status",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.persistence.016",
+      "name": "persistence frozen plans retain original catalog and reject changed revisions candidates and projects",
+      "suiteId": "integration-persistence",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p1.persistence.invariant.016"
+      ],
+      "scenario": "persistence frozen plans retain original catalog and reject changed revisions candidates and projects",
+      "impactTags": [
+        "persistence",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
+      "assertions": "tests/integration/persistence.test.ts: persistence frozen plans retain original catalog and reject changed revisions candidates and projects",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.persistence.017",
+      "name": "persistence catalog file edits invalidate reads plans and subsequent publication",
+      "suiteId": "integration-persistence",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p1.persistence.invariant.017"
+      ],
+      "scenario": "persistence catalog file edits invalidate reads plans and subsequent publication",
+      "impactTags": [
+        "persistence",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
+      "assertions": "tests/integration/persistence.test.ts: persistence catalog file edits invalidate reads plans and subsequent publication",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.service.001",
+      "name": "service IPC persists commands budget events and actual artifact across restart",
+      "suiteId": "integration-service",
+      "module": "service",
+      "layer": "integration",
+      "covers": [
+        "p1.service.invariant.001"
+      ],
+      "scenario": "service IPC persists commands budget events and actual artifact across restart",
+      "impactTags": [
+        "service",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
+      "assertions": "tests/integration/service.test.ts: service IPC persists commands budget events and actual artifact across restart",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.service.002",
+      "name": "service reconciles a committed command by commandId after abrupt process death",
+      "suiteId": "integration-service",
+      "module": "service",
+      "layer": "integration",
+      "covers": [
+        "p1.service.invariant.002"
+      ],
+      "scenario": "service reconciles a committed command by commandId after abrupt process death",
+      "impactTags": [
+        "service",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
+      "assertions": "tests/integration/service.test.ts: service reconciles a committed command by commandId after abrupt process death",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.service.003",
+      "name": "service rejects stale revisions cross project reads and forged artifact actions",
+      "suiteId": "integration-service",
+      "module": "service",
+      "layer": "integration",
+      "covers": [
+        "p1.service.invariant.003"
+      ],
+      "scenario": "service rejects stale revisions cross project reads and forged artifact actions",
+      "impactTags": [
+        "service",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
+      "assertions": "tests/integration/service.test.ts: service rejects stale revisions cross project reads and forged artifact actions",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.service.004",
+      "name": "service rejects malformed IPC and continues serving actual health requests",
+      "suiteId": "integration-service",
+      "module": "service",
+      "layer": "integration",
+      "covers": [
+        "p1.service.invariant.004"
+      ],
+      "scenario": "service rejects malformed IPC and continues serving actual health requests",
+      "impactTags": [
+        "service",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
+      "assertions": "tests/integration/service.test.ts: service rejects malformed IPC and continues serving actual health requests",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.service.005",
+      "name": "service refuses a second owner and preserves the running service",
+      "suiteId": "integration-service",
+      "module": "service",
+      "layer": "integration",
+      "covers": [
+        "p1.service.invariant.005"
+      ],
+      "scenario": "service refuses a second owner and preserves the running service",
+      "impactTags": [
+        "service",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
+      "assertions": "tests/integration/service.test.ts: service refuses a second owner and preserves the running service",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.service.006",
+      "name": "CLI sends real JSON requests and exits nonzero for rejected operations",
+      "suiteId": "integration-service",
+      "module": "service",
+      "layer": "integration",
+      "covers": [
+        "p1.service.invariant.006"
+      ],
+      "scenario": "CLI sends real JSON requests and exits nonzero for rejected operations",
+      "impactTags": [
+        "service",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
+      "assertions": "tests/integration/service.test.ts: CLI sends real JSON requests and exits nonzero for rejected operations",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.031",
+      "name": "active verification revisions cannot shrink inherited criterion coverage",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.031"
+      ],
+      "scenario": "active verification revisions cannot shrink inherited criterion coverage",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: active verification revisions cannot shrink inherited criterion coverage",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.032",
+      "name": "later verification publications retain replacement lineage and historical coverage",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.032"
+      ],
+      "scenario": "later verification publications retain replacement lineage and historical coverage",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: later verification publications retain replacement lineage and historical coverage",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.033",
+      "name": "transitive verification replacement preserves all retired ancestors and defects",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.033"
+      ],
+      "scenario": "transitive verification replacement preserves all retired ancestors and defects",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: transitive verification replacement preserves all retired ancestors and defects",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.034",
+      "name": "verification publication rejects retired id revival and cyclic replacement ancestry",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.034"
+      ],
+      "scenario": "verification publication rejects retired id revival and cyclic replacement ancestry",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: verification publication rejects retired id revival and cyclic replacement ancestry",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.035",
+      "name": "overspent verified runs report completion without dispatching optional work",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.035"
+      ],
+      "scenario": "overspent verified runs report completion without dispatching optional work",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: overspent verified runs report completion without dispatching optional work",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.036",
+      "name": "readiness completion remains gated by active writers accounting leases and operations",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.036"
+      ],
+      "scenario": "readiness completion remains gated by active writers accounting leases and operations",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: readiness completion remains gated by active writers accounting leases and operations",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.domain.037",
+      "name": "domain immutable equality accepts reordered persisted object keys",
+      "suiteId": "unit-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p1.domain.invariant.037"
+      ],
+      "scenario": "domain immutable equality accepts reordered persisted object keys",
+      "impactTags": [
+        "domain",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules",
+      "assertions": "tests/unit/domain.test.ts: domain immutable equality accepts reordered persisted object keys",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.persistence.018",
+      "name": "persistence damaged artifacts block verification while stopping accounting and reconciliation remain writable",
+      "suiteId": "integration-persistence",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p1.persistence.invariant.018"
+      ],
+      "scenario": "persistence damaged artifacts block verification while stopping accounting and reconciliation remain writable",
+      "impactTags": [
+        "persistence",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
+      "assertions": "tests/integration/persistence.test.ts: persistence damaged artifacts block verification while stopping accounting and reconciliation remain writable",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "p1.persistence.019",
+      "name": "persistence verification evidence references roundtrip and reject foreign missing or altered artifacts",
+      "suiteId": "integration-persistence",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p1.persistence.invariant.019"
+      ],
+      "scenario": "persistence verification evidence references roundtrip and reject foreign missing or altered artifacts",
+      "impactTags": [
+        "persistence",
+        "contracts"
+      ],
+      "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
+      "assertions": "tests/integration/persistence.test.ts: persistence verification evidence references roundtrip and reject foreign missing or altered artifacts",
+      "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    }
+  ]
+}

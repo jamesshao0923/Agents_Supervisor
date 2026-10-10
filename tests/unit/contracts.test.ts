@@ -51,7 +51,7 @@ test('manifest rejects invalid schema stage and revision', () => {
   for (const schemaVersion of [undefined, 0, 2, '1']) {
     assert.throws(() => parseManifest({ ...manifest(), schemaVersion }), /schemaVersion/);
   }
-  assert.throws(() => parseManifest({ ...manifest(), stage: 'P1' }), /stage/);
+  assert.throws(() => parseManifest({ ...manifest(), stage: 'P2' }), /stage/);
   for (const revision of ['', ' ', 'with space', '\nHEAD', 1, null]) {
     assert.throws(() => parseManifest({ ...manifest(), revision }), /revision/);
   }

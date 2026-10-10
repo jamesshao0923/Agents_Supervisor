@@ -9,7 +9,7 @@ export interface SuiteSpec {
 
 export interface StageManifest {
   schemaVersion: 1;
-  stage: 'P0';
+  stage: 'P0' | 'P1';
   revision: string;
   suites: SuiteSpec[];
 }
@@ -52,13 +52,13 @@ function nonemptyString(value: unknown): value is string {
 }
 
 function manifestError(path: string, detail: string): never {
-  throw new Error(`Invalid P0 manifest: ${path} ${detail}`);
+  throw new Error(`Invalid stage manifest: ${path} ${detail}`);
 }
 
 export function parseManifest(value: unknown): StageManifest {
   if (!isRecord(value)) manifestError('manifest', 'must be an object');
   if (value.schemaVersion !== 1) manifestError('schemaVersion', 'must equal 1');
-  if (value.stage !== 'P0') manifestError('stage', 'must equal P0');
+  if (value.stage !== 'P0' && value.stage !== 'P1') manifestError('stage', 'must equal P0 or P1');
   if (!nonemptyString(value.revision) || /\s/.test(value.revision)) {
     manifestError('revision', 'must be a nonempty string without whitespace');
   }
@@ -111,7 +111,7 @@ export function parseManifest(value: unknown): StageManifest {
       timeoutMs: entry.timeoutMs,
     };
   });
-  return { schemaVersion: 1, stage: 'P0', revision: value.revision, suites };
+  return { schemaVersion: 1, stage: value.stage, revision: value.revision, suites };
 }
 
 export function evaluateSuite(

@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../', import.meta.url));
 if (process.versions.node !== '24.20.0') {
-  console.error('P0 pins Node 24.20.0; select the version in .nvmrc before building.');
+  console.error('Supervisor pins Node 24.20.0; select the version in .nvmrc before building.');
   process.exit(1);
 }
 rmSync(new URL('../dist/', import.meta.url), { recursive: true, force: true });

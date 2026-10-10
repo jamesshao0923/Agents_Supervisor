@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "stage": "P0",
+  "revision": "p0-v1",
+  "suites": [
+    {
+      "id": "unit-contracts",
+      "layer": "unit",
+      "file": "dist/tests/unit/contracts.test.js",
+      "required": true,
+      "expectedTests": [
+        "manifest accepts valid required suites and returns an independent copy",
+        "manifest accepts both layers and inclusive timeout limits",
+        "manifest rejects nonobject inputs and serialized JSON",
+        "manifest rejects invalid schema stage and revision",
+        "manifest rejects missing empty and malformed suites",
+        "manifest rejects unsafe and duplicate suite identifiers",
+        "manifest rejects invalid layer and optional suites",
+        "manifest rejects escaping absolute encoded and nonjavascript paths",
+        "manifest rejects empty malformed and duplicate expected names",
+        "manifest permits the same expected name across different suites",
+        "manifest rejects noninteger nonfinite and out of range timeouts",
+        "manifest rejects sparse suite and expected name arrays",
+        "suite accepts only a complete matching successful report",
+        "suite matches expected names regardless of result ordering",
+        "suite rejects missing malformed and serialized reports without throwing",
+        "suite rejects unsupported report schemas",
+        "suite rejects stale missing and invalid run identifiers",
+        "suite rejects reports from another suite",
+        "suite rejects incomplete and truthy nonboolean completion",
+        "suite rejects absent malformed and zero actual tests",
+        "suite never passes a spec with zero expected tests",
+        "suite rejects missing duplicate and extra actual test names",
+        "suite rejects failed skipped and todo tests despite reconciled summaries",
+        "suite rejects unknown statuses and malformed test objects",
+        "suite rejects negative nonfinite and nonnumeric durations",
+        "suite validates optional diagnostic messages",
+        "suite rejects missing malformed and unreconciled summary totals",
+        "suite rejects noninteger negative missing and nonfinite summary fields",
+        "suite rejects nonzero and absent execution exit codes",
+        "suite rejects signalled and timed out executions",
+        "suite retains execution failures when the report is missing",
+        "suite rejects throwing report accessors without propagating errors",
+        "suite rejects sparse actual test arrays"
+      ],
+      "timeoutMs": 30000
+    },
+    {
+      "id": "unit-environment",
+      "layer": "unit",
+      "file": "dist/tests/unit/environment.test.js",
+      "required": true,
+      "expectedTests": [
+        "p0.environment.unit.version-extracts-complete-prefixed-and-multisegment-tokens",
+        "p0.environment.unit.version-rejects-partial-or-unbounded-tokens-without-retaining-output",
+        "p0.environment.unit.path-posix-excludes-implicit-cwd-and-deduplicates",
+        "p0.environment.unit.path-windows-respects-pathext-and-absolute-directories",
+        "p0.environment.unit.auth-known-labels-do-not-claim-api-access-or-retain-secrets",
+        "p0.environment.unit.auth-unrecognized-or-failed-status-is-unknown",
+        "p0.environment.unit.command-real-process-captures-exit-without-shell",
+        "p0.environment.unit.command-real-process-enforces-output-limit",
+        "p0.environment.unit.command-real-process-enforces-five-second-deadline",
+        "p0.environment.unit.command-missing-executable-is-explicit-spawn-failure"
+      ],
+      "timeoutMs": 30000
+    },
+    {
+      "id": "unit-boundaries",
+      "layer": "unit",
+      "file": "dist/tests/unit/boundaries.test.js",
+      "required": true,
+      "expectedTests": [
+        "boundaries allow pure domain and contract imports",
+        "boundaries reject product and external effects inside domain",
+        "boundaries keep development verifier independent from product",
+        "boundaries reject import equals and import types across TypeScript extensions"
+      ],
+      "timeoutMs": 30000
+    },
+    {
+      "id": "integration-runner",
+      "layer": "integration",
+      "file": "dist/tests/integration/runner.test.js",
+      "required": true,
+      "expectedTests": [
+        "runner records passing real child execution and complete hashed evidence",
+        "runner rejects an actual failed assertion and preserves failing child evidence",
+        "runner rejects a real fixture that declares zero tests",
+        "runner rejects a genuinely skipped required Node test",
+        "runner rejects a missing required name even when the actual test passes",
+        "runner rejects and terminates a genuinely timed out child process",
+        "runner kills a real SIGTERM ignoring descendant after its timeout",
+        "checkRun rejects a deleted child report without replacing original results",
+        "checkRun rejects changed report bytes without replacing original results",
+        "checkRun rejects a forged report digest without replacing original results",
+        "checkRun rejects a foreign report runId even with a matching content digest",
+        "checkRun rejects changed candidate source without replacing original results",
+        "checkRun rejects a deleted initial freeze record without replacing original results",
+        "checkRun rejects rewriting only final candidate digests to bless changed source",
+        "runner rejects a suite path escaping the isolated candidate root",
+        "runner rejects a symlinked suite before any child can execute it",
+        "checkRun rejects a report symlink escaping its evidence directory",
+        "CLI check reads the frozen fixture manifest and exits nonzero for bad evidence"
+      ],
+      "timeoutMs": 60000
+    },
+    {
+      "id": "integration-environment",
+      "layer": "integration",
+      "file": "dist/tests/integration/environment.test.js",
+      "required": true,
+      "expectedTests": [
+        "p0.environment.integration.real-probe-preserves-project-and-cwd",
+        "p0.environment.integration.missing-project-still-reports-host-capabilities"
+      ],
+      "timeoutMs": 120000
+    },
+    {
+      "id": "integration-repository",
+      "layer": "integration",
+      "file": "dist/tests/integration/repository.test.js",
+      "required": true,
+      "expectedTests": [
+        "repository production module boundaries pass on actual source files",
+        "repository ignores runtime secrets outputs and dependencies but retains sources and lockfile",
+        "repository rejects unavailable live and release gates with a nonzero exit",
+        "repository running compiler and runtime match pinned versions"
+      ],
+      "timeoutMs": 30000
+    }
+  ]
+}

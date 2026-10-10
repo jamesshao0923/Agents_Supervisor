@@ -15,3 +15,8 @@ coverage/
 *.p12
 *.pfx
 .supervisor/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.sock
+service.lock

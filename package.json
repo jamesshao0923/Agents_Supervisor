@@ -13,7 +13,9 @@
     "test:unit": "pnpm build && node dist/tools/p0/cli.js run --layer unit",
     "test:integration": "pnpm build && node dist/tools/p0/cli.js run --layer integration",
     "test:live": "node tools/unavailable.mjs live",
-    "verify:stage": "pnpm build && node dist/tools/p0/cli.js run --stage P0",
+    "verify:stage": "pnpm build && node dist/tools/p0/cli.js run",
+    "verify:p0": "pnpm build && node dist/tools/p0/cli.js run --stage P0",
+    "supervisor": "node dist/apps/cli/main.js",
     "verify:evidence": "node dist/tools/p0/cli.js check",
     "verify:release": "node tools/unavailable.mjs release"
   },
