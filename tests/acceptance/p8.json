@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "stage": "P8",
-  "revision": "p8-workbench-host-developing-v1",
+  "revision": "p8-workbench-host-developing-v1-v26",
   "caseIds": [
     "p8.unit-workbench.001",
     "p8.unit-workbench.002",
@@ -14,7 +14,11 @@
     "p8.integration-mobile-android-host.001",
     "p8.integration-mobile-android-host.002",
     "p8.integration-ios-create-cancel.001",
-    "p8.integration-android-capture-cancel.001"
+    "p8.integration-android-capture-cancel.001",
+    "p8.integration-material-intake.001",
+    "p8.integration-material-intake.002",
+    "p8.integration-material-intake.003",
+    "p8.integration-material-intake.004"
   ],
   "requiredRisks": [
     "p8-workbench-projection",

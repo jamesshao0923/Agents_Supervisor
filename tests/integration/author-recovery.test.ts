@@ -32,7 +32,7 @@ function fixture(options:{limit?:number;calls?:number;capacity?:number}={}){
   const config={model:'ledger-fixture-not-model',effort:'low',reservation:30,timeoutMs:1000};
   const input={prompt:buildAcceptanceAuthoringPrompt(c),outputSchema:acceptanceAuthoringSchema(c),context:{acceptance:c,candidate:{fixture:'Frozen candidate ownership is independently checked by controller'}}};
   const loop=store.supervision.attach({commandId:'attach',runtimeId:runtime.id,config,limits:{maxRepairs:1,maxReasoningCalls:options.calls??3,maxDurationMs:60000,maxContextChars:options.capacity===1?runtimeCanonical(input).length+6100:200000}});
-  const bad=bundle(c);bad.spec.obligations[0]!.id='sum-ok},{';
+  const bad=bundle(c);bad.spec.obligations[0]!.id='sum-undeclared';
   const job=store.supervision.beginJob({commandId:'old',loopId:loop.id,expectedRevision:loop.revision,purpose:'acceptance-authoring',context:input});
   function finish(id:string,result:unknown,usage=7){const proof=join(root,id+'.json'),text=JSON.stringify(result);writeFileSync(proof,text);store.supervision.observeJob(id,{modelStarted:true,observedUsage:usage});return store.supervision.finishJob(id,{result,usage,stopConfirmed:true,error:null,proofs:{[proof]:hash(text)},threadId:null});}
   const old=finish(job.id,bad),current=store.supervision.get(loop.id);store.supervision.update(loop.id,current.revision,{phase:'authoring',references:{authorJobId:old.id}});
@@ -40,10 +40,9 @@ function fixture(options:{limit?:number;calls?:number;capacity?:number}={}){
   function request(commandId='regenerate'){return {commandId,loopId:loop.id,expectedRevision:store.supervision.get(loop.id).revision,previousJobId:old.id,diagnostic};}
   return {root,runtime,loop,c,bad,old,input,finish,request,get store(){return store;},reopen(){store.close();store=new SupervisorStore(join(root,'data'));},close(){store.close();rmSync(root,{recursive:true,force:true});}};
 }
-test('P6-AUTHREC-I01 schema-valid malformed obligation rejects without decoding repair or fabricated authority',()=>{
+test('P6-AUTHREC-I01 malformed obligation fails schema without decoding repair or fabricated authority',()=>{
  const c=context(),bad=bundle(c);bad.spec.obligations[0]!.id='sum-ok},{';bad.spec.cases[0]!.obligationIds=['sum-ok','sum-finite','sum-types','sum-mutation','sum-scope'];
- const diagnostic=diagnoseAcceptanceAuthoringResult(bad,c)!;
- assert.match(diagnostic.message,/unknown obligation/);assert.equal(diagnostic.resultDigest,hash(runtimeCanonical(bad)));
+ assert.throws(()=>diagnoseAcceptanceAuthoringResult(bad,c),/pattern|schema/i);
  assert.equal(bad.spec.obligations.length,1);assert.equal(bad.spec.obligations[0]!.id,'sum-ok},{');
  assert.equal(diagnoseAcceptanceAuthoringResult(bundle(),context()),null);
  assert.throws(()=>diagnoseAcceptanceAuthoringResult({...bundle(),passed:true},context()),/Unexpected|additional|schema|field/i);

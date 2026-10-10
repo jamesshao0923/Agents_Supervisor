@@ -1,3 +1,6 @@
+import { createHash } from 'node:crypto';
+import type { AuthorSchemaRejection } from '../contracts/p6-author-routing.js';
+import { ReasonerSchemaError } from './reasoner-schema.js';
 import { mkdir, open, realpath, stat } from 'node:fs/promises';
 import type { FileHandle } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
@@ -19,9 +22,22 @@ export interface ReasonerInput {
   onUsage?: (totalTokens: number) => void | Promise<void>;
 }
 export interface ReasonerResult {
+  /** Rejected raw data only; never a usable value or recovery authorization. */
+  outputRejection?: AuthorSchemaRejection;
   value: unknown;
   usage: number | null; threadId: string | null; turnId: string | null;
   proofFiles: string[]; stopConfirmed: boolean; modelStarted: boolean;
+}
+/** Called only after an actual completed turn; the marker is rejected data, never authority. */
+export function parseFinalReasonerOutput(text:string,schema:Record<string,unknown>,result:ReasonerResult):unknown {
+  try { return parseReasonerOutput(text,schema); }
+  catch(error) {
+    if(error instanceof ReasonerSchemaError) {
+      try { JSON.parse(text); result.outputRejection={schemaVersion:1,kind:'schema',rawOutputDigest:createHash('sha256').update(text).digest('hex'),message:error.message}; }
+      catch { /* Incomplete JSON is not an eligible schema rejection. */ }
+    }
+    throw error;
+  }
 }
 /** Execution errors retain accounting and process evidence for the owning ledger. */
 export class ReasonerError extends Error {
@@ -233,7 +249,7 @@ export async function runReasonerRequest(input: ReasonerInput): Promise<Reasoner
     const text = observation.completedMessages.at(-1);
     await persist('output.txt', text ?? '');
     if (!text) throw new Error('Completed reasoner has no final structured output');
-    result.value = parseReasonerOutput(text, outputSchema);
+    result.value = parseFinalReasonerOutput(text, outputSchema, result);
   } catch (error) { fatal ??= error instanceof Error ? error : new Error(message(error)); }
   finally {
     finishing = true;
@@ -255,6 +271,7 @@ export async function runReasonerRequest(input: ReasonerInput): Promise<Reasoner
     if (!result.stopConfirmed) fatal ??= new Error('Reasoner process stop could not be verified');
     if (result.modelStarted && result.usage === null) fatal ??= new Error('Started reasoner has no confirmed token usage');
     if (fatal) result.value = null;
+    if (!(fatal instanceof ReasonerSchemaError) || !result.stopConfirmed || result.usage === null || observation.terminalStatus !== 'completed') delete result.outputRejection;
     try {
       await queue;
       for (const [kind, proof] of processes) await persist(`${kind}.process.json`, JSON.stringify(proof, null, 2) + '\n');

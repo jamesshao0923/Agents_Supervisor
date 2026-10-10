@@ -5,7 +5,7 @@ import type { TaskContract } from '../contracts/p1.js';
 import type { AcceptanceItem } from '../contracts/p5.js';
 import { parseVerificationSpec, type VerificationSpec, type VerificationSpecCase } from '../contracts/p4.js';
 import { currentVerificationCases, validateSpecChange, verificationCanonical } from '../verification/rules.js';
-import { parseReasonerOutput, validateReasonerSchema } from './reasoner-schema.js';
+import { parseReasonerOutput, validateReasonerSchema, SYMBOLIC_ID_PATTERN, ASSET_ID_PATTERN } from './reasoner-schema.js';
 
 export interface AuthoredTextFile { path: string; content: string }
 export interface AcceptanceAuthoringContext {
@@ -148,6 +148,16 @@ function acceptanceAssetSchema(context: AcceptanceAuthoringContext, historicalCa
   const frozen = frozenContext(context), ids = frozen.criteria.map(item => item.id);
   const historical = JSON.parse(safeJson(historicalCases)) as VerificationSpecCase[];
   const historicalBranches = [...new Map(historical.map(item => [canonical(item), item])).values()].map(typedLiteral);
+  // Namespace-specific legacy exceptions are exact literals, never normalization.
+  const symbolic = (legacy: string[], pattern = SYMBOLIC_ID_PATTERN): Record<string, unknown> => {
+    const fresh = { type: 'string', pattern, minLength: 1, maxLength: pattern === ASSET_ID_PATTERN ? 80 : 128 };
+    const exceptions = [...new Set(legacy)].filter(id => !new RegExp(pattern).test(id));
+    return exceptions.length ? typedAlternatives([fresh, ...exceptions.map(id => ({ type: 'string', const: id }))]) : fresh;
+  };
+  const obligationId = symbolic([...(frozen.previousSpec?.obligations.map(item => item.id) ?? []), ...historical.flatMap(item => item.obligationIds)]);
+  const caseId = symbolic([...(frozen.previousSpec?.cases.map(item => item.id) ?? []), ...historical.map(item => item.id)]);
+  const controlId = symbolic(frozen.previousSpec?.controls.map(item => item.id) ?? [], ASSET_ID_PATTERN);
+  const sourceId = symbolic([...historical, ...(frozen.previousSpec?.cases ?? [])].flatMap(item => item.verifier.kind === 'source' ? item.verifier.sources.map(source => source.id) : []));
   const file = obj({ path: text, content: { type: 'string', maxLength: MAX_FILE_BYTES } });
   const strings = arr(text);
   const build = obj({ kind: { type: 'string', const: 'typescript' }, sources: arr(text, 1), rootDir: text, outputDir: text, timeoutMs: num() });
@@ -155,17 +165,17 @@ function acceptanceAssetSchema(context: AcceptanceAuthoringContext, historicalCa
   const steps = { anyOf: [obj({ kind: { type: 'string', const: 'click' }, selector: text }), obj({ kind: { type: 'string', const: 'fill' }, selector: text, value: { type: 'string', maxLength: 12_000 } }), obj({ kind: { type: 'string', const: 'assertText' }, selector: text, text }), obj({ kind: { type: 'string', const: 'assertVisible' }, selector: text })] };
   const verifier = { anyOf: [obj(command), obj({ ...command, candidateEntries: arr(text, 1, 8) }), obj({ ...command, build }), obj({ ...command, build, candidateEntries: arr(text, 1, 8) }),
     obj({ kind: { type: 'string', const: 'ui' }, version: text, entry: text, steps: arr(steps, 1), expectations: arr(text, 1), timeoutMs: num() }),
-    obj({ kind: { type: 'string', const: 'source' }, version: text, claimFile: text, sources: arr(obj({ id: text, url: text, excerpt: text, maxAgeMs: num(Number.MAX_SAFE_INTEGER) }), 1), timeoutMs: num() })] };
-  const newCase = obj({ id: text, revision: num(Number.MAX_SAFE_INTEGER), obligationIds: arr(text, 1), parameters: arr(obj({}), 1, 1), modules: arr({ ...text, enum: ids }, 1), replaces: strings, defectRefs: strings, status: { type: 'string', enum: ['active', 'retired'] }, verifier });
+    obj({ kind: { type: 'string', const: 'source' }, version: text, claimFile: text, sources: arr(obj({ id: sourceId, url: text, excerpt: text, maxAgeMs: num(Number.MAX_SAFE_INTEGER) }), 1), timeoutMs: num() })] };
+  const newCase = obj({ id: caseId, revision: num(Number.MAX_SAFE_INTEGER), obligationIds: arr(obligationId, 1), parameters: arr(obj({}), 1, 1), modules: arr({ ...text, enum: ids }, 1), replaces: arr(caseId), defectRefs: strings, status: { type: 'string', enum: ['active', 'retired'] }, verifier });
   return validateReasonerSchema(obj({
     contextDigest: { type: 'string', const: hash(canonical(frozen)) },
     spec: obj({ schemaVersion: { type: 'integer', const: 1 }, contractVersion: { type: 'integer', const: frozen.contract.version }, standardsVersion: text,
-      obligations: arr(obj({ id: text, criterionId: { ...text, enum: ids }, expectation: text, required: { type: 'boolean' }, applicable: { type: 'boolean', const: true } }), 1),
+      obligations: arr(obj({ id: obligationId, criterionId: { ...text, enum: ids }, expectation: text, required: { type: 'boolean' }, applicable: { type: 'boolean', const: true } }), 1),
       cases: arr(historicalBranches.length ? typedAlternatives([newCase, typedAlternatives(historicalBranches)]) : newCase, 1),
-      controls: arr(obj({ id: text, workspace: text, expect: { type: 'string', enum: ['passed', 'failed'] }, mustFail: strings }), 2, 32),
+      controls: arr(obj({ id: controlId, workspace: text, expect: { type: 'string', enum: ['passed', 'failed'] }, mustFail: arr(obligationId) }), 2, 32),
       moduleDependencies: obj(Object.fromEntries(ids.map(id => [id, arr({ ...text, enum: ids })]))),
-    }), verifierFiles: arr(file), controls: arr(obj({ id: text, files: arr(file, 1) }), frozen.previousSpec ? 0 : 2, 32),
-    coverageExplanation: arr(obj({ criterionId: { ...text, enum: ids }, check: text, caseIds: arr(text, 1), explanation: text }), 1, 512),
+    }), verifierFiles: arr(file), controls: arr(obj({ id: controlId, files: arr(file, 1) }), frozen.previousSpec ? 0 : 2, 32),
+    coverageExplanation: arr(obj({ criterionId: { ...text, enum: ids }, check: text, caseIds: arr(caseId, 1), explanation: text }), 1, 512),
   }));
 }
 export function buildAcceptanceAuthoringPrompt(context: AcceptanceAuthoringContext): string {
@@ -178,6 +188,8 @@ export function buildAcceptanceAuthoringPrompt(context: AcceptanceAuthoringConte
     'Use symbolic IDs for new controls: spec.controls.workspace must equal its id; controls contains the corresponding full project text. Retain every previousSpec control unchanged at its published absolute workspace; do not include its text in controls. Retain every previous case revision unchanged, and use new revisions/versions for modified implementations. No new absolute paths. Include positive controls and negative controls covering every necessary obligation.',
     'Write independent command verifier implementation, not copies of candidate tests. Optional command candidateEntries are Node CLI entries actually executed before the independent checker, not declarations of imported modules. Checkers receive candidate directory as argv[2], parameters JSON as argv[3], and write {schemaVersion:1,checks:[{obligationId,verdict,reason}]} to SUPERVISOR_VERIFY_REPORT. A custom checker must perform its own assertions, since zero CLI exit proves execution only; TypeScript build sources and output entries must be accurate. Modules are criterion IDs; moduleDependencies has every criterion ID. New cases use revision 1, parameters [{}]; subsequent revisions must retain historical definitions and P4 replacement/defect coverage.',
     'Define every obligation as a separate object with one atomic identifier. Before responding, verify that every cases[].obligationIds value, negative control mustFail value and checker report obligationId exactly matches one declared spec.obligations[].id. Never pack multiple IDs or JSON delimiters into a single string. Criterion IDs and obligation IDs are separate namespaces. Declare all necessary obligations and cover every required one; a referenced but undeclared ID invalidates the whole proposal. Regenerate a complete coherent bundle rather than inventing a repair mapping.',
+    'New obligation, case and source identifiers must match ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$; new control asset IDs must match ^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$. IDs are machine references, never comments, annotations or explanations. Retain historical published identifiers byte-for-byte only in their original namespace. Do not normalize or repair a rejected output by stripping suffixes.',
+    'Actual P4 command environment: pinned Node 24.20.0 with --permission. The independent checker can read only the frozen candidate, verifier bundle, built-in guard and supplied parser assets; only its dedicated SUPERVISOR_VERIFY_REPORT parent directory is writable, and that output directory is NOT granted read permission. Network, child_process spawning, workers/native add-ons and arbitrary os.tmpdir writes are not available. Do not spawn node/npm or write/read temporary projects. Use candidateEntries for genuine engine-managed Node CLI execution before the checker; a zero exit is not sufficient independent verification. For TypeScript declare the supported build descriptor with exact sources/rootDir/outputDir, then reference the actual built entries. Independent assertions and mutation observations must run within the supplied checker permissions; report unknown/failure on unavailable evidence, never swallow errors into passed. Preserve all original behavior and test requirements.',
     'coverageExplanation maps every frozen check exactly once to executable cases of its original kind. Explain how the assertions detect the defect; do not waive or replace requirements. Control projects must contain all sources required by every case.',
     `contextDigest=${hash(canonical(frozen))}`, 'Complete frozen context (candidate contents, authoritative contract, environment and prior failures):', canonical(frozen),
   ].join('\n\n');

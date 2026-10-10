@@ -2,7 +2,10 @@
  * before a model is started, rather than silently weakening the controller's input. */
 export class ReasonerSchemaError extends Error { override name = 'ReasonerSchemaError'; }
 const unsafe = new Set(['__proto__', 'prototype', 'constructor']);
-const keywords = new Set(['type', 'properties', 'required', 'additionalProperties', 'items', 'enum', 'const', 'anyOf', 'oneOf', 'allOf', 'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'minLength', 'maxLength', 'minItems', 'maxItems', 'uniqueItems', 'title', 'description', '$schema']);
+export const SYMBOLIC_ID_PATTERN = '^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$';
+export const ASSET_ID_PATTERN = '^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$';
+const safePatterns = new Set([SYMBOLIC_ID_PATTERN, ASSET_ID_PATTERN]);
+const keywords = new Set(['type', 'properties', 'required', 'additionalProperties', 'items', 'enum', 'const', 'anyOf', 'oneOf', 'allOf', 'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'pattern', 'minLength', 'maxLength', 'minItems', 'maxItems', 'uniqueItems', 'title', 'description', '$schema']);
 const types = new Set(['object', 'array', 'string', 'number', 'integer', 'boolean', 'null']);
 type Schema = Record<string, unknown> | boolean;
 const fail = (path: string, reason: string): never => { throw new ReasonerSchemaError(`${path}: ${reason}`); };
@@ -81,6 +84,8 @@ function validateSchemaNode(schema: unknown, path: string): void {
   if (node.enum !== undefined && (!Array.isArray(node.enum) || !node.enum.length || new Set(node.enum.map(canonical)).size !== node.enum.length)) fail(path, 'enum must contain unique JSON values');
   for (const key of ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum']) if (node[key] !== undefined && (typeof node[key] !== 'number' || !Number.isFinite(node[key]))) fail(path, `${key} must be finite`);
   for (const key of ['minLength', 'maxLength', 'minItems', 'maxItems']) if (node[key] !== undefined && (!Number.isSafeInteger(node[key]) || (node[key] as number) < 0)) fail(path, `${key} must be a non-negative integer`);
+  // Only these fixed linear, bounded identifier expressions are supported.
+  if (node.pattern !== undefined && (typeof node.pattern !== 'string' || !safePatterns.has(node.pattern))) fail(path, 'unsupported identifier pattern');
   if (node.uniqueItems !== undefined && typeof node.uniqueItems !== 'boolean') fail(path, 'uniqueItems must be boolean');
   for (const [low, high] of [['minimum', 'maximum'], ['minLength', 'maxLength'], ['minItems', 'maxItems']] as const) if (typeof node[low] === 'number' && typeof node[high] === 'number' && node[low] > node[high]) fail(path, `${low} exceeds ${high}`);
 }
@@ -124,6 +129,7 @@ function assertValue(value: unknown, schema: Schema, path: string): void {
     ] as const) if (typeof schema[key] === 'number' && invalid(schema[key])) fail(path, `violates ${key}`);
   }
   if (typeof value === 'string') {
+    if (typeof schema.pattern === 'string' && !new RegExp(schema.pattern).test(value)) fail(path, 'string violates identifier pattern');
     const length = [...value].length;
     if (typeof schema.minLength === 'number' && length < schema.minLength || typeof schema.maxLength === 'number' && length > schema.maxLength) fail(path, 'string length outside schema');
   }

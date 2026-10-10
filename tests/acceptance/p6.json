@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "stage": "P6",
-  "revision": "p6-bounded-author-v6",
+  "revision": "p6-bounded-author-v6-v26",
   "caseIds": [
     "dev.unit-contracts.001",
     "dev.unit-contracts.002",
@@ -616,7 +616,17 @@
     "p6.integration-author-recovery.001",
     "p6.integration-author-recovery.002",
     "p6.integration-author-recovery.003",
-    "p6.integration-author-recovery.004"
+    "p6.integration-author-recovery.004",
+    "p6.integration-author-routing.001",
+    "p6.integration-author-routing.002",
+    "p6.integration-author-routing.003",
+    "p6.integration-author-routing.004",
+    "p6.integration-author-routing.005",
+    "p6.integration-author-routing.006",
+    "p6.integration-author-routing.007",
+    "p6.integration-author-routing.008",
+    "p6.integration-author-routing.009",
+    "p6.integration-author-routing.010"
   ],
   "requiredRisks": [
     "p0.unit-contracts.001",

@@ -1,3 +1,4 @@
+import { AUTHOR_ROUTE_MIGRATION_SQL } from './schema14.js';
 import { SCHEDULED_MIGRATION_SQL, SUPERVISION_ROUTING_MIGRATION_SQL } from './schema13.js';
 import { SUPERVISION_CONCERN_MIGRATION_SQL } from './supervision-concerns.js';
 import { VERIFICATION_LINEAGE_MIGRATION_SQL } from './verification-lineage.js';
@@ -9,7 +10,7 @@ import { SUPERVISION_INTERRUPTION_MIGRATION_SQL } from './supervision-interrupti
 import { SUPERVISION_MONITOR_MIGRATION_SQL } from './supervision-monitor.js';
 import { CONVERSATION_MIGRATION_SQL, ASSESSMENT_MIGRATION_SQL } from './conversations.js';
 
-export const SCHEMA_VERSION = 13;
+export const SCHEMA_VERSION = 14;
 
 const migrations = [
   `CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
@@ -78,6 +79,7 @@ const migrations = [
   CONTROL_QUALIFICATION_MIGRATION_SQL + TASK_RESULTS_MIGRATION_SQL,
   SUPERVISION_CONCERN_MIGRATION_SQL,
   SCHEDULED_MIGRATION_SQL + SUPERVISION_ROUTING_MIGRATION_SQL,
+  AUTHOR_ROUTE_MIGRATION_SQL,
 ];
 
 export function migrate(db: DatabaseSync): void {

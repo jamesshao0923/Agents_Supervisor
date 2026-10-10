@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-catalog-v25",
+  "revision": "dev-catalog-v26",
   "modules": [
     {
       "id": "dev-contracts",
@@ -651,6 +651,18 @@
       "layer": "integration",
       "file": "dist/tests/integration/android-capture-cancel.test.js",
       "timeoutMs": 300000
+    },
+    {
+      "id": "integration-author-routing",
+      "layer": "integration",
+      "file": "dist/tests/integration/author-routing.test.js",
+      "timeoutMs": 180000
+    },
+    {
+      "id": "integration-material-intake",
+      "layer": "integration",
+      "file": "dist/tests/integration/material-intake.test.js",
+      "timeoutMs": 60000
     }
   ],
   "cases": [
@@ -13285,19 +13297,19 @@
     },
     {
       "id": "p6.integration-author-recovery.001",
-      "name": "P6-AUTHREC-I01 schema-valid malformed obligation rejects without decoding repair or fabricated authority",
+      "name": "P6-AUTHREC-I01 malformed obligation fails schema without decoding repair or fabricated authority",
       "suiteId": "integration-author-recovery",
       "module": "orchestration",
       "layer": "integration",
       "covers": [
         "p6-author-regeneration"
       ],
-      "scenario": "P6-AUTHREC-I01 schema-valid malformed obligation rejects without decoding repair or fabricated authority",
+      "scenario": "P6-AUTHREC-I01 malformed obligation fails schema without decoding repair or fabricated authority",
       "impactTags": [
         "p6-author-regeneration"
       ],
       "prerequisites": "Actual SQLite/parser modules; synthetic model accounting fixture explicitly does not qualify provider output.",
-      "assertions": "tests/integration/author-recovery.test.ts :: P6-AUTHREC-I01 schema-valid malformed obligation rejects without decoding repair or fabricated authority",
+      "assertions": "tests/integration/author-recovery.test.ts :: P6-AUTHREC-I01 malformed obligation fails schema without decoding repair or fabricated authority",
       "cleanup": "Close stores and remove owned fixture; formal original failures retained",
       "status": "active"
     },
@@ -13785,6 +13797,258 @@
       "prerequisites": "Actual production modules. Mobile host cases require installed Xcode/Android toolchains; no installs/config changes or model/P4 business acceptance inferred.",
       "assertions": "tests/integration/android-capture-cancel.test.ts :: P8M-CANCEL-I02 actual final Android capture proof cancellation rejects completion and stops only own emulator and private adb",
       "cleanup": "Stop only owned service/processes/private devices; preserve observed failures and proof files",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-author-routing.001",
+      "name": "schema rejection: actual stopped Node, SQLite rollback, bounded route and reopen preserve old fees and exact receipt",
+      "suiteId": "integration-author-routing",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-author-routing"
+      ],
+      "scenario": "schema rejection: actual stopped Node, SQLite rollback, bounded route and reopen preserve old fees and exact receipt",
+      "impactTags": [
+        "p6-author-routing"
+      ],
+      "prerequisites": "Actual SQLite, files, managed Node and protocol parser; synthetic model output/accounting is mechanism coverage only.",
+      "assertions": "tests/integration/author-routing.test.ts :: schema rejection: actual stopped Node, SQLite rollback, bounded route and reopen preserve old fees and exact receipt",
+      "cleanup": "Stop owned processes/server, close stores; retain formal report and prior failures.",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-author-routing.002",
+      "name": "semantic rejection uses the exact schema-valid raw bundle and never returns approved assets",
+      "suiteId": "integration-author-routing",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-author-routing"
+      ],
+      "scenario": "semantic rejection uses the exact schema-valid raw bundle and never returns approved assets",
+      "impactTags": [
+        "p6-author-routing"
+      ],
+      "prerequisites": "Actual SQLite, files, managed Node and protocol parser; synthetic model output/accounting is mechanism coverage only.",
+      "assertions": "tests/integration/author-routing.test.ts :: semantic rejection uses the exact schema-valid raw bundle and never returns approved assets",
+      "cleanup": "Stop owned processes/server, close stores; retain formal report and prior failures.",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-author-routing.003",
+      "name": "tampered raw proof, changed candidate and forged advertised models cannot reserve replacement",
+      "suiteId": "integration-author-routing",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-author-routing"
+      ],
+      "scenario": "tampered raw proof, changed candidate and forged advertised models cannot reserve replacement",
+      "impactTags": [
+        "p6-author-routing"
+      ],
+      "prerequisites": "Actual SQLite, files, managed Node and protocol parser; synthetic model output/accounting is mechanism coverage only.",
+      "assertions": "tests/integration/author-routing.test.ts :: tampered raw proof, changed candidate and forged advertised models cannot reserve replacement",
+      "cleanup": "Stop owned processes/server, close stores; retain formal report and prior failures.",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-author-routing.004",
+      "name": "transport failure and unknown usage remain blocked rather than typed author recovery",
+      "suiteId": "integration-author-routing",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-author-routing"
+      ],
+      "scenario": "transport failure and unknown usage remain blocked rather than typed author recovery",
+      "impactTags": [
+        "p6-author-routing"
+      ],
+      "prerequisites": "Actual SQLite, files, managed Node and protocol parser; synthetic model output/accounting is mechanism coverage only.",
+      "assertions": "tests/integration/author-routing.test.ts :: transport failure and unknown usage remain blocked rather than typed author recovery",
+      "cleanup": "Stop owned processes/server, close stores; retain formal report and prior failures.",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-author-routing.005",
+      "name": "second rejected output is retained and cannot start a third author; pause cannot reserve",
+      "suiteId": "integration-author-routing",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-author-routing"
+      ],
+      "scenario": "second rejected output is retained and cannot start a third author; pause cannot reserve",
+      "impactTags": [
+        "p6-author-routing"
+      ],
+      "prerequisites": "Actual SQLite, files, managed Node and protocol parser; synthetic model output/accounting is mechanism coverage only.",
+      "assertions": "tests/integration/author-routing.test.ts :: second rejected output is retained and cannot start a third author; pause cannot reserve",
+      "cleanup": "Stop owned processes/server, close stores; retain formal report and prior failures.",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-author-routing.006",
+      "name": "complete JSON schema errors get typed markers; malformed JSON and exhausted calls cannot be reclassified",
+      "suiteId": "integration-author-routing",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-author-routing"
+      ],
+      "scenario": "complete JSON schema errors get typed markers; malformed JSON and exhausted calls cannot be reclassified",
+      "impactTags": [
+        "p6-author-routing"
+      ],
+      "prerequisites": "Actual SQLite, files, managed Node and protocol parser; synthetic model output/accounting is mechanism coverage only.",
+      "assertions": "tests/integration/author-routing.test.ts :: complete JSON schema errors get typed markers; malformed JSON and exhausted calls cannot be reclassified",
+      "cleanup": "Stop owned processes/server, close stores; retain formal report and prior failures.",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-author-routing.007",
+      "name": "protected shared balance and full recovery context limits fail without a new reservation",
+      "suiteId": "integration-author-routing",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-author-routing"
+      ],
+      "scenario": "protected shared balance and full recovery context limits fail without a new reservation",
+      "impactTags": [
+        "p6-author-routing"
+      ],
+      "prerequisites": "Actual SQLite, files, managed Node and protocol parser; synthetic model output/accounting is mechanism coverage only.",
+      "assertions": "tests/integration/author-routing.test.ts :: protected shared balance and full recovery context limits fail without a new reservation",
+      "cleanup": "Stop owned processes/server, close stores; retain formal report and prior failures.",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-author-routing.008",
+      "name": "cross-Run workspace queued or unknown effects block assess and late begin without consuming the one author replacement",
+      "suiteId": "integration-author-routing",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-author-routing"
+      ],
+      "scenario": "cross-Run workspace queued or unknown effects block assess and late begin without consuming the one author replacement",
+      "impactTags": [
+        "p6-author-routing"
+      ],
+      "prerequisites": "Actual SQLite, files, managed Node and protocol parser; synthetic model output/accounting is mechanism coverage only.",
+      "assertions": "tests/integration/author-routing.test.ts :: cross-Run workspace queued or unknown effects block assess and late begin without consuming the one author replacement",
+      "cleanup": "Stop owned processes/server, close stores; retain formal report and prior failures.",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-author-routing.009",
+      "name": "overlapping actual live Node is rejected despite terminal accounting and late stopped receipts require fresh physical assessment",
+      "suiteId": "integration-author-routing",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-author-routing"
+      ],
+      "scenario": "overlapping actual live Node is rejected despite terminal accounting and late stopped receipts require fresh physical assessment",
+      "impactTags": [
+        "p6-author-routing"
+      ],
+      "prerequisites": "Actual SQLite, files, managed Node and protocol parser; synthetic model output/accounting is mechanism coverage only.",
+      "assertions": "tests/integration/author-routing.test.ts :: overlapping actual live Node is rejected despite terminal accounting and late stopped receipts require fresh physical assessment",
+      "cleanup": "Stop owned processes/server, close stores; retain formal report and prior failures.",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-author-routing.010",
+      "name": "nonoverlapping queued execution does not consume or block author scope and duplicate route does not allocate again",
+      "suiteId": "integration-author-routing",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-author-routing"
+      ],
+      "scenario": "nonoverlapping queued execution does not consume or block author scope and duplicate route does not allocate again",
+      "impactTags": [
+        "p6-author-routing"
+      ],
+      "prerequisites": "Actual SQLite, files, managed Node and protocol parser; synthetic model output/accounting is mechanism coverage only.",
+      "assertions": "tests/integration/author-routing.test.ts :: nonoverlapping queued execution does not consume or block author scope and duplicate route does not allocate again",
+      "cleanup": "Stop owned processes/server, close stores; retain formal report and prior failures.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-material-intake.001",
+      "name": "P8-MAT-I01 real bounded parallel HTTP raw snapshots redirects duplicates failure and original quote remain exact",
+      "suiteId": "integration-material-intake",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p8-materials"
+      ],
+      "scenario": "P8-MAT-I01 real bounded parallel HTTP raw snapshots redirects duplicates failure and original quote remain exact",
+      "impactTags": [
+        "p8-materials"
+      ],
+      "prerequisites": "Actual bounded local HTTP and files; not public research semantic verification.",
+      "assertions": "tests/integration/material-intake.test.ts :: P8-MAT-I01 real bounded parallel HTTP raw snapshots redirects duplicates failure and original quote remain exact",
+      "cleanup": "Stop owned processes/server, close stores; retain formal report and prior failures.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-material-intake.002",
+      "name": "P8-MAT-I02 real local Markdown UTF8 unsupported PDF invalid text and symlink all retain explicit index dispositions",
+      "suiteId": "integration-material-intake",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p8-materials"
+      ],
+      "scenario": "P8-MAT-I02 real local Markdown UTF8 unsupported PDF invalid text and symlink all retain explicit index dispositions",
+      "impactTags": [
+        "p8-materials"
+      ],
+      "prerequisites": "Actual bounded local HTTP and files; not public research semantic verification.",
+      "assertions": "tests/integration/material-intake.test.ts :: P8-MAT-I02 real local Markdown UTF8 unsupported PDF invalid text and symlink all retain explicit index dispositions",
+      "cleanup": "Stop owned processes/server, close stores; retain formal report and prior failures.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-material-intake.003",
+      "name": "P8-MAT-I03 count byte deadline cancellation redirect limits and pending directory never become successful acquisition",
+      "suiteId": "integration-material-intake",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p8-materials"
+      ],
+      "scenario": "P8-MAT-I03 count byte deadline cancellation redirect limits and pending directory never become successful acquisition",
+      "impactTags": [
+        "p8-materials"
+      ],
+      "prerequisites": "Actual bounded local HTTP and files; not public research semantic verification.",
+      "assertions": "tests/integration/material-intake.test.ts :: P8-MAT-I03 count byte deadline cancellation redirect limits and pending directory never become successful acquisition",
+      "cleanup": "Stop owned processes/server, close stores; retain formal report and prior failures.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-material-intake.004",
+      "name": "P8-MAT-I04 quote bytes remain bound to their exact digest under atomic replacement and valid UTF8 quotes stay exact",
+      "suiteId": "integration-material-intake",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p8-materials"
+      ],
+      "scenario": "P8-MAT-I04 quote bytes remain bound to their exact digest under atomic replacement and valid UTF8 quotes stay exact",
+      "impactTags": [
+        "p8-materials"
+      ],
+      "prerequisites": "Actual bounded local HTTP and files; not public research semantic verification.",
+      "assertions": "tests/integration/material-intake.test.ts :: P8-MAT-I04 quote bytes remain bound to their exact digest under atomic replacement and valid UTF8 quotes stay exact",
+      "cleanup": "Stop owned processes/server, close stores; retain formal report and prior failures.",
       "status": "active"
     }
   ]

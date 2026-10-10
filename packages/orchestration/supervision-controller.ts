@@ -1,3 +1,4 @@
+import { AcceptanceAuthorRecovery } from './acceptance-authoring-recovery.js';
 import { SupervisionRoutingAdapter } from './supervision-routing.js';
 import { SupervisionConcernAdapter } from './supervision-concern-adapter.js';
 import { createHash,randomUUID } from 'node:crypto';
@@ -41,13 +42,14 @@ export class SupervisionController {
   private readonly runner:SupervisionReasoningRunner;
   private readonly monitor:SupervisionMonitorController;
   private readonly concerns:SupervisionConcernAdapter;
+  private readonly authorRecovery:AcceptanceAuthorRecovery;
   private readonly routing:SupervisionRoutingAdapter;
   private queue:Promise<unknown>=Promise.resolve();
   private readonly running=new Map<string,Promise<unknown>>();
   private timer:ReturnType<typeof setInterval>|null=null;
   private readonly deadlines=new Map<string,ReturnType<typeof setTimeout>>();
   private closed=false;
-  constructor(private readonly store:SupervisorStore,private readonly dataDir:string,private readonly runtime:LocalRuntimeAdapter,private readonly verification:VerificationController,runner?:SupervisionReasoningRunner){this.runner=runner??new SupervisionReasoningRunner(store,dataDir);this.concerns=new SupervisionConcernAdapter(store.supervisionConcerns);this.routing=new SupervisionRoutingAdapter(store,store.supervisionRouting,dataDir);this.monitor=new SupervisionMonitorController(store,dataDir,undefined,()=>{if(!this.closed)void this.scan();});}
+  constructor(private readonly store:SupervisorStore,private readonly dataDir:string,private readonly runtime:LocalRuntimeAdapter,private readonly verification:VerificationController,runner?:SupervisionReasoningRunner){this.authorRecovery=new AcceptanceAuthorRecovery(store,store.authorRouting,dataDir);this.runner=runner??new SupervisionReasoningRunner(store,dataDir);this.concerns=new SupervisionConcernAdapter(store.supervisionConcerns);this.routing=new SupervisionRoutingAdapter(store,store.supervisionRouting,dataDir);this.monitor=new SupervisionMonitorController(store,dataDir,undefined,()=>{if(!this.closed)void this.scan();});}
   private get repo(){return this.store.supervision;}
   private serial<T>(work:()=>Promise<T>):Promise<T>{const result=this.queue.then(work);this.queue=result.catch(()=>{});return result;}
   async initialize():Promise<void>{ensure(!this.closed,'Supervision controller closed');await this.runner.initialize();await this.monitor.initialize();await this.scan();this.timer??=setInterval(()=>{void this.scan();},15000);this.timer.unref();}
@@ -205,6 +207,7 @@ export class SupervisionController {
     }
     if(loop.phase==='authoring'){
       const job=this.repo.job(loop.references.authorJobId!);if(job.status==='running'){this.launch(job);return;}
+      if(job.error!==null){const next=await this.authorRecovery.begin(loop.id,job.id,()=>{this.dispatchAllowed(loop.id);this.ensureFloor(this.repo.get(loop.id));});this.launch(next.job);return;}
       const verified=await this.runner.run(job.id),input=modelInput(verified),context=input.context;
       if(context.evolution){
         await assertCandidate(context.candidate);
@@ -215,8 +218,8 @@ export class SupervisionController {
       const diagnostic=diagnoseAcceptanceAuthoringResult(verified.result,context.acceptance);
       if(diagnostic){
         ensure(!Object.hasOwn(context,'authorFeedback'),'Acceptance author regeneration exhausted after second semantic rejection: '+diagnostic.message);
-        const next=this.repo.transaction(()=>{this.dispatchAllowed(loop.id);this.ensureFloor(loop);const current=this.repo.get(loop.id);return this.repo.beginAuthorRegeneration({commandId:'author-regenerate:'+verified.id,loopId:loop.id,expectedRevision:current.revision,previousJobId:verified.id,diagnostic});});
-        this.launch(next);return;
+        const next=await this.authorRecovery.begin(loop.id,verified.id,()=>{this.dispatchAllowed(loop.id);this.ensureFloor(this.repo.get(loop.id));});
+        this.launch(next.job);return;
       }
       const assets=await materializeAcceptanceBundle({privateRoot:join(this.dataDir,'supervision','authoring'),jobId:job.id,context:context.acceptance,bundle:verified.result});
       await assertCandidate(context.candidate);await this.prepare(loop.id,'propose',{type:'propose',runtimeId:runtime.id,specPath:assets.specPath});return;
@@ -288,7 +291,7 @@ export class SupervisionController {
     if(failure.kind==='verification'){const routed=await this.routing.beginDiagnosis({loopId:loop.id,failureJobId:failure.jobId,input:{prompt,outputSchema,context}},()=>{this.dispatchAllowed(loop.id);this.ensureFloor(this.repo.get(loop.id));});this.launch(routed.job);return;}
     const job=this.repo.transaction(()=>{this.dispatchAllowed(loop.id);this.ensureFloor(loop);const current=this.repo.get(loop.id),job=this.repo.beginJob({commandId:randomUUID(),loopId:loop.id,expectedRevision:current.revision,purpose:'diagnosis',context:{prompt,outputSchema,context}});this.update(loop.id,{phase:'diagnosing',references:{...current.references,diagnosisJobId:job.id}});return job;});this.launch(job);
   }
-  private launch(job:SupervisionJob):void{if(this.closed||this.running.has(job.id))return;const pending=this.runner.run(job.id).catch((error:unknown)=>{const loop=this.repo.get(job.loopId);if(!this.closed&&!loop.paused&&!loop.stopped)this.block(job.loopId,error);}).finally(()=>{this.running.delete(job.id);if(!this.closed)void this.scan();});this.running.set(job.id,pending);}
+  private launch(job:SupervisionJob):void{if(this.closed||this.running.has(job.id))return;const pending=this.runner.run(job.id).catch((error:unknown)=>{const loop=this.repo.get(job.loopId);if(!this.closed&&!loop.paused&&!loop.stopped&&!(job.purpose==='acceptance-authoring'&&this.repo.job(job.id).status==='finished'))this.block(job.loopId,error);}).finally(()=>{this.running.delete(job.id);if(!this.closed)void this.scan();});this.running.set(job.id,pending);}
   private async checkVerification(job:VerificationJob):Promise<void>{
     ensure(job.status==='finished'&&job.stopConfirmed&&!job.usageUnknown&&Object.keys(job.proofs).length>0,'Verification has unresolved stop, usage or proof');
     const run=this.store.runtime.inspect(job.runtimeId).run,attempt=run.attempts.find(item=>item.id===job.attemptId);ensure(attempt?.settled&&attempt.actual===job.usage,'Verification settlement does not match actual usage');
