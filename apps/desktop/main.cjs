@@ -1,5 +1,5 @@
 const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
-const { stat } = require('node:fs/promises');
+const { stat, realpath } = require('node:fs/promises');
 const { join, resolve } = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { randomUUID } = require('node:crypto');
@@ -70,6 +70,7 @@ function installBridge() {
     if (!input || typeof input !== 'object' || Array.isArray(input) || Object.hasOwn(input, 'type')) throw new Error('Invalid goal action');
     return orchestration({ type, ...input });
   });
+  register('workbench-read', projectPath => { if(typeof projectPath!=='string'||!projectPath.startsWith('/')||projectPath.length>4096||projectPath.includes('\0'))throw new Error('Invalid workbench project path');return invoke({method:'workbench',action:{type:'read',projectPath}}); });
   register('runtime-list', () => runtime({ type: 'list' }));
   register('runtime-inspect', runtimeId => runtime({ type: 'inspect', runtimeId: id(runtimeId) }));
   register('runtime-events', (runtimeId, after) => {
@@ -125,6 +126,13 @@ function installBridge() {
   });
   register('cancel', executionId => execution({ type: 'cancel', executionId: id(executionId) }));
   register('reconcile', executionId => execution({ type: 'reconcile', executionId: id(executionId) }));
+  register('open-project-directory', async projectPath => {
+    if (typeof projectPath !== 'string' || !projectPath.startsWith('/') || projectPath.length > 4096 || projectPath.includes('\0')) throw new Error('Invalid project directory');
+    const directory = await realpath(projectPath);
+    if (!(await stat(directory)).isDirectory()) throw new Error('项目目录已不可用');
+    const error = await shell.openPath(directory);
+    if (error) throw new Error(error);
+  });
   register('open-workspace', async executionId => {
     executionId = id(executionId);
     const record = executionId.startsWith('runtime-')

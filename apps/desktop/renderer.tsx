@@ -1,3 +1,5 @@
+import {AgentWorkbench} from './agent-workbench.js';
+import type {WorkbenchSnapshot} from '../../packages/contracts/p8-workbench.js';
 import {SupervisionPanel,type SupervisionDesktopAPI} from './supervision-panel.js';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -42,6 +44,7 @@ interface DesktopAPI extends SupervisionDesktopAPI {
   inspect(id: string): Promise<ExecutionRecord>;
   events(id: string, after: number): Promise<ExecutionEvent[]>;
   capabilities(): Promise<ExecutorCapabilities>;
+  workbenchRead(projectPath:string):Promise<WorkbenchSnapshot>;
   runtimeList(): Promise<RuntimeRecord[]>;
   runtimeInspect(id: string): Promise<RuntimeInspection>;
   runtimeEvents(id: string, after: number): Promise<RuntimeEvent[]>;
@@ -62,6 +65,7 @@ interface DesktopAPI extends SupervisionDesktopAPI {
   cancel(id: string): Promise<ExecutionRecord>;
   reconcile(id: string): Promise<ExecutionRecord>;
   chooseWorkspace(): Promise<string | null>;
+  openProjectDirectory(path: string): Promise<void>;
   openWorkspace(id: string): Promise<void>;
   chooseImages(): Promise<string[]>;
 }
@@ -135,7 +139,7 @@ function App() {
   const [reviewReservation, setReviewReservation] = useState(20000);
   const [reviewTimeout, setReviewTimeout] = useState(300);
   const [verificationPending, setVerificationPending] = useState<{ runtimeId: string; action: VerificationMutation } | null>(null);
-  const records = conversationTaskViews(runtimes, executions, sessions, conversations);
+  const records = conversationTaskViews(runtimes, executions.filter(record=>!record.scheduledBinding), sessions, conversations);
   const [connection, setConnection] = useState<'connecting' | 'online' | 'offline' | 'detached'>('connecting');
   const [monitoring, setMonitoring] = useState(true);
   const [revision, setRevision] = useState(0);
@@ -144,6 +148,10 @@ function App() {
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [project, setProject] = useState<string | null>(null);
+  const [mountedPaths,setMountedPaths]=useState<string[]>([]);
+  const mountedPathsRef=useRef<string[]>([]);
+  const [workbenchData,setWorkbenchData]=useState<{path:string;snapshot:WorkbenchSnapshot|null;error:string}|null>(null);
+  useEffect(()=>{let ended=false,timer:ReturnType<typeof globalThis.setTimeout>;setWorkbenchData(null);if(!project||!monitoring)return;const path=project;async function read(){try{const snapshot=await api.workbenchRead(path);if(!ended)setWorkbenchData({path,snapshot,error:''});}catch(error){if(!ended)setWorkbenchData({path,snapshot:null,error:errorText(error)});}if(!ended)timer=globalThis.setTimeout(read,2000);}void read();return()=>{ended=true;globalThis.clearTimeout(timer);};},[project,monitoring,revision]);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [events, setEvents] = useState<ExecutionEvent[]>([]);
   const [eventError, setEventError] = useState('');
@@ -195,7 +203,7 @@ function App() {
   const unavailableModelLabels = modelOptions.filter(value => !value.capability).map(value => value.label).join("、");
   const availableBudget = detail ? Math.max(0, detail.run.budget.limit - detail.run.budget.spent - detail.run.attempts.filter(attempt => !attempt.settled).reduce((sum, attempt) => sum + attempt.reservation, 0)) : null;
   const visible = records.filter(record => record.workspace === project);
-  const projects = Array.from(new Set(records.map(record => record.workspace))).map(path => ({
+  const projects = Array.from(new Set([...mountedPaths,...records.map(record => record.workspace)])).map(path => ({
     path, tasks: records.filter(record => record.workspace === path),
     managed: records.some(record => record.workspace === path && record.workspaceKind === 'managed')
   }));
@@ -227,7 +235,7 @@ function App() {
         const generation = conversationGeneration.current;
         const [result, durable, goals, chats] = await Promise.all([api.list(), api.runtimeList(), api.orchestrationList(), api.conversationList()]);
         if (ended) return;
-        const ordered = conversationTaskViews(durable, result, goals, chats);
+        const ordered = conversationTaskViews(durable, result.filter(record=>!record.scheduledBinding), goals, chats);
         setExecutions(result); setRuntimes(durable); setSessions(current => mergeGoalSessions(current, [...goals, ...chats.map(value => value.active.session)]));
         if (generation === conversationGeneration.current) {
           setConversations(chats);
@@ -239,7 +247,7 @@ function App() {
           }
         }
 
-        setProject(current => current && ordered.some(item => item.workspace === current) ? current : null);
+        setProject(current => current && (mountedPathsRef.current.includes(current)||ordered.some(item => item.workspace === current)) ? current : null);
         setConnection('online'); setConnectionError(''); setLastSync(new Date().toISOString());
         const pendingRecord = pendingRef.current && goals.find(item => item.id === pendingSessionIdRef.current);
         if (pendingRecord) { pendingRef.current = null; pendingSessionIdRef.current = null; setPending(null); setComposer(false); setSelected(pendingRecord.id); setProject(pendingRecord.workspace); setCollapsed(current => { const next = new Set(current); next.delete(pendingRecord.workspace); return next; }); setActionError(''); }
@@ -525,7 +533,9 @@ function App() {
     if (!pendingRef.current) setPrompt(goal);
   }
   function selectTask(record: TaskRecord) { setSelected(record.id); setProject(record.workspace); setComposer(false); }
+  async function openProjectDirectory(path:string) { try { await api.openProjectDirectory(path); } catch(error) { setActionError(errorText(error)); } }
   async function openWorkspace(id: string) { try { await api.openWorkspace(id); } catch (error) { setActionError(errorText(error)); } }
+  async function mountProject(){try{const path=await api.chooseWorkspace();if(!path)return;if(!path.startsWith('/'))throw Error('项目目录须使用绝对路径。');const observation=await api.workbenchRead(path),canonicalPath=observation.project.path;const mounted=[...new Set([...mountedPathsRef.current,canonicalPath])];mountedPathsRef.current=mounted;setMountedPaths(mounted);setProject(canonicalPath);setSelected(null);setComposer(false);}catch(error){setActionError(errorText(error));}}
   async function chooseWorkspace() { try { const path = await api.chooseWorkspace(); if (path) setWorkspace(path); } catch (error) { setActionError(errorText(error)); } }
   async function chooseSpec() { try { const path = await api.chooseVerificationSpec(); if (path) setSpecPath(path); } catch (error) { setVerificationError(errorText(error)); } }
   function modelConfig(): ModelConfig {
@@ -604,6 +614,7 @@ function App() {
     <aside className="sidebar" aria-label="项目与任务">
       <button className="brand" aria-label="返回首页" onClick={() => { setProject(null); setSelected(null); setComposer(false); }}><span className="brand-mark"><Icon name="agent" size={21}/></span>Supervisor</button>
       <button className="nav-item new-task" onClick={() => newTask()}><Icon name="plus"/><span>新任务</span></button>
+      <button className="nav-item" onClick={()=>{void mountProject();}}><Icon name="folder"/><span>挂载项目目录</span></button>
       <div className="eyebrow">Projects / 项目</div>
       <nav className="project-list" aria-label="按工作目录管理任务">{projects.length ? projects.map(item => <section className="project-group" key={item.path}>
         <div className={`project-row ${project === item.path ? 'active' : ''}`}>
@@ -618,7 +629,7 @@ function App() {
       <div className="titlebar">SUPERVISOR / LOCAL WORKSPACE</div>
       <header className={`topbar ${currentProject ? 'project-topbar' : ''}`}><div className="heading">{currentProject ? <><div className="project-title"><Icon name="folder" size={21}/><h1 title={projectName(currentProject)}>{projectName(currentProject)}</h1>{currentProject.managed && <span className="pill">暂存工作区</span>}</div><p className="project-directory mono" title={currentProject.path}>{currentProject.path}</p></> : composer ? <><h1>新任务</h1><p>选择项目目录，或使用独立暂存工作区。</p></> : <><div className="eyebrow">Supervisor</div><h1>让每一次执行，都有迹可循。</h1><p>持久任务 · 恢复核对 · 独立验收前不宣告交付</p></>}</div>
         <div className="toolbar"><span className="connection" role="status"><i className={`dot ${online ? '' : 'offline'}`}/>{online ? '后台已连接' : connection === 'connecting' ? '正在连接' : connection === 'detached' ? '界面已断开' : '后台暂不可达'}</span>
-          {currentProject && <button className="button ghost" onClick={() => { void openWorkspace(currentProject.tasks[0]!.id); }}><Icon name="folder"/>打开目录</button>}
+          {currentProject && <button className="button ghost" onClick={() => { void openProjectDirectory(currentProject.path); }}><Icon name="folder"/>打开目录</button>}
           <button className="button ghost" onClick={refresh} aria-label="重新连接后台"><Icon name="refresh"/>重连</button>
           {online && <button className="button ghost" onClick={() => setMonitoring(false)}>断开界面</button>}
           <button className="button primary" onClick={() => newTask(project)}><Icon name="plus"/>{project ? '在此项目新建' : '新任务'}</button>
@@ -650,8 +661,9 @@ function App() {
           <div className="composer-footer"><p>主控输出是需求与计划提案。<br/>执行及独立验收通过后才可确认交付。</p><button className="button primary" type="submit" disabled={!online || busy || (!pending && (!selectedModel || !selectedModel.reasoningEfforts.includes(effort) || !prompt.trim()))}>{busy ? '正在提交…' : pending ? '重试同一请求' : '分析需求'}<Icon name="arrow"/></button></div>
         </form>}
         <div className="board-head"><h2>{currentProject ? '项目任务' : '项目'}<span className="pill">{currentProject ? `${visible.length} 个任务` : `${projects.length} 个项目`}</span></h2>{currentProject && <span className="subtle">{visible.filter(active).length} 执行中</span>}</div>
-        {!currentProject && projects.length > 0 ? <div className="project-grid">{projects.map(item => <button className="project-card" key={item.path} onClick={() => { setProject(item.path); setSelected(null); setComposer(false); }} aria-label={`打开项目 ${projectName(item)}`}><div className="project-card-title"><Icon name="folder" size={20}/><strong>{projectName(item)}</strong>{item.managed && <span className="pill">暂存</span>}<Icon name="arrow"/></div><p className="mono" title={item.path}>{item.path}</p><span>{item.tasks.length} 个任务 · {item.tasks.filter(active).length} 执行中</span></button>)}</div> : visible.length ? <div className="grid">{visible.map(record => <button key={record.id} className={`agent-card ${selected === record.id ? 'selected' : ''}`} onClick={() => selectTask(record)} aria-label={`查看任务：${record.prompt}`}><div className="agent-top"><span className="agent-icon"><Icon name="agent" size={25}/></span><span className="pill">{record.session ? '需求会话' : record.runtime ? '持久任务' : 'Codex'}</span></div><div className="agent-role">{record.session ? '主控 / 需求与计划提案' : record.runtime ? '监督任务 / 固定步骤' : '执行 Agent / 单次尝试'}</div><h3>{record.prompt}</h3><Status record={record} deliveryLabel={selected === record.id ? deliveryLabel : ''}/><div className="agent-excerpt">{(record.error ? record.session ? describeGoalProblem(record.error) : describeTaskError(record.error) : '') || record.message || (record.runtime ? `${Math.min(record.runtime.cursor + 1, record.runtime.definition.steps.length)} / ${record.runtime.definition.steps.length} 步 · ${record.runtime.definition.steps[record.runtime.cursor]?.kind || '执行步骤已结束'}` : record.session ? record.session.phase === 'thinking' ? '主控正在分析需求，尚未派发执行。' : '等待主控需求与计划提案。' : '等待执行器事件。')}</div><div className="agent-bottom"><span title={record.workspace}>{record.workspaceKind === 'managed' ? '暂存工作区' : basename(record.workspace)}</span><span>{record.usageStatus === 'reported' && record.usage ? `${count(record.usage.totalTokens)} tokens${record.runtime ? ' · 当前尝试' : ''}` : record.session ? `已记录 ${record.session.jobs.length} 次主控分析` : record.runtime && !record.execution ? '执行阶段未调用模型' : '用量待回报'}</span></div></button>)}</div>
-          : <div className="empty"><Icon name="agent" size={36}/><h2>从一个明确的目标开始</h2><p>选择已有项目，或直接描述目标。没有项目目录时，Supervisor 会自动创建暂存工作区。</p><button className="button primary" onClick={() => newTask(project)}><Icon name="plus"/>创建第一个任务</button></div>}
+        {!currentProject && projects.length > 0 ? <div className="project-grid">{projects.map(item => <button className="project-card" key={item.path} onClick={() => { setProject(item.path); setSelected(null); setComposer(false); }} aria-label={`打开项目 ${projectName(item)}`}><div className="project-card-title"><Icon name="folder" size={20}/><strong>{projectName(item)}</strong>{item.managed && <span className="pill">暂存</span>}<Icon name="arrow"/></div><p className="mono" title={item.path}>{item.path}</p><span>{item.tasks.length} 个任务 · {item.tasks.filter(active).length} 执行中</span></button>)}</div> : visible.length ? <AgentWorkbench projectPath={project!} parents={visible} executions={executions} snapshot={workbenchData?.path===project?workbenchData.snapshot:null} readError={workbenchData?.path===project?workbenchData.error:''} connection={connection} selected={selected} onSelect={selectTask}/>
+
+          : <div className="empty"><Icon name="agent" size={36}/><h2>{project?'项目尚无任务':'从一个明确的目标开始'}</h2><p>{project?'该目录已在本窗口挂载；尚未创建持久任务。':'选择已有项目，或直接描述目标。没有项目目录时，Supervisor 会自动创建暂存工作区。'}</p><button className="button primary" onClick={() => newTask(project)}><Icon name="plus"/>创建第一个任务</button></div>}
         {!currentProject && !composer && <div className="single-note"><i className="dot"/>任务按项目目录管理；选择项目继续工作。</div>}
       </section>
       {goalSession && <aside className="detail goal-detail" aria-label="主控需求会话"><header className="detail-header"><div className="detail-title"><h2>需求与执行计划</h2><button className="icon-button" aria-label="关闭需求详情" onClick={() => setSelected(null)}><Icon name="close"/></button></div><p className="detail-goal">{goalSession.goal}</p><span className={`agent-status ${goalSession.phase === 'blocked' ? 'failed' : goalSession.phase === 'thinking' ? '' : 'stopped'}`}><i className="dot"/>{goalSession.phase === 'thinking' && goalSession.runtimeId ? '主控恢复分析中' : goalPhaseLabels[goalSession.phase]}</span></header><div className="detail-body">

@@ -1,0 +1,35 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import type {GoalSession} from '../../packages/contracts/p5.js';
+import type {RuntimeRecord} from '../../packages/contracts/p3.js';
+import type {ExecutionRecord} from '../../packages/contracts/p2.js';
+import {taskViews} from '../../apps/desktop/presentation.js';
+import {AgentWorkbench} from '../../apps/desktop/agent-workbench.js';
+import {agentExecutionStatus,projectAgentCards,workbenchColumns,parentWorkbenchStatus} from '../../apps/desktop/workbench-projection.js';
+const createdAt = '2026-10-10T12:00:00.000Z';
+function goal(id:string, workspace='/project'):GoalSession {
+  return {id,projectId:'project',workspace,workspaceKind:'project',revision:1,goal:'Requested result '+id,phase:'ready',messages:[],jobs:[],proposal:null,runtimeId:null,error:null,createdAt,updatedAt:createdAt,config:{model:'model',effort:'high',reservation:20,timeoutMs:1000},maxContextChars:60000};
+}
+function runtime(session:GoalSession):RuntimeRecord {
+  return {id:session.id,engine:'local-v1',workflowVersion:1,projectionVersion:1,projectId:session.projectId,runId:session.id,workspace:session.workspace,workspaceKind:session.workspaceKind,definition:{type:'submit',commandId:'submit-'+session.id,goal:session.goal,tokenLimit:100,verificationReserve:20,steps:[{id:'work',kind:'input',prompt:'Required input'}]},cursor:0,phase:'ready',paused:false,cancelled:false,createdAt,updatedAt:createdAt,error:null,inputs:{},checkpointId:null};
+}
+
+function execution(parent:RuntimeRecord):ExecutionRecord{return {id:'child',commandId:'claim',projectId:parent.projectId,runId:parent.runId,attemptId:'child',workspace:'/isolated-child',workspaceKind:'project',prompt:'<script>untrusted task text</script>',model:'fixture-no-model',effort:'low',images:[],state:'completed',createdAt,updatedAt:createdAt,deadline:createdAt,timeoutMs:1000,tokenLimit:100,reservation:20,verificationReserve:20,identity:null,pid:null,threadId:null,turnId:null,lastEventSeq:0,message:'Explicit projection fixture, never process evidence',diff:'',error:null,usage:null,usageStatus:'unknown',stopConfirmed:false,cancelRequested:false,artifactId:null,protocolVersion:null,schemaDigest:null,scheduledBinding:{schedulerId:'scheduler',claimId:'claim',operationId:'operation',owner:'fixture',projectId:parent.projectId,runId:parent.runId,attemptId:'child',planRevision:1,generation:1}};}
+test('P8-WBENCH-U01 terminal unknown stop and fees outrank completion while offline remains last observation',()=>{
+ const parent=runtime(goal('parent')),e=execution(parent);assert.match(agentExecutionStatus(e,'online').status,/待核对/);assert.equal(agentExecutionStatus(e,'online').tone,'warning');
+ e.usageStatus='reported';e.usage={totalTokens:7,inputTokens:7,cachedInputTokens:0,outputTokens:0,reasoningOutputTokens:0};assert.match(agentExecutionStatus(e,'online').status,/待核对/);e.stopConfirmed=true;assert.match(agentExecutionStatus(e,'online').status,/尚不表示验收/);assert.match(agentExecutionStatus(e,'offline').status,/离线/);e.state='interrupted';assert.match(agentExecutionStatus(e,'online').status,/待核对/);
+});
+test('P8-WBENCH-U02 actual child binding scopes cards and React escapes untrusted text without child cancel controls',()=>{
+ const parent=runtime(goal('parent')),parents=taskViews([parent],[]),e=execution(parent);assert.equal(projectAgentCards('/project',parents,[e],null,'online').length,1);assert.equal(projectAgentCards('/other',parents,[e],null,'online').length,0);
+ const foreign=structuredClone(e);foreign.scheduledBinding!.runId='other';assert.equal(projectAgentCards('/project',parents,[foreign],null,'online').length,0);
+ const markup=renderToStaticMarkup(React.createElement(AgentWorkbench,{projectPath:'/project',parents,executions:[e],snapshot:null,readError:'真实读取失败',connection:'offline',selected:null,onSelect:()=>{throw Error('SSR must not mutate');}}));assert.ok(markup.includes('&lt;script&gt;'));assert.ok(!markup.includes('<script>'));assert.match(markup,/固定详情/);assert.match(markup,/最后观察/);assert.ok(!markup.includes('取消此Agent'));
+ assert.equal(workbenchColumns(660),2);assert.equal(workbenchColumns(888),4);assert.equal(workbenchColumns(180),1);
+});
+
+test('P8-WBENCH-U03 standalone parent retains unknown stop and cost warnings while runtime pause block and cancel remain scoped',()=>{
+ const r=runtime(goal('parent')),e=execution(r);delete e.scheduledBinding;
+ const project=()=>taskViews([],[e])[0]!;assert.match(parentWorkbenchStatus(project(),'online'),/核对/);e.stopConfirmed=true;assert.match(parentWorkbenchStatus(project(),'online'),/核对/,'Known stop does not clear unknown accounting');e.usageStatus='reported';e.usage={totalTokens:7,inputTokens:7,cachedInputTokens:0,outputTokens:0,reasoningOutputTokens:0};assert.match(parentWorkbenchStatus(project(),'online'),/尚不表示验收/);e.stopConfirmed=false;assert.match(parentWorkbenchStatus(project(),'online'),/核对/,'Known cost does not confirm the writer stopped');assert.match(parentWorkbenchStatus(project(),'offline'),/最后观察/);
+ r.phase='paused';r.paused=true;assert.match(parentWorkbenchStatus(taskViews([r],[])[0]!,'online'),/暂停/);r.error='Explicit runtime block';assert.match(parentWorkbenchStatus(taskViews([r],[])[0]!,'online'),/受阻/);r.error=null;r.cancelled=true;assert.match(parentWorkbenchStatus(taskViews([r],[])[0]!,'online'),/取消.*核对/);
+});

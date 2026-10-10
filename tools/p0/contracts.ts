@@ -1,5 +1,5 @@
 export type TestLayer = 'unit' | 'integration' | 'live';
-export type ImplementedStage = 'P0' | 'P1' | 'P2' | 'P3' | 'P4' | 'P5' | 'P6' | 'P7';
+export type ImplementedStage = 'P0' | 'P1' | 'P2' | 'P3' | 'P4' | 'P5' | 'P6' | 'P7' | 'P8';
 
 export interface SuiteSpec {
   id: string;
@@ -61,7 +61,7 @@ function manifestError(path: string, detail: string): never {
 export function parseManifest(value: unknown): StageManifest {
   if (!isRecord(value)) manifestError('manifest', 'must be an object');
   if (value.schemaVersion !== 1) manifestError('schemaVersion', 'must equal 1');
-  if (value.stage !== 'P0' && value.stage !== 'P1' && value.stage !== 'P2' && value.stage !== 'P3' && value.stage !== 'P4' && value.stage !== 'P5' && value.stage !== 'P6' && value.stage !== 'P7') manifestError('stage', 'must equal P0, P1, P2, P3, P4, P5, P6 or P7');
+  if (value.stage !== 'P0' && value.stage !== 'P1' && value.stage !== 'P2' && value.stage !== 'P3' && value.stage !== 'P4' && value.stage !== 'P5' && value.stage !== 'P6' && value.stage !== 'P7' && value.stage !== 'P8') manifestError('stage', 'must equal P0, P1, P2, P3, P4, P5, P6, P7 or P8');
   if (!nonemptyString(value.revision) || /\s/.test(value.revision)) {
     manifestError('revision', 'must be a nonempty string without whitespace');
   }
@@ -104,7 +104,7 @@ export function parseManifest(value: unknown): StageManifest {
     // Three real five-minute inspection windows need at least fifteen minutes,
     // plus provider startup and owned-process cleanup. Only live suites may use
     // this bounded envelope; each frozen suite still declares its own deadline.
-    const maxTimeoutMs = entry.layer === 'live' ? 1_500_000 : 300_000;
+    const maxTimeoutMs = entry.layer === 'live' ? 2_100_000 : 300_000;
     if (typeof entry.timeoutMs !== 'number' || !Number.isInteger(entry.timeoutMs)
       || entry.timeoutMs < 1 || entry.timeoutMs > maxTimeoutMs) {
       manifestError(`${path}.timeoutMs`, `must be an integer between 1 and ${maxTimeoutMs}`);

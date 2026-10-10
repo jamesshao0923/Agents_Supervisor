@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 2,
+  "stage": "P8",
+  "revision": "p8-workbench-host-developing-v1",
+  "caseIds": [
+    "p8.unit-workbench.001",
+    "p8.unit-workbench.002",
+    "p8.integration-workbench-read.001",
+    "p8.integration-workbench-read.002",
+    "p8.unit-workbench.003",
+    "p8.integration-mobile-host.001",
+    "p8.integration-mobile-host.002",
+    "p8.integration-mobile-host.003",
+    "p8.integration-mobile-android-host.001",
+    "p8.integration-mobile-android-host.002",
+    "p8.integration-ios-create-cancel.001",
+    "p8.integration-android-capture-cancel.001"
+  ],
+  "requiredRisks": [
+    "p8-workbench-projection",
+    "p8-workbench-read",
+    "p8-ios-host",
+    "p8-android-host",
+    "p8-ios-create-cancel",
+    "p8-android-capture-cancel"
+  ],
+  "coreRegression": [
+    "dev.integration-runner.003",
+    "dev.integration-runner.008",
+    "dev.integration-runner.012",
+    "dev.unit-boundaries.003"
+  ],
+  "gateStatus": "developing"
+}

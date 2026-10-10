@@ -1,3 +1,4 @@
+import {readWorkbench} from '../../packages/orchestration/workbench-reader.js';
 import { parseRuntimeAction } from '../../packages/contracts/p3.js';
 import { SupervisionController } from '../../packages/orchestration/supervision-controller.js';
 import { OrchestrationController } from '../../packages/orchestration/controller.js';
@@ -125,6 +126,7 @@ export async function startService(directory: string): Promise<{ socket: string;
           : request.method === 'supervision' ? await supervision!.dispatch(request.action)
           : request.method === 'conversation' ? await conversation!.dispatch(request.action)
           : request.method === 'runtime' ? cancelledRuntime ?? await runtime!.dispatch(request.action)
+          : request.method === 'workbench' ? await readWorkbench(store!,request.action)
           : request.method === 'health' ? { status: 'ready', stage: 'P5', requirementsReasoner:'codex-v1', conversationProtocol:'v1', supervisionProtocol:'v1', modelExecution: true, workspaceManagement: 'path-v1', durableRuntime: 'local-v1', runtime: await runtime!.health() }
           : (() => { throw new Error('Unknown request method'); })();
         if(request.method==='orchestration'&&request.action.type==='cancel')conversation!.cancelSession(request.action.sessionId);

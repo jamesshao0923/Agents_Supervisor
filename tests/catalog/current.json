@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-catalog-v23",
+  "revision": "dev-catalog-v24",
   "modules": [
     {
       "id": "dev-contracts",
@@ -446,7 +446,7 @@
       "id": "live-supervision-monitor",
       "layer": "live",
       "file": "dist/tests/live/supervision-monitor.test.js",
-      "timeoutMs": 1490000
+      "timeoutMs": 2040000
     },
     {
       "id": "unit-followup-evolution",
@@ -615,6 +615,42 @@
       "layer": "integration",
       "file": "dist/tests/integration/integration-inputs.test.js",
       "timeoutMs": 240000
+    },
+    {
+      "id": "unit-workbench",
+      "layer": "unit",
+      "file": "dist/tests/unit/workbench.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "integration-workbench-read",
+      "layer": "integration",
+      "file": "dist/tests/integration/workbench-read.test.js",
+      "timeoutMs": 90000
+    },
+    {
+      "id": "integration-mobile-host",
+      "layer": "integration",
+      "file": "dist/tests/integration/mobile-host.test.js",
+      "timeoutMs": 300000
+    },
+    {
+      "id": "integration-mobile-android-host",
+      "layer": "integration",
+      "file": "dist/tests/integration/mobile-android-host.test.js",
+      "timeoutMs": 300000
+    },
+    {
+      "id": "integration-ios-create-cancel",
+      "layer": "integration",
+      "file": "dist/tests/integration/ios-create-cancel.test.js",
+      "timeoutMs": 300000
+    },
+    {
+      "id": "integration-android-capture-cancel",
+      "layer": "integration",
+      "file": "dist/tests/integration/android-capture-cancel.test.js",
+      "timeoutMs": 300000
     }
   ],
   "cases": [
@@ -13533,6 +13569,222 @@
       "prerequisites": "Real modules SQLite FS managed Node output and stop; synthetic P2 completion/usage explicitly is not provider or final delivery evidence.",
       "assertions": "tests/integration/integration-inputs.test.ts :: P7-INTEGRATION-INPUT-I05 confirmed report independently rejects changed copies after known settlement without discarding stop cost or sealed history",
       "cleanup": "Close workers before stores, stop owned processes, preserve formal failure records",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-workbench.001",
+      "name": "P8-WBENCH-U01 terminal unknown stop and fees outrank completion while offline remains last observation",
+      "suiteId": "unit-workbench",
+      "module": "desktop",
+      "layer": "unit",
+      "covers": [
+        "p8-workbench-projection"
+      ],
+      "scenario": "P8-WBENCH-U01 terminal unknown stop and fees outrank completion while offline remains last observation",
+      "impactTags": [
+        "p8-workbench"
+      ],
+      "prerequisites": "Real production module, SQLite and Unix service; queued projection records are explicit fixtures, no model or desktop interaction claim",
+      "assertions": "tests/unit/workbench.test.ts :: P8-WBENCH-U01 terminal unknown stop and fees outrank completion while offline remains last observation",
+      "cleanup": "Stop owned service and close private database; preserve formal evidence",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-workbench.002",
+      "name": "P8-WBENCH-U02 actual child binding scopes cards and React escapes untrusted text without child cancel controls",
+      "suiteId": "unit-workbench",
+      "module": "desktop",
+      "layer": "unit",
+      "covers": [
+        "p8-workbench-projection"
+      ],
+      "scenario": "P8-WBENCH-U02 actual child binding scopes cards and React escapes untrusted text without child cancel controls",
+      "impactTags": [
+        "p8-workbench"
+      ],
+      "prerequisites": "Real production module, SQLite and Unix service; queued projection records are explicit fixtures, no model or desktop interaction claim",
+      "assertions": "tests/unit/workbench.test.ts :: P8-WBENCH-U02 actual child binding scopes cards and React escapes untrusted text without child cancel controls",
+      "cleanup": "Stop owned service and close private database; preserve formal evidence",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-workbench-read.001",
+      "name": "P8-WBENCH-I01 immutable real scheduler plan and queued execution project under parent without read-side mutations",
+      "suiteId": "integration-workbench-read",
+      "module": "service",
+      "layer": "integration",
+      "covers": [
+        "p8-workbench-read"
+      ],
+      "scenario": "P8-WBENCH-I01 immutable real scheduler plan and queued execution project under parent without read-side mutations",
+      "impactTags": [
+        "p8-workbench"
+      ],
+      "prerequisites": "Real production module, SQLite and Unix service; queued projection records are explicit fixtures, no model or desktop interaction claim",
+      "assertions": "tests/integration/workbench-read.test.ts :: P8-WBENCH-I01 immutable real scheduler plan and queued execution project under parent without read-side mutations",
+      "cleanup": "Stop owned service and close private database; preserve formal evidence",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-workbench-read.002",
+      "name": "P8-WBENCH-I02 actual typed Unix service read rejects extra fields and missing directory without creating tasks",
+      "suiteId": "integration-workbench-read",
+      "module": "service",
+      "layer": "integration",
+      "covers": [
+        "p8-workbench-read"
+      ],
+      "scenario": "P8-WBENCH-I02 actual typed Unix service read rejects extra fields and missing directory without creating tasks",
+      "impactTags": [
+        "p8-workbench"
+      ],
+      "prerequisites": "Real production module, SQLite and Unix service; queued projection records are explicit fixtures, no model or desktop interaction claim",
+      "assertions": "tests/integration/workbench-read.test.ts :: P8-WBENCH-I02 actual typed Unix service read rejects extra fields and missing directory without creating tasks",
+      "cleanup": "Stop owned service and close private database; preserve formal evidence",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-workbench.003",
+      "name": "P8-WBENCH-U03 standalone parent retains unknown stop and cost warnings while runtime pause block and cancel remain scoped",
+      "suiteId": "unit-workbench",
+      "module": "desktop",
+      "layer": "unit",
+      "covers": [
+        "p8-workbench-projection"
+      ],
+      "scenario": "P8-WBENCH-U03 standalone parent retains unknown stop and cost warnings while runtime pause block and cancel remain scoped",
+      "impactTags": [
+        "p8-workbench"
+      ],
+      "prerequisites": "Actual production modules. Mobile host cases require installed Xcode/Android toolchains; no installs/config changes or model/P4 business acceptance inferred.",
+      "assertions": "tests/unit/workbench.test.ts :: P8-WBENCH-U03 standalone parent retains unknown stop and cost warnings while runtime pause block and cancel remain scoped",
+      "cleanup": "Stop only owned service/processes/private devices; preserve observed failures and proof files",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-mobile-host.001",
+      "name": "P8M-HOST-I01 actual installed tool inventory distinguishes availability from unimplemented Android launch",
+      "suiteId": "integration-mobile-host",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-ios-host"
+      ],
+      "scenario": "P8M-HOST-I01 actual installed tool inventory distinguishes availability from unimplemented Android launch",
+      "impactTags": [
+        "p8-mobile-host"
+      ],
+      "prerequisites": "Actual production modules. Mobile host cases require installed Xcode/Android toolchains; no installs/config changes or model/P4 business acceptance inferred.",
+      "assertions": "tests/integration/mobile-host.test.ts :: P8M-HOST-I01 actual installed tool inventory distinguishes availability from unimplemented Android launch",
+      "cleanup": "Stop only owned service/processes/private devices; preserve observed failures and proof files",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-mobile-host.002",
+      "name": "P8M-HOST-I02 actual compiler failure preserves evidence and creates no device",
+      "suiteId": "integration-mobile-host",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-ios-host"
+      ],
+      "scenario": "P8M-HOST-I02 actual compiler failure preserves evidence and creates no device",
+      "impactTags": [
+        "p8-mobile-host"
+      ],
+      "prerequisites": "Actual production modules. Mobile host cases require installed Xcode/Android toolchains; no installs/config changes or model/P4 business acceptance inferred.",
+      "assertions": "tests/integration/mobile-host.test.ts :: P8M-HOST-I02 actual compiler failure preserves evidence and creates no device",
+      "cleanup": "Stop only owned service/processes/private devices; preserve observed failures and proof files",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-mobile-host.003",
+      "name": "P8M-HOST-I03 real frozen Swift app builds installs launches captures and shuts down only its new device",
+      "suiteId": "integration-mobile-host",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-ios-host"
+      ],
+      "scenario": "P8M-HOST-I03 real frozen Swift app builds installs launches captures and shuts down only its new device",
+      "impactTags": [
+        "p8-mobile-host"
+      ],
+      "prerequisites": "Actual production modules. Mobile host cases require installed Xcode/Android toolchains; no installs/config changes or model/P4 business acceptance inferred.",
+      "assertions": "tests/integration/mobile-host.test.ts :: P8M-HOST-I03 real frozen Swift app builds installs launches captures and shuts down only its new device",
+      "cleanup": "Stop only owned service/processes/private devices; preserve observed failures and proof files",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-mobile-android-host.001",
+      "name": "P8M-ANDROID-I01 real Java compilation failure preserves raw proof without creating any AVD",
+      "suiteId": "integration-mobile-android-host",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-android-host"
+      ],
+      "scenario": "P8M-ANDROID-I01 real Java compilation failure preserves raw proof without creating any AVD",
+      "impactTags": [
+        "p8-mobile-host"
+      ],
+      "prerequisites": "Actual production modules. Mobile host cases require installed Xcode/Android toolchains; no installs/config changes or model/P4 business acceptance inferred.",
+      "assertions": "tests/integration/mobile-android-host.test.ts :: P8M-ANDROID-I01 real Java compilation failure preserves raw proof without creating any AVD",
+      "cleanup": "Stop only owned service/processes/private devices; preserve observed failures and proof files",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-mobile-android-host.002",
+      "name": "P8M-ANDROID-I02 actual fixed APK chain boots exclusively new AVD installs launches captures and stops owned processes",
+      "suiteId": "integration-mobile-android-host",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-android-host"
+      ],
+      "scenario": "P8M-ANDROID-I02 actual fixed APK chain boots exclusively new AVD installs launches captures and stops owned processes",
+      "impactTags": [
+        "p8-mobile-host"
+      ],
+      "prerequisites": "Actual production modules. Mobile host cases require installed Xcode/Android toolchains; no installs/config changes or model/P4 business acceptance inferred.",
+      "assertions": "tests/integration/mobile-android-host.test.ts :: P8M-ANDROID-I02 actual fixed APK chain boots exclusively new AVD installs launches captures and stops owned processes",
+      "cleanup": "Stop only owned service/processes/private devices; preserve observed failures and proof files",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-ios-create-cancel.001",
+      "name": "P8M-CANCEL-I01 actual simctl create completion abort retains exact owned UUID before boot and conservatively records cleanup",
+      "suiteId": "integration-ios-create-cancel",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-ios-create-cancel"
+      ],
+      "scenario": "P8M-CANCEL-I01 actual simctl create completion abort retains exact owned UUID before boot and conservatively records cleanup",
+      "impactTags": [
+        "p8-mobile-host"
+      ],
+      "prerequisites": "Actual production modules. Mobile host cases require installed Xcode/Android toolchains; no installs/config changes or model/P4 business acceptance inferred.",
+      "assertions": "tests/integration/ios-create-cancel.test.ts :: P8M-CANCEL-I01 actual simctl create completion abort retains exact owned UUID before boot and conservatively records cleanup",
+      "cleanup": "Stop only owned service/processes/private devices; preserve observed failures and proof files",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-android-capture-cancel.001",
+      "name": "P8M-CANCEL-I02 actual final Android capture proof cancellation rejects completion and stops only own emulator and private adb",
+      "suiteId": "integration-android-capture-cancel",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-android-capture-cancel"
+      ],
+      "scenario": "P8M-CANCEL-I02 actual final Android capture proof cancellation rejects completion and stops only own emulator and private adb",
+      "impactTags": [
+        "p8-mobile-host"
+      ],
+      "prerequisites": "Actual production modules. Mobile host cases require installed Xcode/Android toolchains; no installs/config changes or model/P4 business acceptance inferred.",
+      "assertions": "tests/integration/android-capture-cancel.test.ts :: P8M-CANCEL-I02 actual final Android capture proof cancellation rejects completion and stops only own emulator and private adb",
+      "cleanup": "Stop only owned service/processes/private devices; preserve observed failures and proof files",
       "status": "active"
     }
   ]

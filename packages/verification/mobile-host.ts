@@ -1,0 +1,73 @@
+import { createHash, randomUUID } from 'node:crypto';
+import { mkdir, readFile, writeFile, realpath, lstat, readdir } from 'node:fs/promises';
+import { isAbsolute, join, relative, sep } from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
+import { spawnManagedProcess, captureProcessMember, type ProcessIntent, type ProcessIdentity, type ProcessResult, type ProcessMember } from '../process-control/index.js';
+import { assertCandidate, canonical, scanCandidate, type Candidate } from './candidate.js';
+
+const hash=(v:string|Buffer)=>createHash('sha256').update(v).digest('hex');
+function ensure(v:unknown,m:string):asserts v{if(!v)throw Error(m);}
+export interface MobileCommandProof { operationId:string; command:string; args:string[]; intent:ProcessIntent|null; identity:ProcessIdentity|null; result:ProcessResult|null; stdout:string; stderr:string }
+export interface MobileHostAvailability { platform:'ios'|'android'; status:'available'|'blocked'; reason:string; proofs:MobileCommandProof[] }
+export interface IOSRunRequest { jobId:string; candidatePath:string; bundleId:string; runtimeIdentifier:string; deviceTypeIdentifier:string; deploymentTarget:string; timeoutMs:number; signal?:AbortSignal }
+export interface IOSRunFacts { schemaVersion:1; platform:'ios'; jobId:string; sourceDigest:string; source:Candidate; scope:'build-install-launch-capture-only'; directory:string; deviceSet:string; deviceId:string|null; appPath:string|null; artifactFiles:Record<string,string>|null; artifactDigest:string|null; appProcess:ProcessMember|null; screenshot:{path:string;sha256:string}|null; shutdownConfirmed:boolean; commands:MobileCommandProof[]; proofFiles:Record<string,string>; error:string|null }
+export class MobileHostError extends Error {constructor(message:string,readonly facts:IOSRunFacts){super(message);}}
+/** Host-only deterministic simulator fixture adapter. No verdict or P4 authority. */
+export class MobileHost {
+ constructor(private readonly dataRoot:string,private readonly developerDirectory='/Applications/Xcode.app/Contents/Developer'){}
+ private async root(){ensure(isAbsolute(this.dataRoot),'Managed data root must be absolute');ensure(!(await lstat(this.dataRoot)).isSymbolicLink(),'Managed root symlink');const root=await realpath(this.dataRoot);ensure(root===this.dataRoot,'Managed root must be canonical');return root;}
+ private async command(cwd:string,command:string,args:string[],timeoutMs:number,proofs:MobileCommandProof[],signal?:AbortSignal):Promise<MobileCommandProof>{
+  const proof:MobileCommandProof={operationId:'mobile-'+randomUUID(),command,args,intent:null,identity:null,result:null,stdout:'',stderr:''};proofs.push(proof);
+  const path=join(cwd,proof.operationId+'.json');await writeFile(path,canonical(proof),{flag:'wx'});
+  const save=()=>writeFile(path,canonical(proof));
+  const child=await spawnManagedProcess({operationId:proof.operationId,command,args,cwd,env:{...process.env,DEVELOPER_DIR:this.developerDirectory},timeoutMs,onBeforeSpawn:async intent=>{proof.intent=intent;await save();},onIdentity:async identity=>{proof.identity=identity;await save();}});
+  let bytes=0;const collect=(key:'stdout'|'stderr',chunk:Buffer)=>{bytes+=chunk.length;if(bytes>32*1024*1024){void child.terminate();return;}proof[key]+=chunk.toString();};child.stdout.on('data',c=>collect('stdout',c));child.stderr.on('data',c=>collect('stderr',c));
+  const abort=()=>{void child.terminate();};signal?.addEventListener('abort',abort,{once:true});if(signal?.aborted)abort();
+  try{proof.result=await child.completion;await save();ensure(bytes<=32*1024*1024,'Mobile tool output capacity exceeded');ensure(proof.result.stopped&&proof.result.stop.status==='stopped','Mobile tool stop unresolved');return proof;}finally{signal?.removeEventListener('abort',abort);}
+ }
+ async probe(directory:string):Promise<MobileHostAvailability[]>{
+  await this.root();ensure(directory.startsWith(this.dataRoot+sep),'Probe must be in managed data');ensure(!relative(this.dataRoot,directory).split(sep).includes('..'),'Probe path escape');await mkdir(directory,{recursive:true});ensure(await realpath(directory)===directory,'Probe directory symlink');
+  const ios:MobileCommandProof[]=[],android:MobileCommandProof[]=[];
+  const result:MobileHostAvailability[]=[];
+  try{const v=await this.command(directory,'/usr/bin/xcodebuild',['-version'],15000,ios),r=await this.command(directory,'/usr/bin/xcrun',['simctl','list','runtimes','--json'],15000,ios);ensure(v.result?.exitCode===0&&r.result?.exitCode===0&&JSON.parse(r.stdout).runtimes.some((x:{isAvailable:boolean;identifier:string})=>x.isAvailable&&x.identifier.includes('.iOS-')),'Installed iOS simulator runtime unavailable');result.push({platform:'ios',status:'available',reason:'Installed Xcode and iOS runtime; build/app behavior still unverified',proofs:ios});}catch(e){result.push({platform:'ios',status:'blocked',reason:String(e),proofs:ios});}
+  // Android launch/build is not implemented in this first slice; distinguish that from missing SDK.
+  const sdk=join(process.env.HOME??'','Library/Android/sdk');
+  try{const p=await this.command(directory,join(sdk,'platform-tools/adb'),['version'],15000,android);ensure(p.result?.exitCode===0,'adb unavailable');for(const path of ['emulator/emulator','build-tools/36.0.0/aapt2','build-tools/36.0.0/d8','build-tools/36.0.0/apksigner','platforms/android-36/android.jar','system-images/android-36/google_apis/arm64-v8a/system.img'])ensure((await lstat(join(sdk,path))).isFile(),'Android dependency unavailable: '+path);result.push({platform:'android',status:'available',reason:'Installed tools and system image found; Android build/install/launch adapter not implemented or verified',proofs:android});}catch(e){result.push({platform:'android',status:'blocked',reason:String(e),proofs:android});}return result;
+ }
+ async runIOS(request:IOSRunRequest):Promise<IOSRunFacts>{
+  const root=await this.root();ensure(/^[a-zA-Z0-9_-]{1,120}$/.test(request.jobId),'Invalid mobile job id');ensure(/^[a-zA-Z][a-zA-Z0-9]*(\.[a-zA-Z][a-zA-Z0-9]*)+$/.test(request.bundleId),'Invalid app bundle identifier');ensure(/^\d{1,2}\.\d{1,2}$/.test(request.deploymentTarget),'Invalid deployment target');ensure(Number.isSafeInteger(request.timeoutMs)&&request.timeoutMs>=1000&&request.timeoutMs<=600000,'Invalid mobile deadline');
+  ensure(isAbsolute(request.candidatePath)&&request.candidatePath.startsWith(root+sep),'Candidate must be managed');
+  let at=root;for(const part of relative(root,request.candidatePath).split(sep)){ensure(part&&part!=='.'&&part!=='..','Candidate path escape');at=join(at,part);ensure(!(await lstat(at)).isSymbolicLink(),'Candidate path symlink');}
+  ensure(await realpath(request.candidatePath)===request.candidatePath,'Candidate path must be canonical');
+  const metadata=await lstat(join(request.candidatePath,'candidate.json'));ensure(metadata.isFile()&&!metadata.isSymbolicLink(),'Candidate metadata symlink or invalid file');const source=JSON.parse(await readFile(join(request.candidatePath,'candidate.json'),'utf8')) as Candidate;ensure(source.tree===join(request.candidatePath,'tree'),'Candidate tree is not managed frozen input');const tree=await lstat(source.tree);ensure(tree.isDirectory()&&!tree.isSymbolicLink()&&await realpath(source.tree)===source.tree,'Candidate tree symlink');await assertCandidate(source,false);
+  const sources=Object.keys(source.files).sort();ensure(sources.length>0&&sources.length<=64&&sources.every(s=>s.endsWith('.swift')),'Only complete pure Swift source candidates supported; Xcode projects/assets unsupported');
+  const directory=join(root,'mobile',request.jobId);await mkdir(join(root,'mobile'),{recursive:true});ensure(await realpath(join(root,'mobile'))===join(root,'mobile'),'Mobile parent symlink');await mkdir(directory,{mode:0o700});
+  const facts:IOSRunFacts={schemaVersion:1,platform:'ios',jobId:request.jobId,sourceDigest:source.digest,source,scope:'build-install-launch-capture-only',directory,deviceSet:join(directory,'device-set'),deviceId:null,appPath:null,artifactFiles:null,artifactDigest:null,appProcess:null,screenshot:null,shutdownConfirmed:false,commands:[],proofFiles:{},error:null};
+  await writeFile(join(directory,'owner.json'),canonical({jobId:request.jobId,generation:randomUUID(),sourceDigest:source.digest,createdAt:new Date().toISOString()}),{flag:'wx'});
+  const deadline=Date.now()+request.timeoutMs,save=async()=>{for(const name of await readdir(directory))if(name==='owner.json'||/^mobile-.*\.json$/.test(name)){const path=join(directory,name);facts.proofFiles[path]=hash(await readFile(path));}await writeFile(join(directory,'facts.json'),canonical(facts));};await save();
+  const run=async(command:string,args:string[],cleanup=false,retainCreation=false)=>{ensure(cleanup||!request.signal?.aborted,'Mobile operation cancelled');const remaining=cleanup?30000:deadline-Date.now();ensure(remaining>0,'Mobile deadline exhausted');const p=await this.command(directory,command,args,Math.min(remaining,cleanup?30000:180000),facts.commands,cleanup?undefined:request.signal);await save();ensure(cleanup||retainCreation||!request.signal?.aborted,'Mobile operation cancelled');ensure(cleanup||retainCreation||Date.now()<deadline,'Mobile deadline exhausted');ensure(p.result?.exitCode===0,'Mobile command failed: '+args.join(' ')+' '+p.stderr);return p;};
+  const sim=(args:string[],cleanup=false)=>run('/usr/bin/xcrun',['simctl','--set',facts.deviceSet,...args],cleanup,args[0]==='create');
+  try{
+   ensure(process.platform==='darwin'&&process.arch==='arm64','First iOS adapter requires Apple Silicon macOS');
+   const inventory=JSON.parse((await run('/usr/bin/xcrun',['simctl','list','runtimes','--json'])).stdout).runtimes as {identifier:string;isAvailable:boolean;supportedDeviceTypes:{identifier:string}[]}[];
+   const runtime=inventory.find(x=>x.identifier===request.runtimeIdentifier&&x.isAvailable);ensure(runtime?.supportedDeviceTypes.some(x=>x.identifier===request.deviceTypeIdentifier),'Unsupported runtime/device pair');
+   const sdk=(await run('/usr/bin/xcrun',['--sdk','iphonesimulator','--show-sdk-path'])).stdout.trim();ensure(isAbsolute(sdk),'Missing simulator SDK');
+   const app=join(directory,'artifact','Application.app');await mkdir(app,{recursive:true});facts.appPath=app;
+   await writeFile(join(app,'Info.plist'),`<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>${request.bundleId}</string><key>CFBundleExecutable</key><string>Application</string><key>CFBundleName</key><string>Application</string><key>CFBundlePackageType</key><string>APPL</string><key>CFBundleVersion</key><string>1</string><key>CFBundleShortVersionString</key><string>1.0</string><key>LSRequiresIPhoneOS</key><true/><key>MinimumOSVersion</key><string>${request.deploymentTarget}</string><key>UIDeviceFamily</key><array><integer>1</integer><integer>2</integer></array><key>UILaunchScreen</key><dict/></dict></plist>`,{flag:'wx'});
+   await run('/usr/bin/xcrun',['swiftc','-parse-as-library','-sdk',sdk,'-target',`arm64-apple-ios${request.deploymentTarget}-simulator`,...sources.map(s=>join(source.tree,s)),'-o',join(app,'Application')]);
+   await run('/usr/bin/codesign',['--force','--sign','-',app]);await assertCandidate(source,false);facts.artifactFiles=await scanCandidate(app);facts.artifactDigest=hash(canonical(facts.artifactFiles));await save();
+   await mkdir(facts.deviceSet,{mode:0o700});const created=await sim(['create','Supervisor-'+request.jobId,request.deviceTypeIdentifier,request.runtimeIdentifier]);facts.deviceId=created.stdout.trim();ensure(/^[A-Fa-f0-9-]{36}$/.test(facts.deviceId),'simctl did not return a new device UUID');await save();ensure(!request.signal?.aborted,'Mobile operation cancelled after device creation');ensure(Date.now()<deadline,'Mobile deadline exhausted after device creation');
+   const list=JSON.parse((await sim(['list','devices','--json'])).stdout);const device=(Object.values(list.devices) as {udid:string;name:string;state:string}[][]).flat().find(x=>x.udid===facts.deviceId);ensure(device?.name==='Supervisor-'+request.jobId&&device.state==='Shutdown','Owned new device registration mismatch');
+   await sim(['boot',facts.deviceId]);await sim(['bootstatus',facts.deviceId,'-b']);await sim(['install',facts.deviceId,app]);
+   const launch=await sim(['launch',facts.deviceId,request.bundleId]);ensure(launch.stdout.trim().startsWith(request.bundleId+': '),'Launched bundle mismatch');const pid=Number(launch.stdout.trim().match(/: (\d+)$/)?.[1]);ensure(Number.isSafeInteger(pid)&&pid>0,'Actual app launch PID missing');facts.appProcess=await captureProcessMember(pid);ensure(facts.appProcess,'Actual app process is absent');await save();
+   await sim(['spawn',facts.deviceId,'launchctl','list']);await delay(1500);ensure((await captureProcessMember(pid))?.startIdentity===facts.appProcess.startIdentity,'App stopped or PID changed before screenshot');
+   const screenshot=join(directory,'screenshot.png');await sim(['io',facts.deviceId,'screenshot',screenshot]);const png=await readFile(screenshot);ensure(png.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))&&png.length>1000,'Actual screenshot not PNG');facts.screenshot={path:screenshot,sha256:hash(png)};await assertCandidate(source,false);ensure(canonical(await scanCandidate(app))===canonical(facts.artifactFiles),'Built artifact changed');
+  }catch(error){facts.error=error instanceof Error?error.message:String(error);}
+  finally{
+   if(facts.deviceId){try{await sim(['shutdown',facts.deviceId],true);const devices=JSON.parse((await sim(['list','devices','--json'],true)).stdout).devices;const d=(Object.values(devices) as {udid:string;state:string}[][]).flat().find(x=>x.udid===facts.deviceId);ensure(d?.state==='Shutdown','Owned device shutdown unknown');if(facts.appProcess)ensure((await captureProcessMember(facts.appProcess.pid))?.startIdentity!==facts.appProcess.startIdentity,'Original app process is still alive');facts.shutdownConfirmed=true;}catch(e){facts.error=[facts.error,String(e)].filter(Boolean).join('; ');}}
+   await save();
+  }
+  if(!facts.error&&(request.signal?.aborted||Date.now()>=deadline)){facts.error=request.signal?.aborted?'Mobile operation cancelled':'Mobile deadline exhausted';await save();}
+  if(facts.error)throw new MobileHostError(facts.error,facts);return facts;
+ }
+}

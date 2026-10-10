@@ -100,7 +100,7 @@ test('catalog permits explained removed scope but refuses loss of necessary prof
 });
 
 test('profiles reject unknown stages stale references empty selection and uncovered necessary risks', () => {
-  assert.throws(() => parseProfile({ ...profile(), stage: 'P8' }), /stage/);
+  assert.throws(() => parseProfile({ ...profile(), stage: 'P9' }), /stage/);
   for (const key of ['caseIds', 'requiredRisks'] as const) assert.throws(() => parseProfile({ ...profile(), [key]: [] }));
   assert.throws(() => selectCases(catalog(), { ...profile(), caseIds: ['missing'] }), /unregistered case/);
   assert.throws(() => selectCases(catalog(), { ...profile(), requiredRisks: ['missing-risk'] }), /necessary risk/);
@@ -139,7 +139,7 @@ test('layer and impact selections never claim stage completion even when all sui
   assert.equal(plan.selection.mode, 'partial');
   assert.equal(selectCases(catalog(), profile(), { layer: 'unit' }).selection.mode, 'partial');
   assert.equal(selectCases(catalog(), profile()).selection.mode, 'stage');
-  assert.equal(selectCases(catalog(), {...profile(),stage:'P6',gateStatus:'developing'}).selection.mode,'partial');
+  for(const stage of ['P6','P7','P8'] as const) assert.equal(selectCases(catalog(), {...profile(),stage,gateStatus:'developing'}).selection.mode,'partial');
   assert.throws(()=>parseProfile({...profile(),gateStatus:'unknown'}),/gateStatus/);
   assert.throws(() => selectCases(catalog(), profile(), { modules: [''] }), /invalid string/);
 });

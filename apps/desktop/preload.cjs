@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('supervisor', Object.freeze({
   orchestrationAdmit: input => ipcRenderer.invoke('supervisor:orchestration-admit', input),
   orchestrationRestore: input => ipcRenderer.invoke('supervisor:orchestration-restore', input),
   orchestrationCancel: input => ipcRenderer.invoke('supervisor:orchestration-cancel', input),
+  workbenchRead: projectPath => ipcRenderer.invoke('supervisor:workbench-read',projectPath),
   runtimeList: () => ipcRenderer.invoke('supervisor:runtime-list'),
   runtimeInspect: runtimeId => ipcRenderer.invoke('supervisor:runtime-inspect', runtimeId),
   runtimeEvents: (runtimeId, after) => ipcRenderer.invoke('supervisor:runtime-events', runtimeId, after),
@@ -46,6 +47,7 @@ contextBridge.exposeInMainWorld('supervisor', Object.freeze({
   cancel: executionId => ipcRenderer.invoke('supervisor:cancel', executionId),
   reconcile: executionId => ipcRenderer.invoke('supervisor:reconcile', executionId),
   chooseWorkspace: () => ipcRenderer.invoke('supervisor:choose-workspace'),
+  openProjectDirectory: path => ipcRenderer.invoke('supervisor:open-project-directory', path),
   openWorkspace: id => ipcRenderer.invoke('supervisor:open-workspace', id),
   chooseImages: () => ipcRenderer.invoke('supervisor:choose-images')
 }));
