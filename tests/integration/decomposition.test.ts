@@ -1,3 +1,5 @@
+import {goalProposalSchema} from '../../packages/contracts/p5.js';
+import {parseReasonerOutput,validateReasonerSchema} from '../../packages/orchestration/reasoner-schema.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,mkdir,writeFile,rm,cp,chmod,unlink,symlink,realpath} from 'node:fs/promises';
@@ -37,4 +39,15 @@ test('P7-DECOMP-I05 actual stopped-style immutable files expose changes deletion
 test('P7-DECOMP-I06 empty source seed remains distinct from nonempty P4 evidence and unknown symlink bytes cannot pass',async()=>{
  const root=await realpath(await mkdtemp(join(tmpdir(),'sv-decomp-')));try{const source=join(root,'source'),out=join(root,'out');await mkdir(source);await mkdir(out);const seed=await captureGraphSeed(source,join(root,'seed'));await assert.rejects(captureCandidate(source,join(root,'empty-candidate')),/no deliverable/);await writeFile(join(out,'A.ts'),'actual');const candidate=await captureCandidate(out,join(root,'candidate'));assert.deepEqual(inspectDeclaredChanges({seed,candidate,declaration:decl('a','a.ts')}).violations,['A.ts']);assert.deepEqual(inspectDeclaredChanges({seed,candidate,declaration:decl('a','A.ts')}).violations,[]);await symlink('/tmp',join(candidate.tree,'alias'));assert.throws(()=>inspectDeclaredChanges({seed,candidate,declaration:decl('a','A.ts')}),/symlink/);
  }finally{await rm(root,{recursive:true,force:true});}
+});
+
+// Exercises the actual schema sent to the provider and existing resource domain.
+test('P7-DECOMP-I07 model schema distinguishes project file scopes from absolute shared resources',()=>{
+ const schema=validateReasonerSchema(goalProposalSchema(['user-1'],'graph-v1'));
+ const value={decision:'ready',summary:'One implementation',questions:[],facts:[{text:'Build',sourceId:'user-1',origin:'explicit'}],constraints:[],style:[],criteria:[{id:'check',description:'Actual behavior',kind:'command',target:'math.test.mjs',checks:['Arithmetic and invalid inputs']}],steps:[{id:'a',description:'Implement',dependencies:[],acceptanceIds:['check']}],decomposition:{schemaVersion:1,tasks:[decl('a','math.mjs')]}};
+ assert.doesNotThrow(()=>parseReasonerOutput(JSON.stringify(value),schema));
+ value.decomposition.tasks[0]!.resources=[{kind:'path',key:'math.mjs',mode:'write'}];assert.throws(()=>parseReasonerOutput(JSON.stringify(value),schema),/branch|pattern/);
+ value.decomposition.tasks[0]!.resources=[{kind:'path',key:'/shared/database',mode:'write'}];assert.doesNotThrow(()=>parseReasonerOutput(JSON.stringify(value),schema));assert.doesNotThrow(()=>project(value.decomposition.tasks,[{id:'a',dependencies:[],acceptanceIds:['check']}]));
+ value.decomposition.tasks[0]!.resources=[{kind:'path',key:'/shared/../database',mode:'write'}];assert.throws(()=>project(value.decomposition.tasks,[{id:'a',dependencies:[],acceptanceIds:['check']}]),/canonical/);
+ value.decomposition.tasks[0]!.resources=[{kind:'database',key:'shared-db',mode:'write'}];assert.doesNotThrow(()=>parseReasonerOutput(JSON.stringify(value),schema));
 });

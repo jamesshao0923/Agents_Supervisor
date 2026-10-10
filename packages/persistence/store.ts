@@ -1,3 +1,4 @@
+import {ScheduledLoopRepository} from './scheduled-loops.js';
 import { AuthorRoutingRepository } from './author-routing.js';
 import { TaskSchedulerRepository } from './task-scheduler.js';
 import { SupervisionRoutingRepository } from './supervision-routing.js';
@@ -48,6 +49,7 @@ export class SupervisorStore {
   private readonly db: DatabaseSync;
   readonly runtime: RuntimeRepository;
   readonly scheduler: TaskSchedulerRepository;
+  readonly scheduledLoops:ScheduledLoopRepository;
   readonly authorRouting: AuthorRoutingRepository;
   readonly supervisionRouting: SupervisionRoutingRepository;
   readonly goals: GoalRepository;
@@ -79,6 +81,7 @@ export class SupervisorStore {
     try { migrate(this.db); new VerificationLineageRepository(this.db).migrateLegacyBindings({commandId:'schema10-legacy-bindings'}); } catch (error) { this.db.close(); throw error; }
     this.runtime = new RuntimeRepository(this.db);
     this.scheduler = new TaskSchedulerRepository(this.db,this.root);
+    this.scheduledLoops=new ScheduledLoopRepository(this.db,this.root);
     this.authorRouting = new AuthorRoutingRepository(this.db,this.root);
     this.supervisionRouting = new SupervisionRoutingRepository(this.db,this.root,SUPERVISOR_ROUTING_POLICY_V1);
     this.goals = new GoalRepository(this.db,this.root);

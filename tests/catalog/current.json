@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-catalog-v29",
+  "revision": "dev-catalog-v30",
   "modules": [
     {
       "id": "dev-contracts",
@@ -722,6 +722,18 @@
       "id": "integration-ios-interaction",
       "layer": "integration",
       "file": "dist/tests/integration/ios-interaction.test.js",
+      "timeoutMs": 300000
+    },
+    {
+      "id": "integration-scheduled-loops",
+      "layer": "integration",
+      "file": "dist/tests/integration/scheduled-loops.test.js",
+      "timeoutMs": 300000
+    },
+    {
+      "id": "integration-scheduled-loop-generations",
+      "layer": "integration",
+      "file": "dist/tests/integration/scheduled-loop-generations.test.js",
       "timeoutMs": 300000
     }
   ],
@@ -14960,6 +14972,240 @@
       "prerequisites": "Actual installed native iOS simulator and toolchain; host fixture only, not P4 business verdict.",
       "assertions": "tests/integration/ios-interaction.test.ts :: P8M-IOS-INTERACT-I04 actual native screenshot boundary cancellation retains partial UI proof",
       "cleanup": "Stop owned processes/devices, close stores and preserve immutable evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-loops.001",
+      "name": "P7-NEST-I01 actual worker automatically advances Sequence nested loops Parallel then opens original integration without acceptance",
+      "suiteId": "integration-scheduled-loops",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-nested-loop"
+      ],
+      "scenario": "P7-NEST-I01 actual worker automatically advances Sequence nested loops Parallel then opens original integration without acceptance",
+      "impactTags": [
+        "p7-nested-loop"
+      ],
+      "prerequisites": "Real files/SQLite/managed Node where applicable; synthetic protocol data is not supplier success.",
+      "assertions": "tests/integration/scheduled-loops.test.ts :: P7-NEST-I01 actual worker automatically advances Sequence nested loops Parallel then opens original integration without acceptance",
+      "cleanup": "Stop owned processes and retain original failed evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-loops.002",
+      "name": "P7-NEST-I02 genuine equal output and iteration cap block rather than yield and repeated scans do not count rounds",
+      "suiteId": "integration-scheduled-loops",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-nested-loop"
+      ],
+      "scenario": "P7-NEST-I02 genuine equal output and iteration cap block rather than yield and repeated scans do not count rounds",
+      "impactTags": [
+        "p7-nested-loop"
+      ],
+      "prerequisites": "Real files/SQLite/managed Node where applicable; synthetic protocol data is not supplier success.",
+      "assertions": "tests/integration/scheduled-loops.test.ts :: P7-NEST-I02 genuine equal output and iteration cap block rather than yield and repeated scans do not count rounds",
+      "cleanup": "Stop owned processes and retain original failed evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-loops.003",
+      "name": "P7-NEST-I03 actual stopped unknown usage retains reservation and prevents automatic expansion or restart resend",
+      "suiteId": "integration-scheduled-loops",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-nested-loop"
+      ],
+      "scenario": "P7-NEST-I03 actual stopped unknown usage retains reservation and prevents automatic expansion or restart resend",
+      "impactTags": [
+        "p7-nested-loop"
+      ],
+      "prerequisites": "Real files/SQLite/managed Node where applicable; synthetic protocol data is not supplier success.",
+      "assertions": "tests/integration/scheduled-loops.test.ts :: P7-NEST-I03 actual stopped unknown usage retains reservation and prevents automatic expansion or restart resend",
+      "cleanup": "Stop owned processes and retain original failed evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-loops.004",
+      "name": "P7-NEST-I04 real prepared append joins parent rollback then restarts exactly once and rejects changed CAS or host source",
+      "suiteId": "integration-scheduled-loops",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-nested-loop"
+      ],
+      "scenario": "P7-NEST-I04 real prepared append joins parent rollback then restarts exactly once and rejects changed CAS or host source",
+      "impactTags": [
+        "p7-nested-loop"
+      ],
+      "prerequisites": "Real files/SQLite/managed Node where applicable; synthetic protocol data is not supplier success.",
+      "assertions": "tests/integration/scheduled-loops.test.ts :: P7-NEST-I04 real prepared append joins parent rollback then restarts exactly once and rejects changed CAS or host source",
+      "cleanup": "Stop owned processes and retain original failed evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-loops.005",
+      "name": "P7-NEST-I05 known local failed nested subtree does not stop unrelated admitted sibling worker execution",
+      "suiteId": "integration-scheduled-loops",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-nested-loop"
+      ],
+      "scenario": "P7-NEST-I05 known local failed nested subtree does not stop unrelated admitted sibling worker execution",
+      "impactTags": [
+        "p7-nested-loop"
+      ],
+      "prerequisites": "Real files/SQLite/managed Node where applicable; synthetic protocol data is not supplier success.",
+      "assertions": "tests/integration/scheduled-loops.test.ts :: P7-NEST-I05 known local failed nested subtree does not stop unrelated admitted sibling worker execution",
+      "cleanup": "Stop owned processes and retain original failed evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-loops.006",
+      "name": "P7-NEST-I06 parent budget and node projections never reset and bounded child exhaustion preserves final floors",
+      "suiteId": "integration-scheduled-loops",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-nested-loop"
+      ],
+      "scenario": "P7-NEST-I06 parent budget and node projections never reset and bounded child exhaustion preserves final floors",
+      "impactTags": [
+        "p7-nested-loop"
+      ],
+      "prerequisites": "Real files/SQLite/managed Node where applicable; synthetic protocol data is not supplier success.",
+      "assertions": "tests/integration/scheduled-loops.test.ts :: P7-NEST-I06 parent budget and node projections never reset and bounded child exhaustion preserves final floors",
+      "cleanup": "Stop owned processes and retain original failed evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-loops.007",
+      "name": "P7-NEST-I07 persisted local stop routes actual owned writer cancellation and never clears unknown charges",
+      "suiteId": "integration-scheduled-loops",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-nested-loop"
+      ],
+      "scenario": "P7-NEST-I07 persisted local stop routes actual owned writer cancellation and never clears unknown charges",
+      "impactTags": [
+        "p7-nested-loop"
+      ],
+      "prerequisites": "Real files/SQLite/managed Node where applicable; synthetic protocol data is not supplier success.",
+      "assertions": "tests/integration/scheduled-loops.test.ts :: P7-NEST-I07 persisted local stop routes actual owned writer cancellation and never clears unknown charges",
+      "cleanup": "Stop owned processes and retain original failed evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-loops.008",
+      "name": "P7-NEST-I08 actual child absolute deadline stops an owned writer and persists blocking without granting yield",
+      "suiteId": "integration-scheduled-loops",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-nested-loop"
+      ],
+      "scenario": "P7-NEST-I08 actual child absolute deadline stops an owned writer and persists blocking without granting yield",
+      "impactTags": [
+        "p7-nested-loop"
+      ],
+      "prerequisites": "Real files/SQLite/managed Node where applicable; synthetic protocol data is not supplier success.",
+      "assertions": "tests/integration/scheduled-loops.test.ts :: P7-NEST-I08 actual child absolute deadline stops an owned writer and persists blocking without granting yield",
+      "cleanup": "Stop owned processes and retain original failed evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-loops.009",
+      "name": "P7-NEST-I09 durable received change fences new scheduled reservations while explicit question and prior claim remain eligible",
+      "suiteId": "integration-scheduled-loops",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-nested-loop"
+      ],
+      "scenario": "P7-NEST-I09 durable received change fences new scheduled reservations while explicit question and prior claim remain eligible",
+      "impactTags": [
+        "p7-nested-loop"
+      ],
+      "prerequisites": "Real files/SQLite/managed Node where applicable; synthetic protocol data is not supplier success.",
+      "assertions": "tests/integration/scheduled-loops.test.ts :: P7-NEST-I09 durable received change fences new scheduled reservations while explicit question and prior claim remain eligible",
+      "cleanup": "Stop owned processes and retain original failed evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-loops.010",
+      "name": "P7-NEST-I10 actual repeated parallel body preserves current iteration dependencies and sealed input across restart",
+      "suiteId": "integration-scheduled-loop-generations",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-nested-loop"
+      ],
+      "scenario": "P7-NEST-I10 actual repeated parallel body preserves current iteration dependencies and sealed input across restart",
+      "impactTags": [
+        "p7-nested-loop"
+      ],
+      "prerequisites": "Real files/SQLite/managed Node where applicable; synthetic protocol data is not supplier success.",
+      "assertions": "tests/integration/scheduled-loop-generations.test.ts :: P7-NEST-I10 actual repeated parallel body preserves current iteration dependencies and sealed input across restart",
+      "cleanup": "Stop owned processes and retain original failed evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-loops.011",
+      "name": "P7-NEST-I11 two actual scheduler programs in one SQLite database keep iteration decisions isolated",
+      "suiteId": "integration-scheduled-loop-generations",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-nested-loop"
+      ],
+      "scenario": "P7-NEST-I11 two actual scheduler programs in one SQLite database keep iteration decisions isolated",
+      "impactTags": [
+        "p7-nested-loop"
+      ],
+      "prerequisites": "Real files/SQLite/managed Node where applicable; synthetic protocol data is not supplier success.",
+      "assertions": "tests/integration/scheduled-loop-generations.test.ts :: P7-NEST-I11 two actual scheduler programs in one SQLite database keep iteration decisions isolated",
+      "cleanup": "Stop owned processes and retain original failed evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-loops.012",
+      "name": "P7-NEST-I12 known failed original dependency blocks its pending child while unrelated actual sibling completes",
+      "suiteId": "integration-scheduled-loop-generations",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-nested-loop"
+      ],
+      "scenario": "P7-NEST-I12 known failed original dependency blocks its pending child while unrelated actual sibling completes",
+      "impactTags": [
+        "p7-nested-loop"
+      ],
+      "prerequisites": "Real files/SQLite/managed Node where applicable; synthetic protocol data is not supplier success.",
+      "assertions": "tests/integration/scheduled-loop-generations.test.ts :: P7-NEST-I12 known failed original dependency blocks its pending child while unrelated actual sibling completes",
+      "cleanup": "Stop owned processes and retain original failed evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-decomposition.007",
+      "name": "P7-DECOMP-I07 model schema distinguishes project file scopes from absolute shared resources",
+      "suiteId": "integration-decomposition",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-decomposition"
+      ],
+      "scenario": "P7-DECOMP-I07 model schema distinguishes project file scopes from absolute shared resources",
+      "impactTags": [
+        "p7-decomposition"
+      ],
+      "prerequisites": "Real files/SQLite/managed Node where applicable; synthetic protocol data is not supplier success.",
+      "assertions": "tests/integration/decomposition.test.ts :: P7-DECOMP-I07 model schema distinguishes project file scopes from absolute shared resources",
+      "cleanup": "Stop owned processes and retain original failed evidence.",
       "status": "active"
     }
   ]

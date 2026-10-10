@@ -36,6 +36,7 @@ export class ScheduledResultPublisher {
   const scheduler=this.store.scheduler.get(schedulerId);if(scheduler.state==='drained'&&scheduler.fence==='released')return true;
   const runtime=this.store.runtime.get(scheduler.plan.runtimeId),scope={projectId:scheduler.plan.projectId,runId:scheduler.plan.runId},run=this.store.query({type:'run',...scope}) as Run;
   if(scheduler.state!=='active'||scheduler.fence!=='held'||runtime.paused||runtime.cancelled||!['ready','running'].includes(run.status))return false;
+  const loop=this.store.scheduledLoops.inspect(schedulerId);if(loop&&loop.frames.find(f=>f.key===loop.rootKey)?.state!=='yielded')return false;
   const claims=this.store.scheduler.claims(schedulerId),operations=this.store.scheduler.operations(schedulerId),ledger=this.store.taskResults.inspect(scope);
   if(run.attempts.some(attempt=>!attempt.settled||attempt.status==='running')||run.operations.some(operation=>operation.status!=='confirmed')||run.leases.some(lease=>!lease.released)||this.store.scheduler.leases().some(lease=>claims.some(claim=>claim.id===lease.claimId)&&lease.state==='held'))return false;
   for(const task of scheduler.plan.tasks){const claim=claims.find(claim=>claim.taskId===task.node.id&&claim.generation===task.generation);if(!task.node.required&&!claim)continue;if(!claim||operations.find(operation=>operation.claimId===claim.id)?.state!=='confirmed')return false;

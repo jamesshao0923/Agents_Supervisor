@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "stage": "P7",
-  "revision": "p7-integrated-mechanisms-v29",
+  "revision": "p7-nested-mechanisms-v30",
   "caseIds": [
     "p7.unit-task-results.001",
     "p7.unit-task-results.002",
@@ -101,7 +101,20 @@
     "p7.integration-parallel-admission.002",
     "p7.integration-parallel-admission.003",
     "p7.integration-parallel-admission.004",
-    "p7.integration-parallel-admission.005"
+    "p7.integration-parallel-admission.005",
+    "p7.integration-scheduled-loops.001",
+    "p7.integration-scheduled-loops.002",
+    "p7.integration-scheduled-loops.003",
+    "p7.integration-scheduled-loops.004",
+    "p7.integration-scheduled-loops.005",
+    "p7.integration-scheduled-loops.006",
+    "p7.integration-scheduled-loops.007",
+    "p7.integration-scheduled-loops.008",
+    "p7.integration-scheduled-loops.009",
+    "p7.integration-scheduled-loops.010",
+    "p7.integration-scheduled-loops.011",
+    "p7.integration-scheduled-loops.012",
+    "p7.integration-decomposition.007"
   ],
   "requiredRisks": [
     "p7-task-results",
@@ -118,7 +131,8 @@
     "p7-goal-graph",
     "p7-graph-admission",
     "p7-decomposition",
-    "p7-parallel-admission"
+    "p7-parallel-admission",
+    "p7-nested-loop"
   ],
   "coreRegression": [
     "dev.integration-runner.003",

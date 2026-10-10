@@ -1,3 +1,4 @@
+import {ScheduledLoopController} from './scheduled-loop-advance.js';
 import {ScheduledResultPublisher} from './scheduled-publication.js';
 import {createHash} from 'node:crypto';
 import type {SupervisorStore} from '../persistence/store.js';
@@ -10,11 +11,13 @@ import type {ScheduledClaim,ScheduledRecord} from '../contracts/p7-dispatch.js';
 export class ScheduledRuntimeWorker {
  private readonly manager:ExecutionManager;
  private readonly publisher:ScheduledResultPublisher;
+ private readonly loops:ScheduledLoopController;
  private readonly observed=new Map<string,number>();
  private readonly faults=new Map<string,string>();
  private closed=false;
  constructor(private readonly store:SupervisorStore,dataDir:string,private readonly owner:string,codex=process.env.SUPERVISOR_CODEX_PATH??'codex'){
   this.publisher=new ScheduledResultPublisher(store);
+  this.loops=new ScheduledLoopController(store);
   this.manager=new ExecutionManager(store,dataDir,codex,{scope:'scheduled',eligibility:id=>{const record=store.executionGet(id);if(!record.scheduledBinding)throw Error('Scheduled execution lacks claim binding');store.scheduler.eligible(record.scheduledBinding.operationId,record.scheduledBinding.owner);}});
  }
  async initialize():Promise<void>{await this.manager.initialize();}
@@ -40,20 +43,22 @@ export class ScheduledRuntimeWorker {
   const runtime=this.store.runtime.get(record.plan.runtimeId),run=this.store.query({type:'run',projectId:record.plan.projectId,runId:record.plan.runId}) as Run;
   const cancelled=runtime.cancelled||record.state==='cancelled'||run.status==='cancelled';
   const expired=Date.now()>=record.plan.limits.deadlineMs;
+  this.store.scheduledLoops.observeDeadlines(record.id);
   const publicationErrors:string[]=[];
   for(const claim of this.store.scheduler.claims(record.id)){
    const operation=this.store.scheduler.operation(claim.operationId);
-   if(operation.state==='confirmed'){if(!cancelled&&!runtime.paused&&record.state==='active'&&record.fence==='held')try{await this.publisher.publish(claim);}catch(error){publicationErrors.push(claim.taskId+': '+(error instanceof Error?error.message:String(error)));}continue;}
+   if(operation.state==='confirmed'){if(!cancelled&&!runtime.paused&&record.state==='active'&&record.fence==='held')try{await this.publisher.publish(claim);}catch(error){const reason=error instanceof Error?error.message:String(error);this.store.scheduledLoops.publicationBlocked(claim,reason);publicationErrors.push(claim.taskId+': '+reason);}continue;}
    if(['failed','cancelled'].includes(operation.state))continue;
    const execution=this.store.executionList().find(e=>e.id===claim.attemptId);
    if(execution){
-    if((cancelled||expired)&&!execution.stopConfirmed)await this.manager.cancel(execution.id);
+    if((cancelled||expired||this.store.scheduledLoops.shouldStopClaim(claim))&&!execution.stopConfirmed)await this.manager.cancel(execution.id);
     const latest=this.store.executionGet(execution.id);
     if((latest.stopConfirmed||latest.state==='unknown')&&this.observed.get(latest.id)!==latest.lastEventSeq){
-     const settled=await this.store.scheduler.reconcileExecution({commandId:'scheduled-observe:'+latest.id+':'+latest.lastEventSeq,claimId:claim.id,executionId:latest.id});this.observed.set(latest.id,latest.lastEventSeq);if(settled.state==='confirmed'&&!cancelled&&!runtime.paused&&record.state==='active'&&record.fence==='held')try{await this.publisher.publish(claim);}catch(error){publicationErrors.push(claim.taskId+': '+(error instanceof Error?error.message:String(error)));}
+     const settled=await this.store.scheduler.reconcileExecution({commandId:'scheduled-observe:'+latest.id+':'+latest.lastEventSeq,claimId:claim.id,executionId:latest.id});this.observed.set(latest.id,latest.lastEventSeq);if(settled.state==='confirmed'&&!cancelled&&!runtime.paused&&record.state==='active'&&record.fence==='held')try{await this.publisher.publish(claim);}catch(error){const reason=error instanceof Error?error.message:String(error);this.store.scheduledLoops.publicationBlocked(claim,reason);publicationErrors.push(claim.taskId+': '+reason);}
     }else if(latest.state==='queued'&&!latest.identity&&!latest.turnIntent&&!runtime.paused&&!cancelled&&!expired&&record.state==='active')await this.start(claim);
    }else if(['claimed','started'].includes(operation.state)&&!runtime.paused&&!cancelled&&!expired&&record.state==='active')await this.start(claim);
   }
+  if(!cancelled&&!runtime.paused&&!expired)try{await this.loops.advance(record.id);}catch(error){publicationErrors.push('loop: '+(error instanceof Error?error.message:String(error)));}
   let released=false;if(!cancelled&&!runtime.paused)try{released=this.publisher.releaseIfReady(record.id);}catch(error){publicationErrors.push(error instanceof Error?error.message:String(error));}
   if(released||record.state!=='active'||record.fence!=='held'||runtime.paused||cancelled||expired){if(publicationErrors.length)throw Error(publicationErrors.join('; '));return;}
   for(let count=0;count<record.plan.limits.maxActive;count++){
