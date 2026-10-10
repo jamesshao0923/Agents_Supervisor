@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-catalog-v26",
+  "revision": "dev-catalog-v27",
   "modules": [
     {
       "id": "dev-contracts",
@@ -663,6 +663,30 @@
       "layer": "integration",
       "file": "dist/tests/integration/material-intake.test.js",
       "timeoutMs": 60000
+    },
+    {
+      "id": "unit-android-interaction",
+      "layer": "unit",
+      "file": "dist/tests/unit/android-interaction.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "integration-android-interaction",
+      "layer": "integration",
+      "file": "dist/tests/integration/android-interaction.test.js",
+      "timeoutMs": 300000
+    },
+    {
+      "id": "integration-android-interaction-cancel",
+      "layer": "integration",
+      "file": "dist/tests/integration/android-interaction-cancel.test.js",
+      "timeoutMs": 300000
+    },
+    {
+      "id": "live-scheduled-parallel",
+      "layer": "live",
+      "file": "dist/tests/live/scheduled-parallel.test.js",
+      "timeoutMs": 1490000
     }
   ],
   "cases": [
@@ -13738,7 +13762,8 @@
       ],
       "scenario": "P8M-ANDROID-I01 real Java compilation failure preserves raw proof without creating any AVD",
       "impactTags": [
-        "p8-mobile-host"
+        "p8-mobile-host",
+        "p8-android-interaction"
       ],
       "prerequisites": "Actual production modules. Mobile host cases require installed Xcode/Android toolchains; no installs/config changes or model/P4 business acceptance inferred.",
       "assertions": "tests/integration/mobile-android-host.test.ts :: P8M-ANDROID-I01 real Java compilation failure preserves raw proof without creating any AVD",
@@ -13756,7 +13781,8 @@
       ],
       "scenario": "P8M-ANDROID-I02 actual fixed APK chain boots exclusively new AVD installs launches captures and stops owned processes",
       "impactTags": [
-        "p8-mobile-host"
+        "p8-mobile-host",
+        "p8-android-interaction"
       ],
       "prerequisites": "Actual production modules. Mobile host cases require installed Xcode/Android toolchains; no installs/config changes or model/P4 business acceptance inferred.",
       "assertions": "tests/integration/mobile-android-host.test.ts :: P8M-ANDROID-I02 actual fixed APK chain boots exclusively new AVD installs launches captures and stops owned processes",
@@ -13792,7 +13818,8 @@
       ],
       "scenario": "P8M-CANCEL-I02 actual final Android capture proof cancellation rejects completion and stops only own emulator and private adb",
       "impactTags": [
-        "p8-mobile-host"
+        "p8-mobile-host",
+        "p8-android-interaction"
       ],
       "prerequisites": "Actual production modules. Mobile host cases require installed Xcode/Android toolchains; no installs/config changes or model/P4 business acceptance inferred.",
       "assertions": "tests/integration/android-capture-cancel.test.ts :: P8M-CANCEL-I02 actual final Android capture proof cancellation rejects completion and stops only own emulator and private adb",
@@ -14049,6 +14076,78 @@
       "prerequisites": "Actual bounded local HTTP and files; not public research semantic verification.",
       "assertions": "tests/integration/material-intake.test.ts :: P8-MAT-I04 quote bytes remain bound to their exact digest under atomic replacement and valid UTF8 quotes stay exact",
       "cleanup": "Stop owned processes/server, close stores; retain formal report and prior failures.",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-android-interaction.001",
+      "name": "P8M-INTERACT-U01 strict owned-node actions reject shell input ambiguous missing and noneditable selectors",
+      "suiteId": "unit-android-interaction",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p8-android-interaction"
+      ],
+      "scenario": "P8M-INTERACT-U01 strict owned-node actions reject shell input ambiguous missing and noneditable selectors",
+      "impactTags": [
+        "p8-android-interaction"
+      ],
+      "prerequisites": "Installed Android tools for integration; actual owned emulator and typed UI actions, never model/P4 delivery fixture.",
+      "assertions": "tests/unit/android-interaction.test.ts :: P8M-INTERACT-U01 strict owned-node actions reject shell input ambiguous missing and noneditable selectors",
+      "cleanup": "Stop only owned emulator/private adb; retain screenshots, facts and partial failures.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-android-interaction.001",
+      "name": "P8M-INTERACT-I02 actual Android UI input tap save force-stop reopen retains exact text in app persistence",
+      "suiteId": "integration-android-interaction",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-android-interaction"
+      ],
+      "scenario": "P8M-INTERACT-I02 actual Android UI input tap save force-stop reopen retains exact text in app persistence",
+      "impactTags": [
+        "p8-android-interaction"
+      ],
+      "prerequisites": "Installed Android tools for integration; actual owned emulator and typed UI actions, never model/P4 delivery fixture.",
+      "assertions": "tests/integration/android-interaction.test.ts :: P8M-INTERACT-I02 actual Android UI input tap save force-stop reopen retains exact text in app persistence",
+      "cleanup": "Stop only owned emulator/private adb; retain screenshots, facts and partial failures.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-android-interaction-cancel.001",
+      "name": "P8M-INTERACT-I03 real cancellation during action capture preserves partial progress and forbids later actions",
+      "suiteId": "integration-android-interaction-cancel",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-android-interaction"
+      ],
+      "scenario": "P8M-INTERACT-I03 real cancellation during action capture preserves partial progress and forbids later actions",
+      "impactTags": [
+        "p8-android-interaction"
+      ],
+      "prerequisites": "Installed Android tools for integration; actual owned emulator and typed UI actions, never model/P4 delivery fixture.",
+      "assertions": "tests/integration/android-interaction-cancel.test.ts :: P8M-INTERACT-I03 real cancellation during action capture preserves partial progress and forbids later actions",
+      "cleanup": "Stop only owned emulator/private adb; retain screenshots, facts and partial failures.",
+      "status": "active"
+    },
+    {
+      "id": "p7.live-scheduled-parallel.001",
+      "name": "P7-PARALLEL-L01 real independent branches publish inputs and integrate before independent delivery",
+      "suiteId": "live-scheduled-parallel",
+      "module": "orchestration",
+      "layer": "live",
+      "covers": [
+        "p7-live-parallel-delivery"
+      ],
+      "scenario": "P7-PARALLEL-L01 real independent branches publish inputs and integrate before independent delivery",
+      "impactTags": [
+        "p7-parallel-live"
+      ],
+      "prerequisites": "Real configured Codex login and advertised model, actual managed independent workspaces and P4 review; no provider fixtures",
+      "assertions": "tests/live/scheduled-parallel.test.ts :: P7-PARALLEL-L01 real independent branches publish inputs and integrate before independent delivery",
+      "cleanup": "Stop only owned targets and worker, preserve all actual evidence and unknown accounting",
       "status": "active"
     }
   ]

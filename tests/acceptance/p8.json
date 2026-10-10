@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "stage": "P8",
-  "revision": "p8-workbench-host-developing-v1-v26",
+  "revision": "p8-android-interactions-v27",
   "caseIds": [
     "p8.unit-workbench.001",
     "p8.unit-workbench.002",
@@ -18,7 +18,10 @@
     "p8.integration-material-intake.001",
     "p8.integration-material-intake.002",
     "p8.integration-material-intake.003",
-    "p8.integration-material-intake.004"
+    "p8.integration-material-intake.004",
+    "p8.unit-android-interaction.001",
+    "p8.integration-android-interaction.001",
+    "p8.integration-android-interaction-cancel.001"
   ],
   "requiredRisks": [
     "p8-workbench-projection",

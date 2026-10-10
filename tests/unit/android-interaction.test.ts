@@ -1,0 +1,7 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {validateAndroidInteractions,selectAndroidNode,parseAndroidHierarchy} from '../../packages/verification/android-interactions.js';
+test('P8M-INTERACT-U01 strict owned-node actions reject shell input ambiguous missing and noneditable selectors',()=>{
+ assert.throws(()=>validateAndroidInteractions([{id:'same',kind:'tap',label:'save'},{id:'same',kind:'reopen'}]),/duplicate/);assert.throws(()=>validateAndroidInteractions([{id:'bad',kind:'inputText',label:'edit',text:'hello; id'}]),/metacharacters/);assert.throws(()=>validateAndroidInteractions([{id:'bad',kind:'reopen',packageName:'system'}]),/Unexpected/);assert.throws(()=>validateAndroidInteractions(Array.from({length:9},(_,i)=>({id:'s'+i,kind:'reopen'}))),/at most 8/);
+ const xml='<hierarchy><node package="own.app" class="android.widget.Button" content-desc="save" text="Save &amp; keep" bounds="[0,0][80,80]" enabled="true" clickable="true" focusable="true"/><node package="system.app" content-desc="save" bounds="[0,0][80,80]"/></hierarchy>',nodes=parseAndroidHierarchy(xml,'own.app');assert.equal(nodes.length,1);assert.equal(nodes[0]!.text,'Save & keep');assert.equal(selectAndroidNode(nodes,'save'),nodes[0]);assert.throws(()=>selectAndroidNode(nodes,'missing'),/missing/);assert.throws(()=>selectAndroidNode([...nodes,...nodes],'save'),/ambiguous/);assert.throws(()=>selectAndroidNode(nodes,'save',true),/not an editable/);assert.throws(()=>selectAndroidNode([{...nodes[0]!,visible:false}],'save'),/not visible/);
+});

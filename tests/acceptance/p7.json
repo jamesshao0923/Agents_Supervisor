@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "stage": "P7",
-  "revision": "p7-complete-input-transport-v5",
+  "revision": "p7-parallel-live-v27",
   "caseIds": [
     "p7.unit-task-results.001",
     "p7.unit-task-results.002",
@@ -70,7 +70,8 @@
     "p7.integration-integration-inputs.003",
     "p7.integration-scheduled-inputs.004",
     "p7.integration-integration-inputs.004",
-    "p7.integration-integration-inputs.005"
+    "p7.integration-integration-inputs.005",
+    "p7.live-scheduled-parallel.001"
   ],
   "requiredRisks": [
     "p7-task-results",
