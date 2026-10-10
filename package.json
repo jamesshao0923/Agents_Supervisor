@@ -22,7 +22,9 @@
     "verify:evidence": "node dist/tools/p0/cli.js check",
     "verify:release": "node tools/unavailable.mjs release",
     "desktop": "pnpm build && node tools/desktop.mjs",
-    "verify:p1": "pnpm build && node dist/tools/p0/cli.js run --stage P1"
+    "verify:p1": "pnpm build && node dist/tools/p0/cli.js run --stage P1",
+    "verify:p2": "pnpm build && node dist/tools/p0/cli.js run --stage P2",
+    "verify:p3": "pnpm build && node dist/tools/p0/cli.js run --stage P3"
   },
   "devDependencies": {
     "@types/node": "24.19.2",

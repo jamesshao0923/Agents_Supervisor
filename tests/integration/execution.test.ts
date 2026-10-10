@@ -249,7 +249,7 @@ test('execution startup reconciles actual managed writer without replay or settl
   assert.equal(recovered.state, 'interrupted'); assert.equal(recovered.stopConfirmed, true); assert.equal(recovered.usageStatus, 'unknown'); assert.equal(recovered.usage, null);
   assert.equal((await inspectProcess(child.identity)).status, 'stopped');
   assert.equal(ledger.attempts[0]?.settled, false); assert.equal(ledger.attempts[0]?.actual, null); assert.equal(ledger.budget.spent, 0);
-  assert.equal(ledger.operations[0]?.status, 'confirmed'); assert.equal(ledger.leases[0]?.released, true); assert.notEqual(ledger.status, 'succeeded');
+  assert.equal(ledger.operations[0]?.status, 'unknown', 'Stopped writer does not confirm external effects'); assert.equal(ledger.leases[0]?.released, true); assert.notEqual(ledger.status, 'succeeded');
   const stoppedBytes = await readFile(writes, 'utf8'); await delay(100); assert.equal(await readFile(writes, 'utf8'), stoppedBytes);
   assert.equal(stoppedBytes.split('writer-start\n').length - 1, 1); await assert.rejects(readFile(replayMarker), { code: 'ENOENT' });
   assert.ok(ledger.artifact); const artifact = JSON.parse(await readFile(ledger.artifact.path, 'utf8')) as { state: string; snapshot: { diff: string; diffDigest: string } };

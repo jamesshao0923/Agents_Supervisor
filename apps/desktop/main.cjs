@@ -18,7 +18,7 @@ function assertSender(event) {
   }
 }
 function id(value) {
-  if (typeof value !== 'string' || !value.trim() || value.length > 200) throw new Error('Invalid execution identifier');
+  if (typeof value !== 'string' || !value.trim() || value.length > 200 || value.includes('\0')) throw new Error('Invalid execution identifier');
   return value;
 }
 async function invoke(value) {
@@ -27,11 +27,32 @@ async function invoke(value) {
   return response.value;
 }
 function execution(action) { return invoke({ method: 'execution', action }); }
+function runtime(action) { return invoke({ method: 'runtime', action }); }
 function register(channel, handler) {
   ipcMain.handle(`supervisor:${channel}`, (event, ...args) => { assertSender(event); return handler(...args); });
 }
 function installBridge() {
   register('health', () => invoke({ method: 'health' }));
+  register('runtime-list', () => runtime({ type: 'list' }));
+  register('runtime-inspect', runtimeId => runtime({ type: 'inspect', runtimeId: id(runtimeId) }));
+  register('runtime-events', (runtimeId, after) => {
+    if (!Number.isSafeInteger(after) || after < 0) throw new Error('Invalid runtime event cursor');
+    return runtime({ type: 'events', runtimeId: id(runtimeId), after });
+  });
+  register('runtime-submit', async input => {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) return { accepted: false, error: 'Invalid durable task input' };
+    const keys = ['commandId', 'workspace', 'goal', 'tokenLimit', 'verificationReserve', 'steps'];
+    if (Object.keys(input).some(key => !keys.includes(key))) return { accepted: false, error: 'Unknown durable task input field' };
+    const action = { type: 'submit' };
+    for (const key of keys) if (input[key] !== undefined) action[key] = input[key];
+    const response = await request(dataDir, { id: randomUUID(), method: 'runtime', action });
+    return response.ok ? { accepted: true, record: response.value } : { accepted: false, error: response.error };
+  });
+  for (const type of ['pause', 'resume', 'cancel', 'reconcile']) register(`runtime-${type}`, (runtimeId, commandId) => runtime({ type, runtimeId: id(runtimeId), commandId: id(commandId) }));
+  register('runtime-input', (runtimeId, commandId, stepId, text) => {
+    if (typeof text !== 'string' || !text.trim() || text.length > 200000 || text.includes('\0')) throw new Error('Invalid runtime input');
+    return runtime({ type: 'input', runtimeId: id(runtimeId), commandId: id(commandId), stepId: id(stepId), text });
+  });
   register('list', () => execution({ type: 'list' }));
   register('inspect', executionId => execution({ type: 'inspect', executionId: id(executionId) }));
   register('events', (executionId, after) => {
@@ -53,7 +74,10 @@ function installBridge() {
   register('cancel', executionId => execution({ type: 'cancel', executionId: id(executionId) }));
   register('reconcile', executionId => execution({ type: 'reconcile', executionId: id(executionId) }));
   register('open-workspace', async executionId => {
-    const record = await execution({ type: 'inspect', executionId: id(executionId) });
+    executionId = id(executionId);
+    const record = executionId.startsWith('runtime-')
+      ? (await runtime({ type: 'inspect', runtimeId: id(executionId) })).runtime
+      : await execution({ type: 'inspect', executionId: id(executionId) });
     if (!(await stat(record.workspace)).isDirectory()) throw new Error('项目目录已不可用');
     const error = await shell.openPath(record.workspace);
     if (error) throw new Error(error);

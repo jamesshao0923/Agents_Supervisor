@@ -2,7 +2,7 @@
 
 面向 macOS 的长程 Agent 任务监督管理器。将目标转成可验收契约，监督执行、验证、修复与交付。首接 Codex，后续保留其他执行器接口。
 
-**当前阶段：P2 受控单次执行已完成真实运行验收与独立复核。** 已有独立 macOS 桌面薄切片、真实 Codex app-server、受管进程、SQLite 事件与用量账本。P3 持久工作流、P4 产品独立验证器及自主 Loop 尚未实现；执行结束保持“待验收”。
+**当前阶段：P3 持久运行已实现，205 项自动检查与桌面交互已通过，整机睡眠/唤醒待验收。** P0–P2 已通过此前阶段验收。P3 引入独立 Worker、版本化检查点及 outbox/inbox，同一任务多步执行共用领域预算。完整阶段是否放行以本文 P3 验收记录为准；P4 独立验证器及自主 Loop 尚未实现。
 
 ## 本地运行
 
@@ -23,26 +23,98 @@ pnpm desktop
 | `pnpm typecheck` | 只检查类型 |
 | `pnpm check:boundaries` | 检查领域依赖与开发验收工具的边界 |
 | `pnpm doctor` | 只读检查本地工具、登录状态和环境能力，保存 JSON 报告 |
-| `pnpm test:unit` | 按 P2 配置选择 unit 套件，输出独立证据 |
+| `pnpm test:unit` | 按 P3 配置选择 unit 套件，输出独立证据 |
 | `pnpm test:integration` | 运行真实文件、进程、探测与仓库检查，输出独立证据 |
-| `pnpm verify:stage` | 默认执行 P2 当前必要套件及所选回归（含真实模型调用），并逐项对账 |
+| `pnpm verify:stage` | 默认执行 P3 当前必要套件及所选回归（含真实模型调用），并逐项对账 |
 | `pnpm verify:p0` | 在当前候选上执行 P0 基座回归，不表示 P1 完成 |
 | `pnpm verify:stage --modules domain` | 按模块影响及核心回归选择，保守扩大到完整套件；结果是局部检查 |
 | `pnpm verify:stage --reason "修复原因"` | 运行新一轮，保留原因和原失败历史 |
 | `pnpm verify:evidence --run /absolute/path/to/run` | 对当前候选复验已有证据，追加检查结果 |
-| `pnpm test:live` | 调用真实 Codex，执行隔离工程修复、取消和截图识别；需登录及实际截图 |
+| `pnpm test:live` | 调用真实 Codex，验证工程修复、取消、截图、Worker 恢复和共享预算；需登录及实际截图 |
 | `pnpm verify:release` | 发布门禁尚未实现，明确非零退出 |
 | `pnpm verify:p1` | 当前候选的 P1 回归，不表示 P2 阶段通过 |
+| `pnpm verify:p2` | 当前候选的 P2 回归，不表示 P3 阶段通过 |
+| `pnpm verify:p3` | P3 完整自动检查；另需真实桌面、主机睡眠及独立审查 |
 | `pnpm supervisor serve --data .supervisor/local` | 启动本地 SQLite 与 Unix socket 服务；先执行 `pnpm build` |
 | `pnpm supervisor health --data .supervisor/local` | 查询实际后台健康状态 |
 
 `test:unit` 或 `test:integration` 通过只表示该层检查通过。阶段放行需要 `verify:stage` 全部必要检查通过以及独立审查。P1 及后续阶段不能借用 P0 的通过结果。
 
-测试用例按全局能力持续维护，允许有依据地新增、修改、合并和退役；不能只因上层使用了底层就认定覆盖了底层异常。[全局目录](tests/catalog/current.json) 保存稳定 ID、场景和风险映射，[P0](tests/acceptance/p0.json)/[P1](tests/acceptance/p1.json)/[P2](tests/acceptance/p2.json) 配置引用同一目录。选择时校验登记与源码声明，冻结后不从运行发现重建必要清单。当前按套件保守选测，未知影响扩大集合；局部结果 `stagePassed=false`，未选项目不算通过。迁移与用例变化见 [CHANGELOG](tests/catalog/CHANGELOG.md)。
+测试用例按全局能力持续维护，允许有依据地新增、修改、合并和退役；不能只因上层使用了底层就认定覆盖了底层异常。[全局目录](tests/catalog/current.json) 保存稳定 ID、场景和风险映射，[P0](tests/acceptance/p0.json)/[P1](tests/acceptance/p1.json)/[P2](tests/acceptance/p2.json)/[P3](tests/acceptance/p3.json) 配置引用同一目录。选择时校验登记与源码声明，冻结后不从运行发现重建必要清单。当前按套件保守选测，未知影响扩大集合；局部结果 `stagePassed=false`，未选项目不算通过。迁移与用例变化见 [CHANGELOG](tests/catalog/CHANGELOG.md)。
 
 [测试与验收用例的持续迭代](docs/architecture.md#测试与验收用例的持续迭代) 同时是 Supervisor 的关键产品设计。P1 提供项目用例修订、覆盖/替代关系、变更提案、快照发布、佐证产物引用和冻结计划的存储约束；产品独立复核与影响选择在 P4 接通，自主维护在 P6 接通。研发测试库与产品项目用例库分别管理。
 
-## P2 真实执行与桌面
+## P3 持久运行与故障恢复
+
+选定 `local-v1` 本地 SQLite 运行时。真实 Temporal Service/Worker 样板已跑通强杀恢复、幂等效果与历史回放；正式 macOS 部署额外需要受管数据库、schema 升级和备份恢复，首版暂缓接入。完整证据与后续部署路线见 [选型记录](docs/p3-temporal-decision.md)。项目只维护一套产品运行引擎，不将 Temporal 开发服务作为生产部署。
+
+- 监督服务、Worker、Codex 分属独立进程。退出桌面或服务重启保留已在运行的 Worker；Worker 失联时核对真实进程身份及旧写者，不能仅依赖心跳过期接管。
+- 一个 Run 使用固定、版本化的顺序步骤：`codex`、声明的 `input` 等待及有回执契约的 `http` 操作。后台目前串行执行 Activity；多 Agent 并行及自主 Loop 分别属于 P7/P6。
+- 提交与 outbox、认领与预算/尝试、回报与 inbox/投影/检查点分别保持 SQLite 事务原子性。恢复读取已完成的 Codex 回执，跨输入边界可建立新上下文；失联且结果不明的 turn 不自动重发。
+- 暂停只阻止新派发，允许已启动的操作收尾；取消传播到实际进程或 HTTP 请求。取消不能撤回远端已提交的数据；未知效果仍占据恢复门禁，不自动补偿。
+- 检查点记录工作流版本、契约版本、原冻结计划、候选引用、失败操作与累计预算。检查点是编排恢复记录，不是整台电脑或任意文件系统的可回滚快照。预算、未结算额度和失败历史不能通过重启清零。
+- 桌面新任务默认走持久运行，可见暂停、恢复、取消、核对恢复、等待输入、步骤位置和累计预算。旧 P2 任务仍可查看。所有任务继续按真实路径归属；无路径任务使用 `~/.supervisor/workspace/…`。
+
+桌面每次提交一个 Codex 步骤。预先声明的多步骤工作流通过 CLI 提交：
+
+```sh
+pnpm supervisor workflow --data .supervisor/local --file /absolute/path/workflow.json
+pnpm supervisor workflows --data .supervisor/local
+pnpm supervisor runtime --data .supervisor/local --runtime RUNTIME_ID
+pnpm supervisor pause --data .supervisor/local --runtime RUNTIME_ID
+pnpm supervisor resume --data .supervisor/local --runtime RUNTIME_ID
+pnpm supervisor input --data .supervisor/local --runtime RUNTIME_ID --step confirm --text "已确认的下一步输入"
+pnpm supervisor cancel-runtime --data .supervisor/local --runtime RUNTIME_ID
+pnpm supervisor reconcile-runtime --data .supervisor/local --runtime RUNTIME_ID
+pnpm supervisor runtime-events --data .supervisor/local --runtime RUNTIME_ID --after 0
+```
+
+`workflow.json` 示例，模型必须来自当前账户能力发现；省略 `workspace` 会创建暂存目录：
+
+```json
+{
+  "commandId": "durable-project-task-1",
+  "goal": "按已明确标准实现功能，等待输入后补充交付说明",
+  "tokenLimit": 340000,
+  "verificationReserve": 20000,
+  "steps": [
+    { "id": "implement", "kind": "codex", "prompt": "在当前目录实现已明确的功能并执行真实测试。", "model": "gpt-5.6-sol", "effort": "medium", "reservation": 150000, "timeoutMs": 300000 },
+    { "id": "confirm", "kind": "input", "prompt": "提供需要纳入说明的补充信息" },
+    { "id": "document", "kind": "codex", "prompt": "依据持久输入 confirm 和当前产物补充 README，保留已有源码。", "model": "gpt-5.6-sol", "effort": "medium", "reservation": 150000, "timeoutMs": 300000 }
+  ]
+}
+```
+
+HTTP 步骤要求端点返回 `{ operationId, payloadDigest, result }`。请求携带稳定 `Idempotency-Key` 和正文 SHA-256；查询端点通过 `operationId` 参数返回相同回执。只有实际支持幂等键的端点才能声明 `idempotent:true`，系统不会自动把任意 HTTP API 变成幂等。无回执或回执不匹配保持 unknown；不安全操作即使查询暂时返回 404 也不自动重发。
+
+未来接入 Temporal 时默认仅新 Run 切换；在途 Run 继续由 `local-v1` 执行，或在核对过的检查点建立有关联的新运行。SQLite 事件不自动转换为 Temporal History。P9 仍需从正式安装包验证生命周期、升级、备份与恢复。
+
+### P3 验收状态
+
+2026 年 10 月 10 日，最终冻结候选完整执行 **205/205 通过：123 单元 + 77 真实集成 + 5 真实 Codex 场景**，17 套件，151 秒，无失败、跳过、TODO 或未运行项。在原 184 个稳定 ID 上新增 21 个不同场景，按同一全局目录去重执行；未重新堆叠历史阶段清单。
+
+真实验证包括 Worker/服务强杀、HTTP 业务已提交但回报丢失、幂等操作一次效果、未知非幂等效果不重发、旧进程写者停止、取消不复活、检查点/冻结用例版本及预算连续性。真实 Codex 完成第一个文件后，在 runtime 回报前强杀 Worker，恢复使用原执行回执，保存输入后新建上下文完成第二个文件；另验证取消真实 turn。协议样例只用于模块边界检查，未替代这些 live 证据。
+
+桌面另经实际操作核对：提交真实文件任务、暂停、暂停时保存输入、恢复、断开重连、退出重开、检查点及累计预算显示。独立读取产物确认 `p3-desktop-check.txt` 为 `durable supervisor\n`；步骤结束显示“待独立验收”。UI 文案问题修正后重新构建、重开并再次完整执行 205 项。
+
+本地证据（均不入 Git）：
+
+- 最终自动运行：`.supervisor-dev/verification/2026-10-10T05-39-08-025Z-64031578-3e45-40ed-8caf-f1cc8b1a9790/`，含 JSON、HTML、JUnit、原始日志及真实模型/文件证据。候选 SHA-256：`a95237bec08b9a207906974abac3a12e2786f0bf8d648765174ec7ee2ae1a6db`，174 个文件。
+- 核心独立审查：`.supervisor-dev/p3-core-review/independent-final-review.json`；曾复现的所有权发布、旧控制器越界、未知工作区准入、取消后旧写者恢复问题均留有失败与修复后复验证据。
+- 桌面独立操作核对：`.supervisor-dev/p3-ui/independent-ui-review.json`、`final-workbench.png`；实际运行数据在 `.supervisor/p3-ui/`，用 `node tools/desktop.mjs --data .supervisor/p3-ui` 打开。
+- Temporal 样板：`.supervisor-dev/p3-temporal/`，测量、真实 History 与限制见选型记录。
+- 历史失败保留：`05-27` 冻结期间候选变化被拒绝，`05-30` 为旧 P2 健康响应断言导致 204/205；精确更新为 P3 能力响应后 `05-36` 为 205/205。UI 单行修正后再得到上述最终通过，未覆盖旧结果。
+
+复现前捕获真实空工作台截图，使用当前已登录 Codex 账户及固定 Node 版本：
+
+```sh
+SUPERVISOR_LIVE_SCREENSHOT=/absolute/path/supervisor-empty.png pnpm verify:p3
+pnpm verify:evidence --run .supervisor-dev/verification/2026-10-10T05-39-08-025Z-64031578-3e45-40ed-8caf-f1cc8b1a9790
+```
+
+**完整 P3 阶段尚未放行：真实主机睡眠/唤醒待完成。** SIGSTOP/SIGCONT 只证明进程暂停，自动报告的 `stagePassed` 仅指所冻结的自动清单。已准备等待输入、暂停且已保存输入、取消三个真实任务，基线及核验脚本保存在 `.supervisor-dev/p3-host-sleep/`；实际睡眠后依据 macOS 电源日志、原任务/预算/检查点及恢复后的单次步骤推进核对。没有实际睡眠记录时核验明确失败。此项完成前不能宣称全部恢复门禁通过；正式安装包生命周期仍属于 P9。
+
+## P2 真实执行与桌面（历史阶段）
 
 桌面使用 Electron 44.7.0 与 React 19.3.0。渲染器关闭 Node 集成、启用隔离和沙箱，只通过限定 IPC 操作后台。左侧按项目目录分组并在组内列出任务，中间自适应 3:4 Agent 卡片，右侧显示真实事件、执行器输出、thread/turn、用量和停止状态。工作区与事件面板独立滚动，取消操作保持可见。窗口关闭或退出桌面不会停止独立后台；重新打开按原执行编号恢复，不重放提示词。
 
@@ -57,7 +129,7 @@ pnpm desktop
 | 工具配置 | 本次执行关闭额外 apps/plugins、已配置 MCP、内置多 Agent 和网页搜索；不改全局配置 |
 | 预算 | 使用供应商原始累计 tokens（包含缓存输入），保留输入/缓存/输出细分；不是金额估算 |
 | 收尾 | 保存 tracked diff 与 tracked/untracked 文件摘要；只有供应商终态及已报告用量才能正常结算；未知用量不记成零 |
-| 恢复 | 重启核对旧进程并停止/保留未知状态；可查看旧事件，无自动续跑；完整工作流恢复留 P3 |
+| 恢复 | 重启核对旧进程并停止/保留未知状态；可查看旧事件，无自动续跑；此行为保留给旧 P2 执行；新任务由上文 P3 工作流恢复 |
 | 结果 | `Execution.completed` 是执行器结束，`Run` 仍等待独立验收；不能通过底层 P1 接口伪造受管任务完成 |
 
 停止确认覆盖继承 Supervisor ownership token 的受管进程，包含脱离原进程组的子进程；这是实际 OS 身份观察与有界静默窗口，不是针对恶意清除 token 或外部调度任务的操作系统级隔离。token 超限在供应商上报后触发取消，可能存在上报延迟与超支；默认总额 170,000、单次预留 150,000、验证预留 20,000，可在界面修改。无权把未确认的进程或用量写成成功。
@@ -115,7 +187,7 @@ P2 初次完成时的冻结必要清单为 **14 套件、180 个唯一 ID：113 
 完整验收前，请用截图工具捕获实际 Supervisor 空工作台，设置 `SUPERVISOR_LIVE_SCREENSHOT` 指向该 PNG（本机已有 `.supervisor-dev/p2-ui/empty-workspace.png`）。截图缺失或账户不可用会失败，不跳过。图像门禁验证图中应用名、按钮和空工作台；它不是未来 P4 的完整 UI 功能验证器。
 
 ```sh
-SUPERVISOR_LIVE_SCREENSHOT=/absolute/path/supervisor-empty.png pnpm verify:stage
+SUPERVISOR_LIVE_SCREENSHOT=/absolute/path/supervisor-empty.png pnpm verify:p2
 ```
 
 运行会真实消费模型额度。隔离 TypeScript 项目的断言先实际失败，Codex 修改源码后再由独立工具编译和运行固定断言，同时校验验收文件未被修改。另执行实际 turn 取消和截图识别；原始数据、候选文件、数据库及构建输出保存在本轮 `artifacts/`。桌面手动验证另存 `.supervisor-dev/p2-ui/`，包括退出界面前后的同一任务、取消记录与截图。
@@ -225,9 +297,9 @@ open .supervisor-dev/verification/2026-10-10T02-25-02-723Z-a3f8fb0a-bd93-4493-ac
 
 P0 的 `doctor` 不启动 Agent 任务，不登录、不安装移动工具链、不启动模拟器。安装或本地登录状态不代表真实 API 已调用成功；能力报告将它们分开。
 
-当前本机探测到 Codex 0.153.4 且本地已登录；Android SDK、Java、adb、emulator 和 2 个 AVD 已发现，但尚未构建或启动应用。Temporal CLI 未找到；`xcodebuild` 失败且 `simctl` 尚不可用，因此 iOS 构建与模拟器路径仍未验证。这些是后续阶段的环境缺口，不是 P0 已经完成的产品能力。
+当前本机探测到 Codex 0.153.4 且本地已登录；Android SDK、Java、adb、emulator 和 2 个 AVD 已发现，但尚未构建或启动应用。P0 环境探测时 PATH 中未找到 Temporal CLI（P3 已在隔离目录下载并运行真实样板）；`xcodebuild` 失败且 `simctl` 尚不可用，因此 iOS 构建与模拟器路径仍未验证。这些是后续阶段的环境缺口，不是 P0 已经完成的产品能力。
 
-P2 已接入真实模型调用；P1 已实现数据库和领域持久化，阶段验收状态见文首；Temporal 选型、移动交付与完整桌面体验按 [开发计划](docs/development-plan.md) 的依赖推进。
+P2 已接入真实模型调用；P1 已实现数据库和领域持久化，阶段验收状态见文首；Temporal 已完成样板评估并选定首版延后接入；移动交付与完整桌面体验按 [开发计划](docs/development-plan.md) 的依赖推进。
 
 ## 仓库维护
 

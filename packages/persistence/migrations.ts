@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 const migrations = [
   `CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
@@ -47,6 +47,15 @@ const migrations = [
    CREATE TABLE execution_events(seq INTEGER PRIMARY KEY AUTOINCREMENT, execution_id TEXT NOT NULL REFERENCES executions(id),
      received_at TEXT NOT NULL, kind TEXT NOT NULL, payload TEXT NOT NULL CHECK(json_valid(payload)));
    CREATE INDEX execution_event_cursor ON execution_events(execution_id,seq);`,
+  `CREATE TABLE runtime_runs(id TEXT PRIMARY KEY, project_id TEXT NOT NULL, run_id TEXT NOT NULL,
+     record TEXT NOT NULL CHECK(json_valid(record)), FOREIGN KEY(project_id,run_id) REFERENCES runs(project_id,id));
+   CREATE TABLE runtime_outbox(id TEXT PRIMARY KEY, runtime_id TEXT NOT NULL REFERENCES runtime_runs(id), record TEXT NOT NULL CHECK(json_valid(record)));
+   CREATE TABLE runtime_inbox(message_id TEXT PRIMARY KEY, request TEXT NOT NULL CHECK(json_valid(request)), result TEXT NOT NULL CHECK(json_valid(result)));
+   CREATE TABLE runtime_receipts(command_id TEXT PRIMARY KEY, request TEXT NOT NULL CHECK(json_valid(request)), result TEXT NOT NULL CHECK(json_valid(result)));
+   CREATE TABLE runtime_checkpoints(id TEXT PRIMARY KEY, runtime_id TEXT NOT NULL REFERENCES runtime_runs(id), digest TEXT NOT NULL, record TEXT NOT NULL CHECK(json_valid(record)));
+   CREATE TABLE runtime_events(seq INTEGER PRIMARY KEY AUTOINCREMENT, runtime_id TEXT NOT NULL REFERENCES runtime_runs(id), kind TEXT NOT NULL, payload TEXT NOT NULL CHECK(json_valid(payload)), created_at TEXT NOT NULL);
+   CREATE INDEX runtime_events_cursor ON runtime_events(runtime_id,seq);`,
+
 ];
 
 export function migrate(db: DatabaseSync): void {

@@ -1,3 +1,4 @@
+import { RuntimeRepository } from './runtime.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { closeSync, existsSync, fsyncSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -31,6 +32,7 @@ function digest(content: string | Uint8Array): string {
  */
 export class SupervisorStore {
   private readonly db: DatabaseSync;
+  readonly runtime: RuntimeRepository;
   private readonly root: string;
   private readonly objects: string;
   private readonly fault: ((point: string) => void) | undefined;
@@ -48,11 +50,12 @@ export class SupervisorStore {
     if (existsSync(database) && lstatSync(database).isSymbolicLink()) throw new Error('Database cannot be a symbolic link');
     this.db = new DatabaseSync(database);
     try { migrate(this.db); } catch (error) { this.db.close(); throw error; }
+    this.runtime = new RuntimeRepository(this.db);
   }
 
   close(): void { this.db.close(); }
 
-  executionCreate(input: ResolvedExecutionStart) { return executionCreate(this.db, input); }
+  executionCreate(input: ResolvedExecutionStart, binding?: import('../contracts/p3.js').RuntimeBinding) { return executionCreate(this.db, input, binding); }
   executionGet(id: string) { return executionGet(this.db, id); }
   executionList() { return executionList(this.db); }
   executionEvents(id: string, after: number) { return executionEvents(this.db, id, after); }
@@ -60,7 +63,7 @@ export class SupervisorStore {
     return executionUpdate(this.db, id, patch, kind, payload, actions);
   }
   isManagedRun(projectId: string, runId: string): boolean {
-    return !!this.db.prepare('SELECT id FROM executions WHERE project_id=? AND run_id=?').get(projectId, runId);
+    return !!this.db.prepare('SELECT id FROM executions WHERE project_id=? AND run_id=?').get(projectId, runId) || !!this.db.prepare('SELECT id FROM runtime_runs WHERE project_id=? AND run_id=?').get(projectId, runId);
   }
 
   command(input: Command): CommandResult {

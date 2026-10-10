@@ -99,7 +99,7 @@ export function parseCatalog(value: unknown): TestCatalog {
 
 export function parseProfile(value: unknown): AcceptanceProfile {
   if (!object(value) || value.schemaVersion !== 2) fail('profile schemaVersion must equal 2');
-  if (value.stage !== 'P0' && value.stage !== 'P1' && value.stage !== 'P2') fail('profile stage must equal P0, P1 or P2');
+  if (value.stage !== 'P0' && value.stage !== 'P1' && value.stage !== 'P2' && value.stage !== 'P3') fail('profile stage must equal P0, P1, P2 or P3');
   return { schemaVersion: 2, stage: value.stage, revision: revision(value.revision), caseIds: strings(value.caseIds, 'profile.caseIds'),
     requiredRisks: strings(value.requiredRisks, 'profile.requiredRisks'), coreRegression: strings(value.coreRegression, 'profile.coreRegression', true) };
 }

@@ -14,6 +14,9 @@ export interface TokenUsage {
   reasoningOutputTokens: number; totalTokens: number;
 }
 export interface ExecutionRecord {
+  terminalStatus?: string;
+  turnIntent?: boolean;
+  runtimeBinding?: import('./p3.js').RuntimeBinding;
   id: string; commandId: string; projectId: string; runId: string; attemptId: string;
   workspace: string; workspaceKind: 'project' | 'managed'; prompt: string; model: string; effort: string; images: string[];
   state: ExecutionState; createdAt: string; updatedAt: string; deadline: string;

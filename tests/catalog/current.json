@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-catalog-v4",
+  "revision": "dev-catalog-v5",
   "modules": [
     {
       "id": "dev-contracts",
@@ -43,7 +43,8 @@
         "domain",
         "persistence",
         "service",
-        "execution"
+        "execution",
+        "runtime"
       ]
     },
     {
@@ -51,14 +52,16 @@
       "affects": [
         "persistence",
         "service",
-        "execution"
+        "execution",
+        "runtime"
       ]
     },
     {
       "id": "persistence",
       "affects": [
         "service",
-        "execution"
+        "execution",
+        "runtime"
       ]
     },
     {
@@ -71,13 +74,15 @@
       "id": "process-control",
       "affects": [
         "executor-codex",
-        "execution"
+        "execution",
+        "runtime"
       ]
     },
     {
       "id": "executor-codex",
       "affects": [
-        "execution"
+        "execution",
+        "runtime"
       ]
     },
     {
@@ -90,6 +95,14 @@
     {
       "id": "desktop",
       "affects": []
+    },
+    {
+      "id": "runtime",
+      "affects": [
+        "execution",
+        "service",
+        "desktop"
+      ]
     }
   ],
   "suites": [
@@ -176,6 +189,24 @@
       "layer": "integration",
       "file": "dist/tests/integration/execution.test.js",
       "timeoutMs": 90000
+    },
+    {
+      "id": "unit-runtime",
+      "layer": "unit",
+      "file": "dist/tests/unit/runtime.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "integration-runtime",
+      "layer": "integration",
+      "file": "dist/tests/integration/runtime.test.js",
+      "timeoutMs": 300000
+    },
+    {
+      "id": "live-runtime",
+      "layer": "live",
+      "file": "dist/tests/live/runtime.test.js",
+      "timeoutMs": 600000
     }
   ],
   "cases": [
@@ -3837,6 +3868,447 @@
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: Legacy SQLite records without workspace kind read as project; same command replay remains idempotent without rewriting stored requests or receipts",
       "cleanup": "TestContext closes manager/service/process in reverse order with owned process stop checks; closes SQLite handles and removes isolated temporary root",
+      "status": "active"
+    },
+    {
+      "id": "p3.unit.001",
+      "name": "runtime contract rejects unbounded undeclared malformed and unsafe requests",
+      "suiteId": "unit-runtime",
+      "module": "runtime",
+      "layer": "unit",
+      "covers": [
+        "p3.runtime.bounded-contract"
+      ],
+      "scenario": "runtime contract rejects unbounded undeclared malformed and unsafe requests",
+      "impactTags": [
+        "runtime",
+        "recovery",
+        "persistence",
+        "execution"
+      ],
+      "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
+      "assertions": "tests/unit/runtime.test.ts: runtime contract rejects unbounded undeclared malformed and unsafe requests",
+      "cleanup": "Stop owned test processes and close real SQLite; retain formal evidence",
+      "status": "active"
+    },
+    {
+      "id": "p3.unit.002",
+      "name": "runtime submission canonical receipt prevents duplicate runs effects and changed commands",
+      "suiteId": "unit-runtime",
+      "module": "runtime",
+      "layer": "unit",
+      "covers": [
+        "p3.runtime.submit-receipt"
+      ],
+      "scenario": "runtime submission canonical receipt prevents duplicate runs effects and changed commands",
+      "impactTags": [
+        "runtime",
+        "recovery",
+        "persistence",
+        "execution"
+      ],
+      "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
+      "assertions": "tests/unit/runtime.test.ts: runtime submission canonical receipt prevents duplicate runs effects and changed commands",
+      "cleanup": "Stop owned test processes and close real SQLite; retain formal evidence",
+      "status": "active"
+    },
+    {
+      "id": "p3.unit.003",
+      "name": "runtime input receipt accepts only the declared current wait and never overwrites data",
+      "suiteId": "unit-runtime",
+      "module": "runtime",
+      "layer": "unit",
+      "covers": [
+        "p3.runtime.declared-input"
+      ],
+      "scenario": "runtime input receipt accepts only the declared current wait and never overwrites data",
+      "impactTags": [
+        "runtime",
+        "recovery",
+        "persistence",
+        "execution"
+      ],
+      "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
+      "assertions": "tests/unit/runtime.test.ts: runtime input receipt accepts only the declared current wait and never overwrites data",
+      "cleanup": "Stop owned test processes and close real SQLite; retain formal evidence",
+      "status": "active"
+    },
+    {
+      "id": "p3.unit.004",
+      "name": "runtime inbox deduplicates exact reports and rejects conflicting deliveries while unknown stays blocked",
+      "suiteId": "unit-runtime",
+      "module": "runtime",
+      "layer": "unit",
+      "covers": [
+        "p3.runtime.inbox-deduplication"
+      ],
+      "scenario": "runtime inbox deduplicates exact reports and rejects conflicting deliveries while unknown stays blocked",
+      "impactTags": [
+        "runtime",
+        "recovery",
+        "persistence",
+        "execution"
+      ],
+      "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
+      "assertions": "tests/unit/runtime.test.ts: runtime inbox deduplicates exact reports and rejects conflicting deliveries while unknown stays blocked",
+      "cleanup": "Stop owned test processes and close real SQLite; retain formal evidence",
+      "status": "active"
+    },
+    {
+      "id": "p3.unit.005",
+      "name": "runtime pause prevents claims and dispatch while completed current work preserves the pause",
+      "suiteId": "unit-runtime",
+      "module": "runtime",
+      "layer": "unit",
+      "covers": [
+        "p3.runtime.pause-dispatch"
+      ],
+      "scenario": "runtime pause prevents claims and dispatch while completed current work preserves the pause",
+      "impactTags": [
+        "runtime",
+        "recovery",
+        "persistence",
+        "execution"
+      ],
+      "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
+      "assertions": "tests/unit/runtime.test.ts: runtime pause prevents claims and dispatch while completed current work preserves the pause",
+      "cleanup": "Stop owned test processes and close real SQLite; retain formal evidence",
+      "status": "active"
+    },
+    {
+      "id": "p3.unit.006",
+      "name": "runtime owner transfer fences stale qualification start binding and reports",
+      "suiteId": "unit-runtime",
+      "module": "runtime",
+      "layer": "unit",
+      "covers": [
+        "p3.runtime.stale-owner"
+      ],
+      "scenario": "runtime owner transfer fences stale qualification start binding and reports",
+      "impactTags": [
+        "runtime",
+        "recovery",
+        "persistence",
+        "execution"
+      ],
+      "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
+      "assertions": "tests/unit/runtime.test.ts: runtime owner transfer fences stale qualification start binding and reports",
+      "cleanup": "Stop owned test processes and close real SQLite; retain formal evidence",
+      "status": "active"
+    },
+    {
+      "id": "p3.unit.007",
+      "name": "runtime cancellation rejects recovery dispatch and late confirmation cannot advance workflow",
+      "suiteId": "unit-runtime",
+      "module": "runtime",
+      "layer": "unit",
+      "covers": [
+        "p3.runtime.cancel-late-report"
+      ],
+      "scenario": "runtime cancellation rejects recovery dispatch and late confirmation cannot advance workflow",
+      "impactTags": [
+        "runtime",
+        "recovery",
+        "persistence",
+        "execution"
+      ],
+      "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
+      "assertions": "tests/unit/runtime.test.ts: runtime cancellation rejects recovery dispatch and late confirmation cannot advance workflow",
+      "cleanup": "Stop owned test processes and close real SQLite; retain formal evidence",
+      "status": "active"
+    },
+    {
+      "id": "p3.unit.008",
+      "name": "runtime workflow checkpoint digest schema and contract mismatch fail closed before dispatch",
+      "suiteId": "unit-runtime",
+      "module": "runtime",
+      "layer": "unit",
+      "covers": [
+        "p3.runtime.checkpoint-compatibility"
+      ],
+      "scenario": "runtime workflow checkpoint digest schema and contract mismatch fail closed before dispatch",
+      "impactTags": [
+        "runtime",
+        "recovery",
+        "persistence",
+        "execution"
+      ],
+      "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
+      "assertions": "tests/unit/runtime.test.ts: runtime workflow checkpoint digest schema and contract mismatch fail closed before dispatch",
+      "cleanup": "Stop owned test processes and close real SQLite; retain formal evidence",
+      "status": "active"
+    },
+    {
+      "id": "p3.unit.009",
+      "name": "runtime cumulative domain spending survives checkpoints and rejects a step exceeding the remaining budget",
+      "suiteId": "unit-runtime",
+      "module": "runtime",
+      "layer": "unit",
+      "covers": [
+        "p3.runtime.budget-continuity"
+      ],
+      "scenario": "runtime cumulative domain spending survives checkpoints and rejects a step exceeding the remaining budget",
+      "impactTags": [
+        "runtime",
+        "recovery",
+        "persistence",
+        "execution"
+      ],
+      "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
+      "assertions": "tests/unit/runtime.test.ts: runtime cumulative domain spending survives checkpoints and rejects a step exceeding the remaining budget",
+      "cleanup": "Stop owned test processes and close real SQLite; retain formal evidence",
+      "status": "active"
+    },
+    {
+      "id": "p3.unit.010",
+      "name": "runtime in-flight reservation survives owner recovery without settlement or duplicate attempt",
+      "suiteId": "unit-runtime",
+      "module": "runtime",
+      "layer": "unit",
+      "covers": [
+        "p3.runtime.unsettled-reservation"
+      ],
+      "scenario": "runtime in-flight reservation survives owner recovery without settlement or duplicate attempt",
+      "impactTags": [
+        "runtime",
+        "recovery",
+        "persistence",
+        "execution"
+      ],
+      "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
+      "assertions": "tests/unit/runtime.test.ts: runtime in-flight reservation survives owner recovery without settlement or duplicate attempt",
+      "cleanup": "Stop owned test processes and close real SQLite; retain formal evidence",
+      "status": "active"
+    },
+    {
+      "id": "p3.integration.001",
+      "name": "runtime HTTP commit before response survives Worker SIGKILL with stable key and one SQLite effect",
+      "suiteId": "integration-runtime",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p3.runtime.committed-effect-query"
+      ],
+      "scenario": "runtime HTTP commit before response survives Worker SIGKILL with stable key and one SQLite effect",
+      "impactTags": [
+        "runtime",
+        "recovery",
+        "persistence",
+        "execution"
+      ],
+      "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
+      "assertions": "tests/integration/runtime.test.ts: runtime HTTP commit before response survives Worker SIGKILL with stable key and one SQLite effect",
+      "cleanup": "Stop owned test processes and close real SQLite; retain formal evidence",
+      "status": "active"
+    },
+    {
+      "id": "p3.integration.002",
+      "name": "runtime idempotent HTTP recovery resends the same key after lost response and has one actual effect",
+      "suiteId": "integration-runtime",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p3.runtime.idempotent-resend"
+      ],
+      "scenario": "runtime idempotent HTTP recovery resends the same key after lost response and has one actual effect",
+      "impactTags": [
+        "runtime",
+        "recovery",
+        "persistence",
+        "execution"
+      ],
+      "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
+      "assertions": "tests/integration/runtime.test.ts: runtime idempotent HTTP recovery resends the same key after lost response and has one actual effect",
+      "cleanup": "Stop owned test processes and close real SQLite; retain formal evidence",
+      "status": "active"
+    },
+    {
+      "id": "p3.integration.003",
+      "name": "runtime unknown nonidempotent HTTP effect without query is preserved and never automatically retried",
+      "suiteId": "integration-runtime",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p3.runtime.unsafe-no-replay"
+      ],
+      "scenario": "runtime unknown nonidempotent HTTP effect without query is preserved and never automatically retried",
+      "impactTags": [
+        "runtime",
+        "recovery",
+        "persistence",
+        "execution"
+      ],
+      "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
+      "assertions": "tests/integration/runtime.test.ts: runtime unknown nonidempotent HTTP effect without query is preserved and never automatically retried",
+      "cleanup": "Stop owned test processes and close real SQLite; retain formal evidence",
+      "status": "active"
+    },
+    {
+      "id": "p3.integration.004",
+      "name": "runtime service restart retains an alive old Worker and original declared wait history",
+      "suiteId": "integration-runtime",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p3.runtime.service-worker-independence"
+      ],
+      "scenario": "runtime service restart retains an alive old Worker and original declared wait history",
+      "impactTags": [
+        "runtime",
+        "recovery",
+        "persistence",
+        "execution"
+      ],
+      "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
+      "assertions": "tests/integration/runtime.test.ts: runtime service restart retains an alive old Worker and original declared wait history",
+      "cleanup": "Stop owned test processes and close real SQLite; retain formal evidence",
+      "status": "active"
+    },
+    {
+      "id": "p3.integration.005",
+      "name": "runtime Worker startup stops an actual orphan workspace writer and preserves unknown effects without model replay",
+      "suiteId": "integration-runtime",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p3.runtime.old-writer-fence"
+      ],
+      "scenario": "runtime Worker startup stops an actual orphan workspace writer and preserves unknown effects without model replay",
+      "impactTags": [
+        "runtime",
+        "recovery",
+        "persistence",
+        "execution"
+      ],
+      "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
+      "assertions": "tests/integration/runtime.test.ts: runtime Worker startup stops an actual orphan workspace writer and preserves unknown effects without model replay",
+      "cleanup": "Stop owned test processes and close real SQLite; retain formal evidence",
+      "status": "active"
+    },
+    {
+      "id": "p3.integration.006",
+      "name": "runtime SIGSTOP SIGCONT process suspension preserves pause input and resumes one declared effect",
+      "suiteId": "integration-runtime",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p3.runtime.process-suspension"
+      ],
+      "scenario": "runtime SIGSTOP SIGCONT process suspension preserves pause input and resumes one declared effect",
+      "impactTags": [
+        "runtime",
+        "recovery",
+        "persistence",
+        "execution"
+      ],
+      "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
+      "assertions": "tests/integration/runtime.test.ts: runtime SIGSTOP SIGCONT process suspension preserves pause input and resumes one declared effect",
+      "cleanup": "Stop owned test processes and close real SQLite; retain formal evidence",
+      "status": "active"
+    },
+    {
+      "id": "p3.integration.007",
+      "name": "runtime cancellation reaches an in-flight real HTTP request and prevents the later declared step",
+      "suiteId": "integration-runtime",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p3.runtime.cancel-propagation"
+      ],
+      "scenario": "runtime cancellation reaches an in-flight real HTTP request and prevents the later declared step",
+      "impactTags": [
+        "runtime",
+        "recovery",
+        "persistence",
+        "execution"
+      ],
+      "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
+      "assertions": "tests/integration/runtime.test.ts: runtime cancellation reaches an in-flight real HTTP request and prevents the later declared step",
+      "cleanup": "Stop owned test processes and close real SQLite; retain formal evidence",
+      "status": "active"
+    },
+    {
+      "id": "p3.integration.008",
+      "name": "runtime recovery keeps original frozen plan budget failure history and product catalog publication atomic",
+      "suiteId": "integration-runtime",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p3.runtime.frozen-catalog-recovery"
+      ],
+      "scenario": "runtime recovery keeps original frozen plan budget failure history and product catalog publication atomic",
+      "impactTags": [
+        "runtime",
+        "recovery",
+        "persistence",
+        "execution"
+      ],
+      "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
+      "assertions": "tests/integration/runtime.test.ts: runtime recovery keeps original frozen plan budget failure history and product catalog publication atomic",
+      "cleanup": "Stop owned test processes and close real SQLite; retain formal evidence",
+      "status": "active"
+    },
+    {
+      "id": "p3.live.001",
+      "name": "live durable Codex recovers completed receipt after worker death then waits and continues with cumulative budget",
+      "suiteId": "live-runtime",
+      "module": "runtime",
+      "layer": "live",
+      "covers": [
+        "p3.runtime.codex-receipt-continuation"
+      ],
+      "scenario": "live durable Codex recovers completed receipt after worker death then waits and continues with cumulative budget",
+      "impactTags": [
+        "runtime",
+        "recovery",
+        "persistence",
+        "execution"
+      ],
+      "prerequisites": "Authenticated pinned Codex CLI; real local processes/filesystem",
+      "assertions": "tests/live/runtime.test.ts: live durable Codex recovers completed receipt after worker death then waits and continues with cumulative budget",
+      "cleanup": "Stop owned test processes and close real SQLite; retain formal evidence",
+      "status": "active"
+    },
+    {
+      "id": "p3.live.002",
+      "name": "live durable cancellation reaches actual Codex writer and never resumes on service restart",
+      "suiteId": "live-runtime",
+      "module": "runtime",
+      "layer": "live",
+      "covers": [
+        "p3.runtime.codex-runtime-cancel"
+      ],
+      "scenario": "live durable cancellation reaches actual Codex writer and never resumes on service restart",
+      "impactTags": [
+        "runtime",
+        "recovery",
+        "persistence",
+        "execution"
+      ],
+      "prerequisites": "Authenticated pinned Codex CLI; real local processes/filesystem",
+      "assertions": "tests/live/runtime.test.ts: live durable cancellation reaches actual Codex writer and never resumes on service restart",
+      "cleanup": "Stop owned test processes and close real SQLite; retain formal evidence",
+      "status": "active"
+    },
+    {
+      "id": "p3.integration.009",
+      "name": "runtime startup ownership recovery stops the released process scope before receipt takeover and fences stale publishers",
+      "suiteId": "integration-runtime",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p3.runtime.startup-ownership-gap"
+      ],
+      "scenario": "runtime startup ownership recovery stops the released process scope before receipt takeover and fences stale publishers",
+      "impactTags": [
+        "runtime",
+        "recovery",
+        "persistence",
+        "execution"
+      ],
+      "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
+      "assertions": "tests/integration/runtime.test.ts: runtime startup ownership recovery stops the released process scope before receipt takeover and fences stale publishers",
+      "cleanup": "Stop owned test processes and close real SQLite; retain formal evidence",
       "status": "active"
     }
   ]

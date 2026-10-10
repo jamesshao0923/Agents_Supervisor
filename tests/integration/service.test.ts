@@ -149,7 +149,12 @@ test('service rejects malformed IPC and continues serving actual health requests
   });
   assert.equal(JSON.parse(raw).ok, false);
   const health = await request(f.data, { id: 'health', method: 'health' });
-  assert.deepEqual(health, { id: 'health', ok: true, value: { status: 'ready', stage: 'P2', modelExecution: true, workspaceManagement: 'path-v1' } });
+  assert.deepEqual(health, { id: 'health', ok: true, value: {
+    status: 'ready', stage: 'P3', modelExecution: true, workspaceManagement: 'path-v1', durableRuntime: 'local-v1',
+    runtime: { active: false, worker: null, capabilities: {
+      engine: 'local-v1', workflowVersions: [1], pause: 'dispatch-only', input: 'declared-wait', automaticCodexReplay: false,
+    } },
+  } });
   assert.equal((await stat(join(f.data, 'supervisor.sock'))).mode & 0o777, 0o600);
 });
 

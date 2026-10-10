@@ -27,6 +27,22 @@ export interface ProcessIdentity {
   startedAt: string;
 }
 export interface ProcessMember { pid: number; pgid: number; state: string; startIdentity: string }
+
+/** Metadata only: never returns command lines or environment bytes. */
+export async function captureProcessMember(pid: number): Promise<ProcessMember | null> {
+  const member = (await table()).find(row => row.pid === pid && !row.state.startsWith('Z'));
+  if (!member) return null;
+  try { return { ...member, startIdentity: await startIdentity(member) }; }
+  catch { return null; }
+}
+
+/** The worker PID is distinct from its detached guardian; fence its birth and ownership. */
+export async function inspectManagedMember(identity: ProcessIdentity, member: ProcessMember): Promise<boolean> {
+  validateIdentity(identity);
+  const current = await captureProcessMember(member.pid);
+  return current !== null && current.pgid === member.pgid && current.startIdentity === member.startIdentity
+    && await owned(current.pid, identity.ownerToken);
+}
 export interface ProcessInspection {
   status: 'verified' | 'stopped' | 'unverified';
   checkedAt: string;
@@ -67,6 +83,8 @@ export interface ManagedProcess {
   stderr: Readable;
   completion: Promise<ProcessResult>;
   writeLine(line: string): void;
+  /** Leave the released target running independently of this controller. */
+  detach(): void;
   terminate(reason?: 'cancelled' | 'timeout'): Promise<ProcessResult>;
 }
 
@@ -335,5 +353,6 @@ export async function spawnManagedProcess(options: SpawnManagedOptions): Promise
   };
   if (options.timeoutMs !== undefined && !closed) timeout = setTimeout(() => { void terminate('timeout').catch(() => {}); }, options.timeoutMs);
   return { identity, stdin: child.stdin!, stdout: child.stdout!, stderr: child.stderr!, completion,
-    writeLine(line) { if (line.includes('\n') || line.includes('\r')) throw new Error('Transport line must not contain newlines'); child.stdin!.write(`${line}\n`); }, terminate };
+    writeLine(line) { if (line.includes('\n') || line.includes('\r')) throw new Error('Transport line must not contain newlines'); child.stdin!.write(`${line}\n`); },
+    detach() { if (timeout) clearTimeout(timeout); child.stdin?.end(); child.stdout?.destroy(); child.stderr?.destroy(); if (child.connected) child.disconnect(); child.unref(); }, terminate };
 }

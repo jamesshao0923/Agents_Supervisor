@@ -75,6 +75,7 @@ test('persistence migrates real disk database and reopens state events budgets a
   // A real v1 fixture retains all core records while lacking the additive v2 entities.
   const old = new DatabaseSync(join(f.root, 'supervisor.sqlite'));
   old.exec(`PRAGMA foreign_keys=OFF;
+    DROP TABLE runtime_events; DROP TABLE runtime_checkpoints; DROP TABLE runtime_receipts; DROP TABLE runtime_inbox; DROP TABLE runtime_outbox; DROP TABLE runtime_runs;
     DROP TABLE execution_events; DROP TABLE executions;
     DROP TABLE verification_plans; DROP TABLE verification_replacements; DROP TABLE verification_coverage;
     DROP TABLE verification_catalog_cases; DROP TABLE verification_cases; DROP TABLE verification_catalog_heads;
@@ -86,8 +87,8 @@ test('persistence migrates real disk database and reopens state events budgets a
   assert.equal(getRun(store).budget.spent, 3); assert.equal(getRun(store).attempts[0]?.settled, true);
   assert.deepEqual(store.query({ type: 'catalog', projectId: 'project' }), null);
   const raw = new DatabaseSync(join(f.root, 'supervisor.sqlite'));
-  assert.equal(raw.prepare('PRAGMA user_version').get()?.['user_version'], 3);
-  assert.equal(raw.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get()?.['n'], 3);
+  assert.equal(raw.prepare('PRAGMA user_version').get()?.['user_version'], 4);
+  assert.equal(raw.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get()?.['n'], 4);
   assert.equal(raw.prepare('PRAGMA journal_mode').get()?.['journal_mode'], 'wal'); raw.close();
   const repeated = store.command({ type: 'act', commandId: 'settle', projectId: 'project', runId: 'run', expectedRevision: 2, action: { type: 'settleAttempt', attemptId: 'attempt', actual: 3 } });
   assert.deepEqual(repeated.value, before);

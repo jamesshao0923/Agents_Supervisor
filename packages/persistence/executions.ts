@@ -1,3 +1,5 @@
+import type { RuntimeBinding } from '../contracts/p3.js';
+import { RuntimeRepository } from './runtime.js';
 import { createHash } from 'node:crypto';
 import { basename, isAbsolute, sep } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
@@ -37,40 +39,48 @@ function runEvents(db: DatabaseSync, run: Run, commandId: string, events: unknow
   for (const e of events) db.prepare('INSERT INTO events(command_id,project_id,run_id,type,payload) VALUES (?,?,?,?,?)').run(commandId, run.projectId, run.id, String((e as {type:string}).type), json(e));
 }
 /** The intent, domain reservation, resource lease and execution receipt commit together before spawn. */
-export function executionCreate(db: DatabaseSync, input: ResolvedExecutionStart): {record: ExecutionRecord; created: boolean} {
+export function executionCreate(db: DatabaseSync, input: ResolvedExecutionStart, binding?: RuntimeBinding): {record: ExecutionRecord; created: boolean} {
   const { workspaceKind, ...action } = input;
   parseExecutionAction(action);
   if (!isAbsolute(input.workspace) || input.workspace === sep || !['project', 'managed'].includes(workspaceKind)) throw new Error('Execution workspace must be resolved by the controller');
-  const normalized = { ...input, images: input.images ?? [] };
+  const normalized = { ...input, images: input.images ?? [], ...(binding ? { runtimeBinding: { ...binding, owner: undefined } } : {}) };
   const request = canonicalRequest(normalized);
   db.exec('BEGIN IMMEDIATE');
   try {
     const existing = db.prepare('SELECT request,record FROM executions WHERE command_id=?').get(input.commandId);
     if (existing) {
       if (canonicalRequest(JSON.parse(String(existing.request)) as Record<string, unknown>) !== request) throw new Error('commandId already used with a different execution');
-      db.exec('COMMIT'); return { record: readRecord(existing.record), created: false };
+      const record=readRecord(existing.record);
+      if(binding) { new RuntimeRepository(db).eligible(binding.operationId,binding.owner); if(record.runtimeBinding?.runtimeId!==binding.runtimeId)throw new Error('Runtime binding mismatch');record.runtimeBinding=binding;db.prepare('UPDATE executions SET record=? WHERE id=?').run(json(record),record.id); }
+      db.exec('COMMIT'); return { record, created: false };
     }
     for (const record of executionList(db)) {
       const overlap = record.workspace === input.workspace || record.workspace.startsWith(input.workspace + sep) || input.workspace.startsWith(record.workspace + sep);
       if (overlap && !record.stopConfirmed) throw new Error('Workspace has an active or unverified writer; cancel or reconcile it before dispatch');
     }
-    const id = 'exec-' + hash(input.commandId).slice(0,24), projectId = 'workspace-' + hash(input.workspace).slice(0,24);
+    if(binding)new RuntimeRepository(db).eligible(binding.operationId,binding.owner);
+    else for(const runtime of new RuntimeRepository(db).list()) {
+      const overlap=runtime.workspace===input.workspace||runtime.workspace.startsWith(input.workspace+sep)||input.workspace.startsWith(runtime.workspace+sep);
+      if(overlap && (!['cancelled','awaiting-verification'].includes(runtime.phase)||new RuntimeRepository(db).operations(runtime.id).some(o=>!['confirmed','cancelled'].includes(o.state))))throw new Error('Workspace has unresolved runtime work');
+    }
+    const id = 'exec-' + hash(input.commandId).slice(0,24), projectId = binding?.projectId ?? 'workspace-' + hash(input.workspace).slice(0,24);
+    if(binding && binding.attemptId!==id)throw new Error('Runtime attempt identity mismatch');
     const now = new Date().toISOString();
     db.prepare('INSERT OR IGNORE INTO projects(id,name) VALUES (?,?)').run(projectId, basename(input.workspace));
-    let run = createRun({ id, projectId, contract: { version: 1, goal: input.prompt, criteria: [{ id: 'independent-acceptance', description: 'Independently validate the produced candidate; executor self-report is insufficient', required: true }] }, nodes: [{ id: 'execution', dependencies: [], required: true }], budget: { unit: 'token', limit: input.tokenLimit, verificationReserve: input.verificationReserve } });
+    let run = binding ? JSON.parse(String(db.prepare('SELECT snapshot FROM runs WHERE project_id=? AND id=?').get(binding.projectId,binding.runId)?.snapshot)) as Run : createRun({ id, projectId, contract: { version: 1, goal: input.prompt, criteria: [{ id: 'independent-acceptance', description: 'Independently validate the produced candidate; executor self-report is insufficient', required: true }] }, nodes: [{ id: 'execution', dependencies: [], required: true }], budget: { unit: 'token', limit: input.tokenLimit, verificationReserve: input.verificationReserve } });
     const events = [];
-    for (const action of [
+    for (const action of (binding ? [] : [
       { type: 'startAttempt', attemptId: id, nodeId: 'execution', contractVersion: 1, reservation: input.reservation, purpose: 'execution', resources: ['workspace:' + input.workspace] },
       { type: 'setOperation', operationId: id, attemptId: id, status: 'pending' },
-    ] as RunAction[]) { const result = applyAction(run, action); run = result.run; events.push(...result.events); }
-    db.prepare('INSERT INTO runs(project_id,id,revision,snapshot) VALUES (?,?,?,?)').run(projectId, id, run.revision, json(run));
+    ] as RunAction[])) { const result = applyAction(run, action); run = result.run; events.push(...result.events); }
+    if(!binding)db.prepare('INSERT INTO runs(project_id,id,revision,snapshot) VALUES (?,?,?,?)').run(projectId, id, run.revision, json(run));
     runEvents(db, run, input.commandId, events);
-    const record: ExecutionRecord = { id, commandId: input.commandId, projectId, runId: id, attemptId: id, workspace: input.workspace, workspaceKind, prompt: input.prompt,
+    const record: ExecutionRecord = { id, commandId: input.commandId, projectId, runId: binding?.runId ?? id, attemptId: id, ...(binding?{runtimeBinding:binding}:{}), workspace: input.workspace, workspaceKind, prompt: input.prompt,
       model: input.model, effort: input.effort, images: normalized.images, state: 'queued', createdAt: now, updatedAt: now,
       deadline: new Date(Date.now() + input.timeoutMs).toISOString(), timeoutMs: input.timeoutMs, tokenLimit: input.tokenLimit, reservation: input.reservation, verificationReserve: input.verificationReserve,
       identity: null, pid: null, threadId: null, turnId: null, lastEventSeq: 0, message: '', diff: '', error: null, usage: null, usageStatus: 'unknown',
       stopConfirmed: false, cancelRequested: false, artifactId: null, protocolVersion: null, schemaDigest: null };
-    db.prepare('INSERT INTO executions(id,command_id,project_id,run_id,request,record) VALUES (?,?,?,?,?,?)').run(id, input.commandId, projectId, id, request, json(record));
+    db.prepare('INSERT INTO executions(id,command_id,project_id,run_id,request,record) VALUES (?,?,?,?,?,?)').run(id, input.commandId, projectId, record.runId, request, json(record));
     record.lastEventSeq = event(db,id,'execution-intent',{ input: normalized, budget: run.budget, reservation: input.reservation });
     db.prepare('UPDATE executions SET record=? WHERE id=?').run(json(record),id);
     db.exec('COMMIT'); return { record, created: true };

@@ -20,3 +20,6 @@ coverage/
 *.sqlite-shm
 *.sock
 service.lock
+runtime-worker.lock/
+runtime-worker.lock.retired-*/
+runtime-worker-fault.json

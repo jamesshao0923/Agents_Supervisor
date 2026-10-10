@@ -21,6 +21,9 @@ async function main(): Promise<void> {
     run: ['--data','--file'], executions: ['--data'], capabilities: ['--data'],
     inspect: ['--data','--execution'], cancel: ['--data','--execution'], reconcile: ['--data','--execution'],
     trajectory: ['--data','--execution','--after'],
+    workflow: ['--data','--file'], workflows:['--data'], runtime:['--data','--runtime'],
+    pause:['--data','--runtime'], resume:['--data','--runtime'], 'cancel-runtime':['--data','--runtime'], 'reconcile-runtime':['--data','--runtime'],
+    input:['--data','--runtime','--step','--text'], 'runtime-events':['--data','--runtime','--after'],
   };
   if (!command || !allowed[command] || Object.keys(options).some(key => !allowed[command]!.includes(key))) {
     throw new Error('Usage: supervisor serve|health|projects|runs|show|events|send --data PATH [--project ID] [--run ID] [--after CURSOR] [--file REQUEST.json]');
@@ -28,7 +31,7 @@ async function main(): Promise<void> {
   const dataDir = resolve(options['--data'] ?? '.supervisor/local');
   if (command === 'serve') {
     const service = await startService(dataDir);
-    console.log(JSON.stringify({ event: 'listening', socket: service.socket, dataDir, stage: 'P2' }));
+    console.log(JSON.stringify({ event: 'listening', socket: service.socket, dataDir, stage: 'P3' }));
     const stop = () => { void service.close().catch(error => { console.error(error); process.exitCode = 1; }); };
     process.once('SIGINT', stop);
     process.once('SIGTERM', stop);
@@ -41,7 +44,14 @@ async function main(): Promise<void> {
     const input: unknown = JSON.parse(await readFile(required('--file'), 'utf8'));
     if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Request file must contain an object');
     payload = { ...input, id } as Request;
-  } else if(command==='run') {
+  } else if(command==='workflow') {
+    payload={id,method:'runtime',action:{...JSON.parse(await readFile(required('--file'),'utf8')),type:'submit'}};
+  } else if(command==='workflows')payload={id,method:'runtime',action:{type:'list'}};
+  else if(command==='runtime')payload={id,method:'runtime',action:{type:'inspect',runtimeId:required('--runtime')}};
+  else if(['pause','resume','cancel-runtime','reconcile-runtime'].includes(command))payload={id,method:'runtime',action:{type:command.replace('-runtime','') as 'pause'|'resume'|'cancel'|'reconcile',runtimeId:required('--runtime'),commandId:id}};
+  else if(command==='input')payload={id,method:'runtime',action:{type:'input',runtimeId:required('--runtime'),commandId:id,stepId:required('--step'),text:required('--text')}};
+  else if(command==='runtime-events')payload={id,method:'runtime',action:{type:'events',runtimeId:required('--runtime'),after:Number(options['--after']??0)}};
+  else if(command==='run') {
     const input=JSON.parse(await readFile(required('--file'),'utf8')) as ExecutionStart;
     payload={id,method:'execution',action:{...input,type:'start'}};
   } else if(command==='executions'||command==='capabilities')payload={id,method:'execution',action:{type:command==='executions'?'list':'capabilities'}};

@@ -1,3 +1,4 @@
+import { LocalRuntimeAdapter } from '../../packages/runtime/index.js';
 import { createServer, createConnection, type Socket } from 'node:net';
 import { chmodSync, closeSync, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -68,6 +69,7 @@ export async function startService(directory: string): Promise<{ socket: string;
   const unlock = acquireLock(dataDir);
   let store: SupervisorStore | undefined;
   let manager: ExecutionManager | undefined;
+  let runtime: LocalRuntimeAdapter | undefined;
   const connections = new Set<Socket>();
   const server = createServer({ allowHalfOpen: true }, socket => {
     connections.add(socket);
@@ -95,10 +97,12 @@ export async function startService(directory: string): Promise<{ socket: string;
           const command=parseCommand(request.command);
           if ('projectId' in command && 'runId' in command && store!.isManagedRun(command.projectId,command.runId)) throw new Error('Managed execution updates must use the execution controller');
         }
+        if(request.method==='execution'&&'executionId' in request.action&&['cancel','reconcile'].includes(request.action.type)&&store!.executionGet(request.action.executionId).runtimeBinding)throw new Error('Use runtime controller for durable activities');
         const result = request.method === 'command' ? store!.command(parseCommand(request.command))
           : request.method === 'query' ? store!.query(parseQuery(request.query))
           : request.method === 'execution' ? await manager!.dispatch(request.action)
-          : request.method === 'health' ? { status: 'ready', stage: 'P2', modelExecution: true, workspaceManagement: 'path-v1' }
+          : request.method === 'runtime' ? await runtime!.dispatch(request.action)
+          : request.method === 'health' ? { status: 'ready', stage: 'P3', modelExecution: true, workspaceManagement: 'path-v1', durableRuntime: 'local-v1', runtime: await runtime!.health() }
           : (() => { throw new Error('Unknown request method'); })();
         response = { id, ok: true, value: result };
       } catch (error) { response = { id, ok: false, error: error instanceof Error ? error.message : String(error) }; }
@@ -108,8 +112,10 @@ export async function startService(directory: string): Promise<{ socket: string;
   try {
     await removeStaleSocket(path);
     store = new SupervisorStore(dataDir);
-    manager = new ExecutionManager(store,dataDir);
+    manager = new ExecutionManager(store,dataDir,undefined,{scope:'legacy'});
+    runtime = new LocalRuntimeAdapter(store,dataDir);
     await manager.initialize();
+    if(store.runtime.list().some(r=>!['awaiting-verification','cancelled'].includes(r.phase)) || store.runtime.operations().some(o=>['claimed','started','unknown'].includes(o.state)) || store.executionList().some(e=>e.runtimeBinding&&!e.stopConfirmed))await runtime.ensureWorker();
     server.maxConnections = 64;
     await new Promise<void>((resolvePromise, reject) => {
       server.once('error', reject);
@@ -125,6 +131,7 @@ export async function startService(directory: string): Promise<{ socket: string;
         for (const socket of connections) socket.destroy();
         server.close(async error => {
           await manager!.close().catch(reject);
+          await runtime!.close().catch(reject);
           try { store!.close(); unlock(); if (error) reject(error); else resolvePromise(); }
           catch (closeError) { reject(closeError); }
         });
