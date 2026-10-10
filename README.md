@@ -109,6 +109,12 @@ SUPERVISOR_LIVE_SCREENSHOT=/absolute/path/supervisor-empty.png pnpm verify:stage
 ```
 
 
+### 项目页信息层级调整
+
+产品介绍只保留在首页。首页按目录展示项目入口；进入项目或任务后，顶部显示项目名称、完整目录和“打开目录”，下方集中展示项目任务。点击左上角 Supervisor 返回首页；普通后台刷新保留当前位置。全局新任务使用空目录草稿，项目内新建沿用项目目录。
+
+2026 年 10 月 10 日，构建及冻结的桌面影响单元回归 **7/7 通过**，未新增重复用例、未重跑模型场景，也不算全量 P4 重新验收。真实桌面核对了项目页、首页跨多次后台刷新、首页项目卡片导航、两种新建入口和任务所属项目标题。独立源码与截图复核无阻断项；窄窗适配仅做源码检查。本轮自动证据：`.supervisor-dev/verification/2026-10-10T07-50-29-204Z-bdbe966c-df1c-4822-a191-03c2e9cc8223/`；桌面截图、AX 与索引：`.supervisor-dev/project-header/`，均由 `.gitignore` 排除。
+
 ## P3 持久运行与故障恢复
 
 选定 `local-v1` 本地 SQLite 运行时。真实 Temporal Service/Worker 样板已跑通强杀恢复、幂等效果与历史回放；正式 macOS 部署额外需要受管数据库、schema 升级和备份恢复，首版暂缓接入。完整证据与后续部署路线见 [选型记录](docs/p3-temporal-decision.md)。项目只维护一套产品运行引擎，不将 Temporal 开发服务作为生产部署。

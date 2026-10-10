@@ -190,7 +190,7 @@ function App() {
         if (ended) return;
         const ordered = taskViews(durable, result);
         setExecutions(result); setRuntimes(durable);
-        setProject(current => current && ordered.some(item => item.workspace === current) ? current : ordered[0]?.workspace ?? null);
+        setProject(current => current && ordered.some(item => item.workspace === current) ? current : null);
         setConnection('online'); setConnectionError(''); setLastSync(new Date().toISOString());
         const pendingRecord = pendingRef.current && durable.find(item => item.definition.commandId === pendingRef.current?.commandId);
         if (pendingRecord) { pendingRef.current = null; setPending(null); setComposer(false); setSelected(pendingRecord.id); setProject(pendingRecord.workspace); setCollapsed(current => { const next = new Set(current); next.delete(pendingRecord.workspace); return next; }); setActionError(''); }
@@ -311,6 +311,7 @@ function App() {
   function newTask(path: string | null = null) {
     setComposer(true); setSelected(null); setActionError('');
     if (pendingRef.current) return;
+    setProject(path);
     setWorkspace(path ?? ''); setPrompt(''); setImages([]);
   }
   function renewTask() {
@@ -395,7 +396,7 @@ function App() {
   const modelSupportsImages = Boolean(capabilities?.imageInput && selectedModel?.inputModalities.includes('image'));
   return <div className="shell">
     <aside className="sidebar" aria-label="项目与任务">
-      <div className="brand"><span className="brand-mark"><Icon name="agent" size={21}/></span>Supervisor</div>
+      <button className="brand" aria-label="返回首页" onClick={() => { setProject(null); setSelected(null); setComposer(false); }}><span className="brand-mark"><Icon name="agent" size={21}/></span>Supervisor</button>
       <button className="nav-item new-task" onClick={() => newTask()}><Icon name="plus"/><span>新任务</span></button>
       <div className="eyebrow">Projects / 项目</div>
       <nav className="project-list" aria-label="按工作目录管理任务">{projects.length ? projects.map(item => <section className="project-group" key={item.path}>
@@ -409,8 +410,9 @@ function App() {
     </aside>
     <main className="workspace">
       <div className="titlebar">SUPERVISOR / LOCAL WORKSPACE</div>
-      <header className="topbar"><div className="heading"><div className="eyebrow">Execution control</div><h1>让每一次执行，都有迹可循。</h1><p>持久任务 · 恢复核对 · 独立验收前不宣告交付</p></div>
+      <header className={`topbar ${currentProject ? 'project-topbar' : ''}`}><div className="heading">{currentProject ? <><div className="project-title"><Icon name="folder" size={21}/><h1 title={projectName(currentProject)}>{projectName(currentProject)}</h1>{currentProject.managed && <span className="pill">暂存工作区</span>}</div><p className="project-directory mono" title={currentProject.path}>{currentProject.path}</p></> : composer ? <><h1>新任务</h1><p>选择项目目录，或使用独立暂存工作区。</p></> : <><div className="eyebrow">Supervisor</div><h1>让每一次执行，都有迹可循。</h1><p>持久任务 · 恢复核对 · 独立验收前不宣告交付</p></>}</div>
         <div className="toolbar"><span className="connection" role="status"><i className={`dot ${online ? '' : 'offline'}`}/>{online ? '后台已连接' : connection === 'connecting' ? '正在连接' : connection === 'detached' ? '界面已断开' : '后台暂不可达'}</span>
+          {currentProject && <button className="button ghost" onClick={() => { void openWorkspace(currentProject.tasks[0]!.id); }}><Icon name="folder"/>打开目录</button>}
           <button className="button ghost" onClick={refresh} aria-label="重新连接后台"><Icon name="refresh"/>重连</button>
           {online && <button className="button ghost" onClick={() => setMonitoring(false)}>断开界面</button>}
           <button className="button primary" onClick={() => newTask(project)}><Icon name="plus"/>{project ? '在此项目新建' : '新任务'}</button>
@@ -441,11 +443,10 @@ function App() {
           {pending && <p className="form-hint mono">待核对请求：{pending.commandId}</p>}
           <div className="composer-footer"><p>执行结束仅表示本次尝试结束。<br/>交付仍须独立验收，本阶段不自动放行。</p><button className="button primary" type="submit" disabled={!online || busy || (!pending && (!model || !effort || !prompt.trim()))}>{busy ? '正在提交…' : pending ? '重试同一请求' : '启动 Codex'}<Icon name="arrow"/></button></div>
         </form>}
-        <div className="board-head"><h2><span className="project-heading">{currentProject ? projectName(currentProject) : '项目工作台'}</span><span className="pill">{visible.length} 个任务</span></h2><span className="subtle">{visible.filter(active).length} 执行中 · 持久运行</span></div>
-        {currentProject && <div className="project-context"><span className="mono" title={currentProject.path}>{currentProject.path}</span><button className="button ghost" onClick={() => { void openWorkspace(currentProject.tasks[0]!.id); }}><Icon name="folder"/>打开目录</button></div>}
-        {visible.length ? <div className="grid">{visible.map(record => <button key={record.id} className={`agent-card ${selected === record.id ? 'selected' : ''}`} onClick={() => selectTask(record)} aria-label={`查看任务：${record.prompt}`}><div className="agent-top"><span className="agent-icon"><Icon name="agent" size={25}/></span><span className="pill">{record.runtime ? '持久任务' : 'Codex'}</span></div><div className="agent-role">{record.runtime ? '监督任务 / 固定步骤' : '执行 Agent / 单次尝试'}</div><h3>{record.prompt}</h3><Status record={record} deliveryLabel={selected === record.id ? deliveryLabel : ''}/><div className="agent-excerpt">{(record.error ? describeTaskError(record.error) : '') || record.message || (record.runtime ? `${Math.min(record.runtime.cursor + 1, record.runtime.definition.steps.length)} / ${record.runtime.definition.steps.length} 步 · ${record.runtime.definition.steps[record.runtime.cursor]?.kind || '执行步骤已结束'}` : '等待执行器事件。')}</div><div className="agent-bottom"><span title={record.workspace}>{record.workspaceKind === 'managed' ? '暂存工作区' : basename(record.workspace)}</span><span>{record.usageStatus === 'reported' && record.usage ? `${count(record.usage.totalTokens)} tokens${record.runtime ? ' · 当前尝试' : ''}` : record.runtime && !record.execution ? '执行阶段未调用模型' : '用量待回报'}</span></div></button>)}</div>
+        <div className="board-head"><h2>{currentProject ? '项目任务' : '项目'}<span className="pill">{currentProject ? `${visible.length} 个任务` : `${projects.length} 个项目`}</span></h2>{currentProject && <span className="subtle">{visible.filter(active).length} 执行中</span>}</div>
+        {!currentProject && projects.length > 0 ? <div className="project-grid">{projects.map(item => <button className="project-card" key={item.path} onClick={() => { setProject(item.path); setSelected(null); setComposer(false); }} aria-label={`打开项目 ${projectName(item)}`}><div className="project-card-title"><Icon name="folder" size={20}/><strong>{projectName(item)}</strong>{item.managed && <span className="pill">暂存</span>}<Icon name="arrow"/></div><p className="mono" title={item.path}>{item.path}</p><span>{item.tasks.length} 个任务 · {item.tasks.filter(active).length} 执行中</span></button>)}</div> : visible.length ? <div className="grid">{visible.map(record => <button key={record.id} className={`agent-card ${selected === record.id ? 'selected' : ''}`} onClick={() => selectTask(record)} aria-label={`查看任务：${record.prompt}`}><div className="agent-top"><span className="agent-icon"><Icon name="agent" size={25}/></span><span className="pill">{record.runtime ? '持久任务' : 'Codex'}</span></div><div className="agent-role">{record.runtime ? '监督任务 / 固定步骤' : '执行 Agent / 单次尝试'}</div><h3>{record.prompt}</h3><Status record={record} deliveryLabel={selected === record.id ? deliveryLabel : ''}/><div className="agent-excerpt">{(record.error ? describeTaskError(record.error) : '') || record.message || (record.runtime ? `${Math.min(record.runtime.cursor + 1, record.runtime.definition.steps.length)} / ${record.runtime.definition.steps.length} 步 · ${record.runtime.definition.steps[record.runtime.cursor]?.kind || '执行步骤已结束'}` : '等待执行器事件。')}</div><div className="agent-bottom"><span title={record.workspace}>{record.workspaceKind === 'managed' ? '暂存工作区' : basename(record.workspace)}</span><span>{record.usageStatus === 'reported' && record.usage ? `${count(record.usage.totalTokens)} tokens${record.runtime ? ' · 当前尝试' : ''}` : record.runtime && !record.execution ? '执行阶段未调用模型' : '用量待回报'}</span></div></button>)}</div>
           : <div className="empty"><Icon name="agent" size={36}/><h2>从一个明确的目标开始</h2><p>选择已有项目，或直接描述目标。没有项目目录时，Supervisor 会自动创建暂存工作区。</p><button className="button primary" onClick={() => newTask(project)}><Icon name="plus"/>创建第一个任务</button></div>}
-        <div className="single-note"><i className="dot"/>卡片展示可观测执行状态；完成标记由独立验收决定。</div>
+        {!currentProject && !composer && <div className="single-note"><i className="dot"/>任务按项目目录管理；选择项目继续工作。</div>}
       </section>
       {chosen && <aside className="detail" aria-label="任务详情"><header className="detail-header"><div className="detail-title"><h2>{chosenRuntime ? '任务详情' : '尝试详情'}</h2><button className="icon-button" aria-label="关闭任务详情" onClick={() => setSelected(null)}><Icon name="close"/></button></div><p className="detail-goal">{chosen.prompt}</p><Status record={chosen} deliveryLabel={deliveryLabel}/></header><div className="detail-body">
         <dl className="facts"><dt>项目目录</dt><dd>{chosen.workspace}<br/><span className="subtle">{chosen.workspaceKind === 'managed' ? 'Supervisor 暂存工作区 · 持续保留' : '本地项目'}</span></dd><dt>创建时间</dt><dd>{date(chosen.createdAt)}</dd>
