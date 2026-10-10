@@ -28,11 +28,13 @@ export interface GoalGraphHostPolicy {
 }
 
 export interface GoalGraphAdmissionReceipt {
+ loop?:import('./p7-goal-loop.js').GoalLoopPreparation;
  schemaVersion:1;commandId:string;requestDigest:string;admission:GoalGraphAdmission;
  preparation:GraphPreparationReceipt;policy:GoalGraphHostPolicy;schedulerDigest:string;
  allocation:import('./p7-final-execution.js').FutureExecutionAllocation;
 }
 export interface GoalGraphAdmissionInput {
+ loop?:import('./p7-goal-loop.js').GoalLoopPreparation;
  action:Extract<import('./p5.js').OrchestrationAction,{type:'admit'}>;
  expectedRunRevision:number;admission:GoalGraphAdmission;
  preparation:GraphPreparationReceipt;policy:GoalGraphHostPolicy;

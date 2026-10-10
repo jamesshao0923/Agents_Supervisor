@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "stage": "P6",
-  "revision": "p6-bounded-author-v6-v26",
+  "revision": "p6-autonomous-bridge-v31",
   "caseIds": [
     "dev.unit-contracts.001",
     "dev.unit-contracts.002",
@@ -626,7 +626,16 @@
     "p6.integration-author-routing.007",
     "p6.integration-author-routing.008",
     "p6.integration-author-routing.009",
-    "p6.integration-author-routing.010"
+    "p6.integration-author-routing.010",
+    "p6.unit-supervision-loop-route-checker.001",
+    "p6.unit-supervision-loop-route-checker.002",
+    "p6.unit-supervision-loop-route-checker.003",
+    "p6.integration-author-review-rebuild.001",
+    "p6.integration-author-review-rebuild.002",
+    "p6.integration-author-review-rebuild.003",
+    "p6.integration-author-review-rebuild.004",
+    "p6.integration-author-review-rebuild.005",
+    "p6.integration-author-review-rebuild.006"
   ],
   "requiredRisks": [
     "p0.unit-contracts.001",

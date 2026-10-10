@@ -4,17 +4,20 @@ import {lstatSync,realpathSync,readFileSync} from 'node:fs';
 import type {SupervisorStore} from '../persistence/store.js';
 import type {GoalGraphAdmissionInput,GraphPreparationRequest} from '../contracts/p7-graph.js';
 import type {OrchestrationAction} from '../contracts/p5.js';
-import {buildGoalGraphAdmission} from './goal-graph.js';
+import {buildGoalGraphAdmission,compileGoalScheduledTemplate} from './goal-graph.js';
+import {assessGoalIteration,validateGoalLoopPolicy} from './goal-loop-admission.js';
+import type {GoalLoopHostPolicy} from '../contracts/p7-goal-loop.js';
 import {captureGraphSeed,prepareGraphWorkspaces} from '../workspace/graph-workspaces.js';
 import {canonical,digest} from '../verification/candidate.js';
-export interface GraphAdmissionOptions {tier:'low'|'medium'|'high'|'unlimited';maxActive:number;maxNodes:number;maxDepth:number;maxDurationMs:number}
+export interface GraphAdmissionOptions {tier:'low'|'medium'|'high'|'unlimited';maxActive:number;maxNodes:number;maxDepth:number;maxDurationMs:number;loop?:GoalLoopHostPolicy}
 export const DEFAULT_GRAPH_ADMISSION:GraphAdmissionOptions=Object.freeze({tier:'low',maxActive:2,maxNodes:32,maxDepth:1,maxDurationMs:24*60*60*1000});
 function validateOptions(options:GraphAdmissionOptions):void {
- if(canonical(Object.keys(options).sort())!==canonical(['tier','maxActive','maxNodes','maxDepth','maxDurationMs'].sort())||!['low','medium','high','unlimited'].includes(options.tier)||Object.entries(options).some(([key,value])=>key!=='tier'&&(!Number.isSafeInteger(value)||Number(value)<1)))throw Error('Invalid host graph admission policy');
+ if(canonical(Object.keys(options).sort())!==canonical(['tier','maxActive','maxNodes','maxDepth','maxDurationMs',...(options.loop?['loop']:[])].sort())||!['low','medium','high','unlimited'].includes(options.tier)||Object.entries(options).some(([key,value])=>key!=='tier'&&key!=='loop'&&(!Number.isSafeInteger(value)||Number(value)<1)))throw Error('Invalid host graph admission policy');
+ if(options.loop)validateGoalLoopPolicy(options.loop);
 }
 /** Reads actual host-owned preparation bytes within the admission transaction.
  * No caller-provided policy digest can replace this immutable request binding. */
-export function assertGoalGraphPreparation(input:GoalGraphAdmissionInput,dataDir:string):void {
+export function assertGoalGraphPreparation(input:GoalGraphAdmissionInput,dataDir:string):GraphAdmissionOptions {
  const checkDirectory=(path:string)=>{if(lstatSync(path).isSymbolicLink()||!lstatSync(path).isDirectory()||realpathSync(path)!==resolve(path))throw Error('Frozen graph request directory alias');};
  const read=(path:string)=>{const stat=lstatSync(path);if(stat.isSymbolicLink()||!stat.isFile()||stat.nlink!==1||realpathSync(path)!==resolve(path))throw Error('Frozen graph request file alias');return readFileSync(path,'utf8');};
  const root=realpathSync(dataDir),base=join(root,'graph-admission'),directory=join(base,digest(input.action.commandId)),seedDirectory=join(directory,'seed'),preparationRoot=join(directory,'branches');
@@ -32,6 +35,7 @@ export function assertGoalGraphPreparation(input:GoalGraphAdmissionInput,dataDir
  if(!Number.isSafeInteger(deadlineMs))throw Error('Invalid frozen graph deadline');
  const policy={schedulerId:'graph-'+digest(canonical({sessionId:input.action.sessionId,commandId:input.action.commandId})),preparationRoot,tier:request.options.tier,limits:{maxActive:request.options.maxActive,maxNodes:request.options.maxNodes,maxDepth:request.options.maxDepth,deadlineMs}};
  if(canonical(policy)!==canonical(input.policy)||input.preparation.hostRoot!==preparationRoot||input.preparation.request.commandId!==input.action.commandId)throw Error('Frozen graph policy differs from actual preparation request');
+ return structuredClone(request.options);
 }
 /** No model calls. Reuses the same stopped paid GoalProposal and persistent seed.
  * Caller keeps original P5 evidence/physical-stop checks before this operation. */
@@ -57,5 +61,7 @@ export async function prepareGoalGraphAdmission(store:SupervisorStore,dataDir:st
  const preparation=await prepareGraphWorkspaces(preparationRoot,request),deadlineMs=Date.parse(seed.createdAt)+options.maxDurationMs;
  if(!Number.isSafeInteger(deadlineMs))throw Error('Invalid graph preparation deadline');
  const policy={schedulerId:'graph-'+digest(canonical({sessionId:session.id,commandId:action.commandId})),preparationRoot,tier:options.tier,limits:{maxActive:options.maxActive,maxNodes:options.maxNodes,maxDepth:options.maxDepth,deadlineMs}};
- const input={action,expectedRunRevision:run.revision,admission,preparation,policy};assertGoalGraphPreparation(input,dataDir);return input;
+ const input:GoalGraphAdmissionInput={action,expectedRunRevision:run.revision,admission,preparation,policy};assertGoalGraphPreparation(input,dataDir);
+ if(session.proposal?.iteration){const templatePlan=compileGoalScheduledTemplate({session,baseRun:run,admission,preparation,policy}),assessed=assessGoalIteration({session,baseRun:run,admission,templatePlan,seed,preparationRoot:join(directory,'loop-occurrences'),...(options.loop?{hostPolicy:options.loop}:{})});input.loop={decision:assessed.decision,preparation:await store.scheduledLoops.prepareInstallation(action.commandId+':loop',assessed.source)};}
+ return input;
 }

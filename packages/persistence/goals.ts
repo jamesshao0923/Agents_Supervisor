@@ -1,3 +1,5 @@
+import {ScheduledLoopRepository} from './scheduled-loops.js';
+import {assessGoalIteration} from '../orchestration/goal-loop-admission.js';
 import {readFileSync} from 'node:fs';
 import type {GoalGraphAdmissionInput} from '../contracts/p7-graph.js';
 import {buildGoalGraphAdmission,compileGoalScheduledPlan} from '../orchestration/goal-graph.js';
@@ -8,7 +10,7 @@ import { VerificationLineageRepository, lineageDigest } from './verification-lin
 import type { AppliedContractTransition } from '../contracts/p4-lineage.js';
 import { validateFollowupEvolution, validateEvolutionReview } from '../orchestration/followup-evolution.js';
 import { createHash } from 'node:crypto';
-import { basename } from 'node:path';
+import { basename,dirname,join } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import type { Run, RunAction } from '../contracts/p1.js';
 import type { GoalInspection,GoalSession,OrchestrationAction,ReasoningJob } from '../contracts/p5.js';
@@ -153,7 +155,7 @@ export class GoalRepository {
   admitGraph(input:GoalGraphAdmissionInput):GoalInspection{return this.tx(()=>{
     ensure(this.dataDir,'Graph admission needs the store data root');const a=input.action,prior=this.receipt(a),requestDigest=hash(canonical(input));
     if(prior){ensure(prior.graphAdmission?.requestDigest===requestDigest,'Conflicting graph admission command');return this.inspect(prior.id);}
-    this.validateAdmission(a);assertGoalGraphPreparation(input,this.dataDir);const session=this.get(a.sessionId),baseRun=this.run(session);
+    this.validateAdmission(a);const hostOptions=assertGoalGraphPreparation(input,this.dataDir);const session=this.get(a.sessionId),baseRun=this.run(session);
     ensure(baseRun.revision===input.expectedRunRevision,'Graph Run revision changed');
     ensure(canonical(buildGoalGraphAdmission(session,baseRun))===canonical(input.admission),'Graph source changed before admission');
     // Recheck evidence after asynchronous filesystem preparation, under the
@@ -169,8 +171,14 @@ export class GoalRepository {
     const allocation={allocationId:'final-execution-'+hash(a.commandId),contractVersion:run.contract.version,nodeId:admission.integrationStep.id,attemptId:operation.attemptId,amount:admission.integrationStep.reservation};
     this.act(session,{type:'setFutureExecution',allocation,reason:'Preserve the exact final integration attempt after same-contract branches'});
     const results=new TaskResultRepository(this.db,this.dataDir);results.initializeScope({commandId:a.commandId+':results',projectId:session.projectId,runId:session.id});
-    const scheduler=new TaskSchedulerRepository(this.db,this.dataDir),record=scheduler.install({commandId:a.commandId+':graph',plan,expectedRunRevision:this.run(session).revision,expectedResultRevision:results.inspect(plan).revision});
-    session.graphAdmission={schemaVersion:1,commandId:a.commandId,requestDigest,admission:structuredClone(admission),preparation:structuredClone(input.preparation),policy:structuredClone(input.policy),schedulerDigest:record.planDigest,allocation};
+    let record:import('../contracts/p7-dispatch.js').ScheduledRecord;
+    if(session.proposal?.iteration){
+      ensure(input.loop,'Loop preparation is required; ordinary graph cannot omit a proposed strategy');
+      const expected=assessGoalIteration({session,baseRun,admission,templatePlan:plan,seed:input.preparation.request.seed,preparationRoot:join(dirname(input.policy.preparationRoot),'loop-occurrences'),...(hostOptions.loop?{hostPolicy:hostOptions.loop}:{})});
+      ensure(canonical(expected.decision)===canonical(input.loop.decision)&&canonical(expected.source)===canonical(input.loop.preparation.source),'Host loop admission or frozen source changed');
+      record=new ScheduledLoopRepository(this.db,this.dataDir).install({commandId:a.commandId+':loop',prepared:input.loop.preparation,expectedRunRevision:this.run(session).revision,expectedResultRevision:results.inspect(plan).revision});
+    }else{ensure(!input.loop,'Unexpected loop preparation');record=new TaskSchedulerRepository(this.db,this.dataDir).install({commandId:a.commandId+':graph',plan,expectedRunRevision:this.run(session).revision,expectedResultRevision:results.inspect(plan).revision});}
+    session.graphAdmission={...(input.loop?{loop:structuredClone(input.loop)}:{}),schemaVersion:1,commandId:a.commandId,requestDigest,admission:structuredClone(admission),preparation:structuredClone(input.preparation),policy:structuredClone(input.policy),schedulerDigest:record.planDigest,allocation};
     session.runtimeId=runtime.id;session.phase='admitted';this.save(session);this.receipted(a,session.id,a.commandId);return this.inspect(session.id);
   });}
   control(a:Exclude<OrchestrationAction,{type:'start'}|{type:'list'}|{type:'inspect';sessionId:string}>):GoalInspection {return this.tx(()=>{
@@ -178,6 +186,7 @@ export class GoalRepository {
     if(a.type==='cancel'){ensure(!s.runtimeId,'Cancel admitted tasks through runtime');this.act(s,{type:'cancel'});s.phase='cancelled';}
     else {ensure(s.phase!=='cancelled','Goal is cancelled');ensure(a.expectedRevision===s.revision,'Goal revision changed');
       if(a.type==='admit'){
+        ensure(!s.proposal?.iteration,'Loop proposal requires the atomic graph admission bridge');
         ensure(!new ConversationRepository(this.db).hasPendingForRun(s.projectId,s.id),'Pending follow-up prevents ordinary admission');
         ensure(s.phase==='ready'&&!s.runtimeId,'Goal is not ready for admission');const plan=admittedPlan(s,this.run(s));
         ensure(s.jobs.every(j=>j.status==='finished'&&j.stopConfirmed&&j.usage!==null),'Unresolved model work prevents admission');

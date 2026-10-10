@@ -1,0 +1,6 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {assertAuthorRouteChain as check} from '../live/supervision-loop-route-checker.js';
+const authors=['a','b','c'].map(id=>({id}));const route=(previousJobId:string,nextJobId:string,kind:string)=>({nextJobId,rejection:{previousJobId,kind}});
+test('live route checker accepts no recovery and one semantic then one review recovery independent of row order',()=>{check(authors.slice(0,1),[],'a');check(authors.slice(0,2),[route('a','b','schema')],'b');check(authors,[route('b','c','review'),route('a','b','semantic')],'c');});
+test('live route checker rejects second review or second schema/semantic and unknown recovery kind',()=>{for(const routes of [[route('a','b','review'),route('b','c','review')],[route('a','b','schema'),route('b','c','semantic')],[route('a','b','other'),route('b','c','review')]])assert.throws(()=>check(authors,routes,'c'));});
+test('live route checker rejects dangling edges branching disconnected cycles and stale final author',()=>{for(const routes of [[route('a','b','semantic'),route('a','c','review')],[route('a','missing','semantic'),route('b','c','review')],[route('b','c','semantic'),route('c','b','review')]])assert.throws(()=>check(authors,routes,'c'));assert.throws(()=>check(authors,[route('a','b','semantic'),route('b','c','review')],'b'));});

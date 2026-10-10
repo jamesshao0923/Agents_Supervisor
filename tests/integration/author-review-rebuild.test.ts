@@ -1,0 +1,57 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync} from 'node:fs';
+import {join} from 'node:path';
+import {setTimeout as delay} from 'node:timers/promises';
+import {fixture,capabilities} from './author-review-fixture.js';
+import {materializeAcceptanceBundle} from '../../packages/orchestration/acceptance-authoring.js';
+import {VerificationController} from '../../packages/verification/controller.js';
+import type {Proposal,VerificationJob} from '../../packages/verification/records.js';
+import type {SupervisionJob} from '../../packages/contracts/p6-supervision.js';
+import {futureVerificationFloor} from '../../packages/domain/index.js';
+import {selectAcceptanceAuthorRoute} from '../../packages/orchestration/acceptance-authoring-route.js';
+// The planner JSON and 7-token author receipt are explicitly synthetic; its Node
+// ownership/stop and the SQLite ledger are real. P4 control commands below use
+// the real controller/engine/permission sandbox and deliberately produce no
+// checker report, so all control errors are actual, stopped, zero-model-cost.
+async function review(f:Awaited<ReturnType<typeof fixture>>,author:SupervisionJob=f.old,modelReview=false){
+ const assets=await materializeAcceptanceBundle({privateRoot:join(f.data,'supervision','authoring'),jobId:author.id,context:f.context,bundle:author.result});
+ const controller=new VerificationController(f.store,f.data);await controller.initialize();
+ try{const proposal=await controller.dispatch({type:'propose',commandId:'propose-'+author.id,runtimeId:f.runtime.id,specPath:assets.specPath}) as Proposal;
+ let job=await controller.dispatch({type:'review',commandId:'review-'+author.id,proposalId:proposal.id,model:'must-not-launch-provider',effort:'low',reservation:20,timeoutMs:15000}) as VerificationJob;
+ const deadline=Date.now()+15000;while(job.status==='running'){assert.ok(Date.now()<deadline);await delay(25);job=f.store.verification.get('job',job.id);}
+ if(modelReview){const errors=Object.keys(job.proofs).filter(p=>p.endsWith('/definition-review/error.json'));assert.equal(errors.length,0,job.error+' '+errors.map(p=>readFileSync(p,'utf8')).join('\n'));}assert.equal(job.approved,false);assert.equal(job.modelStarted,modelReview);assert.equal(job.usage,modelReview?4:0);assert.equal(job.stopConfirmed,true);assert.ok(modelReview?job.controls.every(c=>c.passed):job.controls.every(c=>c.results.some(r=>r.executionStatus==='verifier-error')));
+ const loop=f.store.supervision.get(f.loop.id);f.store.supervision.update(loop.id,loop.revision,{phase:'reviewing',references:{authorJobId:author.id,proposalId:proposal.id,reviewId:job.id}});return {proposal,job};
+ }finally{await controller.close();}
+}
+async function request(f:Awaited<ReturnType<typeof fixture>>,job=f.old){return {commandId:'review-rebuild-'+job.id,loopId:f.loop.id,previousJobId:job.id,expectedRevision:f.store.supervision.get(f.loop.id).revision,rejection:await f.repo.assess(f.loop.id,job.id,true),capabilities:await capabilities(f.data)};}
+test('P6-AUTHREVIEW-I01 actual P4 command rejection reserves one fresh author atomically and preserves original history across reopen',async t=>{
+ const f=await fixture(t,{kind:'valid',calls:5}),oldReview=await review(f),run=f.store.runtime.inspect(f.runtime.id).run;
+ f.store.runtime.setFutureVerification({commandId:'protect-p4',runtimeId:f.runtime.id,expectedContractVersion:run.contract.version,expectedRevision:run.revision,allocationId:'final-review-floor',amount:25,reason:'Keep actual final P4 allocation'});
+ const input=await request(f),before=f.store.runtime.inspect(f.runtime.id),old=JSON.stringify({author:f.store.supervision.job(f.old.id),proposal:f.store.verification.get('proposal',oldReview.proposal.id),review:f.store.verification.get('job',oldReview.job.id)});
+ assert.equal(input.rejection.kind,'review');assert.equal(input.rejection.review!.classification,'control-rejected');assert.throws(()=>f.repo.transaction(()=>{f.repo.begin(input);throw Error('parent rollback')}),/parent rollback/);assert.deepEqual(f.store.runtime.inspect(f.runtime.id),before);assert.equal(f.repo.routes(f.loop.id).length,0);
+ const next=f.repo.begin(input);assert.equal(next.job.config.model,'gpt-6-astra');assert.equal(next.job.config.effort,'high');assert.equal(next.job.config.reservation,f.old.config.reservation);assert.equal(futureVerificationFloor(f.store.runtime.inspect(f.runtime.id).run),25);assert.equal(f.store.runtime.inspect(f.runtime.id).run.budget.spent,7);assert.equal(f.store.supervision.get(f.loop.id).repairCount,0);assert.equal(f.store.supervision.get(f.loop.id).references.proposalId,undefined);
+ assert.equal(JSON.stringify({author:f.store.supervision.job(f.old.id),proposal:f.store.verification.get('proposal',oldReview.proposal.id),review:f.store.verification.get('job',oldReview.job.id)}),old);f.reopen();assert.deepEqual(f.repo.begin(input),next);assert.throws(()=>f.repo.begin({...input,expectedRevision:input.expectedRevision+1}),/Conflicting/);assert.equal(f.store.supervision.jobs(f.loop.id).length,2);
+});
+test('P6-AUTHREVIEW-I02 changed actual review proof and changed original candidate reject without granting a replacement',async t=>{
+ const f=await fixture(t,{kind:'valid'}),r=await review(f),input=await request(f),proof=Object.keys(r.job.proofs).find(p=>p.endsWith('/report.json'))!,bytes=readFileSync(proof);
+ writeFileSync(proof,Buffer.concat([bytes,Buffer.from(' ')]));assert.throws(()=>f.repo.begin(input),/proof changed/);writeFileSync(proof,bytes);writeFileSync(join(f.workspace,'value.mjs'),'changed original candidate');assert.throws(()=>f.repo.begin(input),/candidate changed/);assert.equal(f.repo.routes(f.loop.id).length,0);assert.equal(f.store.supervision.jobs(f.loop.id).length,1);
+});
+test('P6-AUTHREVIEW-I03 second actually rejected rebuilt author remains retained and cannot regenerate again',async t=>{
+ const f=await fixture(t,{kind:'valid',calls:5});await review(f);const next=f.repo.begin(await request(f));await f.create('valid',next.job);await review(f,f.store.supervision.job(next.job.id));await assert.rejects(f.repo.assess(f.loop.id,next.job.id,true),/Review reconstruction limit exhausted/);assert.equal(f.repo.routes(f.loop.id).length,1);assert.equal(f.store.supervision.jobs(f.loop.id).length,2);assert.equal(f.store.runtime.inspect(f.runtime.id).run.budget.spent,14);assert.equal(f.store.verification.list('job').length,2);
+});
+test('P6-AUTHREVIEW-I04 unknown review accounting and queued overlapping Run cannot consume replacement authority',async t=>{
+ const f=await fixture(t,{kind:'valid'}),r=await review(f),input=await request(f);f.store.verification.update('job',{...r.job,usageUnknown:true});await assert.rejects(f.repo.assess(f.loop.id,f.old.id,true),/settlement|unresolved/);f.store.verification.update('job',r.job);
+ f.store.executionCreate({type:'start',commandId:'unrelated-queued',workspace:f.workspace,workspaceKind:'project',prompt:'Explicit unstarted foreign writer',model:'no-provider',effort:'low',reservation:20,timeoutMs:1000,tokenLimit:100,verificationReserve:20});assert.throws(()=>f.repo.begin(input),/Workspace has active or unverified execution/);assert.equal(f.repo.routes(f.loop.id).length,0);
+});
+test('P6-AUTHREVIEW-U01 actual advertised Astra high upgrades strictly to xhigh without changing reservation or guessing effort',()=>{
+ const config={model:'gpt-6-astra',effort:'high',reservation:30,timeoutMs:5000},capabilities={version:'fixture',schemaDigest:'fixture',models:[{id:'gpt-6-astra',label:'exact provider ID',inputModalities:['text'],reasoningEfforts:['low','high','xhigh'],defaultEffort:'low'}],imageInput:false,checkedAt:new Date().toISOString()};assert.deepEqual(selectAcceptanceAuthorRoute(capabilities,config),{...config,effort:'xhigh'});capabilities.models[0]!.reasoningEfforts=['low','high'];assert.throws(()=>selectAcceptanceAuthorRoute(capabilities,config),/No advertised/);
+});
+
+test('P6-AUTHREVIEW-I05 completed synthetic review transport with real P4 controls binds failed independent judgment and retains its cost',async t=>{
+ const f=await fixture(t,{kind:'review-valid'}),binary=join(f.root,'review-synthetic.cjs');
+ writeFileSync(binary,`#!${process.execPath}
+const cp=require('node:child_process'),a=process.argv.slice(2);if(a.includes('--version')||a.includes('generate-json-schema')){process.stdout.write(cp.execFileSync('codex',a));process.exit(0)}if(a.includes('mcp')){console.log('[]');process.exit(0)}const send=x=>console.log(JSON.stringify(x));require('node:readline').createInterface({input:process.stdin}).on('line',line=>{const m=JSON.parse(line);if(m.id===undefined)return;if(m.method==='initialize')return send({id:m.id,result:{userAgent:'synthetic',codexHome:'fixture',platformFamily:'unix',platformOs:'test'}});if(m.method==='model/list')return send({id:m.id,result:{data:[{id:'must-not-launch-provider',model:'must-not-launch-provider',inputModalities:['text'],supportedReasoningEfforts:[{reasoningEffort:'low'}],defaultReasoningEffort:'low',isDefault:true}],nextCursor:null}});if(m.method==='thread/start')return send({id:m.id,result:{thread:{id:'actual-synthetic-thread',turns:[]}}});if(m.method==='turn/start'){send({id:m.id,result:{turn:{id:'actual-turn',status:'inProgress',items:[]}}});const usage={inputTokens:2,cachedInputTokens:0,outputTokens:2,reasoningOutputTokens:0,totalTokens:4};send({method:'thread/tokenUsage/updated',params:{threadId:'actual-synthetic-thread',turnId:'actual-turn',tokenUsage:{total:usage,last:usage}}});send({method:'item/completed',params:{threadId:'actual-synthetic-thread',turnId:'actual-turn',item:{id:'message',type:'agentMessage',text:JSON.stringify({verdict:'failed',reason:'Explicit synthetic independent judgment: improve verifier coverage',observations:['Fixture judgment, not actual model reasoning']})}}});send({method:'turn/completed',params:{threadId:'actual-synthetic-thread',turn:{id:'actual-turn',status:'completed',items:[{type:'agentMessage',text:JSON.stringify({verdict:'failed',reason:'Explicit synthetic independent judgment: improve verifier coverage',observations:['Fixture judgment, not actual model reasoning']})}]}}});return;}throw Error('Unexpected request '+m.method);});`,{mode:0o700});
+ const old=process.env.SUPERVISOR_CODEX_PATH;process.env.SUPERVISOR_CODEX_PATH=binary;t.after(()=>{if(old===undefined)delete process.env.SUPERVISOR_CODEX_PATH;else process.env.SUPERVISOR_CODEX_PATH=old;});
+ const r=await review(f,f.old,true),input=await request(f);assert.equal(input.rejection.review!.classification,'definition-rejected');assert.equal(input.rejection.review!.review.id,r.job.id);const next=f.repo.begin(input);assert.equal(f.store.runtime.inspect(f.runtime.id).run.budget.spent,11);assert.equal(next.job.result,null);assert.equal(f.store.supervision.get(f.loop.id).repairCount,0);
+});

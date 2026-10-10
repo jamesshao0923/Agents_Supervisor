@@ -34,6 +34,13 @@ export function compileGoalScheduledPlan(input:{session:GoalSession;baseRun:Run;
  ensure(run.status==='ready'&&run.nodes.length===1&&run.nodes[0]!.id===admission.integrationStep.id&&run.nodes[0]!.required&&run.nodes[0]!.status==='pending'&&run.nodes[0]!.dependencies.length===0,'Graph needs the unique unstarted final integration anchor');
  ensure(runtime.runId===run.id&&runtime.projectId===run.projectId&&runtime.workspace===session.workspace&&runtime.workspaceKind===session.workspaceKind&&!runtime.paused&&!runtime.cancelled&&runtime.cursor===0&&runtime.phase==='ready'&&runtime.definition.goal===admission.contract.goal&&runtime.definition.workspace===session.workspace&&runtime.definition.tokenLimit===run.budget.limit&&runtime.definition.verificationReserve===run.budget.verificationReserve&&same(runtime.definition.steps,[admission.integrationStep]),'Actual runtime anchor or frozen prompt differs');
  ensure(same(run.attempts,baseRun.attempts)&&same(run.budget,baseRun.budget)&&same(run.operations,baseRun.operations)&&same(run.leases,baseRun.leases),'Admission changed cumulative accounting or started work');
+ return compileGoalScheduledTemplate({session,baseRun,admission,preparation,policy});
+}
+/** Deterministic preparation projection only; commit still validates actual Run/runtime. */
+export function compileGoalScheduledTemplate(input:{session:GoalSession;baseRun:Run;admission:GoalGraphAdmission;preparation:GraphPreparationReceipt;policy:GoalGraphHostPolicy}):ScheduledPlan{
+ const {session,baseRun,admission,preparation,policy}=input;
+ ensure(same(admission,buildGoalGraphAdmission(session,baseRun)),'Frozen goal graph template changed');
+ const run={...baseRun,contract:admission.contract},runtime={id:session.id,workspace:session.workspace};
  ensure(preparation.request.projectId===run.projectId&&preparation.request.runId===run.id&&preparation.request.admissionDigest===admission.digest&&preparation.request.seed.root===runtime.workspace&&same(preparation.request.taskIds,admission.implementationSteps.map(s=>s.id)),'Preparation does not match the admitted task');
  assertPreparedGraphWorkspaces(preparation,preparation.request,policy.preparationRoot);
  ensure(policy.schedulerId.trim()&&['low','medium','high','unlimited'].includes(policy.tier),'Invalid host scheduler policy');

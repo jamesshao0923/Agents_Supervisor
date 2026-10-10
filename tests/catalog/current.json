@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-catalog-v30",
+  "revision": "dev-catalog-v31",
   "modules": [
     {
       "id": "dev-contracts",
@@ -735,6 +735,24 @@
       "layer": "integration",
       "file": "dist/tests/integration/scheduled-loop-generations.test.js",
       "timeoutMs": 300000
+    },
+    {
+      "id": "unit-supervision-loop-route-checker",
+      "layer": "unit",
+      "file": "dist/tests/unit/supervision-loop-route-checker.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "integration-author-review-rebuild",
+      "layer": "integration",
+      "file": "dist/tests/integration/author-review-rebuild.test.js",
+      "timeoutMs": 180000
+    },
+    {
+      "id": "integration-goal-loop-admission",
+      "layer": "integration",
+      "file": "dist/tests/integration/goal-loop-admission.test.js",
+      "timeoutMs": 180000
     }
   ],
   "cases": [
@@ -15206,6 +15224,276 @@
       "prerequisites": "Real files/SQLite/managed Node where applicable; synthetic protocol data is not supplier success.",
       "assertions": "tests/integration/decomposition.test.ts :: P7-DECOMP-I07 model schema distinguishes project file scopes from absolute shared resources",
       "cleanup": "Stop owned processes and retain original failed evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-supervision-loop-route-checker.001",
+      "name": "live route checker accepts no recovery and one semantic then one review recovery independent of row order",
+      "suiteId": "unit-supervision-loop-route-checker",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-route-checker"
+      ],
+      "scenario": "live route checker accepts no recovery and one semantic then one review recovery independent of row order",
+      "impactTags": [
+        "p6-route-checker"
+      ],
+      "prerequisites": "Pinned Node; real modules; explicit synthetic planner/P2 accounting where stated",
+      "assertions": "tests/unit/supervision-loop-route-checker.test.ts :: live route checker accepts no recovery and one semantic then one review recovery independent of row order",
+      "cleanup": "Stop owned processes; preserve original failed evidence",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-supervision-loop-route-checker.002",
+      "name": "live route checker rejects second review or second schema/semantic and unknown recovery kind",
+      "suiteId": "unit-supervision-loop-route-checker",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-route-checker"
+      ],
+      "scenario": "live route checker rejects second review or second schema/semantic and unknown recovery kind",
+      "impactTags": [
+        "p6-route-checker"
+      ],
+      "prerequisites": "Pinned Node; real modules; explicit synthetic planner/P2 accounting where stated",
+      "assertions": "tests/unit/supervision-loop-route-checker.test.ts :: live route checker rejects second review or second schema/semantic and unknown recovery kind",
+      "cleanup": "Stop owned processes; preserve original failed evidence",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-supervision-loop-route-checker.003",
+      "name": "live route checker rejects dangling edges branching disconnected cycles and stale final author",
+      "suiteId": "unit-supervision-loop-route-checker",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-route-checker"
+      ],
+      "scenario": "live route checker rejects dangling edges branching disconnected cycles and stale final author",
+      "impactTags": [
+        "p6-route-checker"
+      ],
+      "prerequisites": "Pinned Node; real modules; explicit synthetic planner/P2 accounting where stated",
+      "assertions": "tests/unit/supervision-loop-route-checker.test.ts :: live route checker rejects dangling edges branching disconnected cycles and stale final author",
+      "cleanup": "Stop owned processes; preserve original failed evidence",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-author-review-rebuild.001",
+      "name": "P6-AUTHREVIEW-I01 actual P4 command rejection reserves one fresh author atomically and preserves original history across reopen",
+      "suiteId": "integration-author-review-rebuild",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-author-review"
+      ],
+      "scenario": "P6-AUTHREVIEW-I01 actual P4 command rejection reserves one fresh author atomically and preserves original history across reopen",
+      "impactTags": [
+        "p6-author-review"
+      ],
+      "prerequisites": "Pinned Node; real modules; explicit synthetic planner/P2 accounting where stated",
+      "assertions": "tests/integration/author-review-rebuild.test.ts :: P6-AUTHREVIEW-I01 actual P4 command rejection reserves one fresh author atomically and preserves original history across reopen",
+      "cleanup": "Stop owned processes; preserve original failed evidence",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-author-review-rebuild.002",
+      "name": "P6-AUTHREVIEW-I02 changed actual review proof and changed original candidate reject without granting a replacement",
+      "suiteId": "integration-author-review-rebuild",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-author-review"
+      ],
+      "scenario": "P6-AUTHREVIEW-I02 changed actual review proof and changed original candidate reject without granting a replacement",
+      "impactTags": [
+        "p6-author-review"
+      ],
+      "prerequisites": "Pinned Node; real modules; explicit synthetic planner/P2 accounting where stated",
+      "assertions": "tests/integration/author-review-rebuild.test.ts :: P6-AUTHREVIEW-I02 changed actual review proof and changed original candidate reject without granting a replacement",
+      "cleanup": "Stop owned processes; preserve original failed evidence",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-author-review-rebuild.003",
+      "name": "P6-AUTHREVIEW-I03 second actually rejected rebuilt author remains retained and cannot regenerate again",
+      "suiteId": "integration-author-review-rebuild",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-author-review"
+      ],
+      "scenario": "P6-AUTHREVIEW-I03 second actually rejected rebuilt author remains retained and cannot regenerate again",
+      "impactTags": [
+        "p6-author-review"
+      ],
+      "prerequisites": "Pinned Node; real modules; explicit synthetic planner/P2 accounting where stated",
+      "assertions": "tests/integration/author-review-rebuild.test.ts :: P6-AUTHREVIEW-I03 second actually rejected rebuilt author remains retained and cannot regenerate again",
+      "cleanup": "Stop owned processes; preserve original failed evidence",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-author-review-rebuild.004",
+      "name": "P6-AUTHREVIEW-I04 unknown review accounting and queued overlapping Run cannot consume replacement authority",
+      "suiteId": "integration-author-review-rebuild",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-author-review"
+      ],
+      "scenario": "P6-AUTHREVIEW-I04 unknown review accounting and queued overlapping Run cannot consume replacement authority",
+      "impactTags": [
+        "p6-author-review"
+      ],
+      "prerequisites": "Pinned Node; real modules; explicit synthetic planner/P2 accounting where stated",
+      "assertions": "tests/integration/author-review-rebuild.test.ts :: P6-AUTHREVIEW-I04 unknown review accounting and queued overlapping Run cannot consume replacement authority",
+      "cleanup": "Stop owned processes; preserve original failed evidence",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-author-review-rebuild.005",
+      "name": "P6-AUTHREVIEW-U01 actual advertised Astra high upgrades strictly to xhigh without changing reservation or guessing effort",
+      "suiteId": "integration-author-review-rebuild",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-author-review"
+      ],
+      "scenario": "P6-AUTHREVIEW-U01 actual advertised Astra high upgrades strictly to xhigh without changing reservation or guessing effort",
+      "impactTags": [
+        "p6-author-review"
+      ],
+      "prerequisites": "Pinned Node; real modules; explicit synthetic planner/P2 accounting where stated",
+      "assertions": "tests/integration/author-review-rebuild.test.ts :: P6-AUTHREVIEW-U01 actual advertised Astra high upgrades strictly to xhigh without changing reservation or guessing effort",
+      "cleanup": "Stop owned processes; preserve original failed evidence",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-author-review-rebuild.006",
+      "name": "P6-AUTHREVIEW-I05 completed synthetic review transport with real P4 controls binds failed independent judgment and retains its cost",
+      "suiteId": "integration-author-review-rebuild",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-author-review"
+      ],
+      "scenario": "P6-AUTHREVIEW-I05 completed synthetic review transport with real P4 controls binds failed independent judgment and retains its cost",
+      "impactTags": [
+        "p6-author-review"
+      ],
+      "prerequisites": "Pinned Node; real modules; explicit synthetic planner/P2 accounting where stated",
+      "assertions": "tests/integration/author-review-rebuild.test.ts :: P6-AUTHREVIEW-I05 completed synthetic review transport with real P4 controls binds failed independent judgment and retains its cost",
+      "cleanup": "Stop owned processes; preserve original failed evidence",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-goal-loop-admission.001",
+      "name": "P7-AUTOLOOP-I01 compact current schema and whole-tree validation retain legacy null and reject lost dependencies or authority",
+      "suiteId": "integration-goal-loop-admission",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-auto-loop"
+      ],
+      "scenario": "P7-AUTOLOOP-I01 compact current schema and whole-tree validation retain legacy null and reject lost dependencies or authority",
+      "impactTags": [
+        "p7-auto-loop"
+      ],
+      "prerequisites": "Pinned Node; real modules; explicit synthetic planner/P2 accounting where stated",
+      "assertions": "tests/integration/goal-loop-admission.test.ts :: P7-AUTOLOOP-I01 compact current schema and whole-tree validation retain legacy null and reject lost dependencies or authority",
+      "cleanup": "Stop owned processes; preserve original failed evidence",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-goal-loop-admission.002",
+      "name": "P7-AUTOLOOP-I02 actual frozen request source policy and parent rollback protect atomic automatic loop admission across reopen",
+      "suiteId": "integration-goal-loop-admission",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-auto-loop"
+      ],
+      "scenario": "P7-AUTOLOOP-I02 actual frozen request source policy and parent rollback protect atomic automatic loop admission across reopen",
+      "impactTags": [
+        "p7-auto-loop"
+      ],
+      "prerequisites": "Pinned Node; real modules; explicit synthetic planner/P2 accounting where stated",
+      "assertions": "tests/integration/goal-loop-admission.test.ts :: P7-AUTOLOOP-I02 actual frozen request source policy and parent rollback protect atomic automatic loop admission across reopen",
+      "cleanup": "Stop owned processes; preserve original failed evidence",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-goal-loop-admission.003",
+      "name": "P7-AUTOLOOP-I03 ordinary P5 admit drives actual nested Sequence Parallel and original final integration without manual install or acceptance",
+      "suiteId": "integration-goal-loop-admission",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-auto-loop"
+      ],
+      "scenario": "P7-AUTOLOOP-I03 ordinary P5 admit drives actual nested Sequence Parallel and original final integration without manual install or acceptance",
+      "impactTags": [
+        "p7-auto-loop"
+      ],
+      "prerequisites": "Pinned Node; real modules; explicit synthetic planner/P2 accounting where stated",
+      "assertions": "tests/integration/goal-loop-admission.test.ts :: P7-AUTOLOOP-I03 ordinary P5 admit drives actual nested Sequence Parallel and original final integration without manual install or acceptance",
+      "cleanup": "Stop owned processes; preserve original failed evidence",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-goal-loop-admission.004",
+      "name": "P7-AUTOLOOP-I04 explicit one-task loop is automatic while iteration cap and unchanged real output block rather than deliver",
+      "suiteId": "integration-goal-loop-admission",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-auto-loop"
+      ],
+      "scenario": "P7-AUTOLOOP-I04 explicit one-task loop is automatic while iteration cap and unchanged real output block rather than deliver",
+      "impactTags": [
+        "p7-auto-loop"
+      ],
+      "prerequisites": "Pinned Node; real modules; explicit synthetic planner/P2 accounting where stated",
+      "assertions": "tests/integration/goal-loop-admission.test.ts :: P7-AUTOLOOP-I04 explicit one-task loop is automatic while iteration cap and unchanged real output block rather than deliver",
+      "cleanup": "Stop owned processes; preserve original failed evidence",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-goal-loop-admission.005",
+      "name": "P7-AUTOLOOP-I05 actual unknown usage and cancellation retain shared reservation and prevent automatic replay",
+      "suiteId": "integration-goal-loop-admission",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-auto-loop"
+      ],
+      "scenario": "P7-AUTOLOOP-I05 actual unknown usage and cancellation retain shared reservation and prevent automatic replay",
+      "impactTags": [
+        "p7-auto-loop"
+      ],
+      "prerequisites": "Pinned Node; real modules; explicit synthetic planner/P2 accounting where stated",
+      "assertions": "tests/integration/goal-loop-admission.test.ts :: P7-AUTOLOOP-I05 actual unknown usage and cancellation retain shared reservation and prevent automatic replay",
+      "cleanup": "Stop owned processes; preserve original failed evidence",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-goal-loop-admission.006",
+      "name": "P7-AUTOLOOP-I06 real out-of-scope occurrence bytes cannot publish or trigger another numeric iteration",
+      "suiteId": "integration-goal-loop-admission",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-auto-loop"
+      ],
+      "scenario": "P7-AUTOLOOP-I06 real out-of-scope occurrence bytes cannot publish or trigger another numeric iteration",
+      "impactTags": [
+        "p7-auto-loop"
+      ],
+      "prerequisites": "Pinned Node; real modules; explicit synthetic planner/P2 accounting where stated",
+      "assertions": "tests/integration/goal-loop-admission.test.ts :: P7-AUTOLOOP-I06 real out-of-scope occurrence bytes cannot publish or trigger another numeric iteration",
+      "cleanup": "Stop owned processes; preserve original failed evidence",
       "status": "active"
     }
   ]

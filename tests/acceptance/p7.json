@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "stage": "P7",
-  "revision": "p7-nested-mechanisms-v30",
+  "revision": "p7-autonomous-bridge-v31",
   "caseIds": [
     "p7.unit-task-results.001",
     "p7.unit-task-results.002",
@@ -114,7 +114,13 @@
     "p7.integration-scheduled-loops.010",
     "p7.integration-scheduled-loops.011",
     "p7.integration-scheduled-loops.012",
-    "p7.integration-decomposition.007"
+    "p7.integration-decomposition.007",
+    "p7.integration-goal-loop-admission.001",
+    "p7.integration-goal-loop-admission.002",
+    "p7.integration-goal-loop-admission.003",
+    "p7.integration-goal-loop-admission.004",
+    "p7.integration-goal-loop-admission.005",
+    "p7.integration-goal-loop-admission.006"
   ],
   "requiredRisks": [
     "p7-task-results",

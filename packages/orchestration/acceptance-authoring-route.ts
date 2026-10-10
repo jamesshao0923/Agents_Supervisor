@@ -15,7 +15,7 @@ export function selectAcceptanceAuthorRoute(actual: ExecutorCapabilities, baseli
     if (seen.has(model.id)) throw Error('Ambiguous advertised model ID'); seen.add(model.id);
     const preference = policy.models.find(item => item.id === model.id);
     if (!preference || preference.qualityRank < previous.qualityRank || !model.inputModalities.includes('text')) return [];
-    const effort = REASONING_EFFORTS.find((value, index) => index >= Math.max(requested, priorEffort) && model.reasoningEfforts.includes(value));
+    const effort = REASONING_EFFORTS.find((value, index) => index >= Math.max(requested, priorEffort + (preference.qualityRank === previous.qualityRank ? 1 : 0)) && model.reasoningEfforts.includes(value));
     if (!effort || preference.qualityRank === previous.qualityRank && REASONING_EFFORTS.indexOf(effort) <= priorEffort) return [];
     return [{ model: model.id, effort, rank: preference.qualityRank }];
   }).sort((a, b) => b.rank - a.rank || a.model.localeCompare(b.model));

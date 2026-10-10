@@ -226,7 +226,7 @@ export class SupervisionController {
     }
     if(loop.phase==='reviewing'){
       if(!loop.references.reviewId){await this.prepare(loop.id,'review',{type:'review',proposalId:loop.references.proposalId!,...loop.config});return;}
-      const job=this.store.verification.get('job',loop.references.reviewId);if(job.status==='running')return;await this.checkVerification(job);ensure(job.kind==='review'&&job.approved&&!job.error,'Independent acceptance review rejected or could not verify the proposed assets: '+(job.error??'unapproved'));
+      const job=this.store.verification.get('job',loop.references.reviewId);if(job.status==='running')return;await this.checkVerification(job);ensure(job.kind==='review','Unexpected verification purpose');if(!job.approved||job.error){const next=await this.authorRecovery.begin(loop.id,loop.references.authorJobId!,()=>{this.dispatchAllowed(loop.id);this.ensureFloor(this.repo.get(loop.id));},true);this.launch(next.job);return;}
       this.update(loop.id,{phase:'publishing'});loop=this.repo.get(loop.id);
     }
     if(loop.phase==='publishing'){await this.prepare(loop.id,'publish',{type:'publish',proposalId:loop.references.proposalId!,reviewId:loop.references.reviewId!});return;}
