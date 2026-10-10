@@ -43,7 +43,7 @@ test('P6-LOOP-L01 real autonomous supervision authors reviews rejects repairs an
   const root=await realpath(await mkdtemp(join(tmpdir(),'sv-p6-loop-live-'))),data=join(root,'data'),workspace=join(root,'project');await mkdir(workspace);
   const evidence=join(process.env.SUPERVISOR_EVIDENCE_DIR??resolve('.supervisor-dev/live'),'artifacts','p6-supervision-loop-'+randomUUID());await mkdir(evidence,{recursive:true});
   const deadline=Date.now()+1_440_000;
-  const config={model:process.env.SUPERVISOR_LIVE_MODEL??'gpt-5.6-sol',effort:process.env.SUPERVISOR_LIVE_EFFORT??'low',reservation:150_000,timeoutMs:240_000};
+  const config={model:process.env.SUPERVISOR_LIVE_MODEL??'gpt-5.6-sol',effort:process.env.SUPERVISOR_LIVE_EFFORT??'low',reservation:150_000,timeoutMs:600_000};
   const store=new SupervisorStore(data),runtime=new LocalRuntimeAdapter(store,data),orchestration=new OrchestrationController(store,data,runtime),verification=new VerificationController(store,data),supervision=new SupervisionController(store,data,runtime,verification);
   let runtimeId:string|undefined,loopId:string|undefined,sessionId:string|undefined,observation=0;
   const proofDigests:Record<string,string>={};

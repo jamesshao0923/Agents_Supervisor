@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "stage": "P7",
-  "revision": "p7-automatic-admission-v28",
+  "revision": "p7-integrated-mechanisms-v29",
   "caseIds": [
     "p7.unit-task-results.001",
     "p7.unit-task-results.002",
@@ -90,7 +90,18 @@
     "p7.integration-graph-admission.010",
     "p7.integration-graph-admission.011",
     "p7.integration-graph-admission.012",
-    "p7.integration-graph-admission.013"
+    "p7.integration-graph-admission.013",
+    "p7.integration-decomposition.001",
+    "p7.integration-decomposition.002",
+    "p7.integration-decomposition.003",
+    "p7.integration-decomposition.004",
+    "p7.integration-decomposition.005",
+    "p7.integration-decomposition.006",
+    "p7.integration-parallel-admission.001",
+    "p7.integration-parallel-admission.002",
+    "p7.integration-parallel-admission.003",
+    "p7.integration-parallel-admission.004",
+    "p7.integration-parallel-admission.005"
   ],
   "requiredRisks": [
     "p7-task-results",
@@ -105,7 +116,9 @@
     "p7-branch-inputs",
     "p7-integration-inputs",
     "p7-goal-graph",
-    "p7-graph-admission"
+    "p7-graph-admission",
+    "p7-decomposition",
+    "p7-parallel-admission"
   ],
   "coreRegression": [
     "dev.integration-runner.003",

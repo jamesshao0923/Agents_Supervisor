@@ -1,3 +1,4 @@
+import {inspectDeclaredWorkspaceChanges} from '../orchestration/decomposition.js';
 import {scheduledResultBoundary,scheduledCandidate,assertScheduledSource,type ScheduledResultEvidence} from './scheduled-result-producer.js';
 import {VerificationProofReader} from '../verification/proof-reader.js';
 import {VerificationRepository} from './verification.js';
@@ -53,6 +54,8 @@ export class TaskResultRepository {
   if(this.scheduledOperation(operationId)){
    const {claim,scheduler,execution}=scheduledResultBoundary(this.db,this,s,operationId,true),snapshot=scheduledCandidate(this.db,this.dataRoot,execution),scheduled:ScheduledResultEvidence={claimId:claim.id,inputs:claim.inputBindings,snapshot:{path:snapshot.path,digest:snapshot.digest},artifacts:snapshot.artifacts,executables:snapshot.executables};
    assertScheduledSource(claim.workspace,scheduled);
+   const task=scheduler.plan.tasks.find(task=>task.node.id===claim.taskId)!;
+   if(task.scopeBinding){const binding=task.scopeBinding;ensure(binding.schemaVersion===1&&binding.declaration.taskId===claim.taskId&&binding.declaration.knowledge==='declared'&&/^[a-f0-9]{64}$/.test(binding.sourceDigest),'invalid frozen declared scope');const changes=inspectDeclaredWorkspaceChanges(binding.seed,claim.workspace,binding.declaration);ensure(changes.violations.length===0,'actual output violates frozen declared write scope: '+changes.violations.join(', '));assertScheduledSource(claim.workspace,scheduled);}
    for(const row of this.db.prepare('SELECT record FROM executions').all()){const other=JSON.parse(String(row.record)) as ExecutionRecord;if(other.workspace===claim.workspace||other.workspace.startsWith(claim.workspace+'/')||claim.workspace.startsWith(other.workspace+'/'))ensure(other.stopConfirmed,'overlapping writer unresolved');}
    return {producer:{projectId:s.projectId,runId:s.runId,taskId:claim.taskId,attemptId:claim.attemptId,contractVersion:claim.contractVersion,contractDigest:claim.contractDigest,planRevision:claim.planRevision,generation:claim.generation},runtimeId:claim.runtimeId,operationId:claim.operationId,executionId:execution.id,sourceRoot:claim.workspace,definitionDigest:scheduler.planDigest,executionDigest:domain.resultDigest(execution),scheduled};
   }

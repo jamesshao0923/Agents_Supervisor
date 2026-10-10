@@ -22,6 +22,7 @@ export function assertGoalGraphPreparation(input:GoalGraphAdmissionInput,dataDir
  const raw=read(join(directory,'prepare-request.json')),request=JSON.parse(raw) as {action:typeof input.action;expectedRunRevision:number;admissionDigest:string;options:GraphAdmissionOptions};
  if(!request||typeof request!=='object'||canonical(Object.keys(request).sort())!==canonical(['action','expectedRunRevision','admissionDigest','options'].sort()))throw Error('Frozen graph request has unknown fields');
  validateOptions(request.options);
+ if(input.action.explorationTier!==undefined&&request.options.tier!==input.action.explorationTier)throw Error('Frozen graph request differs from the requested exploration tier');
  if(raw!==canonical({action:input.action,expectedRunRevision:input.expectedRunRevision,admissionDigest:input.admission.digest,options:request.options}))throw Error('Frozen graph request changed or conflicts with admission');
  const seedRaw=read(join(seedDirectory,'candidate.json'));
  if(seedRaw!==canonical(input.preparation.request.seed))throw Error('Frozen graph seed request changed');
@@ -36,7 +37,7 @@ export function assertGoalGraphPreparation(input:GoalGraphAdmissionInput,dataDir
  * Caller keeps original P5 evidence/physical-stop checks before this operation. */
 export async function prepareGoalGraphAdmission(store:SupervisorStore,dataDir:string,action:Extract<OrchestrationAction,{type:'admit'}>,options:GraphAdmissionOptions=DEFAULT_GRAPH_ADMISSION):Promise<GoalGraphAdmissionInput>{
  // Freeze caller objects before the first await; later mutation cannot alter host intent.
- action=structuredClone(action);options=structuredClone(options);validateOptions(options);
+ action=structuredClone(action);options={...structuredClone(options),tier:action.explorationTier??options.tier};validateOptions(options);
  store.goals.validateAdmission(action);const {session,run}=store.goals.inspect(action.sessionId),admission=buildGoalGraphAdmission(session,run);
  const base=join(await realpath(dataDir),'graph-admission');await mkdir(base,{recursive:true,mode:0o700});
  if((await lstat(base)).isSymbolicLink()||await realpath(base)!==base)throw Error('Graph admission root must be host owned');

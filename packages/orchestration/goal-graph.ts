@@ -3,6 +3,7 @@ import type { GoalSession } from '../contracts/p5.js';
 import type { RuntimeRecord } from '../contracts/p3.js';
 import type { ScheduledPlan } from '../contracts/p7-dispatch.js';
 import type { GoalGraphAdmission,GoalGraphHostPolicy,GraphPreparationReceipt } from '../contracts/p7-graph.js';
+import {projectDeclaredDependencies} from './decomposition.js';
 import { admittedPlan } from './admission.js';
 import { canonical,digest } from '../verification/candidate.js';
 import { futureVerificationFloor } from '../domain/index.js';
@@ -41,11 +42,17 @@ export function compileGoalScheduledPlan(input:{session:GoalSession;baseRun:Run;
  const protectedAmount=Math.max(0,run.budget.verificationReserve-verificationUsed,futureVerificationFloor(run));
  const initialExecution=admission.implementationSteps.reduce((n,s)=>n+s.reservation,admission.integrationStep.reservation);
  ensure(Number.isSafeInteger(initialExecution)&&run.budget.limit-run.budget.spent-protectedAmount>=initialExecution,'Initial branches and final integration exceed remaining same-Run execution budget');
+ // Concrete external-resource alias/isolation qualification is not implemented
+ // by this automatic bridge. Any declared resource keeps conservative order;
+ // it cannot act as a claim of permission or safe external concurrency.
+ const declarations=session.proposal!.decomposition,projected=projectDeclaredDependencies(session.proposal!.steps.map(({id,dependencies,acceptanceIds})=>({id,dependencies,acceptanceIds})),declarations?{...declarations,tasks:declarations.tasks.map(task=>task.resources.length?{...task,knowledge:'unknown' as const}:task)}:undefined);
  const tasks=admission.implementationSteps.map((step,index)=>{
   const original=session.proposal!.steps.find(s=>s.id===step.id)!;
-  const dependencies=[...original.dependencies],prior=admission.implementationSteps[index-1];if(prior&&!dependencies.includes(prior.id))dependencies.push(prior.id);
+  const dependencies=declarations?[...projected.tasks.find(task=>task.taskId===step.id)!.dependencies]:[...original.dependencies],declaration=declarations?.tasks.find(task=>task.taskId===step.id);
+  const prior=admission.implementationSteps[index-1];if(!declarations&&prior&&!dependencies.includes(prior.id))dependencies.push(prior.id);
+  const scopeBinding=declaration?.knowledge==='declared'?{schemaVersion:1 as const,sourceDigest:admission.sourceDigest,seed:structuredClone(preparation.request.seed),declaration:structuredClone(declaration)}:undefined;
   const workspace=preparation.workspaces[index]!.path;
-  return {node:{id:step.id,dependencies,required:true,admission:{authorized:true,executable:true,relevant:true,duplicate:false,independentVerificationPurpose:null,requirementRefs:[...original.acceptanceIds],quality:'strong' as const,value:'strong' as const,reasons:['Original required P5 step; host retains dependencies and conservatively serializes absent independence declarations']},resources:[{kind:'path' as const,key:workspace,mode:'write' as const}],reservation:step.reservation,loopIds:[]},inputRequirements:dependencies.map(dependencyNodeId=>({dependencyNodeId,minimumState:'submitted' as const})),step:structuredClone(step),workspace,workspaceKind:'managed' as const,generation:1};
+  return {...(scopeBinding?{scopeBinding}:{}),node:{id:step.id,dependencies,required:true,admission:{authorized:true,executable:true,relevant:true,duplicate:false,independentVerificationPurpose:null,requirementRefs:[...original.acceptanceIds],quality:'strong' as const,value:'strong' as const,reasons:['Original required P5 step; all original dependencies retained; host computes scope conflicts, serializes uncertainty and enforces declared actual changes at publication']},resources:[{kind:'path' as const,key:workspace,mode:'write' as const}],reservation:step.reservation,loopIds:[]},inputRequirements:dependencies.map(dependencyNodeId=>({dependencyNodeId,minimumState:'submitted' as const})),step:structuredClone(step),workspace,workspaceKind:'managed' as const,generation:1};
  });
  return {schemaVersion:1,engine:'scheduled-v1',workflowVersion:2,id:policy.schedulerId,runtimeId:runtime.id,projectId:run.projectId,runId:run.id,revision:1,contractVersion:run.contract.version,contractDigest:digest(canonical(run.contract)),integrationNodeId:admission.integrationStep.id,tasks,tier:policy.tier,loops:[],limits:structuredClone(limits)};
 }

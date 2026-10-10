@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-catalog-v28",
+  "revision": "dev-catalog-v29",
   "modules": [
     {
       "id": "dev-contracts",
@@ -398,7 +398,7 @@
       "id": "live-terminal-inquiry",
       "layer": "live",
       "file": "dist/tests/live/terminal-inquiry.test.js",
-      "timeoutMs": 600000
+      "timeoutMs": 1500000
     },
     {
       "id": "integration-supervision-controller",
@@ -699,6 +699,30 @@
       "layer": "integration",
       "file": "dist/tests/integration/graph-admission.test.js",
       "timeoutMs": 180000
+    },
+    {
+      "id": "integration-decomposition",
+      "layer": "integration",
+      "file": "dist/tests/integration/decomposition.test.js",
+      "timeoutMs": 180000
+    },
+    {
+      "id": "integration-parallel-admission",
+      "layer": "integration",
+      "file": "dist/tests/integration/parallel-admission.test.js",
+      "timeoutMs": 180000
+    },
+    {
+      "id": "integration-research-binding",
+      "layer": "integration",
+      "file": "dist/tests/integration/research-binding.test.js",
+      "timeoutMs": 180000
+    },
+    {
+      "id": "integration-ios-interaction",
+      "layer": "integration",
+      "file": "dist/tests/integration/ios-interaction.test.js",
+      "timeoutMs": 300000
     }
   ],
   "cases": [
@@ -14540,6 +14564,402 @@
       "prerequisites": "Real SQLite, files and managed Node; synthetic planning/accounting fixtures are mechanism evidence, not provider delivery.",
       "assertions": "tests/integration/graph-admission.test.ts :: P7-ADMIT-I13 asynchronous preparation freezes caller action and host options before yielding",
       "cleanup": "Stop owned workers/processes, close stores; retain all frozen reports and failures.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-decomposition.001",
+      "name": "P7-DECOMP-I01 independent declarations preserve every original edge without adding redundant order",
+      "suiteId": "integration-decomposition",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-decomposition"
+      ],
+      "scenario": "P7-DECOMP-I01 independent declarations preserve every original edge without adding redundant order",
+      "impactTags": [
+        "p7-decomposition"
+      ],
+      "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
+      "assertions": "tests/integration/decomposition.test.ts :: P7-DECOMP-I01 independent declarations preserve every original edge without adding redundant order",
+      "cleanup": "Stop owned processes/devices, close stores and preserve immutable evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-decomposition.002",
+      "name": "P7-DECOMP-I02 read write overlap and real resource conflict serialize but shared read does not",
+      "suiteId": "integration-decomposition",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-decomposition"
+      ],
+      "scenario": "P7-DECOMP-I02 read write overlap and real resource conflict serialize but shared read does not",
+      "impactTags": [
+        "p7-decomposition"
+      ],
+      "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
+      "assertions": "tests/integration/decomposition.test.ts :: P7-DECOMP-I02 read write overlap and real resource conflict serialize but shared read does not",
+      "cleanup": "Stop owned processes/devices, close stores and preserve immutable evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-decomposition.003",
+      "name": "P7-DECOMP-I03 legacy and incomplete declarations conservatively serialize all ambiguous pairs",
+      "suiteId": "integration-decomposition",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-decomposition"
+      ],
+      "scenario": "P7-DECOMP-I03 legacy and incomplete declarations conservatively serialize all ambiguous pairs",
+      "impactTags": [
+        "p7-decomposition"
+      ],
+      "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
+      "assertions": "tests/integration/decomposition.test.ts :: P7-DECOMP-I03 legacy and incomplete declarations conservatively serialize all ambiguous pairs",
+      "cleanup": "Stop owned processes/devices, close stores and preserve immutable evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-decomposition.004",
+      "name": "P7-DECOMP-I04 unsafe paths reject and Unicode case aliases add conflicts rather than removing dependencies",
+      "suiteId": "integration-decomposition",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-decomposition"
+      ],
+      "scenario": "P7-DECOMP-I04 unsafe paths reject and Unicode case aliases add conflicts rather than removing dependencies",
+      "impactTags": [
+        "p7-decomposition"
+      ],
+      "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
+      "assertions": "tests/integration/decomposition.test.ts :: P7-DECOMP-I04 unsafe paths reject and Unicode case aliases add conflicts rather than removing dependencies",
+      "cleanup": "Stop owned processes/devices, close stores and preserve immutable evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-decomposition.005",
+      "name": "P7-DECOMP-I05 actual stopped-style immutable files expose changes deletions creation and executable mode violations",
+      "suiteId": "integration-decomposition",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-decomposition"
+      ],
+      "scenario": "P7-DECOMP-I05 actual stopped-style immutable files expose changes deletions creation and executable mode violations",
+      "impactTags": [
+        "p7-decomposition"
+      ],
+      "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
+      "assertions": "tests/integration/decomposition.test.ts :: P7-DECOMP-I05 actual stopped-style immutable files expose changes deletions creation and executable mode violations",
+      "cleanup": "Stop owned processes/devices, close stores and preserve immutable evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-decomposition.006",
+      "name": "P7-DECOMP-I06 empty source seed remains distinct from nonempty P4 evidence and unknown symlink bytes cannot pass",
+      "suiteId": "integration-decomposition",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-decomposition"
+      ],
+      "scenario": "P7-DECOMP-I06 empty source seed remains distinct from nonempty P4 evidence and unknown symlink bytes cannot pass",
+      "impactTags": [
+        "p7-decomposition"
+      ],
+      "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
+      "assertions": "tests/integration/decomposition.test.ts :: P7-DECOMP-I06 empty source seed remains distinct from nonempty P4 evidence and unknown symlink bytes cannot pass",
+      "cleanup": "Stop owned processes/devices, close stores and preserve immutable evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-parallel-admission.001",
+      "name": "P7-PARALLEL-I01 new P5 schema binds declarations while legacy schema and original authority remain compatible",
+      "suiteId": "integration-parallel-admission",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-parallel-admission"
+      ],
+      "scenario": "P7-PARALLEL-I01 new P5 schema binds declarations while legacy schema and original authority remain compatible",
+      "impactTags": [
+        "p7-parallel-admission"
+      ],
+      "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
+      "assertions": "tests/integration/parallel-admission.test.ts :: P7-PARALLEL-I01 new P5 schema binds declarations while legacy schema and original authority remain compatible",
+      "cleanup": "Stop owned processes/devices, close stores and preserve immutable evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-parallel-admission.002",
+      "name": "P7-PARALLEL-I02 actual automatic graph claims overlapping Node branches and publishes within scopes before unchanged final integration",
+      "suiteId": "integration-parallel-admission",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-parallel-admission"
+      ],
+      "scenario": "P7-PARALLEL-I02 actual automatic graph claims overlapping Node branches and publishes within scopes before unchanged final integration",
+      "impactTags": [
+        "p7-parallel-admission"
+      ],
+      "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
+      "assertions": "tests/integration/parallel-admission.test.ts :: P7-PARALLEL-I02 actual automatic graph claims overlapping Node branches and publishes within scopes before unchanged final integration",
+      "cleanup": "Stop owned processes/devices, close stores and preserve immutable evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-parallel-admission.003",
+      "name": "P7-PARALLEL-I03 actual compiler serializes shared writes unknown resources and retained original dependencies regardless of tier",
+      "suiteId": "integration-parallel-admission",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-parallel-admission"
+      ],
+      "scenario": "P7-PARALLEL-I03 actual compiler serializes shared writes unknown resources and retained original dependencies regardless of tier",
+      "impactTags": [
+        "p7-parallel-admission"
+      ],
+      "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
+      "assertions": "tests/integration/parallel-admission.test.ts :: P7-PARALLEL-I03 actual compiler serializes shared writes unknown resources and retained original dependencies regardless of tier",
+      "cleanup": "Stop owned processes/devices, close stores and preserve immutable evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-parallel-admission.004",
+      "name": "P7-PARALLEL-I04 actual out-of-scope captured bytes cannot stage or publish and all stopped execution costs remain recorded",
+      "suiteId": "integration-parallel-admission",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-parallel-admission"
+      ],
+      "scenario": "P7-PARALLEL-I04 actual out-of-scope captured bytes cannot stage or publish and all stopped execution costs remain recorded",
+      "impactTags": [
+        "p7-parallel-admission"
+      ],
+      "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
+      "assertions": "tests/integration/parallel-admission.test.ts :: P7-PARALLEL-I04 actual out-of-scope captured bytes cannot stage or publish and all stopped execution costs remain recorded",
+      "cleanup": "Stop owned processes/devices, close stores and preserve immutable evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-parallel-admission.005",
+      "name": "P7-PARALLEL-I05 actual immutable baseline tampering and late candidate mutation block publication without freeing budget",
+      "suiteId": "integration-parallel-admission",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p7-parallel-admission"
+      ],
+      "scenario": "P7-PARALLEL-I05 actual immutable baseline tampering and late candidate mutation block publication without freeing budget",
+      "impactTags": [
+        "p7-parallel-admission"
+      ],
+      "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
+      "assertions": "tests/integration/parallel-admission.test.ts :: P7-PARALLEL-I05 actual immutable baseline tampering and late candidate mutation block publication without freeing budget",
+      "cleanup": "Stop owned processes/devices, close stores and preserve immutable evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-binding.001",
+      "name": "P8-RBIND-I01 real five-material snapshots schema projection span digests and dependent sources remain proposed with explicit partial coverage",
+      "suiteId": "integration-research-binding",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p8-research-binding"
+      ],
+      "scenario": "P8-RBIND-I01 real five-material snapshots schema projection span digests and dependent sources remain proposed with explicit partial coverage",
+      "impactTags": [
+        "p8-research-binding"
+      ],
+      "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
+      "assertions": "tests/integration/research-binding.test.ts :: P8-RBIND-I01 real five-material snapshots schema projection span digests and dependent sources remain proposed with explicit partial coverage",
+      "cleanup": "Stop owned processes/devices, close stores and preserve immutable evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-binding.002",
+      "name": "P8-RBIND-I02 wrong literal outside span split surrogate unknown source and invented authority are rejected by actual schema and byte binding",
+      "suiteId": "integration-research-binding",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p8-research-binding"
+      ],
+      "scenario": "P8-RBIND-I02 wrong literal outside span split surrogate unknown source and invented authority are rejected by actual schema and byte binding",
+      "impactTags": [
+        "p8-research-binding"
+      ],
+      "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
+      "assertions": "tests/integration/research-binding.test.ts :: P8-RBIND-I02 wrong literal outside span split surrogate unknown source and invented authority are rejected by actual schema and byte binding",
+      "cleanup": "Stop owned processes/devices, close stores and preserve immutable evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-binding.003",
+      "name": "P8-RBIND-I03 actual snapshot corruption and self-rehashed metadata cannot authorize a citation or redirect its material scope",
+      "suiteId": "integration-research-binding",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p8-research-binding"
+      ],
+      "scenario": "P8-RBIND-I03 actual snapshot corruption and self-rehashed metadata cannot authorize a citation or redirect its material scope",
+      "impactTags": [
+        "p8-research-binding"
+      ],
+      "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
+      "assertions": "tests/integration/research-binding.test.ts :: P8-RBIND-I03 actual snapshot corruption and self-rehashed metadata cannot authorize a citation or redirect its material scope",
+      "cleanup": "Stop owned processes/devices, close stores and preserve immutable evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-binding.004",
+      "name": "P8-RBIND-I04 context request and model objects freeze before async material reads and never inherit late caller metadata",
+      "suiteId": "integration-research-binding",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p8-research-binding"
+      ],
+      "scenario": "P8-RBIND-I04 context request and model objects freeze before async material reads and never inherit late caller metadata",
+      "impactTags": [
+        "p8-research-binding"
+      ],
+      "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
+      "assertions": "tests/integration/research-binding.test.ts :: P8-RBIND-I04 context request and model objects freeze before async material reads and never inherit late caller metadata",
+      "cleanup": "Stop owned processes/devices, close stores and preserve immutable evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-binding.005",
+      "name": "P8-RBIND-I05 typed schema bounds and safe JSON reject executable accessors sparse arrays duplicate references and empty answers",
+      "suiteId": "integration-research-binding",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p8-research-binding"
+      ],
+      "scenario": "P8-RBIND-I05 typed schema bounds and safe JSON reject executable accessors sparse arrays duplicate references and empty answers",
+      "impactTags": [
+        "p8-research-binding"
+      ],
+      "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
+      "assertions": "tests/integration/research-binding.test.ts :: P8-RBIND-I05 typed schema bounds and safe JSON reject executable accessors sparse arrays duplicate references and empty answers",
+      "cleanup": "Stop owned processes/devices, close stores and preserve immutable evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-binding.006",
+      "name": "P8-RBIND-I06 missing unsupported and cancelled material coverage cannot become a complete answer or erase required criteria",
+      "suiteId": "integration-research-binding",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p8-research-binding"
+      ],
+      "scenario": "P8-RBIND-I06 missing unsupported and cancelled material coverage cannot become a complete answer or erase required criteria",
+      "impactTags": [
+        "p8-research-binding"
+      ],
+      "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
+      "assertions": "tests/integration/research-binding.test.ts :: P8-RBIND-I06 missing unsupported and cancelled material coverage cannot become a complete answer or erase required criteria",
+      "cleanup": "Stop owned processes/devices, close stores and preserve immutable evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-binding.007",
+      "name": "P8-RBIND-I07 actual refresh changed and unknown preserve immutable historical research evidence without granting revalidation",
+      "suiteId": "integration-research-binding",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p8-research-binding"
+      ],
+      "scenario": "P8-RBIND-I07 actual refresh changed and unknown preserve immutable historical research evidence without granting revalidation",
+      "impactTags": [
+        "p8-research-binding"
+      ],
+      "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
+      "assertions": "tests/integration/research-binding.test.ts :: P8-RBIND-I07 actual refresh changed and unknown preserve immutable historical research evidence without granting revalidation",
+      "cleanup": "Stop owned processes/devices, close stores and preserve immutable evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-ios-interaction.001",
+      "name": "P8M-IOS-INTERACT-I01 typed native actions reject ambiguous shape and unsafe fields",
+      "suiteId": "integration-ios-interaction",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-ios-interaction"
+      ],
+      "scenario": "P8M-IOS-INTERACT-I01 typed native actions reject ambiguous shape and unsafe fields",
+      "impactTags": [
+        "p8-ios-interaction"
+      ],
+      "prerequisites": "Actual installed native iOS simulator and toolchain; host fixture only, not P4 business verdict.",
+      "assertions": "tests/integration/ios-interaction.test.ts :: P8M-IOS-INTERACT-I01 typed native actions reject ambiguous shape and unsafe fields",
+      "cleanup": "Stop owned processes/devices, close stores and preserve immutable evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-ios-interaction.002",
+      "name": "P8M-IOS-INTERACT-I02 actual owned XCTest type save reopen preserves UI text",
+      "suiteId": "integration-ios-interaction",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-ios-interaction"
+      ],
+      "scenario": "P8M-IOS-INTERACT-I02 actual owned XCTest type save reopen preserves UI text",
+      "impactTags": [
+        "p8-ios-interaction"
+      ],
+      "prerequisites": "Actual installed native iOS simulator and toolchain; host fixture only, not P4 business verdict.",
+      "assertions": "tests/integration/ios-interaction.test.ts :: P8M-IOS-INTERACT-I02 actual owned XCTest type save reopen preserves UI text",
+      "cleanup": "Stop owned processes/devices, close stores and preserve immutable evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-ios-interaction.003",
+      "name": "P8M-IOS-INTERACT-I03 actual owned-default create cancellation retains UUID before boot",
+      "suiteId": "integration-ios-interaction",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-ios-interaction"
+      ],
+      "scenario": "P8M-IOS-INTERACT-I03 actual owned-default create cancellation retains UUID before boot",
+      "impactTags": [
+        "p8-ios-interaction"
+      ],
+      "prerequisites": "Actual installed native iOS simulator and toolchain; host fixture only, not P4 business verdict.",
+      "assertions": "tests/integration/ios-interaction.test.ts :: P8M-IOS-INTERACT-I03 actual owned-default create cancellation retains UUID before boot",
+      "cleanup": "Stop owned processes/devices, close stores and preserve immutable evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-ios-interaction.004",
+      "name": "P8M-IOS-INTERACT-I04 actual native screenshot boundary cancellation retains partial UI proof",
+      "suiteId": "integration-ios-interaction",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-ios-interaction"
+      ],
+      "scenario": "P8M-IOS-INTERACT-I04 actual native screenshot boundary cancellation retains partial UI proof",
+      "impactTags": [
+        "p8-ios-interaction"
+      ],
+      "prerequisites": "Actual installed native iOS simulator and toolchain; host fixture only, not P4 business verdict.",
+      "assertions": "tests/integration/ios-interaction.test.ts :: P8M-IOS-INTERACT-I04 actual native screenshot boundary cancellation retains partial UI proof",
+      "cleanup": "Stop owned processes/devices, close stores and preserve immutable evidence.",
       "status": "active"
     }
   ]

@@ -105,12 +105,12 @@ function controlTests(names:string[]):string{return `import assert from 'node:as
 // advance. This verifies terminal accounting and immutable P4 inheritance for
 // this additive scenario; it does not establish general control compatibility
 // with arbitrary future requirements, which needs a separate product design.
-test('P6 terminal inquiries charge real conversation usage without changing delivered records then independently deliver a linked additive round',{timeout:600_000},async t=>{
+test('P6 terminal inquiries charge real conversation usage without changing delivered records then independently deliver a linked additive round',{timeout:1_480_000},async t=>{
   const root=await realpath(await mkdtemp(join(tmpdir(),'sv-p6-terminal-live-'))),data=join(root,'data'),workspace=join(root,'project');await mkdir(workspace);
   await execute('git',['init','--quiet'],{cwd:workspace});await execute('git',['-c','user.name=Supervisor Test','-c','user.email=test@localhost','commit','--allow-empty','-m','Terminal inquiry live baseline'],{cwd:workspace});
   const evidence=join(process.env.SUPERVISOR_EVIDENCE_DIR??resolve('.supervisor-dev/live'),'artifacts','p6-terminal-'+randomUUID());await mkdir(evidence,{recursive:true});
-  const deadline=Date.now()+570_000,model=process.env.SUPERVISOR_LIVE_MODEL??'gpt-5.6-sol',effort=process.env.SUPERVISOR_LIVE_EFFORT??'low';
-  const config={model,effort,reservation:140_000,timeoutMs:120_000},verificationConfig={model,effort,reservation:180_000,timeoutMs:120_000};
+  const deadline=Date.now()+1_440_000,model=process.env.SUPERVISOR_LIVE_MODEL??'gpt-5.6-sol',effort=process.env.SUPERVISOR_LIVE_EFFORT??'low';
+  const config={model,effort,reservation:140_000,timeoutMs:240_000},verificationConfig={model,effort,reservation:180_000,timeoutMs:240_000};
   let store=new SupervisorStore(data),runtime=new LocalRuntimeAdapter(store,data),orchestration=new OrchestrationController(store,data,runtime),conversation=new ConversationController(store,data,runtime),verification=new VerificationController(store,data);
   async function close(){await conversation.close();await orchestration.close();await verification.close();await runtime.close();const owner=await readOwnership(data);if(owner?.identity)assert.equal((await terminateProcess(owner.identity)).stopped,true);store.close();}
   async function save(name:string,value:unknown){await writeFile(join(evidence,name+'.json'),JSON.stringify(value,null,2));}
