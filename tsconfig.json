@@ -12,7 +12,8 @@
     "rootDir": ".",
     "outDir": "dist",
     "sourceMap": true,
-    "types": ["node"]
+    "types": ["node"],
+    "jsx": "react-jsx"
   },
-  "include": ["tools/**/*.ts", "tests/**/*.ts", "packages/**/*.ts", "apps/**/*.ts"]
+  "include": ["tools/**/*.ts", "tests/**/*.ts", "packages/**/*.ts", "apps/**/*.ts", "apps/**/*.tsx"]
 }

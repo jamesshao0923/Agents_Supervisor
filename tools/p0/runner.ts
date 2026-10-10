@@ -6,7 +6,7 @@ import { finished } from 'node:stream/promises';
 import { join, relative, resolve, isAbsolute, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseManifest, evaluateSuite } from './contracts.js';
-import type { StageManifest, SuiteSpec, TestResult } from './contracts.js';
+import type { StageManifest, SuiteSpec, TestResult, TestLayer } from './contracts.js';
 import { loadSelection, loadLegacyManifest, type SelectionSnapshot } from './catalog.js';
 
 export const sha256 = (value: string | Buffer): string => createHash('sha256').update(value).digest('hex');
@@ -20,7 +20,7 @@ export interface Execution {
   report: EvidenceFile; stdout: EvidenceFile; stderr: EvidenceFile;
 }
 export interface RunManifest {
-  schemaVersion: 1; runId: string; scope: 'stage' | 'unit' | 'integration' | 'partial'; reason: string;
+  schemaVersion: 1; runId: string; scope: 'stage' | TestLayer | 'partial'; reason: string;
   selection?: SelectionSnapshot;
   startedAt: string; finishedAt: string; manifest: StageManifest; manifestDigest: string;
   candidateDigest: string; candidateFiles: Record<string, string>;
@@ -118,7 +118,7 @@ export async function checkRun(root: string, dir: string, expected?: StageManife
   try {
     const record: RunManifest = JSON.parse(await readFile(join(dir, 'manifest.json'), 'utf8'));
     const frozen: RunManifest = JSON.parse(await readFile(join(dir, 'input.json'), 'utf8'));
-    if (record.schemaVersion !== 1 || typeof record.runId !== 'string' || !record.runId || !['stage', 'unit', 'integration', 'partial'].includes(record.scope)) throw new Error('Invalid run manifest');
+    if (record.schemaVersion !== 1 || typeof record.runId !== 'string' || !record.runId || !['stage', 'unit', 'integration', 'live', 'partial'].includes(record.scope)) throw new Error('Invalid run manifest');
     result.runId = record.runId; result.scope = record.scope;
     for (const key of ['schemaVersion', 'runId', 'scope', 'reason', 'startedAt', 'manifest', 'manifestDigest', 'candidateDigest', 'candidateFiles', 'environment', 'selection'] as const) {
       if (json(frozen[key]) !== json(record[key])) result.issues.push(`Run differs from frozen input: ${key}`);
@@ -128,7 +128,7 @@ export async function checkRun(root: string, dir: string, expected?: StageManife
     if (frozen.selection !== undefined) {
       const selected = frozen.selection;
       if (selected.schemaVersion !== 1 || selected.stage !== manifest.stage || !selected.requested || !Array.isArray(selected.requested.modules)
-        || (selected.requested.layer !== null && selected.requested.layer !== 'unit' && selected.requested.layer !== 'integration')) throw new Error('Invalid frozen selection request');
+        || (selected.requested.layer !== null && selected.requested.layer !== 'unit' && selected.requested.layer !== 'integration' && selected.requested.layer !== 'live')) throw new Error('Invalid frozen selection request');
       const current = await loadSelection(root, selected.stage, { ...(selected.requested.layer ? { layer: selected.requested.layer } : {}),
         ...(selected.requested.modules.length ? { modules: selected.requested.modules } : {}) });
       if (json(selected) !== json(current.selection)) result.issues.push('Frozen selection does not match current catalog/profile');
@@ -199,13 +199,13 @@ async function writeReports(dir: string, result: GateResult): Promise<void> {
   await writeFile(join(dir, 'junit.xml'), `<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="${escape(result.scope)}" tests="${cases.length}" failures="${cases.filter(c => c.includes('<failure')).length}">${cases.join('')}</testsuite></testsuites>\n`, { flag: 'wx' });
 }
 
-export async function runStage(root: string, input: unknown, options: { layer?: 'unit' | 'integration'; reason: string; selection?: SelectionSnapshot } ): Promise<{ dir: string; result: GateResult }> {
+export async function runStage(root: string, input: unknown, options: { layer?: TestLayer; reason: string; selection?: SelectionSnapshot } ): Promise<{ dir: string; result: GateResult }> {
   root = await realpath(root);
   const manifest = parseManifest(input);
   if (options.selection) {
     const selected = options.selection;
     if (selected.stage !== manifest.stage || !selected.requested || !Array.isArray(selected.requested.modules)
-      || (selected.requested.layer !== null && selected.requested.layer !== 'unit' && selected.requested.layer !== 'integration')) throw new Error('Invalid selection before freeze');
+      || (selected.requested.layer !== null && selected.requested.layer !== 'unit' && selected.requested.layer !== 'integration' && selected.requested.layer !== 'live')) throw new Error('Invalid selection before freeze');
     const current = await loadSelection(root, selected.stage, { ...(selected.requested.layer ? { layer: selected.requested.layer } : {}),
       ...(selected.requested.modules.length ? { modules: selected.requested.modules } : {}) });
     if (json(current.selection) !== json(selected) || json(current.manifest) !== json(manifest)) throw new Error('Selection/manifest does not match current catalog/profile before freeze');

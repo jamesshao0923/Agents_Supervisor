@@ -100,7 +100,7 @@ test('catalog permits explained removed scope but refuses loss of necessary prof
 });
 
 test('profiles reject unknown stages stale references empty selection and uncovered necessary risks', () => {
-  assert.throws(() => parseProfile({ ...profile(), stage: 'P2' }), /stage/);
+  assert.throws(() => parseProfile({ ...profile(), stage: 'P3' }), /stage/);
   for (const key of ['caseIds', 'requiredRisks'] as const) assert.throws(() => parseProfile({ ...profile(), [key]: [] }));
   assert.throws(() => selectCases(catalog(), { ...profile(), caseIds: ['missing'] }), /unregistered case/);
   assert.throws(() => selectCases(catalog(), { ...profile(), requiredRisks: ['missing-risk'] }), /necessary risk/);
@@ -118,7 +118,7 @@ test('profiles deduplicate repeated stable IDs across stage requirements and cor
 
 test('impact selection expands transitive modules and conservatively deduplicates full suites', () => {
   const plan = selectCases(catalog(), profile(), { modules: ['shared'] });
-  assert.equal(plan.selection.mode, 'partial'); assert.equal(plan.selection.selectedCaseIds.length, 3);
+  assert.equal(plan.selection.selectedCaseIds.length, 3);
   const narrow = selectCases(catalog(), profile(), { modules: ['contracts'], layer: 'unit' });
   assert.deepEqual(narrow.selection.selectedCaseIds, ['dev.fixture.a', 'dev.fixture.b']);
   assert.match(narrow.selection.selected.find(c => c.id === 'dev.fixture.b')!.reason, /Expanded/);
@@ -197,4 +197,30 @@ test('catalog recheck rejects forged final stage scope and missing current regis
   assert.equal(changed.passed, false); assert.match(changed.issues.join(' '), /frozen input|Partial selection/);
   await rm(join(root, 'tests/catalog/current.json'));
   assert.equal((await checkRun(root, run.dir)).passed, false);
+});
+
+test('catalog freezes live layer metadata and rechecks partial scope without stage completion', async context => {
+  const root = await fixture(context), value = catalog();
+  value.suites.push({ id: 'live-fixture', layer: 'live', file: 'dist/tests/live/fixture.test.js', timeoutMs: 30_000 });
+  value.cases.push({ ...value.cases[2]!, id: 'dev.fixture.live', name: 'actual runner live layer transport', suiteId: 'live-fixture', layer: 'live', covers: ['live-metadata'] });
+  const config: AcceptanceProfile = { ...profile(), stage: 'P2', revision: 'fixture-p2-v1', caseIds: value.cases.map(c => c.id), requiredRisks: [...profile().requiredRisks, 'live-metadata'] };
+  for (const path of ['tests/live', 'dist/tests/live']) await mkdir(join(root, path), { recursive: true });
+  // This real Node suite verifies runner metadata only; it is not provider-live evidence.
+  const source = "import test from 'node:test'; test('actual runner live layer transport', () => {});\n";
+  await writeFile(join(root, 'tests/live/fixture.test.ts'), source);
+  await writeFile(join(root, 'dist/tests/live/fixture.test.js'), source);
+  await writeFile(join(root, 'tests/catalog/current.json'), JSON.stringify(value));
+  await writeFile(join(root, 'tests/acceptance/p2.json'), JSON.stringify(config));
+  const full = await loadSelection(root, 'P2');
+  assert.equal(full.selection.mode, 'stage'); assert.equal(full.manifest.suites.at(-1)!.layer, 'live');
+  const plan = await loadSelection(root, 'P2', { layer: 'live' });
+  assert.equal(plan.selection.mode, 'partial'); assert.deepEqual(plan.selection.selectedCaseIds, ['dev.fixture.live']);
+  const run = await runStage(root, plan.manifest, { reason: 'live metadata frozen runner self-check', selection: plan.selection });
+  assert.equal(run.result.passed, true, JSON.stringify(run.result)); assert.equal(run.result.scope, 'live'); assert.equal(run.result.stagePassed, false);
+  assert.equal((await checkRun(root, run.dir)).passed, true);
+  await writeFile(join(root, 'tests/live/unregistered.test.ts'), "import test from 'node:test'; test('unregistered live metadata', () => {});\n");
+  await assert.rejects(loadSelection(root, 'P2'), /lacks registration/);
+  await rm(join(root, 'tests/live/unregistered.test.ts'));
+  await rm(join(root, 'tests/live/fixture.test.ts'));
+  await assert.rejects(loadSelection(root, 'P2'), /ENOENT/);
 });

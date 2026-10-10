@@ -1,5 +1,8 @@
 packages:
   - apps/*
   - packages/*
+allowBuilds:
+  esbuild: true
+  electron: true
 minimumReleaseAgeExclude:
   - '@types/node@24.19.2'

@@ -1,4 +1,5 @@
-import { rmSync } from 'node:fs';
+import { rmSync, mkdirSync, copyFileSync } from 'node:fs';
+import { build } from 'esbuild';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -11,4 +12,10 @@ const result = spawnSync(process.execPath, ['node_modules/typescript/bin/tsc', '
   cwd: root, stdio: 'inherit', shell: false,
 });
 if (result.error) console.error(result.error.message);
-process.exit(result.status ?? 1);
+if (result.status !== 0) process.exit(result.status ?? 1);
+const desktop = new URL('../dist/apps/desktop/', import.meta.url);
+mkdirSync(desktop, { recursive: true });
+for (const file of ['main.cjs', 'preload.cjs', 'index.html', 'styles.css']) {
+  copyFileSync(new URL(`../apps/desktop/${file}`, import.meta.url), new URL(file, desktop));
+}
+await build({ entryPoints: [fileURLToPath(new URL('../apps/desktop/renderer.tsx', import.meta.url))], outfile: fileURLToPath(new URL('renderer.js', desktop)), bundle: true, platform: 'browser', format: 'iife', jsx: 'automatic', sourcemap: true, define: { 'process.env.NODE_ENV': '"production"' } });

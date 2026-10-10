@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { startService } from '../supervisor/server.js';
 import { request } from './client.js';
 import type { Request } from '../../packages/contracts/p1.js';
+import type { ExecutionStart } from '../../packages/contracts/p2.js';
 
 async function main(): Promise<void> {
   const [command, ...args] = process.argv.slice(2);
@@ -17,6 +18,9 @@ async function main(): Promise<void> {
     serve: ['--data'], health: ['--data'], projects: ['--data'],
     runs: ['--data', '--project'], show: ['--data', '--project', '--run'],
     events: ['--data', '--project', '--after'], send: ['--data', '--file'],
+    run: ['--data','--file'], executions: ['--data'], capabilities: ['--data'],
+    inspect: ['--data','--execution'], cancel: ['--data','--execution'], reconcile: ['--data','--execution'],
+    trajectory: ['--data','--execution','--after'],
   };
   if (!command || !allowed[command] || Object.keys(options).some(key => !allowed[command]!.includes(key))) {
     throw new Error('Usage: supervisor serve|health|projects|runs|show|events|send --data PATH [--project ID] [--run ID] [--after CURSOR] [--file REQUEST.json]');
@@ -24,7 +28,7 @@ async function main(): Promise<void> {
   const dataDir = resolve(options['--data'] ?? '.supervisor/local');
   if (command === 'serve') {
     const service = await startService(dataDir);
-    console.log(JSON.stringify({ event: 'listening', socket: service.socket, dataDir, stage: 'P1' }));
+    console.log(JSON.stringify({ event: 'listening', socket: service.socket, dataDir, stage: 'P2' }));
     const stop = () => { void service.close().catch(error => { console.error(error); process.exitCode = 1; }); };
     process.once('SIGINT', stop);
     process.once('SIGTERM', stop);
@@ -37,7 +41,13 @@ async function main(): Promise<void> {
     const input: unknown = JSON.parse(await readFile(required('--file'), 'utf8'));
     if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Request file must contain an object');
     payload = { ...input, id } as Request;
-  } else if (command === 'health') payload = { id, method: 'health' };
+  } else if(command==='run') {
+    const input=JSON.parse(await readFile(required('--file'),'utf8')) as ExecutionStart;
+    payload={id,method:'execution',action:{...input,type:'start'}};
+  } else if(command==='executions'||command==='capabilities')payload={id,method:'execution',action:{type:command==='executions'?'list':'capabilities'}};
+  else if(command==='inspect'||command==='cancel'||command==='reconcile')payload={id,method:'execution',action:{type:command,executionId:required('--execution')}};
+  else if(command==='trajectory')payload={id,method:'execution',action:{type:'events',executionId:required('--execution'),after:Number(options['--after']??0)}};
+  else if (command === 'health') payload = { id, method: 'health' };
   else if (command === 'projects') payload = { id, method: 'query', query: { type: 'projects' } };
   else if (command === 'runs') payload = { id, method: 'query', query: { type: 'runs', projectId: required('--project') } };
   else if (command === 'show') payload = { id, method: 'query', query: { type: 'run', projectId: required('--project'), runId: required('--run') } };

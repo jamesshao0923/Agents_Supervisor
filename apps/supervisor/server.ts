@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path';
 import { SupervisorStore } from '../../packages/persistence/store.js';
 import { parseCommand, parseQuery } from '../../packages/contracts/validation.js';
 import type { Request, Response } from '../../packages/contracts/p1.js';
+import { ExecutionManager } from '../../packages/execution/manager.js';
 
 const MAX_BYTES = 1024 * 1024;
 export const socketPath = (dataDir: string): string => join(resolve(dataDir), 'supervisor.sock');
@@ -66,15 +67,16 @@ export async function startService(directory: string): Promise<{ socket: string;
   if (Buffer.byteLength(path) > 100) throw new Error('Data path is too long for a macOS Unix socket; choose a shorter directory');
   const unlock = acquireLock(dataDir);
   let store: SupervisorStore | undefined;
+  let manager: ExecutionManager | undefined;
   const connections = new Set<Socket>();
-  const server = createServer(socket => {
+  const server = createServer({ allowHalfOpen: true }, socket => {
     connections.add(socket);
-    socket.setTimeout(10_000, () => socket.destroy());
+    socket.setTimeout(30_000, () => socket.destroy());
     socket.on('error', () => { /* Connection failures do not change committed commands. */ });
     socket.once('close', () => connections.delete(socket));
     let buffer = Buffer.alloc(0);
     let handled = false;
-    socket.on('data', chunk => {
+    socket.on('data', async chunk => {
       if (handled) return;
       buffer = Buffer.concat([buffer, chunk]);
       if (buffer.length > MAX_BYTES) { handled = true; socket.end(JSON.stringify({ id: '', ok: false, error: 'Request exceeds 1 MiB' }) + '\n'); return; }
@@ -89,9 +91,14 @@ export async function startService(directory: string): Promise<{ socket: string;
         const request = value as Request;
         if (typeof request.id !== 'string' || !request.id.trim() || request.id.length > 200) throw new Error('Request id is required');
         id = request.id;
+        if(request.method==='command') {
+          const command=parseCommand(request.command);
+          if ('projectId' in command && 'runId' in command && store!.isManagedRun(command.projectId,command.runId)) throw new Error('Managed execution updates must use the execution controller');
+        }
         const result = request.method === 'command' ? store!.command(parseCommand(request.command))
           : request.method === 'query' ? store!.query(parseQuery(request.query))
-          : request.method === 'health' ? { status: 'ready', stage: 'P1', modelExecution: false }
+          : request.method === 'execution' ? await manager!.dispatch(request.action)
+          : request.method === 'health' ? { status: 'ready', stage: 'P2', modelExecution: true }
           : (() => { throw new Error('Unknown request method'); })();
         response = { id, ok: true, value: result };
       } catch (error) { response = { id, ok: false, error: error instanceof Error ? error.message : String(error) }; }
@@ -101,6 +108,8 @@ export async function startService(directory: string): Promise<{ socket: string;
   try {
     await removeStaleSocket(path);
     store = new SupervisorStore(dataDir);
+    manager = new ExecutionManager(store,dataDir);
+    await manager.initialize();
     server.maxConnections = 64;
     await new Promise<void>((resolvePromise, reject) => {
       server.once('error', reject);
@@ -114,7 +123,8 @@ export async function startService(directory: string): Promise<{ socket: string;
     close() {
       closing ??= new Promise<void>((resolvePromise, reject) => {
         for (const socket of connections) socket.destroy();
-        server.close(error => {
+        server.close(async error => {
+          await manager!.close().catch(reject);
           try { store!.close(); unlock(); if (error) reject(error); else resolvePromise(); }
           catch (closeError) { reject(closeError); }
         });

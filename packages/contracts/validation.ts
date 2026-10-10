@@ -38,7 +38,8 @@ function contract(v: unknown, p: string): void {
 function input(v: unknown, p: string): void {
   const o = object(v, p, ['id', 'projectId', 'contract', 'nodes', 'budget']); string(o.id, `${p}.id`); string(o.projectId, `${p}.projectId`); contract(o.contract, `${p}.contract`);
   array(o.nodes, `${p}.nodes`, (v, p) => { const o = object(v, p, ['id', 'dependencies', 'required']); string(o.id, `${p}.id`); strings(o.dependencies, `${p}.dependencies`); bool(o.required, `${p}.required`); });
-  const b = object(o.budget, `${p}.budget`, ['limit', 'verificationReserve']); number(b.limit, `${p}.budget.limit`, 0, true); number(b.verificationReserve, `${p}.budget.verificationReserve`, 0, true);
+  const b = object(o.budget, `${p}.budget`, ['limit', 'verificationReserve', 'unit'], ['unit']); number(b.limit, `${p}.budget.limit`, 0, true); number(b.verificationReserve, `${p}.budget.verificationReserve`, 0, true);
+  if (b.unit !== undefined) choice(b.unit, `${p}.budget.unit`, ['work-unit', 'token']);
   if ((b.verificationReserve as number) > (b.limit as number)) fail(`${p}.budget`, 'verification reserve exceeds limit');
 }
 function artifact(v: unknown, p: string): void {

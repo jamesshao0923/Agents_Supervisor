@@ -1,12 +1,13 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-catalog-v2",
+  "revision": "dev-catalog-v3",
   "modules": [
     {
       "id": "dev-contracts",
       "affects": [
         "dev-runner",
-        "dev-catalog"
+        "dev-catalog",
+        "execution"
       ]
     },
     {
@@ -41,24 +42,53 @@
       "affects": [
         "domain",
         "persistence",
-        "service"
+        "service",
+        "execution"
       ]
     },
     {
       "id": "domain",
       "affects": [
         "persistence",
-        "service"
+        "service",
+        "execution"
       ]
     },
     {
       "id": "persistence",
       "affects": [
-        "service"
+        "service",
+        "execution"
       ]
     },
     {
       "id": "service",
+      "affects": [
+        "desktop"
+      ]
+    },
+    {
+      "id": "process-control",
+      "affects": [
+        "executor-codex",
+        "execution"
+      ]
+    },
+    {
+      "id": "executor-codex",
+      "affects": [
+        "execution"
+      ]
+    },
+    {
+      "id": "execution",
+      "affects": [
+        "service",
+        "desktop"
+      ]
+    },
+    {
+      "id": "desktop",
       "affects": []
     }
   ],
@@ -122,6 +152,30 @@
       "layer": "integration",
       "file": "dist/tests/integration/service.test.js",
       "timeoutMs": 30000
+    },
+    {
+      "id": "integration-process-control",
+      "layer": "integration",
+      "file": "dist/tests/integration/process-control.test.js",
+      "timeoutMs": 60000
+    },
+    {
+      "id": "unit-executor-codex",
+      "layer": "unit",
+      "file": "dist/tests/unit/executor-codex.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "live-execution",
+      "layer": "live",
+      "file": "dist/tests/live/execution.test.js",
+      "timeoutMs": 600000
+    },
+    {
+      "id": "integration-execution",
+      "layer": "integration",
+      "file": "dist/tests/integration/execution.test.js",
+      "timeoutMs": 90000
     }
   ],
   "cases": [
@@ -1507,7 +1561,7 @@
     },
     {
       "id": "dev.integration-repository.003",
-      "name": "repository rejects unavailable live and release gates with a nonzero exit",
+      "name": "repository live gate is wired and unavailable release gate fails closed",
       "suiteId": "integration-repository",
       "module": "dev-repository",
       "layer": "integration",
@@ -1515,13 +1569,13 @@
         "p0.integration-repository.003",
         "p0.dev-repository"
       ],
-      "scenario": "repository rejects unavailable live and release gates with a nonzero exit",
+      "scenario": "Implemented live entry point is wired to the real frozen test runner; unimplemented release still refuses fake success with nonzero exit",
       "impactTags": [
         "test-infrastructure",
         "dev-repository"
       ],
       "prerequisites": "Pinned Node runtime; see tests/integration/repository.test.ts",
-      "assertions": "tests/integration/repository.test.ts: repository rejects unavailable live and release gates with a nonzero exit",
+      "assertions": "tests/integration/repository.test.ts: test:live uses the real runner and live layer; actual release unavailable command exits 2 with No tests executed; NOT PASSED",
       "cleanup": "Test implementation cleanup in tests/integration/repository.test.ts",
       "status": "active"
     },
@@ -3120,6 +3174,581 @@
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence verification evidence references roundtrip and reject foreign missing or altered artifacts",
       "cleanup": "Temporary resources removed by test teardown; raw execution results retained by runner",
+      "status": "active"
+    },
+    {
+      "id": "dev.catalog.020",
+      "name": "catalog freezes live layer metadata and rechecks partial scope without stage completion",
+      "suiteId": "unit-catalog",
+      "module": "dev-catalog",
+      "layer": "unit",
+      "covers": [
+        "p2.catalog.live-selection",
+        "p1.development-catalog"
+      ],
+      "scenario": "P2 required live metadata with real Node runner: complete stage selection, live-only partial freeze and successful recheck, unregistered and missing live source refusal",
+      "impactTags": [
+        "test-infrastructure",
+        "catalog",
+        "profiles"
+      ],
+      "prerequisites": "Pinned Node runtime and isolated writable temporary root; this fixture exercises metadata, not a Codex provider",
+      "assertions": "tests/unit/catalog.test.ts: full P2 includes live; live-only runs preserve selection/digests and stagePassed=false; missing or unregistered live source cannot freeze",
+      "cleanup": "TestContext removes each isolated directory",
+      "status": "active"
+    },
+    {
+      "id": "p2.process-control.001",
+      "name": "managed process transports stdin stdout stderr with cwd and environment",
+      "suiteId": "integration-process-control",
+      "module": "process-control",
+      "layer": "integration",
+      "covers": [
+        "p2.process.transport"
+      ],
+      "scenario": "stdin/stdout/stderr, nonzero exit, cwd/environment and safe line transport",
+      "impactTags": [
+        "process-control",
+        "execution",
+        "process"
+      ],
+      "prerequisites": "Pinned Node runtime on macOS or Linux with ps, writable temporary workspace and real managed child processes",
+      "assertions": "tests/integration/process-control.test.ts: stdin/stdout/stderr, nonzero exit, cwd/environment and safe line transport",
+      "cleanup": "TestContext terminates every recorded owned process group, checks stopped and removes isolated workspace",
+      "status": "active"
+    },
+    {
+      "id": "p2.process-control.002",
+      "name": "managed process commits intent and identity before releasing target",
+      "suiteId": "integration-process-control",
+      "module": "process-control",
+      "layer": "integration",
+      "covers": [
+        "p2.process.intent-before-side-effects"
+      ],
+      "scenario": "durable intent/identity ordered before target side effect; persistence failures prevent target start",
+      "impactTags": [
+        "process-control",
+        "execution",
+        "process"
+      ],
+      "prerequisites": "Pinned Node runtime on macOS or Linux with ps, writable temporary workspace and real managed child processes",
+      "assertions": "tests/integration/process-control.test.ts: durable intent/identity ordered before target side effect; persistence failures prevent target start",
+      "cleanup": "TestContext terminates every recorded owned process group, checks stopped and removes isolated workspace",
+      "status": "active"
+    },
+    {
+      "id": "p2.process-control.003",
+      "name": "managed process rejects missing intent malformed limits and failed executable",
+      "suiteId": "integration-process-control",
+      "module": "process-control",
+      "layer": "integration",
+      "covers": [
+        "p2.process.preflight-fail-closed"
+      ],
+      "scenario": "reject missing intent, malformed limits, missing workspace and executable",
+      "impactTags": [
+        "process-control",
+        "execution",
+        "process"
+      ],
+      "prerequisites": "Pinned Node runtime on macOS or Linux with ps, writable temporary workspace and real managed child processes",
+      "assertions": "tests/integration/process-control.test.ts: reject missing intent, malformed limits, missing workspace and executable",
+      "cleanup": "TestContext terminates every recorded owned process group, checks stopped and removes isolated workspace",
+      "status": "active"
+    },
+    {
+      "id": "p2.process-control.004",
+      "name": "managed process cancellation gracefully stops group and remains idempotent",
+      "suiteId": "integration-process-control",
+      "module": "process-control",
+      "layer": "integration",
+      "covers": [
+        "p2.process.cancellation"
+      ],
+      "scenario": "real SIGTERM cancellation with verified process group stop and repeated termination idempotence",
+      "impactTags": [
+        "process-control",
+        "execution",
+        "process"
+      ],
+      "prerequisites": "Pinned Node runtime on macOS or Linux with ps, writable temporary workspace and real managed child processes",
+      "assertions": "tests/integration/process-control.test.ts: real SIGTERM cancellation with verified process group stop and repeated termination idempotence",
+      "cleanup": "TestContext terminates every recorded owned process group, checks stopped and removes isolated workspace",
+      "status": "active"
+    },
+    {
+      "id": "p2.process-control.005",
+      "name": "managed process timeout kills SIGTERM ignoring descendant and verifies whole group",
+      "suiteId": "integration-process-control",
+      "module": "process-control",
+      "layer": "integration",
+      "covers": [
+        "p2.process.timeout-group-stop"
+      ],
+      "scenario": "timeout escalates against SIGTERM-ignoring descendant, checks whole group and bounded deadline",
+      "impactTags": [
+        "process-control",
+        "execution",
+        "process"
+      ],
+      "prerequisites": "Pinned Node runtime on macOS or Linux with ps, writable temporary workspace and real managed child processes",
+      "assertions": "tests/integration/process-control.test.ts: timeout escalates against SIGTERM-ignoring descendant, checks whole group and bounded deadline",
+      "cleanup": "TestContext terminates every recorded owned process group, checks stopped and removes isolated workspace",
+      "status": "active"
+    },
+    {
+      "id": "p2.process-control.006",
+      "name": "managed process recovers persisted identity after actual supervisor exit",
+      "suiteId": "integration-process-control",
+      "module": "process-control",
+      "layer": "integration",
+      "covers": [
+        "p2.process.persisted-stop"
+      ],
+      "scenario": "persisted identity recovers writer after actual supervisor exit and stops side effects without restarting",
+      "impactTags": [
+        "process-control",
+        "execution",
+        "process"
+      ],
+      "prerequisites": "Pinned Node runtime on macOS or Linux with ps, writable temporary workspace and real managed child processes",
+      "assertions": "tests/integration/process-control.test.ts: persisted identity recovers writer after actual supervisor exit and stops side effects without restarting",
+      "cleanup": "TestContext terminates every recorded owned process group, checks stopped and removes isolated workspace",
+      "status": "active"
+    },
+    {
+      "id": "p2.process-control.007",
+      "name": "managed process rejects reused PID identity and foreign ownership token without signal",
+      "suiteId": "integration-process-control",
+      "module": "process-control",
+      "layer": "integration",
+      "covers": [
+        "p2.process.identity-safe-signal"
+      ],
+      "scenario": "start identity/owner token mismatch sends no signal to foreign real process",
+      "impactTags": [
+        "process-control",
+        "execution",
+        "process"
+      ],
+      "prerequisites": "Pinned Node runtime on macOS or Linux with ps, writable temporary workspace and real managed child processes",
+      "assertions": "tests/integration/process-control.test.ts: start identity/owner token mismatch sends no signal to foreign real process",
+      "cleanup": "TestContext terminates every recorded owned process group, checks stopped and removes isolated workspace",
+      "status": "active"
+    },
+    {
+      "id": "p2.process-control.008",
+      "name": "managed process handles abrupt guardian death and stops surviving owned descendants",
+      "suiteId": "integration-process-control",
+      "module": "process-control",
+      "layer": "integration",
+      "covers": [
+        "p2.process.guardian-exit"
+      ],
+      "scenario": "abrupt guardian death leaves owned descendants which are terminated and checked",
+      "impactTags": [
+        "process-control",
+        "execution",
+        "process"
+      ],
+      "prerequisites": "Pinned Node runtime on macOS or Linux with ps, writable temporary workspace and real managed child processes",
+      "assertions": "tests/integration/process-control.test.ts: abrupt guardian death leaves owned descendants which are terminated and checked",
+      "cleanup": "TestContext terminates every recorded owned process group, checks stopped and removes isolated workspace",
+      "status": "active"
+    },
+    {
+      "id": "p2.executor-codex.001",
+      "name": "p2.executor-codex.unit.protocol-baseline-rejects-version-and-schema-drift",
+      "suiteId": "unit-executor-codex",
+      "module": "executor-codex",
+      "layer": "unit",
+      "covers": [
+        "p2.codex.protocol-baseline"
+      ],
+      "scenario": "exact version/schema baseline accepts supported protocol and rejects drift",
+      "impactTags": [
+        "executor-codex",
+        "execution",
+        "protocol"
+      ],
+      "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
+      "assertions": "tests/unit/executor-codex.test.ts: exact version/schema baseline accepts supported protocol and rejects drift",
+      "cleanup": "Adapter dispose in finally; no provider process launched",
+      "status": "active"
+    },
+    {
+      "id": "p2.executor-codex.002",
+      "name": "p2.executor-codex.unit.protocol-handshake-model-capabilities-and-request-correlation",
+      "suiteId": "unit-executor-codex",
+      "module": "executor-codex",
+      "layer": "unit",
+      "covers": [
+        "p2.codex.handshake-capabilities"
+      ],
+      "scenario": "handshake required; correlated out-of-order RPC replies; model text/image capabilities and unknown fields retained",
+      "impactTags": [
+        "executor-codex",
+        "execution",
+        "protocol"
+      ],
+      "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
+      "assertions": "tests/unit/executor-codex.test.ts: handshake required; correlated out-of-order RPC replies; model text/image capabilities and unknown fields retained",
+      "cleanup": "Adapter dispose in finally; no provider process launched",
+      "status": "active"
+    },
+    {
+      "id": "p2.executor-codex.003",
+      "name": "p2.executor-codex.unit.protocol-fresh-thread-read-resume-text-image-and-interrupt",
+      "suiteId": "unit-executor-codex",
+      "module": "executor-codex",
+      "layer": "unit",
+      "covers": [
+        "p2.codex.thread-turn-input"
+      ],
+      "scenario": "fresh independent thread, read/resume, text/image turn and interrupt serialization; invalid inputs refused",
+      "impactTags": [
+        "executor-codex",
+        "execution",
+        "protocol"
+      ],
+      "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
+      "assertions": "tests/unit/executor-codex.test.ts: fresh independent thread, read/resume, text/image turn and interrupt serialization; invalid inputs refused",
+      "cleanup": "Adapter dispose in finally; no provider process launched",
+      "status": "active"
+    },
+    {
+      "id": "p2.executor-codex.004",
+      "name": "p2.executor-codex.unit.protocol-waiting-error-retry-and-terminal-status-classification",
+      "suiteId": "unit-executor-codex",
+      "module": "executor-codex",
+      "layer": "unit",
+      "covers": [
+        "p2.codex.event-status"
+      ],
+      "scenario": "waiting/error/willRetry classification and terminal status without inventing provider live coverage",
+      "impactTags": [
+        "executor-codex",
+        "execution",
+        "protocol"
+      ],
+      "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
+      "assertions": "tests/unit/executor-codex.test.ts: waiting/error/willRetry classification and terminal status without inventing provider live coverage",
+      "cleanup": "Adapter dispose in finally; no provider process launched",
+      "status": "active"
+    },
+    {
+      "id": "p2.executor-codex.005",
+      "name": "p2.executor-codex.unit.protocol-tokens-diffs-messages-and-unknown-fields-preserved",
+      "suiteId": "unit-executor-codex",
+      "module": "executor-codex",
+      "layer": "unit",
+      "covers": [
+        "p2.codex.usage-unknown-fields"
+      ],
+      "scenario": "usage, diffs, messages and unknown fields retained; invalid token counts refused",
+      "impactTags": [
+        "executor-codex",
+        "execution",
+        "protocol"
+      ],
+      "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
+      "assertions": "tests/unit/executor-codex.test.ts: usage, diffs, messages and unknown fields retained; invalid token counts refused",
+      "cleanup": "Adapter dispose in finally; no provider process launched",
+      "status": "active"
+    },
+    {
+      "id": "p2.executor-codex.006",
+      "name": "p2.executor-codex.unit.protocol-raw-persistence-precedes-reduction-and-retains-order",
+      "suiteId": "unit-executor-codex",
+      "module": "executor-codex",
+      "layer": "unit",
+      "covers": [
+        "p2.codex.raw-event-order"
+      ],
+      "scenario": "raw event persistence precedes ordered reduction; legitimate repeated deltas retained",
+      "impactTags": [
+        "executor-codex",
+        "execution",
+        "protocol"
+      ],
+      "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
+      "assertions": "tests/unit/executor-codex.test.ts: raw event persistence precedes ordered reduction; legitimate repeated deltas retained",
+      "cleanup": "Adapter dispose in finally; no provider process launched",
+      "status": "active"
+    },
+    {
+      "id": "p2.executor-codex.007",
+      "name": "p2.executor-codex.unit.protocol-server-requests-explicit-response-or-unsupported-rejection",
+      "suiteId": "unit-executor-codex",
+      "module": "executor-codex",
+      "layer": "unit",
+      "covers": [
+        "p2.codex.server-requests"
+      ],
+      "scenario": "server approvals/user-input requests require explicit response or unsupported rejection; deferred reply does not block interrupt",
+      "impactTags": [
+        "executor-codex",
+        "execution",
+        "protocol"
+      ],
+      "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
+      "assertions": "tests/unit/executor-codex.test.ts: server approvals/user-input requests require explicit response or unsupported rejection; deferred reply does not block interrupt",
+      "cleanup": "Adapter dispose in finally; no provider process launched",
+      "status": "active"
+    },
+    {
+      "id": "p2.executor-codex.008",
+      "name": "p2.executor-codex.unit.protocol-timeout-disconnect-and-late-replies-never-resend",
+      "suiteId": "unit-executor-codex",
+      "module": "executor-codex",
+      "layer": "unit",
+      "covers": [
+        "p2.codex.disconnect-no-resend"
+      ],
+      "scenario": "timeout/disconnect return unknown outcomes; late replies retained with no automatic resend",
+      "impactTags": [
+        "executor-codex",
+        "execution",
+        "protocol"
+      ],
+      "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
+      "assertions": "tests/unit/executor-codex.test.ts: timeout/disconnect return unknown outcomes; late replies retained with no automatic resend",
+      "cleanup": "Adapter dispose in finally; no provider process launched",
+      "status": "active"
+    },
+    {
+      "id": "p2.executor-codex.009",
+      "name": "p2.executor-codex.unit.protocol-rpc-errors-malformed-lines-and-persistence-failure-fail-closed",
+      "suiteId": "unit-executor-codex",
+      "module": "executor-codex",
+      "layer": "unit",
+      "covers": [
+        "p2.codex.protocol-fail-closed"
+      ],
+      "scenario": "RPC errors, malformed JSON and persistence failure fail closed and retain raw evidence",
+      "impactTags": [
+        "executor-codex",
+        "execution",
+        "protocol"
+      ],
+      "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
+      "assertions": "tests/unit/executor-codex.test.ts: RPC errors, malformed JSON and persistence failure fail closed and retain raw evidence",
+      "cleanup": "Adapter dispose in finally; no provider process launched",
+      "status": "active"
+    },
+    {
+      "id": "p2.process-control.009",
+      "name": "managed process stops detached token-owned writers after cancellation natural exit and supervisor restart",
+      "suiteId": "integration-process-control",
+      "module": "process-control",
+      "layer": "integration",
+      "covers": [
+        "p2.process.detached-owned-stop",
+        "p2.process.cancellation",
+        "p2.process.persisted-stop"
+      ],
+      "scenario": "Actual detached SIGTERM-ignoring writers outside original process group: cancellation, natural exit and recovery after original backend and guardian exit; foreign operation remains active",
+      "impactTags": [
+        "process-control",
+        "execution",
+        "process"
+      ],
+      "prerequisites": "Pinned Node runtime on macOS or Linux with ps, writable temporary workspace and actual token-owned managed child processes",
+      "assertions": "tests/integration/process-control.test.ts: detached writer is visible by durable ownership token outside recorded pgid; stopped writer produces no further file changes; unrelated operation is not signalled",
+      "cleanup": "TestContext terminates all recorded owned processes, checks stopped and removes isolated workspace",
+      "status": "active"
+    },
+    {
+      "id": "p2.live.001",
+      "name": "live Codex repairs an isolated TypeScript project with immutable independent build assertions",
+      "suiteId": "live-execution",
+      "module": "execution",
+      "layer": "live",
+      "covers": [
+        "p2.live.real-code-delivery",
+        "p2.live.immutable-independent-check",
+        "p2.live.raw-usage-evidence"
+      ],
+      "scenario": "Real account Codex repairs isolated TypeScript project; independently build and assert success plus rejection inputs; acceptance file digest fixed; actual thread/turn/raw events/usage/artifact and stopped identity retained",
+      "impactTags": [
+        "executor-codex",
+        "execution",
+        "desktop",
+        "live"
+      ],
+      "prerequisites": "Actual installed compatible Codex app-server and logged-in account advertising explicit gpt-5.6-sol (or SUPERVISOR_LIVE_MODEL); medium effort; writable isolated git project; vision case requires actual .supervisor-dev/p2-ui/empty-workspace.png screenshot (or SUPERVISOR_LIVE_SCREENSHOT)",
+      "assertions": "tests/live/execution.test.ts: broken implementation fails the fixed assertions before Codex; source changes with acceptance unchanged; real post-change build/assertions pass; token use accounted; execution completion does not invent product acceptance",
+      "cleanup": "TestContext closes actual Supervisor service, stops/inspects owned processes, and copies isolated runtime plus capabilities/trajectory/execution into ignored evidence directory; failures retained; provider unavailable fails without skip or substitute",
+      "status": "active"
+    },
+    {
+      "id": "p2.live.002",
+      "name": "live Codex cancellation stops an actual started turn and keeps cancellation after reconnect",
+      "suiteId": "live-execution",
+      "module": "execution",
+      "layer": "live",
+      "covers": [
+        "p2.live.actual-turn-cancellation",
+        "p2.live.reconnection"
+      ],
+      "scenario": "Real account starts a turn and is cancelled through IPC; new IPC connection observes same execution without prompt replay; process stop and persisted cancellation checked",
+      "impactTags": [
+        "executor-codex",
+        "execution",
+        "desktop",
+        "live"
+      ],
+      "prerequisites": "Actual installed compatible Codex app-server and logged-in account advertising explicit gpt-5.6-sol (or SUPERVISOR_LIVE_MODEL); medium effort; writable isolated git project; vision case requires actual .supervisor-dev/p2-ui/empty-workspace.png screenshot (or SUPERVISOR_LIVE_SCREENSHOT)",
+      "assertions": "tests/live/execution.test.ts: actual turnId before cancel, stopConfirmed with inspectProcess stopped; list contains same execution once; repeated inspect keeps cancelled",
+      "cleanup": "TestContext closes actual Supervisor service, stops/inspects owned processes, and copies isolated runtime plus capabilities/trajectory/execution into ignored evidence directory; failures retained; provider unavailable fails without skip or substitute",
+      "status": "active"
+    },
+    {
+      "id": "p2.live.003",
+      "name": "live Codex image input recognizes the captured Supervisor desktop without text substitutes",
+      "suiteId": "live-execution",
+      "module": "execution",
+      "layer": "live",
+      "covers": [
+        "p2.live.screenshot-image-input"
+      ],
+      "scenario": "Real account recognizes actual Supervisor desktop screenshot through localImage input; records image digest, advertised image capability and actual response without OCR or text substitutes",
+      "impactTags": [
+        "executor-codex",
+        "execution",
+        "desktop",
+        "live"
+      ],
+      "prerequisites": "Actual installed compatible Codex app-server and logged-in account advertising explicit gpt-5.6-sol (or SUPERVISOR_LIVE_MODEL); medium effort; writable isolated git project; vision case requires actual .supervisor-dev/p2-ui/empty-workspace.png screenshot (or SUPERVISOR_LIVE_SCREENSHOT)",
+      "assertions": "tests/live/execution.test.ts: actual captured screenshot exists; input image capability advertised; completed answer names Supervisor and visible button labels with nonzero reported usage and stopped identity",
+      "cleanup": "TestContext closes actual Supervisor service, stops/inspects owned processes, and copies isolated runtime plus capabilities/trajectory/execution into ignored evidence directory; failures retained; provider unavailable fails without skip or substitute",
+      "status": "active"
+    },
+    {
+      "id": "p2.execution.001",
+      "name": "execution SQLite persists canonical start receipt reservation lease and event cursor across reopen",
+      "suiteId": "integration-execution",
+      "module": "execution",
+      "layer": "integration",
+      "covers": [
+        "p2.execution.canonical-durable-receipt"
+      ],
+      "scenario": "canonical and reordered execution receipt replay once; durable reservation, lease, operation and event cursor match after SQLite reopen",
+      "impactTags": [
+        "execution",
+        "persistence",
+        "service",
+        "process-control"
+      ],
+      "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
+      "assertions": "tests/integration/execution.test.ts: canonical and reordered execution receipt replay once; durable reservation, lease, operation and event cursor match after SQLite reopen",
+      "cleanup": "TestContext closes manager/service/process in reverse order with owned process stop checks; closes SQLite handles and removes isolated temporary root",
+      "status": "active"
+    },
+    {
+      "id": "p2.execution.002",
+      "name": "execution store excludes overlapping workspaces and rolls back rejected admission",
+      "suiteId": "integration-execution",
+      "module": "execution",
+      "layer": "integration",
+      "covers": [
+        "p2.execution.workspace-exclusion"
+      ],
+      "scenario": "parent, child and exact workspace overlaps rejected without state/events change; sibling allowed; unknown writer retains exclusion until confirmed stop",
+      "impactTags": [
+        "execution",
+        "persistence",
+        "service",
+        "process-control"
+      ],
+      "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
+      "assertions": "tests/integration/execution.test.ts: parent, child and exact workspace overlaps rejected without state/events change; sibling allowed; unknown writer retains exclusion until confirmed stop",
+      "cleanup": "TestContext closes manager/service/process in reverse order with owned process stop checks; closes SQLite handles and removes isolated temporary root",
+      "status": "active"
+    },
+    {
+      "id": "p2.execution.003",
+      "name": "execution manager refuses insufficient reserve before invoking a real executable",
+      "suiteId": "integration-execution",
+      "module": "execution",
+      "layer": "integration",
+      "covers": [
+        "p2.execution.budget-before-dispatch"
+      ],
+      "scenario": "insufficient reserve rejected before actual executable marker writes and before SQLite project or execution creation",
+      "impactTags": [
+        "execution",
+        "persistence",
+        "service",
+        "process-control"
+      ],
+      "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
+      "assertions": "tests/integration/execution.test.ts: insufficient reserve rejected before actual executable marker writes and before SQLite project or execution creation",
+      "cleanup": "TestContext closes manager/service/process in reverse order with owned process stop checks; closes SQLite handles and removes isolated temporary root",
+      "status": "active"
+    },
+    {
+      "id": "p2.execution.004",
+      "name": "execution startup reconciles actual managed writer without replay or settling unknown usage",
+      "suiteId": "integration-execution",
+      "module": "execution",
+      "layer": "integration",
+      "covers": [
+        "p2.execution.actual-writer-reconcile"
+      ],
+      "scenario": "durable real managed writer stops after reopen and manager initialize, no replay executable invoked, lost usage remains unsettled, real Git diff/artifact captured and repeated reconcile unchanged",
+      "impactTags": [
+        "execution",
+        "persistence",
+        "service",
+        "process-control"
+      ],
+      "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
+      "assertions": "tests/integration/execution.test.ts: durable real managed writer stops after reopen and manager initialize, no replay executable invoked, lost usage remains unsettled, real Git diff/artifact captured and repeated reconcile unchanged",
+      "cleanup": "TestContext closes manager/service/process in reverse order with owned process stop checks; closes SQLite handles and removes isolated temporary root",
+      "status": "active"
+    },
+    {
+      "id": "p2.execution.005",
+      "name": "execution IPC rejects direct P1 mutations of managed runs and remains queryable after restart",
+      "suiteId": "integration-execution",
+      "module": "execution",
+      "layer": "integration",
+      "covers": [
+        "p2.execution.ipc-controller-authority"
+      ],
+      "scenario": "actual Unix socket rejects P1 complete/settle/cancel and artifact mutation of managed run; run and events remain queryable after service restart",
+      "impactTags": [
+        "execution",
+        "persistence",
+        "service",
+        "process-control"
+      ],
+      "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
+      "assertions": "tests/integration/execution.test.ts: actual Unix socket rejects P1 complete/settle/cancel and artifact mutation of managed run; run and events remain queryable after service restart",
+      "cleanup": "TestContext closes manager/service/process in reverse order with owned process stop checks; closes SQLite handles and removes isolated temporary root",
+      "status": "active"
+    },
+    {
+      "id": "p2.execution.006",
+      "name": "execution cancellation fences an actual pending capability probe until launch resolves",
+      "suiteId": "integration-execution",
+      "module": "execution",
+      "layer": "integration",
+      "covers": [
+        "p2.execution.pending-launch-cancel-fence"
+      ],
+      "scenario": "actual slow failing version executable keeps lease and launch fenced while cancelled, no target/thread/turn invocation, actual zero settled only after launch resolves",
+      "impactTags": [
+        "execution",
+        "persistence",
+        "service",
+        "process-control"
+      ],
+      "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
+      "assertions": "tests/integration/execution.test.ts: actual slow failing version executable keeps lease and launch fenced while cancelled, no target/thread/turn invocation, actual zero settled only after launch resolves",
+      "cleanup": "TestContext closes manager/service/process in reverse order with owned process stop checks; closes SQLite handles and removes isolated temporary root",
       "status": "active"
     }
   ]

@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.25.0",
-  "engines": { "node": "24.20.0", "pnpm": "11.25.0" },
+  "engines": {
+    "node": "24.20.0",
+    "pnpm": "11.25.0"
+  },
   "scripts": {
     "build": "node tools/build.mjs",
     "typecheck": "tsc --noEmit",
@@ -12,12 +15,25 @@
     "doctor": "pnpm build && node dist/tools/p0/cli.js doctor",
     "test:unit": "pnpm build && node dist/tools/p0/cli.js run --layer unit",
     "test:integration": "pnpm build && node dist/tools/p0/cli.js run --layer integration",
-    "test:live": "node tools/unavailable.mjs live",
+    "test:live": "pnpm build && node dist/tools/p0/cli.js run --layer live",
     "verify:stage": "pnpm build && node dist/tools/p0/cli.js run",
     "verify:p0": "pnpm build && node dist/tools/p0/cli.js run --stage P0",
     "supervisor": "node dist/apps/cli/main.js",
     "verify:evidence": "node dist/tools/p0/cli.js check",
-    "verify:release": "node tools/unavailable.mjs release"
+    "verify:release": "node tools/unavailable.mjs release",
+    "desktop": "pnpm build && node tools/desktop.mjs",
+    "verify:p1": "pnpm build && node dist/tools/p0/cli.js run --stage P1"
   },
-  "devDependencies": { "@types/node": "24.19.2", "typescript": "6.0.3" }
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "electron": "44.7.0",
+    "esbuild": "0.28.2",
+    "typescript": "6.0.3"
+  },
+  "dependencies": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  }
 }

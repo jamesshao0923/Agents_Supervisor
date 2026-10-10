@@ -7,7 +7,7 @@ export interface Attempt {
   id: string; nodeId: string; contractVersion: number; status: 'running' | 'succeeded' | 'failed' | 'cancelled';
   reservation: number; purpose: 'execution' | 'verification'; settled: boolean; actual: number | null;
 }
-export interface Budget { unit: 'work-unit'; limit: number; spent: number; verificationReserve: number }
+export interface Budget { unit: 'work-unit' | 'token'; limit: number; spent: number; verificationReserve: number }
 export interface Lease { resource: string; attemptId: string; released: boolean }
 export interface Operation { id: string; attemptId: string; status: 'pending' | 'confirmed' | 'unknown' }
 export interface Artifact { id: string; digest: string; path: string; contractVersion: number }
@@ -40,7 +40,7 @@ export interface Project { id: string; name: string }
 export interface CreateRunInput {
   id: string; projectId: string; contract: TaskContract;
   nodes: { id: string; dependencies: string[]; required: boolean }[];
-  budget: { limit: number; verificationReserve: number };
+  budget: { limit: number; verificationReserve: number; unit?: 'work-unit' | 'token' };
 }
 export type RunAction =
   | { type: 'startAttempt'; attemptId: string; nodeId: string; contractVersion: number; reservation: number; purpose: 'execution' | 'verification'; resources: string[] }
@@ -74,5 +74,5 @@ export type Query =
   | { type: 'catalog'; projectId: string }
   | { type: 'changes'; projectId: string }
   | { type: 'plans'; projectId: string; runId: string };
-export type Request = { id: string } & ({ method: 'command'; command: Command } | { method: 'query'; query: Query } | { method: 'health' });
+export type Request = { id: string } & ({ method: 'command'; command: Command } | { method: 'query'; query: Query } | { method: 'health' } | { method: 'execution'; action: import('./p2.js').ExecutionAction });
 export type Response = { id: string; ok: true; value: unknown } | { id: string; ok: false; error: string };

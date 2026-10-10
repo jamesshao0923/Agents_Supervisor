@@ -7,7 +7,7 @@ export function request(dataDir: string, value: Request): Promise<Response> {
     const socket = createConnection(join(resolve(dataDir), 'supervisor.sock'));
     let result = Buffer.alloc(0);
     let completed = false;
-    socket.setTimeout(10_000, () => socket.destroy(new Error('Supervisor request timed out; query or retry the same commandId to reconcile')));
+    socket.setTimeout(30_000, () => socket.destroy(new Error('Supervisor request timed out; query or retry the same commandId to reconcile')));
     socket.once('connect', () => socket.end(JSON.stringify(value) + '\n'));
     socket.once('error', reject);
     socket.on('data', chunk => {

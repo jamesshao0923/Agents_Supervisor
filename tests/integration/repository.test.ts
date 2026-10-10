@@ -20,12 +20,12 @@ test('repository ignores runtime secrets outputs and dependencies but retains so
   }
 });
 
-test('repository rejects unavailable live and release gates with a nonzero exit', () => {
-  for (const scope of ['live', 'release']) {
-    const result = spawnSync(process.execPath, [resolve('tools/unavailable.mjs'), scope], { encoding: 'utf8' });
-    assert.equal(result.status, 2);
-    assert.match(result.stderr, /No tests executed; NOT PASSED/);
-  }
+test('repository live gate is wired and unavailable release gate fails closed', async () => {
+  const pkg = JSON.parse(await readFile('package.json', 'utf8'));
+  assert.equal(pkg.scripts['test:live'], 'pnpm build && node dist/tools/p0/cli.js run --layer live');
+  const result = spawnSync(process.execPath, [resolve('tools/unavailable.mjs'), 'release'], { encoding: 'utf8' });
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /No tests executed; NOT PASSED/);
 });
 
 test('repository running compiler and runtime match pinned versions', async () => {

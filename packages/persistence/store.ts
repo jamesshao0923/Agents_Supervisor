@@ -6,6 +6,9 @@ import type { Artifact, Command, CommandResult, DomainEvent, EvidenceRef, Query,
 import { parseCommand, parseQuery } from '../contracts/validation.js';
 import { applyAction, createRun, validateVerificationChange, validateVerificationPlan } from '../domain/index.js';
 import { migrate } from './migrations.js';
+import { executionCreate, executionGet, executionList, executionEvents, executionUpdate } from './executions.js';
+import type { ExecutionRecord, ExecutionStart } from '../contracts/p2.js';
+import type { RunAction } from '../contracts/p1.js';
 
 /** Canonical JSON is used for receipts and immutable definitions, never caller object identity. */
 export function canonical(value: unknown): string {
@@ -48,6 +51,17 @@ export class SupervisorStore {
   }
 
   close(): void { this.db.close(); }
+
+  executionCreate(input: ExecutionStart) { return executionCreate(this.db, input); }
+  executionGet(id: string) { return executionGet(this.db, id); }
+  executionList() { return executionList(this.db); }
+  executionEvents(id: string, after: number) { return executionEvents(this.db, id, after); }
+  executionUpdate(id: string, patch: Partial<ExecutionRecord>, kind: string, payload: unknown, actions: RunAction[] = []) {
+    return executionUpdate(this.db, id, patch, kind, payload, actions);
+  }
+  isManagedRun(projectId: string, runId: string): boolean {
+    return !!this.db.prepare('SELECT id FROM executions WHERE project_id=? AND run_id=?').get(projectId, runId);
+  }
 
   command(input: Command): CommandResult {
     const command = parseCommand(input);

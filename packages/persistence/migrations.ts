@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 const migrations = [
   `CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
@@ -41,6 +41,12 @@ const migrations = [
      catalog_version INTEGER NOT NULL, definition TEXT NOT NULL CHECK(json_valid(definition)), PRIMARY KEY(project_id,id),
      FOREIGN KEY(project_id,run_id) REFERENCES runs(project_id,id),
      FOREIGN KEY(project_id,catalog_version) REFERENCES verification_catalogs(project_id,version));`,
+  `CREATE TABLE executions(id TEXT PRIMARY KEY, command_id TEXT NOT NULL UNIQUE,
+     project_id TEXT NOT NULL, run_id TEXT NOT NULL, request TEXT NOT NULL CHECK(json_valid(request)),
+     record TEXT NOT NULL CHECK(json_valid(record)), FOREIGN KEY(project_id,run_id) REFERENCES runs(project_id,id));
+   CREATE TABLE execution_events(seq INTEGER PRIMARY KEY AUTOINCREMENT, execution_id TEXT NOT NULL REFERENCES executions(id),
+     received_at TEXT NOT NULL, kind TEXT NOT NULL, payload TEXT NOT NULL CHECK(json_valid(payload)));
+   CREATE INDEX execution_event_cursor ON execution_events(execution_id,seq);`,
 ];
 
 export function migrate(db: DatabaseSync): void {

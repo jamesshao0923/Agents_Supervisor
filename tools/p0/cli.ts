@@ -1,6 +1,7 @@
 import { writeFile, mkdir } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import type { ImplementedStage, TestLayer } from './contracts.js';
 import { loadSelection } from './catalog.js';
 import { checkRun, runStage } from './runner.js';
 import { probeEnvironment } from './environment.js';
@@ -17,7 +18,7 @@ async function main(): Promise<void> {
   const allowed: Record<string, string[]> = {
     run: ['--root', '--stage', '--layer', '--modules', '--reason'], check: ['--root', '--run'], doctor: ['--root'], boundaries: ['--root'],
   };
-  if (!command || !allowed[command] || Object.keys(options).some(key => !allowed[command]!.includes(key))) throw new Error('Usage: cli.js run [--stage P0|P1] [--layer unit|integration] [--modules module,tag] [--reason text], check --run path, doctor, boundaries');
+  if (!command || !allowed[command] || Object.keys(options).some(key => !allowed[command]!.includes(key))) throw new Error('Usage: cli.js run [--stage P0|P1|P2] [--layer unit|integration|live] [--modules module,tag] [--reason text], check --run path, doctor, boundaries');
   const root = resolve(options['--root'] ?? process.cwd());
   if (command === 'doctor') {
     const report = await probeEnvironment(root);
@@ -48,10 +49,10 @@ async function main(): Promise<void> {
     process.exitCode = result.passed ? 0 : 1;
     return;
   }
-  if (options['--stage'] && !['P0', 'P1'].includes(options['--stage'])) throw new Error('Only P0 and P1 are supported; later stages are NOT PASSED');
-  if (options['--layer'] && !['unit', 'integration'].includes(options['--layer'])) throw new Error('Invalid test layer');
-  const layer = options['--layer'] as 'unit' | 'integration' | undefined;
-  const stage = (options['--stage'] ?? 'P1') as 'P0' | 'P1';
+  if (options['--stage'] && !['P0', 'P1', 'P2'].includes(options['--stage'])) throw new Error('Only P0, P1 and P2 are supported; later stages are NOT PASSED');
+  if (options['--layer'] && !['unit', 'integration', 'live'].includes(options['--layer'])) throw new Error('Invalid test layer');
+  const layer = options['--layer'] as TestLayer | undefined;
+  const stage = (options['--stage'] ?? 'P2') as ImplementedStage;
   const modules = options['--modules']?.split(',').map(value => value.trim());
   const plan = await loadSelection(root, stage, { ...(layer ? { layer } : {}), ...(modules ? { modules } : {}) });
   const { dir, result } = await runStage(root, plan.manifest, { selection: plan.selection, reason: options['--reason'] ?? 'Explicit developer invocation; no automatic retries' });

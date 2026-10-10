@@ -1,0 +1,88 @@
+const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
+const { join, resolve } = require('node:path');
+const { pathToFileURL } = require('node:url');
+const { randomUUID } = require('node:crypto');
+
+// This process is only a client. The launcher owns the independent backend.
+const dataIndex = process.argv.indexOf('--data');
+const dataDir = resolve(dataIndex >= 0 && process.argv[dataIndex + 1] ? process.argv[dataIndex + 1] : '.supervisor');
+const documentPath = join(__dirname, 'index.html');
+const documentURL = pathToFileURL(documentPath).href;
+let window;
+let request;
+
+function assertSender(event) {
+  if (!window || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame || event.senderFrame.url !== documentURL) {
+    throw new Error('Untrusted desktop IPC sender');
+  }
+}
+function id(value) {
+  if (typeof value !== 'string' || !value.trim() || value.length > 200) throw new Error('Invalid execution identifier');
+  return value;
+}
+async function invoke(value) {
+  const response = await request(dataDir, { id: randomUUID(), ...value });
+  if (!response.ok) throw new Error(response.error);
+  return response.value;
+}
+function execution(action) { return invoke({ method: 'execution', action }); }
+function register(channel, handler) {
+  ipcMain.handle(`supervisor:${channel}`, (event, ...args) => { assertSender(event); return handler(...args); });
+}
+function installBridge() {
+  register('health', () => invoke({ method: 'health' }));
+  register('list', () => execution({ type: 'list' }));
+  register('inspect', executionId => execution({ type: 'inspect', executionId: id(executionId) }));
+  register('events', (executionId, after) => {
+    if (!Number.isSafeInteger(after) || after < 0) throw new Error('Invalid event cursor');
+    return execution({ type: 'events', executionId: id(executionId), after });
+  });
+  register('capabilities', () => execution({ type: 'capabilities' }));
+  register('start', async input => {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) return { accepted: false, error: 'Invalid task input' };
+    const keys = ['commandId', 'workspace', 'prompt', 'model', 'effort', 'timeoutMs', 'tokenLimit', 'reservation', 'verificationReserve', 'images'];
+    if (Object.keys(input).some(key => !keys.includes(key))) return { accepted: false, error: 'Unknown task input field' };
+    const action = { type: 'start' };
+    for (const key of keys) if (input[key] !== undefined) action[key] = input[key];
+    // Preserve definitive rejections as data across Electron's error serialization.
+    // Transport failures still reject: the renderer must retain the command ID.
+    const response = await request(dataDir, { id: randomUUID(), method: 'execution', action });
+    return response.ok ? { accepted: true, record: response.value } : { accepted: false, error: response.error };
+  });
+  register('cancel', executionId => execution({ type: 'cancel', executionId: id(executionId) }));
+  register('reconcile', executionId => execution({ type: 'reconcile', executionId: id(executionId) }));
+  register('choose-workspace', async () => {
+    const result = await dialog.showOpenDialog(window, { title: '选择任务工作区', properties: ['openDirectory', 'createDirectory'] });
+    return result.canceled ? null : result.filePaths[0] || null;
+  });
+  register('choose-images', async () => {
+    const result = await dialog.showOpenDialog(window, { title: '附加真实截图', properties: ['openFile', 'multiSelections'], filters: [{ name: '图像', extensions: ['png', 'jpg', 'jpeg', 'webp'] }] });
+    return result.canceled ? [] : result.filePaths;
+  });
+}
+function createWindow() {
+  window = new BrowserWindow({
+    title: 'Supervisor', width: 1440, height: 980, minWidth: 980, minHeight: 680,
+    backgroundColor: '#101311', titleBarStyle: 'hiddenInset',
+    webPreferences: { preload: join(__dirname, 'preload.cjs'), nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true, devTools: false }
+  });
+  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  window.webContents.on('will-navigate', event => event.preventDefault());
+  window.webContents.on('will-attach-webview', event => event.preventDefault());
+  window.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
+  window.webContents.session.setPermissionCheckHandler(() => false);
+  window.on('closed', () => { window = undefined; });
+  window.loadFile(documentPath);
+}
+app.whenReady().then(async () => {
+  ({ request } = await import(pathToFileURL(join(__dirname, '../cli/client.js')).href));
+  installBridge();
+  Menu.setApplicationMenu(Menu.buildFromTemplate([
+    { label: 'Supervisor', submenu: [{ role: 'about' }, { type: 'separator' }, { label: '退出界面（后台继续运行）', role: 'quit' }] },
+    { label: '编辑', submenu: [{ role: 'undo' }, { role: 'redo' }, { type: 'separator' }, { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }] },
+    { label: '窗口', submenu: [{ role: 'minimize' }, { role: 'zoom' }, { label: '关闭窗口（后台继续运行）', role: 'close' }] }
+  ]));
+  createWindow();
+  app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
+}).catch(error => { dialog.showErrorBox('Supervisor 启动失败', String(error)); app.quit(); });
+app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });

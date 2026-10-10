@@ -1,6 +1,9 @@
+export type TestLayer = 'unit' | 'integration' | 'live';
+export type ImplementedStage = 'P0' | 'P1' | 'P2';
+
 export interface SuiteSpec {
   id: string;
-  layer: 'unit' | 'integration';
+  layer: TestLayer;
   file: string;
   required: true;
   expectedTests: string[];
@@ -9,7 +12,7 @@ export interface SuiteSpec {
 
 export interface StageManifest {
   schemaVersion: 1;
-  stage: 'P0' | 'P1';
+  stage: ImplementedStage;
   revision: string;
   suites: SuiteSpec[];
 }
@@ -58,7 +61,7 @@ function manifestError(path: string, detail: string): never {
 export function parseManifest(value: unknown): StageManifest {
   if (!isRecord(value)) manifestError('manifest', 'must be an object');
   if (value.schemaVersion !== 1) manifestError('schemaVersion', 'must equal 1');
-  if (value.stage !== 'P0' && value.stage !== 'P1') manifestError('stage', 'must equal P0 or P1');
+  if (value.stage !== 'P0' && value.stage !== 'P1' && value.stage !== 'P2') manifestError('stage', 'must equal P0, P1 or P2');
   if (!nonemptyString(value.revision) || /\s/.test(value.revision)) {
     manifestError('revision', 'must be a nonempty string without whitespace');
   }
@@ -74,8 +77,8 @@ export function parseManifest(value: unknown): StageManifest {
     }
     if (ids.has(entry.id)) manifestError(`${path}.id`, `duplicates suite id ${entry.id}`);
     ids.add(entry.id);
-    if (entry.layer !== 'unit' && entry.layer !== 'integration') {
-      manifestError(`${path}.layer`, 'must equal unit or integration');
+    if (entry.layer !== 'unit' && entry.layer !== 'integration' && entry.layer !== 'live') {
+      manifestError(`${path}.layer`, 'must equal unit, integration or live');
     }
     // Only local, unencoded paths are allowed; the runner also verifies realpath.
     if (typeof entry.file !== 'string'
@@ -98,9 +101,12 @@ export function parseManifest(value: unknown): StageManifest {
       names.add(name);
       return name;
     });
+    // Live suites serialize several bounded provider calls and cleanup. Keep the
+    // historical unit/integration cap while allowing a ten-minute live envelope.
+    const maxTimeoutMs = entry.layer === 'live' ? 600_000 : 300_000;
     if (typeof entry.timeoutMs !== 'number' || !Number.isInteger(entry.timeoutMs)
-      || entry.timeoutMs < 1 || entry.timeoutMs > 300_000) {
-      manifestError(`${path}.timeoutMs`, 'must be an integer between 1 and 300000');
+      || entry.timeoutMs < 1 || entry.timeoutMs > maxTimeoutMs) {
+      manifestError(`${path}.timeoutMs`, `must be an integer between 1 and ${maxTimeoutMs}`);
     }
     return {
       id: entry.id,

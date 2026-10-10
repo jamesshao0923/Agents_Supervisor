@@ -2,11 +2,11 @@ import { createHash } from 'node:crypto';
 import { readFile, readdir, lstat, realpath } from 'node:fs/promises';
 import { join, relative, isAbsolute } from 'node:path';
 import ts from 'typescript';
-import { parseManifest, type StageManifest, type SuiteSpec } from './contracts.js';
+import { parseManifest, type StageManifest, type SuiteSpec, type TestLayer, type ImplementedStage } from './contracts.js';
 
-export interface CatalogSuite { id: string; layer: 'unit' | 'integration'; file: string; timeoutMs: number }
+export interface CatalogSuite { id: string; layer: TestLayer; file: string; timeoutMs: number }
 export interface CatalogCase {
-  id: string; name: string; suiteId: string; module: string; layer: 'unit' | 'integration';
+  id: string; name: string; suiteId: string; module: string; layer: TestLayer;
   covers: string[]; scenario: string; impactTags: string[]; prerequisites: string;
   assertions: string; cleanup: string; status: 'active' | 'retired';
   retirement?: { reason: string; replacements: string[]; coverageReview: string };
@@ -17,17 +17,17 @@ export interface TestCatalog {
   suites: CatalogSuite[]; cases: CatalogCase[];
 }
 export interface AcceptanceProfile {
-  schemaVersion: 2; stage: 'P0' | 'P1'; revision: string;
+  schemaVersion: 2; stage: ImplementedStage; revision: string;
   caseIds: string[]; requiredRisks: string[]; coreRegression: string[];
 }
-export interface SelectionOptions { layer?: 'unit' | 'integration'; modules?: string[] }
+export interface SelectionOptions { layer?: TestLayer; modules?: string[] }
 export interface SelectionSnapshot {
-  schemaVersion: 1; stage: 'P0' | 'P1'; profileRevision: string; catalogRevision: string;
-  profileDigest: string; catalogDigest: string; requested: { layer: 'unit' | 'integration' | null; modules: string[] };
+  schemaVersion: 1; stage: ImplementedStage; profileRevision: string; catalogRevision: string;
+  profileDigest: string; catalogDigest: string; requested: { layer: TestLayer | null; modules: string[] };
   mode: 'stage' | 'partial'; strategy: 'conservative-complete-suite'; reasons: string[];
   globalActiveCaseIds: string[]; profileCaseIds: string[]; selectedCaseIds: string[];
   globalCoveredRisks: string[]; selectedCoveredRisks: string[];
-  selected: { id: string; name: string; module: string; layer: 'unit' | 'integration'; covers: string[]; reason: string }[];
+  selected: { id: string; name: string; module: string; layer: TestLayer; covers: string[]; reason: string }[];
   excluded: { id: string; reason: string; status: 'not-selected' }[];
 }
 export interface ResolvedSelection { manifest: StageManifest; selection: SelectionSnapshot }
@@ -99,7 +99,7 @@ export function parseCatalog(value: unknown): TestCatalog {
 
 export function parseProfile(value: unknown): AcceptanceProfile {
   if (!object(value) || value.schemaVersion !== 2) fail('profile schemaVersion must equal 2');
-  if (value.stage !== 'P0' && value.stage !== 'P1') fail('profile stage must equal P0 or P1');
+  if (value.stage !== 'P0' && value.stage !== 'P1' && value.stage !== 'P2') fail('profile stage must equal P0, P1 or P2');
   return { schemaVersion: 2, stage: value.stage, revision: revision(value.revision), caseIds: strings(value.caseIds, 'profile.caseIds'),
     requiredRisks: strings(value.requiredRisks, 'profile.requiredRisks'), coreRegression: strings(value.coreRegression, 'profile.coreRegression', true) };
 }
@@ -114,7 +114,7 @@ function resolveCase(catalog: TestCatalog, id: string, trail: string[] = []): Ca
 
 export function selectCases(catalogInput: unknown, profileInput: unknown, options: SelectionOptions = {}): ResolvedSelection {
   const catalog = parseCatalog(catalogInput), profile = parseProfile(profileInput);
-  if (options.layer !== undefined && options.layer !== 'unit' && options.layer !== 'integration') fail('selection layer must equal unit or integration');
+  if (options.layer !== undefined && options.layer !== 'unit' && options.layer !== 'integration' && options.layer !== 'live') fail('selection layer must equal unit, integration or live');
   const requestedModules = options.modules === undefined ? [] : strings(options.modules, 'selection.modules');
   const profileIds = new Set([...profile.caseIds, ...profile.coreRegression].flatMap(id => resolveCase(catalog, id).map(c => c.id)));
   const profileCases = catalog.cases.filter(c => profileIds.has(c.id));
@@ -161,7 +161,14 @@ export async function validateRegisteredSources(root: string, catalog: TestCatal
       else if (entry.isFile() && entry.name.endsWith('.test.ts') && !registeredFiles.has(name)) fail(`test suite source lacks registration: ${name}`);
     }
   }
-  for (const layer of ['unit', 'integration']) await walk(`tests/${layer}`);
+  for (const layer of ['unit', 'integration', 'live']) {
+    try { await walk(`tests/${layer}`); }
+    catch (error) {
+      // Historical P0/P1 fixtures may have no live directory. A registered live
+      // source is still mandatory and checked individually below.
+      if (layer !== 'live' || (error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+  }
   for (const suite of catalog.suites) {
     const path = suite.file.replace(/^dist\//, '').replace(/\.js$/, '.ts');
     const source = ts.createSourceFile(path, await sourceFile(root, path), ts.ScriptTarget.Latest, true);
@@ -182,7 +189,7 @@ export async function validateRegisteredSources(root: string, catalog: TestCatal
   }
 }
 
-export async function loadSelection(root: string, stage: 'P0' | 'P1', options: SelectionOptions = {}): Promise<ResolvedSelection> {
+export async function loadSelection(root: string, stage: ImplementedStage, options: SelectionOptions = {}): Promise<ResolvedSelection> {
   const values = await Promise.all([readFile(join(root, 'tests/catalog/current.json'), 'utf8'), readFile(join(root, `tests/acceptance/${stage.toLowerCase()}.json`), 'utf8')]);
   const catalog = parseCatalog(JSON.parse(values[0]!)), profile = parseProfile(JSON.parse(values[1]!));
   if (profile.stage !== stage) fail('profile file does not match requested stage');
@@ -190,7 +197,7 @@ export async function loadSelection(root: string, stage: 'P0' | 'P1', options: S
   return selectCases(catalog, profile, options);
 }
 
-export async function loadLegacyManifest(root: string, stage: 'P0' | 'P1', revisionValue: string): Promise<StageManifest> {
+export async function loadLegacyManifest(root: string, stage: ImplementedStage, revisionValue: string): Promise<StageManifest> {
   // Immutable original P0 snapshot remains format-compatible. Isolated runner
   // fixtures may still supply a schema1 profile at the original location.
   const current = JSON.parse(await readFile(join(root, `tests/acceptance/${stage.toLowerCase()}.json`), 'utf8')) as unknown;
