@@ -18,7 +18,7 @@ import type { ConversationInspection } from '../../packages/contracts/p6-actions
 const execute=promisify(execFile);
 async function until<T>(read:()=>T|Promise<T>,done:(value:T)=>boolean,ms=240_000):Promise<T>{const deadline=Date.now()+ms;for(;;){const value=await read();if(done(value))return value;if(Date.now()>deadline)throw new Error('P6 live conversation deadline exceeded');await delay(150);}}
 
-test('P6 live conversation answers read only then applies additive changes before execution and at verification with original criteria and cumulative accounting',{timeout:1_200_000},async t=>{
+test('P6 live conversation answers read only then applies additive changes before execution and at verification with original criteria and cumulative accounting',{timeout:1_450_000},async t=>{
   const root=await realpath(await mkdtemp(join(tmpdir(),'sv-p6-chat-'))),data=join(root,'data'),workspace=join(root,'project');await mkdir(workspace);
   await execute('git',['init','--quiet'],{cwd:workspace});await execute('git',['-c','user.name=Supervisor Test','-c','user.email=test@localhost','commit','--allow-empty','-m','P6 live baseline'],{cwd:workspace});
   const evidence=join(process.env.SUPERVISOR_EVIDENCE_DIR??resolve('.supervisor-dev/live'),'artifacts','p6-conversation-'+randomUUID());await mkdir(evidence,{recursive:true});
@@ -37,7 +37,11 @@ test('P6 live conversation answers read only then applies additive changes befor
   const firstChange=randomUUID();const change='新增 multiply(a,b) 到现有 math.mjs，有限数字返回乘积，非有限数字或非数字同样抛 TypeError；math.test.mjs 新增 3*4=12、-2*3=-6、两个位置的 NaN/Infinity/字符串输入断言。保留 sum 的全部旧行为、旧验收 criterion 的 id/description/kind/target/checks 逐字不改，不退役任何旧条款，额外增加新验收。仍只需要这两个文件和一个实现步骤。';
   await conversation.dispatch({type:'send',conversationId:id,commandId:firstChange,kind:'change',text:change});
   await conversation.dispatch({type:'send',conversationId:id,commandId:firstChange,kind:'change',text:change});
-  let applied=await until(inspect,value=>['applied','failed','clarifying'].includes(value.messages.at(-1)!.state));
+  // A revision uses two sequential real requests: planner then independent
+  // authorization review. The driver must not cancel a valid second call merely
+  // because their combined duration exceeds one request's observation window.
+  const revisionDeadlineMs=2*ready.session.config.timeoutMs+60_000;
+  let applied=await until(inspect,value=>['applied','failed','clarifying'].includes(value.messages.at(-1)!.state),revisionDeadlineMs);
   assert.equal(applied.messages.at(-1)!.state,'applied',JSON.stringify(applied.messages.at(-1)));
   assert.equal(applied.messages.filter(message=>message.commandId===firstChange).length,1);
   assert.equal(applied.active.run.contract.version,2);assert.equal(applied.active.session.jobs.filter(job=>job.purpose==='followup').length,2);
@@ -50,7 +54,7 @@ test('P6 live conversation answers read only then applies additive changes befor
   await execute(process.execPath,['--input-type=module','-e',`import assert from 'node:assert/strict';import {sum,multiply} from './math.mjs';assert.equal(sum(7,9),16);assert.equal(multiply(6,7),42);for(const v of [NaN,Infinity,-Infinity,'2']){assert.throws(()=>sum(v,1),TypeError);assert.throws(()=>multiply(1,v),TypeError);}`],{cwd:workspace});
   const oldContract=structuredClone(finished.run.contract),oldPlan=structuredClone(applied.active.session.proposal),oldOperations=finished.operations.map(operation=>operation.id);
   const secondChange=randomUUID();await conversation.dispatch({type:'send',conversationId:id,commandId:secondChange,kind:'change',text:'继续在同一项目增加 subtract(a,b)，有限数字相减，非法数字参数抛 TypeError，测试 8-3=5、-2-3=-5 和两个位置的非法参数。保留 sum、multiply 的全部行为以及全部旧验收条款的 id/description/kind/target/checks 逐字不变，只新增 subtract 的验收。仍在现有 math.mjs 和 math.test.mjs 实现，一个步骤。'});
-  applied=await until(inspect,value=>['applied','failed','clarifying'].includes(value.messages.at(-1)!.state));
+  applied=await until(inspect,value=>['applied','failed','clarifying'].includes(value.messages.at(-1)!.state),revisionDeadlineMs);
   assert.equal(applied.messages.at(-1)!.state,'applied',JSON.stringify(applied.messages.at(-1)));
   assert.equal(applied.active.run.contract.version,oldContract.version+1);
   for(const prior of oldPlan!.criteria)assert.deepEqual(applied.active.session.proposal!.criteria.find(next=>next.id===prior.id),prior);
@@ -61,7 +65,20 @@ test('P6 live conversation answers read only then applies additive changes befor
   await execute(process.execPath,['--input-type=module','-e',`import assert from 'node:assert/strict';import {sum,multiply,subtract} from './math.mjs';assert.equal(sum(7,9),16);assert.equal(multiply(6,7),42);assert.equal(subtract(23,8),15);for(const f of [sum,multiply,subtract])for(const v of [NaN,Infinity,-Infinity,'2']){assert.throws(()=>f(v,1),TypeError);assert.throws(()=>f(1,v),TypeError);}`],{cwd:workspace});
   const before=await inspect();assert.notEqual(before.active.run.status,'succeeded','Execution is not independent delivery');
   assert.equal(before.budget.spent,before.active.run.attempts.reduce((sum,attempt)=>sum+(attempt.actual??0),0));assert.ok(before.budget.spent>ready.run.budget.spent);assert.equal(before.budget.reserved,0);
-  for(const job of before.active.session.jobs.filter(job=>job.followupResult?.decision==='revise')){assert.ok((job.context as {acceptanceReview:{approved:boolean}}).acceptanceReview.approved);assert.ok(Object.keys(job.proofs).some(path=>path.includes('-review')));}
+  for(const job of before.active.session.jobs.filter(job=>job.followupResult?.decision==='revise')){
+    const context=job.context as {acceptanceReview:{approved:boolean;changes:{authorized:boolean}[]};callReceipts:{threadId:string;usage:number;stopConfirmed:boolean;proofs:Record<string,string>}[]};
+    assert.ok(context.acceptanceReview.approved);assert.ok(context.acceptanceReview.changes.every(change=>change.authorized));
+    assert.equal(context.callReceipts.length,2);assert.notEqual(context.callReceipts[0]!.threadId,context.callReceipts[1]!.threadId);
+    assert.ok(context.callReceipts.every(call=>call.threadId&&call.stopConfirmed&&Number.isSafeInteger(call.usage)&&Object.keys(call.proofs).length>0));
+    assert.equal(context.callReceipts.reduce((sum,call)=>sum+call.usage,0),job.usage);
+    assert.ok(job.followupResult!.criterionChanges!.length>0);assert.ok(Object.keys(job.proofs).some(path=>path.includes('-review')));
+  }
+  // The first revision admits a draft; the second changes an existing execution
+  // contract and must persist its actual, independently authorized lineage edge.
+  const appliedJob=before.active.session.jobs.findLast(job=>job.followupResult?.decision==='revise')!;
+  const transition=store.verificationLineage.transition('transition:'+appliedJob.id);
+  assert.deepEqual(transition.fromContract,oldContract);assert.deepEqual(transition.toContract,before.active.run.contract);
+  assert.equal(transition.reasoningJobId,appliedJob.id);assert.deepEqual(transition.proofs,appliedJob.proofs);
   await writeFile(join(evidence,'before-restart.json'),JSON.stringify(before,null,2));
   await conversation.close();await orchestration.close();await runtime.close();store.close();
   store=new SupervisorStore(data);runtime=new LocalRuntimeAdapter(store,data);orchestration=new OrchestrationController(store,data,runtime);conversation=new ConversationController(store,data,runtime);await orchestration.initialize();await conversation.initialize();

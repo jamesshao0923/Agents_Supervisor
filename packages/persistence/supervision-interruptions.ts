@@ -25,7 +25,7 @@ export class SupervisionInterruptionRepository {
     ensure(loop.paused&&!loop.stopped,'Explicit paused loop required');
     ensure(job.runtimeId===loop.runtimeId&&job.projectId===loop.projectId&&job.runId===loop.runId&&[loop.references.reviewId,loop.references.verificationJobId].includes(job.id),'Pause may only bind an owned verifier job');
     ensure(job.status==='running'&&!job.error,'Only running verifier without prior error can record pause provenance');
-    const proposal=repo.get('proposal',job.proposalId),plan=job.planId?repo.get('plan',job.planId):null,head=repo.head(job.projectId);
+    const proposal=repo.get('proposal',job.proposalId),plan=job.planId?repo.get('plan',job.planId):null,head=repo.headForRun(job.projectId,job.runId);
     ensure(proposal.contractDigest===loop.contractDigest&&(!plan||plan.contractDigest===loop.contractDigest),'Interruption contract changed');
     const value:SupervisionInterruption={id:'interruption-'+digest(jobId).slice(0,24),loopId,jobId,origin:'explicit-supervision-pause',requestedAt:new Date().toISOString(),runtimeId:job.runtimeId,projectId:job.projectId,runId:job.runId,kind:job.kind,proposalId:job.proposalId,planId:job.planId,boundary:{contractDigest:loop.contractDigest,proposalDigest:digest(proposal),planDigest:plan?digest(plan):null,head:head?{id:head.id,version:head.version}:null,environmentDigest:job.environmentDigest,requestDigest:digest(job.request),configDigest:digest(job.config)},replacement:null};
     this.db.prepare('INSERT INTO supervision_interruptions(id,loop_id,job_id,record) VALUES (?,?,?,?)').run(value.id,loopId,jobId,runtimeCanonical(value));return value;
@@ -33,7 +33,7 @@ export class SupervisionInterruptionRepository {
   /** Revalidate immutable records synchronously, including inside resume commit. */
   assertBoundary(value:SupervisionInterruption):void{
     ensure(runtimeCanonical(this.get(value.id))===runtimeCanonical(value),'Interruption changed');
-    const loop=new SupervisionRepository(this.db).get(value.loopId),repo=new VerificationRepository(this.db),job=repo.get('job',value.jobId),proposal=repo.get('proposal',value.proposalId),plan=value.planId?repo.get('plan',value.planId):null,head=repo.head(value.projectId);
+    const loop=new SupervisionRepository(this.db).get(value.loopId),repo=new VerificationRepository(this.db),job=repo.get('job',value.jobId),proposal=repo.get('proposal',value.proposalId),plan=value.planId?repo.get('plan',value.planId):null,head=repo.headForRun(value.projectId,value.runId);
     ensure(loop.runtimeId===value.runtimeId&&loop.runId===value.runId&&loop.projectId===value.projectId&&loop.contractDigest===value.boundary.contractDigest,'Pause loop boundary changed');
     ensure(job.runtimeId===value.runtimeId&&job.projectId===value.projectId&&job.runId===value.runId&&job.kind===value.kind&&job.proposalId===value.proposalId&&job.planId===value.planId&&job.environmentDigest===value.boundary.environmentDigest&&digest(job.request)===value.boundary.requestDigest&&digest(job.config)===value.boundary.configDigest,'Paused verifier binding changed');
     ensure(digest(proposal)===value.boundary.proposalDigest&&(plan?digest(plan):null)===value.boundary.planDigest&&runtimeCanonical(head?{id:head.id,version:head.version}:null)===runtimeCanonical(value.boundary.head),'Paused proposal, plan or published head changed');

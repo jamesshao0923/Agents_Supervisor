@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 2,
+  "stage": "P7",
+  "revision": "p7-task-results-foundation-v1",
+  "caseIds": [
+    "p7.unit-task-results.001",
+    "p7.unit-task-results.002",
+    "p7.unit-task-results.003",
+    "p7.unit-task-results.004",
+    "p7.unit-task-results.005",
+    "p7.unit-task-results.006",
+    "p7.unit-task-results.007",
+    "p7.unit-task-results.008",
+    "p7.unit-task-results.009",
+    "p7.unit-task-results.010",
+    "p7.unit-task-results.011",
+    "p7.unit-task-results.012",
+    "p7.unit-task-results.013",
+    "p7.unit-task-results.014"
+  ],
+  "requiredRisks": [
+    "p7-task-results"
+  ],
+  "coreRegression": [
+    "dev.integration-runner.003",
+    "dev.integration-runner.008",
+    "dev.integration-runner.012",
+    "dev.unit-boundaries.003"
+  ],
+  "gateStatus": "developing"
+}

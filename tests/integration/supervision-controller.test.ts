@@ -114,7 +114,7 @@ test('P6-SCTL-I09 actual duration deadline stops a silent owned process and reta
 
 
 /** Actual P4 processes and accounting; the optional published plan is explicitly
- * an UNREVIEWED repository fixture. No test here claims independent model review
+ * a stored review repository fixture (no model request). No test here claims independent model review
  * or delivery. Hanging command controls guarantee no model review is reached. */
 async function ownedP4(t:TestContext,kind:'review'|'verification'){
   const f=await fixture(t),attached=await f.attach();f.completeInput();
@@ -127,10 +127,10 @@ async function ownedP4(t:TestContext,kind:'review'|'verification'){
   const proposal=await f.verification.dispatch({type:'propose',commandId:randomUUID(),runtimeId:f.runtimeId,specPath}) as Proposal;
   let plan:FrozenPlan|null=null;
   if(kind==='verification'){
-    // Repository setup deliberately bypasses review; use ONLY for cancellation
-    // admission and floor accounting. No publish API approval/delivery is claimed.
-    f.store.verification.publish(proposal);const candidate=await captureCandidate(f.workspace,join(f.root,'fixture-plan'));
-    plan={id:'unreviewed-fixture-plan',runtimeId:f.runtimeId,projectId:run.projectId,runId:run.id,proposalId:proposal.id,catalogVersion:proposal.version!,candidate,contractDigest:proposal.contractDigest,definitionDigest:proposal.bundle.digest,environmentDigest:(await environmentFingerprint()).digest,selection:selectInstances(spec,{mode:'final'}),createdAt:new Date().toISOString()};
+    // Stored review metadata passes the real repository scope/proof/accounting gates.
+    // Use ONLY for cancellation/floor mechanics, never model approval or delivery.
+    await publishFixtureReview(f.store,proposal,f.root);const candidate=await captureCandidate(f.workspace,join(f.root,'fixture-plan'));
+    plan={id:'stored-review-fixture-plan',runtimeId:f.runtimeId,projectId:run.projectId,runId:run.id,proposalId:proposal.id,catalogVersion:proposal.version!,candidate,contractDigest:proposal.contractDigest,definitionDigest:proposal.bundle.digest,environmentDigest:(await environmentFingerprint()).digest,selection:selectInstances(spec,{mode:'final'}),createdAt:new Date().toISOString()};
     f.store.verification.insert('plan',plan);const snapshot=f.store.managedSnapshot(canonical(candidate));f.store.verification.artifact(run.projectId,run.id,{id:plan.id,...snapshot,contractVersion:run.contract.version});
     f.store.runtime.setFutureVerification({commandId:randomUUID(),runtimeId:f.runtimeId,expectedContractVersion:run.contract.version,expectedRevision:f.store.runtime.inspect(f.runtimeId).run.revision,allocationId:'original-final-floor',amount:config.reservation,reason:'Mechanism original final verification allocation'});
   }
@@ -160,7 +160,7 @@ test('P6-SCTL-I10 explicit pause of an actual P4 review persists provenance and 
 test('P6-SCTL-I11 known cancelled final P4 run restores a fresh floor and request for the identical plan without changing old history',async t=>{
   const value=await ownedP4(t,'verification'),{f,loopId}=value,old=await settledPause(value);assert.equal(f.store.runtime.futureVerification(f.runtimeId),null);
   await f.controller.dispatch({type:'resume',loopId});const allocation=f.store.runtime.futureVerification(f.runtimeId)!;assert.equal(allocation.amount,old.config.reservation);assert.notEqual(allocation.allocationId,'original-final-floor');const intent=f.store.supervision.get(loopId).intent!;assert.equal((intent.input as {planId:string}).planId,old.planId);assert.equal((intent.input as {futureVerificationAllocationId:string}).futureVerificationAllocationId,allocation.allocationId);assert.deepEqual(f.store.verification.get('plan',old.planId!),value.plan);assert.deepEqual(f.store.verification.get('job',old.id),old);
-  await f.controller.scan();const jobs=f.store.verification.list('job',f.runtimeId);assert.equal(jobs.length,2);const replacement=jobs.find(job=>job.id!==old.id)!;assert.equal(replacement.planId,old.planId);assert.equal(f.store.runtime.futureVerification(f.runtimeId),null);assert.equal(f.store.runtime.inspect(f.runtimeId).run.attempts.find(attempt=>attempt.id===replacement.id)!.reservation,old.config.reservation);
+  await f.controller.scan();const jobs=f.store.verification.list('job',f.runtimeId).filter(job=>job.kind==='verification');assert.equal(jobs.length,2);const replacement=jobs.find(job=>job.id!==old.id)!;assert.equal(replacement.planId,old.planId);assert.equal(f.store.runtime.futureVerification(f.runtimeId),null);assert.equal(f.store.runtime.inspect(f.runtimeId).run.attempts.find(attempt=>attempt.id===replacement.id)!.reservation,old.config.reservation);
   await f.controller.dispatch({type:'pause',loopId});await waitFor(()=>f.store.verification.get('job',replacement.id).status==='finished','replacement final stop');assert.deepEqual(f.store.verification.get('job',old.id),old);assert.equal(f.store.verification.list('delivery',f.runtimeId).length,0);
 });
 
@@ -193,6 +193,16 @@ test('P6-SCTL-I14 pause provenance joins the parent transaction and changed publ
   const old=await settledPause(value),record=f.store.supervisionInterruptions.forJob(old.id)!;assert.deepEqual(f.store.supervisionInterruptions.requestPause(loopId,old.id),record);
   // A newly published repository fixture is an explicit competing authority;
   // it is never represented as a successful independent P4 model review.
-  const replacement={...f.store.verification.get('proposal',old.proposalId),id:'competing-unreviewed-head',baseVersion:1,version:null,status:'proposed' as const};f.store.verification.insert('proposal',replacement);f.store.verification.publish(replacement);
+  const replacement={...f.store.verification.get('proposal',old.proposalId),id:'competing-reviewed-fixture-head',baseVersion:1,version:null,status:'proposed' as const};f.store.verification.insert('proposal',replacement);await publishFixtureReview(f.store,replacement,f.root);
   const before=f.store.runtime.inspect(f.runtimeId);await assert.rejects(f.controller.dispatch({type:'resume',loopId}),/published head changed/);assert.equal(f.store.supervision.get(loopId).paused,true);assert.equal(f.store.supervisionInterruptions.forJob(old.id)!.replacement,null);assert.deepEqual(f.store.runtime.inspect(f.runtimeId),before);assert.deepEqual(f.store.verification.get('job',old.id),old);
 });
+
+/** Explicit stored review fixture for repository/controller boundaries. Proof bytes
+ * and accounting are real, but approval metadata is NOT a live model review. */
+async function publishFixtureReview(store:SupervisorStore,proposal:Proposal,root:string):Promise<void>{
+  const run=store.verification.run(proposal.projectId,proposal.runId),id='fixture-review-'+proposal.id;
+  const proof=join(root,id+'.json'),proofText=JSON.stringify({scope:'non-model repository fixture',proposalId:proposal.id,contractDigest:proposal.contractDigest,definitionDigest:proposal.bundle.digest});await writeFile(proof,proofText);
+  store.verificationLineage.bindProposal({commandId:'fixture-binding-'+proposal.id,proposalId:proposal.id,base:store.verificationLineage.captureBase(proposal.projectId,proposal.runId),definitionFormat:'legacy-v1'});
+  const review:VerificationJob={id,runtimeId:proposal.runtimeId,projectId:proposal.projectId,runId:proposal.runId,workspace:proposal.candidate.root,kind:'review',proposalId:proposal.id,planId:null,request:{scope:'explicit non-model review fixture'},status:'finished',attemptId:id,environmentDigest:(await environmentFingerprint()).digest,config:{model:'repository-fixture-no-model-call',effort:'low',reservation:1,timeoutMs:1000},startedAt:new Date().toISOString(),finishedAt:new Date().toISOString(),intents:[],identities:[],usage:0,modelStarted:false,usageUnknown:false,results:[],controls:[],evaluation:null,approved:true,stopConfirmed:true,error:null,proofs:{[proof]:digest(proofText)},sources:[]};
+  store.verification.transaction(()=>{store.verification.act(run.projectId,run.id,{type:'startAttempt',attemptId:id,nodeId:run.nodes.at(-1)!.id,contractVersion:run.contract.version,purpose:'verification',reservation:1,resources:[]});store.verification.act(run.projectId,run.id,{type:'finishAttempt',attemptId:id,outcome:'succeeded'});store.verification.act(run.projectId,run.id,{type:'settleAttempt',attemptId:id,actual:0});store.verification.insert('job',review);proposal.reviewId=id;store.verification.publish(proposal,'fixture-publication-'+proposal.id);});
+}

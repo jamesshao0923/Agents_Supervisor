@@ -96,7 +96,7 @@ export class SupervisionController {
       this.update(loop.id,{paused:false,reason:null});this.dispatchAllowed(loop.id);
       let run=this.store.runtime.inspect(loop.runtimeId).run;
       ensure(run.attempts.every(attempt=>attempt.settled&&attempt.status!=='running')&&run.operations.every(operation=>operation.status==='confirmed')&&run.leases.every(lease=>lease.released),'Paused verification requires fully settled execution');
-      if(plan){ensure(plan.selection.mode==='final'&&plan.selection.completeScope&&run.artifact?.id===plan.id,'Pause recovery requires the original current final plan');const head=this.store.verification.head(run.projectId);ensure(head?.id===plan.proposalId&&head.version===plan.catalogVersion,'Paused verification head changed');
+      if(plan){ensure(plan.selection.mode==='final'&&plan.selection.completeScope&&run.artifact?.id===plan.id,'Pause recovery requires the original current final plan');const head=this.store.verification.headForRun(run.projectId,run.id);ensure(head?.id===plan.proposalId&&head.version===plan.catalogVersion,'Paused verification head changed');
         this.store.runtime.setFutureVerification({...this.allocation(current,run.revision),allocationId:`${loop.id}:resume:${commandId}`,amount:job.config.reservation,reason:'Protect the explicitly resumed original final verification after known cancellation'});
       }else {ensure(run.artifact?.id===proposal.id,'Paused review candidate was superseded');this.ensureFloor(current);}
       run=this.store.runtime.inspect(loop.runtimeId).run;const allocation=plan?this.store.runtime.futureVerification(loop.runtimeId)!:null;
@@ -185,7 +185,7 @@ export class SupervisionController {
     loop=this.repo.get(loop.id);
     if(loop.phase==='executing'){
       if(runtime.phase==='awaiting-verification'){
-        const previous=this.store.verification.head(run.projectId);
+        const previous=this.store.verification.headForRun(run.projectId,run.id);
         if(previous){ensure(previous.contractDigest===loop.contractDigest,'Existing catalog belongs to another contract; general control evolution is unsupported.');this.update(loop.id,{phase:'freezing',references:{...loop.references,proposalId:previous.id}});}
         else {await this.startAuthor(loop);return;}
       }else if(runtime.phase==='blocked'){
@@ -246,7 +246,7 @@ export class SupervisionController {
       const text=new TextDecoder('utf-8',{fatal:true,ignoreBOM:true}).decode(content);ensure(!text.includes('\0'),'Binary candidate is unsupported by bounded text authoring');files.push({path,content:text,sha256:createHash('sha256').update(content).digest('hex')});
     }
     await assertCandidate(candidate);
-    const previous=this.store.verification.head(run.projectId);ensure(!previous||previous.contractDigest===loop.contractDigest,'General acceptance evolution across changed contracts is unsupported');
+    const previous=this.store.verification.headForRun(run.projectId,run.id);ensure(!previous||previous.contractDigest===loop.contractDigest,'General acceptance evolution across changed contracts is unsupported');
     const acceptance:AcceptanceAuthoringContext={contract:run.contract,criteria,candidate:{workspace:runtime.workspace,digest:candidate.digest,files},environment:await environmentFingerprint(),failureContext,previousSpec:previous?.spec??null};return {acceptance,candidate};
   }
   private allocation(loop:SupervisionRecord,revision:number):RuntimeFutureVerification{return {commandId:randomUUID(),runtimeId:loop.runtimeId,expectedContractVersion:loop.contractVersion,expectedRevision:revision,allocationId:`${loop.id}:final:${loop.repairCount}`,amount:loop.config.reservation,reason:'Protect a complete independent final verification within the original total budget'};}

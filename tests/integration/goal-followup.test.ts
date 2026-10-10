@@ -1,7 +1,10 @@
+import { acceptedDeliveryFixture } from '../fixtures/accepted-delivery.js';
+import { parseFollowupEvolution } from '../../packages/orchestration/followup-evolution.js';
+import { VerificationLineageRepository, lineageDigest } from '../../packages/persistence/verification-lineage.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtempSync,mkdirSync,writeFileSync,rmSync } from 'node:fs';
+import { mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -55,18 +58,51 @@ function completeInput(f:ReturnType<typeof fixture>,goal:GoalInspection):GoalIns
   f.runtime.report(operation.id,'repository-worker',{messageId:'report-'+runtimeId,outcome:'confirmed',result:{input:'persisted actual input'}});return f.goals.inspect(goal.session.id);
 }
 function deliverFixture(f:ReturnType<typeof fixture>,goal:GoalInspection,verificationUsage=0):string {
-  const version=goal.run.contract.version,digest='a'.repeat(64);
-  domain(f,goal.session.id,{type:'setArtifact',artifact:{id:'fixture-artifact',path:f.proof,digest,contractVersion:version}});
-  if(verificationUsage>0){
-    domain(f,goal.session.id,{type:'startAttempt',attemptId:'fixture-verification-accounting',nodeId:goal.run.nodes.at(-1)!.id,contractVersion:version,purpose:'verification',reservation:verificationUsage,resources:[]});
-    domain(f,goal.session.id,{type:'finishAttempt',attemptId:'fixture-verification-accounting',outcome:'succeeded'});
-    domain(f,goal.session.id,{type:'settleAttempt',attemptId:'fixture-verification-accounting',actual:verificationUsage});
-  }
-  for(const criterion of goal.run.contract.criteria)domain(f,goal.session.id,{type:'recordEvidence',evidence:{id:'fixture-evidence-'+criterion.id,criterionId:criterion.id,contractVersion:version,artifactDigest:digest,verdict:'passed',verifierVersion:'repository-fixture-only'}});
-  domain(f,goal.session.id,{type:'complete'});
-  const deliveryId='fixture-delivery-'+goal.session.id;
-  f.db.prepare("INSERT INTO verification_records(kind,id,project_id,run_id,record) VALUES ('delivery',?,?,?,?)").run(deliveryId,goal.run.projectId,goal.run.id,JSON.stringify({id:deliveryId,runId:goal.run.id,projectId:goal.run.projectId}));return deliveryId;
+  return acceptedDeliveryFixture(f.db,f.root,goal.run,f.workspace,verificationUsage);
 }
+
+/** Explicit two-call receipt scenario; no model substitute or acceptance claim. */
+function finishEvolution(f:ReturnType<typeof fixture>,goal:GoalInspection,original=goal.run) {
+  const job=goal.session.jobs.at(-1)!,boundary=job.followup!;
+  const context={originalContract:original.contract,originalProposal:goal.session.proposal,frozenMessages:f.conversations.messages(boundary.conversationId).filter(message=>message.sequence<=boundary.messageSequence),newMessageId:boundary.messageId,session:{...goal.session,messages:boundary.messages}};
+  const next=structuredClone(goal.session.proposal!);next.criteria.push({id:'zero',description:'Support zero operands',kind:'command',target:'sum.test.mjs',checks:['sum(0,0)=0']});next.steps[0]!.acceptanceIds.push('zero');
+  const output={decision:'revise',response:'Add zero without changing previous requirements.',proposal:next,retiredCriterionIds:[],retirementSources:[],criterionChanges:[{kind:'add',criterionId:'zero',sources:[{messageId:boundary.messageId,quote:'Also support zero operands'}]}]};
+  const enriched=parseFollowupEvolution(output,context,boundary.relatedMessageIds),review={approved:true,proposalDigest:lineageDigest(enriched.proposal),sourceDigest:lineageDigest(context.frozenMessages.filter(message=>[...boundary.relatedMessageIds,boundary.messageId].includes(message.id)).map(({id,text,sequence})=>({id,text,sequence}))),changes:[{kind:'add',criterionId:'zero',authorized:true,reasons:['Explicitly requested in the current message.']}]};
+  const calls=[{id:job.id,output,usage:3},{id:job.id+'-review',output:review,usage:4}].map(call=>{const path=join(f.root,call.id+'.json'),bytes=JSON.stringify({fixture:true,output:call.output});writeFileSync(path,bytes);return {id:call.id,inputDigest:lineageDigest(context),outputDigest:lineageDigest(call.output),output:call.output,threadId:'repository-fixture-thread:'+call.id,usage:call.usage,stopConfirmed:true,proofs:{[path]:createHash('sha256').update(bytes).digest('hex')}};});
+  return f.goals.finish(goal.session.id,job.id,record=>{record.usage=7;record.stopConfirmed=true;record.proofs=Object.assign({},...calls.map(call=>call.proofs));record.context={input:context,acceptanceReview:review,callReceipts:calls};record.followupResult=enriched;});
+}
+
+test('P6-GOAL-I13 enriched follow-up atomically binds actual active and delivered-child contracts with original proof and costs',()=>{
+  for(const child of [false,true]){const f=fixture();try{
+    let initial=completeInput(f,inputRuntime(f,ready(f)));if(child){deliverFixture(f,initial);initial=f.goals.inspect(initial.session.id);}
+    const conversation=f.conversations.forRun(initial.run.projectId,initial.run.id)!,message=receive(f,initial);
+    const target=child?f.goals.createContinuation(conversation.id,'new-round'):initial;
+    const begun=f.goals.beginFollowup(target.session.id,message.id),finished=finishEvolution(f,begun,initial.run),job=finished.session.jobs.at(-1)!;
+    const applied=f.goals.applyFollowup(target.session.id,job.id),lineage=new VerificationLineageRepository(f.db),transition=lineage.transition('transition:'+job.id);
+    assert.deepEqual(transition.fromContract,initial.run.contract);assert.deepEqual(transition.toContract,applied.run.contract);
+    assert.equal(transition.from.runId,initial.run.id);assert.equal(transition.to.runId,target.run.id);
+    assert.deepEqual(transition.changes,job.followupResult!.criterionChanges);assert.deepEqual(transition.proofs,job.proofs);
+    assert.equal(f.conversations.message(message.id).state,'applied');assert.equal(f.conversations.budget(conversation.id).spent,initial.run.budget.spent+7);
+    if(child)assert.deepEqual(lineage.captureBase(applied.run.projectId,applied.run.id).transitionIds,[transition.id]);
+    assert.deepEqual(f.goals.applyFollowup(target.session.id,job.id),applied);
+    const reopened=new DatabaseSync(f.path);try{migrate(reopened);assert.deepEqual(new VerificationLineageRepository(reopened).transition(transition.id),transition);}finally{reopened.close();}
+  }finally{f.close();}}
+});
+
+test('P6-GOAL-I14 failed transition receipt rolls back message runtime plan and contract while keeping completed model accounting',()=>{
+  const f=fixture();try{
+    const initial=completeInput(f,inputRuntime(f,ready(f))),message=receive(f,initial),begun=f.goals.beginFollowup(initial.session.id,message.id),finished=finishEvolution(f,begun),job=finished.session.jobs.at(-1)!;
+    const before=f.goals.inspect(initial.session.id),runtime=f.runtime.inspect(initial.session.id),messageBefore=f.conversations.message(message.id);
+    f.db.exec("CREATE TRIGGER reject_transition BEFORE INSERT ON verification_contract_transitions BEGIN SELECT RAISE(ABORT,'Injected transition failure'); END;");
+    assert.throws(()=>f.goals.applyFollowup(initial.session.id,job.id),/Injected transition failure/);
+    assert.deepEqual(f.goals.inspect(initial.session.id),before);assert.deepEqual(f.runtime.inspect(initial.session.id),runtime);assert.deepEqual(f.conversations.message(message.id),messageBefore);
+    assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM verification_contract_transitions').get()!.n,0);assert.equal(before.run.attempts.at(-1)!.actual,7);
+    f.db.exec('DROP TRIGGER reject_transition');
+    const proof=Object.keys(job.proofs)[0]!,original=readFileSync(proof);writeFileSync(proof,'changed');
+    assert.throws(()=>f.goals.applyFollowup(initial.session.id,job.id),/proof bytes changed/);assert.deepEqual(f.goals.inspect(initial.session.id),before);
+    writeFileSync(proof,original);assert.equal(f.goals.applyFollowup(initial.session.id,job.id).run.contract.version,initial.run.contract.version+1);
+  }finally{f.close();}
+});
 
 test('P6-GOAL-I01 follow-up freezes ordered message inputs once and refuses ordinary admission through the pending fence',()=>{
   const f=fixture();try{

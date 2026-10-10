@@ -1,3 +1,4 @@
+import { VerificationLineageRepository } from './verification-lineage.js';
 import { ConversationRepository } from './conversations.js';
 import { VerificationRepository } from './verification.js';
 import { createHash } from 'node:crypto';
@@ -103,6 +104,7 @@ export class RuntimeRepository {
       this.db.prepare('INSERT OR IGNORE INTO projects(id,name) VALUES (?,?)').run(projectId,basename(input.workspace));
       const run=createRun({id,projectId,contract:{version:1,goal:input.goal,criteria:[{id:'independent-acceptance',description:'Independently verify the candidate; completing workflow steps is not delivery acceptance',required:true}]},nodes:input.steps.map((s,i)=>({id:s.id,dependencies:i?[input.steps[i-1]!.id]:[],required:true})),budget:{unit:'token',limit:input.tokenLimit,verificationReserve:input.verificationReserve}});
       this.db.prepare('INSERT INTO runs(project_id,id,revision,snapshot) VALUES (?,?,?,?)').run(projectId,id,run.revision,runtimeCanonical(run));
+      new VerificationLineageRepository(this.db).bindRoot({commandId:'lineage-root:'+input.commandId,projectId,runId:id});
       const r:RuntimeRecord={id,engine:'local-v1',workflowVersion:1,projectionVersion:0,projectId,runId:id,workspace:input.workspace,workspaceKind,definition:request,cursor:0,phase:input.steps[0]?.kind==='input'?'waiting-input':'ready',paused:false,cancelled:false,createdAt:now,updatedAt:now,error:null,inputs:{},checkpointId:null};
       this.db.prepare('INSERT INTO runtime_runs(id,project_id,run_id,record) VALUES (?,?,?,?)').run(id,projectId,id,runtimeCanonical(r));this.enqueue(r);this.checkpointWrite(r);this.save(r,'submitted',{definition:request});
       this.db.prepare('INSERT INTO runtime_receipts(command_id,request,result) VALUES (?,?,?)').run(input.commandId,runtimeCanonical(input),runtimeCanonical(r));return r;
@@ -195,7 +197,7 @@ export class RuntimeRepository {
       ensure(job.runtimeId===runtime.id&&job.runId===run.id&&job.projectId===run.projectId&&job.kind==='verification'&&job.status==='finished'&&!job.approved&&job.evaluation?.passed===false&&!job.error&&job.stopConfirmed&&!job.usageUnknown,'Repair requires actual product verification failure, not a verifier error');
       ensure(job.planId&&run.artifact?.id===job.planId,'Repair failure is not the current artifact');
       const plan=repo.get('plan',job.planId!),proposal=repo.get('proposal',plan.proposalId);
-      ensure(plan.runtimeId===runtime.id&&plan.runId===run.id&&plan.projectId===run.projectId&&job.proposalId===proposal.id&&job.environmentDigest===plan.environmentDigest&&plan.definitionDigest===proposal.bundle.digest&&plan.catalogVersion===proposal.version&&plan.contractDigest===hash(verificationCanonical(run.contract))&&proposal.contractDigest===plan.contractDigest&&repo.head(run.projectId)?.id===proposal.id,'Repair failure has stale contract or catalog');
+      ensure(plan.runtimeId===runtime.id&&plan.runId===run.id&&plan.projectId===run.projectId&&job.proposalId===proposal.id&&job.environmentDigest===plan.environmentDigest&&plan.definitionDigest===proposal.bundle.digest&&plan.catalogVersion===proposal.version&&plan.contractDigest===hash(verificationCanonical(run.contract))&&proposal.contractDigest===plan.contractDigest&&repo.headForRun(run.projectId,run.id)?.id===proposal.id,'Repair failure has stale contract or catalog');
       const failedAttempt=run.attempts.find(a=>a.id===job.attemptId);
       ensure(failedAttempt?.purpose==='verification'&&failedAttempt.status==='failed'&&failedAttempt.settled&&failedAttempt.actual===job.usage&&Number.isSafeInteger(job.usage)&&job.usage>=0,'Repair failure lacks matching actual verification settlement');
       ensure(job.results.length>0&&job.results.every(r=>r.executionStatus==='executed'),'Repair cannot reinterpret an unexecuted or erroneous verifier');

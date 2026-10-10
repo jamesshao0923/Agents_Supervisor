@@ -100,7 +100,7 @@ export function parseCatalog(value: unknown): TestCatalog {
 
 export function parseProfile(value: unknown): AcceptanceProfile {
   if (!object(value) || value.schemaVersion !== 2) fail('profile schemaVersion must equal 2');
-  if (value.stage !== 'P0' && value.stage !== 'P1' && value.stage !== 'P2' && value.stage !== 'P3' && value.stage !== 'P4' && value.stage !== 'P5' && value.stage !== 'P6') fail('profile stage must equal P0, P1, P2, P3, P4, P5 or P6');
+  if (value.stage !== 'P0' && value.stage !== 'P1' && value.stage !== 'P2' && value.stage !== 'P3' && value.stage !== 'P4' && value.stage !== 'P5' && value.stage !== 'P6' && value.stage !== 'P7') fail('profile stage must equal P0, P1, P2, P3, P4, P5, P6 or P7');
   if(value.gateStatus !== undefined && value.gateStatus !== 'developing' && value.gateStatus !== 'ready') fail('invalid stage gateStatus');
   return { ...(value.gateStatus === undefined ? {} : {gateStatus:value.gateStatus}), schemaVersion: 2, stage: value.stage, revision: revision(value.revision), caseIds: strings(value.caseIds, 'profile.caseIds'),
     requiredRisks: strings(value.requiredRisks, 'profile.requiredRisks'), coreRegression: strings(value.coreRegression, 'profile.coreRegression', true) };

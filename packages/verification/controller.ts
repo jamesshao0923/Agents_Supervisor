@@ -45,7 +45,7 @@ export class VerificationController {
   async dispatch(value:unknown):Promise<unknown> {const action=parseAction(value);const next=this.queue.then(()=>this.handle(action));this.queue=next.catch(()=>{});return next;}
   private assertFinalAllocationPlan(plan:FrozenPlan):void {
     ensure(plan.selection.mode==='final'&&plan.selection.completeScope,'Future verification allocation requires a complete final plan');
-    const run=this.repo.run(plan.projectId,plan.runId),head=this.repo.head(plan.projectId);
+    const run=this.repo.run(plan.projectId,plan.runId),head=this.repo.headForRun(plan.projectId,plan.runId);
     ensure(run.artifact?.id===plan.id&&head?.id===plan.proposalId&&head.version===plan.catalogVersion,'Future verification allocation requires the current artifact and published catalog');
     ensure(digest(canonical(run.contract))===plan.contractDigest,'Future verification allocation contract changed');
   }
@@ -76,12 +76,13 @@ export class VerificationController {
       const runtime=this.store.runtime.get(action.runtimeId);await this.writers(runtime);
       const id='proposal-'+randomUUID(),directory=join(this.dataDir,'verification',id),run=this.repo.run(runtime.projectId,runtime.runId);
       ensure(isAbsolute(action.specPath),'Spec path must be absolute');
-      const {spec,bundle}=await captureDefinition(action.specPath,directory);const previous=this.repo.head(runtime.projectId);validateSpecChange(previous?.spec??null,spec,run.contract);
+      const base=this.store.verificationLineage.captureBase(runtime.projectId,runtime.runId),previous=base.baseProposalId?this.repo.get('proposal',base.baseProposalId):null;
+      const {spec,bundle}=await captureDefinition(action.specPath,directory);validateSpecChange(previous?.spec??null,spec,run.contract);
       validateBundleChange(previous,{spec,bundle});
       const candidate=await captureCandidate(runtime.workspace,join(directory,'candidate'));
-      const proposal:Proposal={id,runtimeId:runtime.id,projectId:runtime.projectId,runId:runtime.runId,baseVersion:this.repo.head(runtime.projectId)?.version??0,version:null,spec,bundle,candidate,contractDigest:digest(canonical(run.contract)),status:'proposed',createdAt:new Date().toISOString()};
+      const proposal:Proposal={id,runtimeId:runtime.id,projectId:runtime.projectId,runId:runtime.runId,baseVersion:previous?.version??0,version:null,spec,bundle,candidate,contractDigest:digest(canonical(run.contract)),status:'proposed',createdAt:new Date().toISOString()};
       const snapshot=this.store.managedSnapshot(canonical(candidate));
-      return this.repo.transaction(()=>{this.assertQuietWorkspace(runtime.workspace);this.repo.assertNoVerificationWriter(runtime.workspace);this.repo.insert('proposal',proposal);this.repo.artifact(run.projectId,run.id,{id,...snapshot,contractVersion:run.contract.version});this.repo.remember(action.commandId,action,proposal);return proposal;});
+      return this.repo.transaction(()=>{this.assertQuietWorkspace(runtime.workspace);this.repo.assertNoVerificationWriter(runtime.workspace);this.repo.insert('proposal',proposal);this.store.verificationLineage.bindProposal({commandId:'bind:'+action.commandId,proposalId:proposal.id,base,definitionFormat:'legacy-v1'});this.repo.artifact(run.projectId,run.id,{id,...snapshot,contractVersion:run.contract.version});this.repo.remember(action.commandId,action,proposal);return proposal;});
     }
     if(action.type==='publish') {
       const proposal=this.repo.get('proposal',action.proposalId),review=this.repo.get('job',action.reviewId);
@@ -89,28 +90,29 @@ export class VerificationController {
       await this.assertJob(review);await assertDefinition(proposal.spec,proposal.bundle);await assertCandidate(proposal.candidate);
       ensure(digest(canonical(this.repo.run(proposal.projectId,proposal.runId).contract))===proposal.contractDigest,'Contract changed after review');
       proposal.reviewId=review.id;proposal.reviewEnvironmentDigest=review.environmentDigest;
-      return this.repo.transaction(()=>{ensure(!this.store.conversations.hasPendingForRun(proposal.projectId,proposal.runId),'Pending follow-up prevents publication');this.repo.publish(proposal);this.repo.remember(action.commandId,action,proposal);return proposal;});
+      return this.repo.transaction(()=>{ensure(!this.store.conversations.hasPendingForRun(proposal.projectId,proposal.runId),'Pending follow-up prevents publication');this.repo.publish(proposal,action.commandId);this.repo.remember(action.commandId,action,proposal);return proposal;});
     }
     if(action.type==='freeze') {
-      const runtime=this.store.runtime.get(action.runtimeId);await this.writers(runtime);const proposal=this.repo.head(runtime.projectId);ensure(proposal?.version,'Publish a reviewed verification catalog first');await this.assertReviewedProposal(proposal);await assertDefinition(proposal.spec,proposal.bundle);
+      const runtime=this.store.runtime.get(action.runtimeId);await this.writers(runtime);const proposal=this.repo.headForRun(runtime.projectId,runtime.runId);ensure(proposal?.version,'Publish a reviewed verification catalog first');await this.assertReviewedProposal(proposal);await assertDefinition(proposal.spec,proposal.bundle);
       const run=this.repo.run(runtime.projectId,runtime.runId);ensure(proposal.contractDigest===digest(canonical(run.contract)),'Published verification catalog was reviewed for a different task contract; submit and review a definition for this goal');validateSpecChange(null,proposal.spec,run.contract);
       const id='plan-'+randomUUID(),candidate=await captureCandidate(runtime.workspace,join(this.dataDir,'verification',id));
       const plan:FrozenPlan={id,runtimeId:runtime.id,projectId:runtime.projectId,runId:runtime.runId,proposalId:proposal.id,catalogVersion:proposal.version,candidate,contractDigest:digest(canonical(run.contract)),definitionDigest:proposal.bundle.digest,environmentDigest:(await environmentFingerprint()).digest,selection:selectInstances(proposal.spec,{mode:action.mode,...(action.changedModules?{changedModules:action.changedModules}:{})}),createdAt:new Date().toISOString()};
       const snapshot=this.store.managedSnapshot(canonical(candidate));
-      return this.repo.transaction(()=>{this.assertQuietWorkspace(runtime.workspace);this.repo.assertNoVerificationWriter(runtime.workspace);this.repo.insert('plan',plan);this.repo.artifact(run.projectId,run.id,{id,...snapshot,contractVersion:run.contract.version});this.repo.remember(action.commandId,action,plan);return plan;});
+      return this.repo.transaction(()=>{this.assertQuietWorkspace(runtime.workspace);this.repo.assertNoVerificationWriter(runtime.workspace);ensure(this.repo.headForRun(runtime.projectId,runtime.runId)?.id===proposal.id&&digest(canonical(this.repo.run(runtime.projectId,runtime.runId).contract))===plan.contractDigest,'Freeze base changed during capture');this.repo.insert('plan',plan);this.repo.artifact(run.projectId,run.id,{id,...snapshot,contractVersion:run.contract.version});this.repo.remember(action.commandId,action,plan);return plan;});
     }
     if(action.type==='review'||action.type==='run') {
       const plan=action.type==='run'?this.repo.get('plan',action.planId):null;
       if(action.type==='run'&&action.futureVerificationAllocationId)this.assertFinalAllocationPlan(plan!);
       const proposal=this.repo.get('proposal',plan?.proposalId??(action as Extract<VerificationAction,{type:'review'}>).proposalId),runtime=this.store.runtime.get(plan?.runtimeId??proposal.runtimeId);
       await this.writers(runtime);await assertDefinition(proposal.spec,proposal.bundle);await assertCandidate(plan?.candidate??proposal.candidate);
+      if(action.type==='review')this.assertReviewBase(proposal);
       const run=this.repo.run(runtime.projectId,runtime.runId);ensure(!['succeeded','cancelled','paused'].includes(run.status),'Run is terminal or paused');
       ensure(digest(canonical(run.contract))===(plan?.contractDigest??proposal.contractDigest),'Frozen contract changed');
       if(plan){ensure(plan.contractDigest===proposal.contractDigest,'Frozen plan does not match the independently reviewed task contract');ensure(plan.environmentDigest===(await environmentFingerprint()).digest,'Frozen verifier environment changed');}
       const id='verify-'+randomUUID(),config:ModelConfig={model:action.model,effort:action.effort,reservation:action.reservation,timeoutMs:action.timeoutMs};
       const environmentDigest=(await environmentFingerprint()).digest;
       const job:VerificationJob={id,environmentDigest,runtimeId:runtime.id,projectId:runtime.projectId,runId:runtime.runId,workspace:runtime.workspace,kind:action.type==='review'?'review':'verification',proposalId:proposal.id,planId:plan?.id??null,request:action,status:'running',attemptId:id,config,startedAt:new Date().toISOString(),finishedAt:null,intents:[],identities:[],usage:0,modelStarted:false,usageUnknown:false,results:[],controls:[],evaluation:null,approved:false,stopConfirmed:false,error:null,proofs:{},sources:[]};
-      this.repo.transaction(()=>{this.assertQuietWorkspace(runtime.workspace);this.repo.assertNoVerificationWriter(runtime.workspace);if(action.type==='run'&&action.futureVerificationAllocationId)this.assertFinalAllocationPlan(plan!);this.repo.act(run.projectId,run.id,{type:'startAttempt',attemptId:id,nodeId:run.nodes.at(-1)!.id,contractVersion:run.contract.version,reservation:config.reservation,purpose:'verification',resources:['verification:'+runtime.workspace],...(action.type==='run'&&action.futureVerificationAllocationId?{futureVerificationAllocationId:action.futureVerificationAllocationId}:{})});this.repo.insert('job',job);this.repo.remember(action.commandId,action,job);});
+      this.repo.transaction(()=>{this.assertQuietWorkspace(runtime.workspace);this.repo.assertNoVerificationWriter(runtime.workspace);if(action.type==='run'&&action.futureVerificationAllocationId)this.assertFinalAllocationPlan(plan!);if(action.type==='review')this.assertReviewBase(proposal);this.repo.act(run.projectId,run.id,{type:'startAttempt',attemptId:id,nodeId:run.nodes.at(-1)!.id,contractVersion:run.contract.version,reservation:config.reservation,purpose:'verification',resources:['verification:'+runtime.workspace],...(action.type==='run'&&action.futureVerificationAllocationId?{futureVerificationAllocationId:action.futureVerificationAllocationId}:{})});this.repo.insert('job',job);this.repo.remember(action.commandId,action,job);});
       const abort=new AbortController(),promise=this.execute(job,proposal,plan,abort.signal).finally(()=>this.pending.delete(id));this.pending.set(id,{abort,promise});return job;
     }
     const job=this.repo.get('job',action.jobId);ensure(job.kind==='verification'&&job.planId&&job.status==='finished'&&job.approved&&job.evaluation?.complete,'Delivery requires a complete actual verification');
@@ -118,13 +120,21 @@ export class VerificationController {
     const delivery:Delivery={id:'delivery-'+randomUUID(),jobId:job.id,planId:plan.id,runtimeId:job.runtimeId,projectId:job.projectId,runId:job.runId,candidateDigest:plan.candidate.digest,definitionDigest:plan.definitionDigest,createdAt:new Date().toISOString(),path:join(this.dataDir,'verification',job.id,'delivery.json')};
     await writeFile(delivery.path,JSON.stringify(delivery,null,2));
     return this.repo.transaction(()=>{
-      this.repo.assertNoVerificationWriter(job.workspace);this.assertQuietWorkspace(job.workspace);const run=this.repo.run(job.projectId,job.runId);ensure(run.artifact?.id===plan.id,'Delivery artifact is no longer this frozen plan');
+      this.repo.assertNoVerificationWriter(job.workspace);this.assertQuietWorkspace(job.workspace);const run=this.repo.run(job.projectId,job.runId);ensure(run.artifact?.id===plan.id,'Delivery artifact is no longer this frozen plan');ensure(this.repo.headForRun(job.projectId,job.runId)?.id===plan.proposalId&&digest(canonical(run.contract))===plan.contractDigest,'Delivery catalog or contract changed before commit');
       for(const criterion of run.contract.criteria.filter(c=>c.required))this.repo.act(run.projectId,run.id,{type:'recordEvidence',evidence:{id:delivery.id+':'+criterion.id,criterionId:criterion.id,contractVersion:run.contract.version,artifactDigest:run.artifact.digest,verdict:'passed',verifierVersion:'p4:'+plan.definitionDigest}});
       this.repo.act(run.projectId,run.id,{type:'complete'});this.repo.insert('delivery',delivery);this.repo.remember(action.commandId,action,delivery);return delivery;
     });
   }
+  private frozenBaseProposal(proposal:Proposal):Proposal|null {
+    const base=this.store.verificationLineage.baseForProposal(proposal.id),previous=base.baseProposalId?this.repo.get('proposal',base.baseProposalId):null;
+    ensure(base.target.projectId===proposal.projectId&&base.target.runId===proposal.runId&&base.target.contractDigest===proposal.contractDigest&&base.baseDefinitionDigest===(previous?.bundle.digest??null),'Frozen proposal base differs from stored definition');return previous;
+  }
+  private assertReviewBase(proposal:Proposal):void {
+    this.frozenBaseProposal(proposal);
+    ensure(canonical(this.store.verificationLineage.baseForProposal(proposal.id))===canonical(this.store.verificationLineage.captureBase(proposal.projectId,proposal.runId)),'Review base or contract changed; fresh proposal required');
+  }
   private async execute(job:VerificationJob,proposal:Proposal,plan:FrozenPlan|null,signal:AbortSignal):Promise<void> {
-    const output=join(this.dataDir,'verification',job.id),context:EngineContext={job,signal,output,save:()=>this.repo.update('job',job),eligible:()=>{const runtime=this.store.runtime.get(job.runtimeId),run=this.repo.run(job.projectId,job.runId);ensure(!runtime.cancelled&&!runtime.paused,'Runtime cancelled or dispatch paused');ensure(run.attempts.find(a=>a.id===job.id)?.status==='running'&&digest(canonical(run.contract))===(plan?.contractDigest??proposal.contractDigest),'Verification attempt qualification changed');}};let stopped=false;
+    const output=join(this.dataDir,'verification',job.id),context:EngineContext={job,signal,output,save:()=>this.repo.update('job',job),eligible:()=>{const runtime=this.store.runtime.get(job.runtimeId),run=this.repo.run(job.projectId,job.runId);ensure(!runtime.cancelled&&!runtime.paused,'Runtime cancelled or dispatch paused');if(job.kind==='review')this.assertReviewBase(proposal);ensure(run.attempts.find(a=>a.id===job.id)?.status==='running'&&digest(canonical(run.contract))===(plan?.contractDigest??proposal.contractDigest),'Verification attempt qualification changed');}};let stopped=false;
     try {
       await mkdir(output,{recursive:true});
       if(job.kind==='review') {
@@ -133,7 +143,7 @@ export class VerificationController {
           const passed=control.expect==='passed'?evaluated.complete:results.every(r=>r.executionStatus==='executed')&&control.mustFail.every(id=>results.some(r=>r.checks.some(c=>c.obligationId===id&&c.verdict==='failed')));
           job.controls.push({id:control.id,passed,results});context.save();}
         ensure(job.controls.every(c=>c.passed),'Verifier did not classify the known good/bad controls correctly');
-        const prompt=await definitionReviewPrompt(proposal.spec,proposal.bundle,this.repo.head(proposal.projectId),this.repo.run(job.projectId,job.runId).contract,job.controls);
+        const prompt=await definitionReviewPrompt(proposal.spec,proposal.bundle,this.frozenBaseProposal(proposal),this.repo.run(job.projectId,job.runId).contract,job.controls);
         const review=await reviewModel(context,prompt,proposal.candidate.tree,join(output,'definition-review'));job.approved=review.verdict==='passed';if(!job.approved)job.error='Independent definition review: '+review.reason;
       }else {
         job.results=await executeInstances(context,proposal.spec,proposal.bundle,plan!.candidate,plan!.selection.instances,'candidate');
@@ -171,7 +181,7 @@ export class VerificationController {
     await this.assertJob(review);await assertSourcesCurrent(review.sources);
   }
   private async current(plan:FrozenPlan,job:VerificationJob,refresh=false):Promise<void> {
-    const proposal=this.repo.get('proposal',plan.proposalId);await this.assertReviewedProposal(proposal);this.assertQuietWorkspace(plan.candidate.root);this.repo.assertNoVerificationWriter(plan.candidate.root);ensure(this.repo.head(plan.projectId)?.id===plan.proposalId,'Published verification catalog changed');
+    const proposal=this.repo.get('proposal',plan.proposalId);await this.assertReviewedProposal(proposal);this.assertQuietWorkspace(plan.candidate.root);this.repo.assertNoVerificationWriter(plan.candidate.root);ensure(this.repo.headForRun(plan.projectId,plan.runId)?.id===plan.proposalId,'Published verification catalog changed');
     ensure(plan.contractDigest===proposal.contractDigest,'Plan differs from independently reviewed task contract');ensure(digest(canonical(this.repo.run(plan.projectId,plan.runId).contract))===plan.contractDigest,'Contract changed');ensure((await environmentFingerprint()).digest===plan.environmentDigest,'Verifier environment changed');
     await assertCandidate(plan.candidate);await assertDefinition(proposal.spec,proposal.bundle);await this.assertJob(job);await assertSourcesCurrent(job.sources,refresh);
     ensure(evaluateVerification(proposal.spec,plan.selection,job.results).complete,'Current evidence does not satisfy all necessary instances');

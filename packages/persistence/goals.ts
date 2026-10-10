@@ -1,3 +1,6 @@
+import { VerificationLineageRepository, lineageDigest } from './verification-lineage.js';
+import type { AppliedContractTransition } from '../contracts/p4-lineage.js';
+import { validateFollowupEvolution, validateEvolutionReview } from '../orchestration/followup-evolution.js';
 import { createHash } from 'node:crypto';
 import { basename } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
@@ -74,7 +77,7 @@ export class GoalRepository {
     const confirmedMessages=previous.messages.filter(m=>!conversationMessages.has(m.id)||conversationMessages.get(m.id)!.state==='applied');
     const s:GoalSession={id,projectId:authorization.projectId,workspace:authorization.workspace,workspaceKind:previous.workspaceKind,revision:0,goal:previous.goal,phase:'ready',messages:structuredClone(confirmedMessages),jobs:[],proposal:structuredClone(previous.proposal),runtimeId:null,error:null,createdAt:now,updatedAt:now,config:structuredClone(previous.config),maxContextChars:previous.maxContextChars,continuation:{conversationId,predecessorSessionId:previous.id,predecessorRunId:authorization.predecessorRunId,predecessorDeliveryId:authorization.predecessorDeliveryId,proposalJobId:previous.jobs.findLast(j=>j.proposal&&canonical(j.proposal)===canonical(previous.proposal))?.id??null}};
     this.db.prepare('INSERT INTO goal_sessions(id,project_id,run_id,record) VALUES (?,?,?,?)').run(id,s.projectId,id,canonical(s));
-    repository.attachRound(conversationId,id,authorization.predecessorDeliveryId);this.receipted(request,id,commandId);return this.inspect(id);
+    repository.attachRound(conversationId,id,authorization.predecessorDeliveryId);new VerificationLineageRepository(this.db).bindContinuation({commandId:'lineage:'+commandId,conversationId,runId:id,predecessorRunId:authorization.predecessorRunId,predecessorDeliveryId:authorization.predecessorDeliveryId});this.receipted(request,id,commandId);return this.inspect(id);
   });}
   /** Controller verifies the assessment proof bytes and stopped identities first. */
   promoteAssessment(assessmentId:string):GoalInspection {return this.tx(()=>{
@@ -97,10 +100,22 @@ export class GoalRepository {
     ensure(canonical(s.messages)===canonical(frozen.messages),'Follow-up requirement snapshot changed');
     const run=this.run(s);ensure(run.contract.version===frozen.baseContractVersion,'Contract changed after follow-up reasoning');ensure(!['succeeded','cancelled'].includes(run.status),'Terminal goal cannot apply follow-up');this.quiet(s);
     ensure(job.followupResult?.decision==='revise'&&canonical(job.followupResult.proposal)===canonical(job.proposal),'Follow-up application requires the complete revise decision');
+    const originalRun=s.continuation&&run.admission==='draft'?this.inspect(s.continuation.predecessorSessionId).run:run;
+    const originalContract=run.admission==='draft'&&!s.continuation&&s.proposal?.decision==='ready'?{...run.contract,criteria:s.proposal.criteria.map(criterion=>({id:criterion.id,required:true,description:[criterion.description,`Acceptance kind: ${criterion.kind}; target: ${criterion.target}`,...criterion.checks].join('\n')}))}:originalRun.contract;
+    const context={originalContract,originalProposal:s.proposal,frozenMessages:repository.messages(frozen.conversationId).filter(item=>item.sequence<=frozen.messageSequence),newMessageId:frozen.messageId,session:{...s,messages:frozen.messages}};
+    const evolution=job.followupResult.criterionChanges?validateFollowupEvolution(job.followupResult,context,frozen.relatedMessageIds):null;
+    const reviewed=evolution?validateEvolutionReview((job.context as {acceptanceReview?:unknown}|null)?.acceptanceReview,evolution,context,frozen.relatedMessageIds):null;
+    if(reviewed)ensure(reviewed.approved,'Contract evolution lacks independent authorization');
     const candidate={...s,messages:structuredClone(frozen.messages),proposal:job.proposal},plan=admittedPlan(candidate,run);
     ensure(run.budget.limit-run.budget.spent-run.budget.verificationReserve>=s.config.reservation,'Insufficient execution budget after follow-up reasoning');
     const nodes=plan.steps.map((step,i)=>({id:step.id,dependencies:i?[plan.steps[i-1]!.id]:[],required:true})),runtime=new RuntimeRepository(this.db);
-    const acknowledge=()=>{repository.applyProcessingGroup(frozen.messageId,frozen.relatedMessageIds,plan.contract.version,job.followupResult?.response);frozen.appliedContractVersion=plan.contract.version;s.proposal=structuredClone(job.proposal);s.phase='admitted';s.error=null;this.save(s);};
+    const acknowledge=()=>{repository.applyProcessingGroup(frozen.messageId,frozen.relatedMessageIds,plan.contract.version,job.followupResult?.response);frozen.appliedContractVersion=plan.contract.version;s.proposal=structuredClone(job.proposal);s.phase='admitted';s.error=null;this.save(s);
+      if(evolution&&reviewed&&(run.admission==='admitted'||s.continuation)){
+        const lineage=new VerificationLineageRepository(this.db),binding=lineage.resolveRun(s.projectId,s.id);
+        const transition:AppliedContractTransition={id:'transition:'+job.id,lineageId:binding.lineageId,from:{projectId:s.projectId,runId:originalRun.id,contractDigest:lineageDigest(originalContract)},to:{projectId:s.projectId,runId:s.id,contractDigest:lineageDigest(plan.contract)},fromContract:originalContract,toContract:plan.contract,conversationId:frozen.conversationId,sessionId:s.id,reasoningJobId:job.id,messageId:frozen.messageId,messageSequence:frozen.messageSequence,processingAttempt:frozen.processingAttempt,relatedMessageIds:frozen.relatedMessageIds,changes:evolution.criterionChanges!,review:reviewed as AppliedContractTransition['review'],proofs:job.proofs};
+        lineage.recordAppliedTransition({commandId:'transition:'+job.id,transition});
+      }
+    };
     if(s.runtimeId){runtime.revise({commandId:`${job.id}:apply-followup`,runtimeId:s.runtimeId,expectedContractVersion:frozen.baseContractVersion,contract:plan.contract,nodes,steps:plan.steps,reason:`User follow-up ${frozen.messageId} at conversation sequence ${frozen.messageSequence}`},acknowledge);}
     else {
       ensure(run.admission==='draft','Admitted goal is missing its runtime');runtime.assertWorkspaceAvailable(s.workspace);
@@ -117,7 +132,7 @@ export class GoalRepository {
     const run=createDraftRun({id,projectId,goal:a.goal,budget:{unit:'token',limit:a.tokenLimit,verificationReserve:a.verificationReserve}});
     this.db.prepare('INSERT INTO runs(project_id,id,revision,snapshot) VALUES (?,?,?,?)').run(projectId,id,run.revision,canonical(run));
     const s:GoalSession={id,projectId,workspace,workspaceKind,revision:0,goal:a.goal,phase:'thinking',messages:[{id:`${id}:message:1`,role:'user',text:a.goal,createdAt:now}],jobs:[],proposal:null,runtimeId:null,error:null,createdAt:now,updatedAt:now,config:{model:a.model,effort:a.effort,reservation:a.reservation,timeoutMs:a.timeoutMs},maxContextChars:a.maxContextChars??60000};
-    this.db.prepare('INSERT INTO goal_sessions(id,project_id,run_id,record) VALUES (?,?,?,?)').run(id,projectId,id,canonical(s));this.begin(s,'requirements');this.save(s);this.receipted(a,id,a.commandId);return this.inspect(id);
+    this.db.prepare('INSERT INTO goal_sessions(id,project_id,run_id,record) VALUES (?,?,?,?)').run(id,projectId,id,canonical(s));this.begin(s,'requirements');this.save(s);new ConversationRepository(this.db).ensureForGoal(s.id);new VerificationLineageRepository(this.db).bindRoot({commandId:'lineage-root:'+a.commandId,projectId,runId:id});this.receipted(a,id,a.commandId);return this.inspect(id);
   });}
   validateAdmission(a:Extract<OrchestrationAction,{type:'admit'}>):void {
     if(this.receipt(a))return;const s=this.get(a.sessionId),run=this.run(s);

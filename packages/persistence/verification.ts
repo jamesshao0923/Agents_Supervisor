@@ -1,3 +1,4 @@
+import { VerificationLineageRepository } from './verification-lineage.js';
 import type { DatabaseSync } from 'node:sqlite';
 import type { Run, RunAction, Artifact } from '../contracts/p1.js';
 import type { Delivery, FrozenPlan, Proposal, VerificationJob } from '../verification/records.js';
@@ -6,7 +7,7 @@ function canonical(value: unknown): string { if(value===null||typeof value!=='ob
 type Records = { proposal: Proposal; plan: FrozenPlan; job: VerificationJob; delivery: Delivery };
 export class VerificationRepository {
   constructor(private readonly db: DatabaseSync) {}
-  transaction<T>(body: () => T): T { this.db.exec('BEGIN IMMEDIATE'); try { const value = body(); this.db.exec('COMMIT'); return value; } catch (error) { this.db.exec('ROLLBACK'); throw error; } }
+  transaction<T>(body: () => T): T { if(this.db.isTransaction)return body();this.db.exec('BEGIN IMMEDIATE'); try { const value = body(); this.db.exec('COMMIT'); return value; } catch (error) { this.db.exec('ROLLBACK'); throw error; } }
   get<K extends keyof Records>(kind: K, id: string): Records[K] {
     const row = this.db.prepare('SELECT record FROM verification_records WHERE kind=? AND id=?').get(kind, id);
     if (!row) throw new Error('Unknown verification ' + kind); return JSON.parse(String(row.record)) as Records[K];
@@ -18,11 +19,14 @@ export class VerificationRepository {
     this.db.prepare('INSERT INTO verification_records(kind,id,project_id,run_id,record) VALUES (?,?,?,?,?)').run(kind, record.id, record.projectId, record.runId, canonical(record)); return record;
   }
   update<K extends 'proposal' | 'job'>(kind: K, record: Records[K]): void { this.get(kind, record.id); this.db.prepare('UPDATE verification_records SET record=? WHERE kind=? AND id=?').run(canonical(record), kind, record.id); }
-  head(projectId: string): Proposal | null { const row = this.db.prepare('SELECT proposal_id FROM verification_product_heads WHERE project_id=?').get(projectId); return row ? this.get('proposal', String(row.proposal_id)) : null; }
-  publish(proposal: Proposal): void {
-    if ((this.head(proposal.projectId)?.version ?? 0) !== proposal.baseVersion) throw new Error('Verification catalog base version changed; new review required');
-    proposal.version = proposal.baseVersion + 1; proposal.status = 'published'; this.update('proposal', proposal);
-    this.db.prepare('INSERT INTO verification_product_heads(project_id,proposal_id) VALUES (?,?) ON CONFLICT(project_id) DO UPDATE SET proposal_id=excluded.proposal_id').run(proposal.projectId, proposal.id);
+  headForRun(projectId: string, runId: string): Proposal | null { const head=new VerificationLineageRepository(this.db).headForRun(projectId,runId); return head?this.get('proposal',head.proposalId):null; }
+  /** Historical diagnosis only; never a dispatch/publication authority. */
+  legacyProjectHead(projectId: string): Proposal | null { const row = this.db.prepare('SELECT proposal_id FROM verification_product_heads WHERE project_id=?').get(projectId); return row ? this.get('proposal', String(row.proposal_id)) : null; }
+  publish(proposal: Proposal, commandId: string): void {
+    const lineage=new VerificationLineageRepository(this.db),base=lineage.baseForProposal(proposal.id);
+    if(!proposal.reviewId)throw new Error('Publication requires exact independent review');
+    lineage.publishBound({commandId,proposalId:proposal.id,reviewId:proposal.reviewId,expectedBaseProposalId:base.baseProposalId,expectedHeadRevision:base.expectedHeadRevision});
+    Object.assign(proposal,this.get('proposal',proposal.id));
   }
   receipt(commandId: string, request: unknown): unknown | undefined {
     const row = this.db.prepare('SELECT request,result FROM verification_product_receipts WHERE command_id=?').get(commandId);

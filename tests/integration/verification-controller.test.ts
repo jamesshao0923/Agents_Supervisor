@@ -8,6 +8,7 @@ import { SupervisorStore } from '../../packages/persistence/store.js';
 import { VerificationController } from '../../packages/verification/controller.js';
 import type { VerificationSpec } from '../../packages/contracts/p4.js';
 import type { Proposal, VerificationJob, FrozenPlan } from '../../packages/verification/records.js';
+import { digest,environmentFingerprint } from '../../packages/verification/candidate.js';
 import { captureDefinition,validateBundleChange } from '../../packages/verification/definition.js';
 
 async function fixture(t:test.TestContext){const root=await mkdtemp(join(tmpdir(),'sv-vctl-'));const workspace=join(root,'work'),data=join(root,'data'),good=join(root,'good'),bad=join(root,'bad');for(const path of [workspace,good,bad]){await mkdir(path);await writeFile(join(path,'source.js'),'export const value=1;');}const store=new SupervisorStore(data),controller=new VerificationController(store,data);t.after(async()=>{await controller.close();store.close();await rm(root,{recursive:true,force:true});});
@@ -23,17 +24,17 @@ test('verification controller refuses caller verdicts unpublished plans and dupl
  }
  assert.equal(JSON.stringify(f.store.verification.run(f.runtime.projectId,f.runtime.runId)),before);
  // This publication is explicitly a repository guard fixture, not a model review.
- f.store.verification.publish(proposal);
+ await publishFixtureReview(f.store,proposal,f.root);
  const oldPlan:FrozenPlan={id:'old-final',runtimeId:f.runtime.id,projectId:f.runtime.projectId,runId:f.runtime.runId,proposalId:proposal.id,catalogVersion:proposal.version!,candidate:proposal.candidate,contractDigest:proposal.contractDigest,definitionDigest:proposal.bundle.digest,environmentDigest:'guard-fixture',selection:{mode:'final',completeScope:true,instances:[],excludedCaseIds:[]},createdAt:new Date().toISOString()};
  f.store.verification.insert('plan',oldPlan);
  f.store.runtime.setFutureVerification({commandId:'guard-allocation',runtimeId:f.runtime.id,expectedContractVersion:1,expectedRevision:f.store.runtime.inspect(f.runtime.id).run.revision,allocationId:'final-only',amount:100,reason:'Preserve a current complete verification allocation'});
  for(const current of [{artifact:'newer-final',catalog:proposal.id},{artifact:oldPlan.id,catalog:'newer-catalog'}]){
   f.store.verification.act(f.runtime.projectId,f.runtime.runId,{type:'setArtifact',artifact:{id:current.artifact,...f.store.managedSnapshot(current.artifact),contractVersion:1}});
-  if(current.catalog!==proposal.id){const next={...proposal,id:current.catalog,baseVersion:proposal.version!,version:null};f.store.verification.insert('proposal',next);f.store.verification.publish(next);}
-  const unchanged=JSON.stringify(f.store.runtime.inspect(f.runtime.id)),commandId=randomUUID();
+  if(current.catalog!==proposal.id){const next={...proposal,id:current.catalog,baseVersion:proposal.version!,version:null,status:'proposed' as const};f.store.verification.insert('proposal',next);await publishFixtureReview(f.store,next,f.root);}
+  const unchanged=JSON.stringify(f.store.runtime.inspect(f.runtime.id)),jobsBefore=f.store.verification.list('job',f.runtime.id),commandId=randomUUID();
   const request={type:'run',commandId,planId:oldPlan.id,model:'not-dispatched',effort:'low',reservation:100,timeoutMs:1000,futureVerificationAllocationId:'final-only'};
   await assert.rejects(f.controller.dispatch(request),/current artifact and published catalog/);
-  assert.equal(JSON.stringify(f.store.runtime.inspect(f.runtime.id)),unchanged);assert.equal(f.store.verification.list('job',f.runtime.id).length,0);assert.equal(f.store.verification.receipt(commandId,request),undefined);
+  assert.equal(JSON.stringify(f.store.runtime.inspect(f.runtime.id)),unchanged);assert.deepEqual(f.store.verification.list('job',f.runtime.id),jobsBefore);assert.equal(f.store.verification.receipt(commandId,request),undefined);
  }
 
  await writeFile(join(f.workspace,'source.js'),'changed');assert.equal(await readFile(join(proposal.candidate.tree,'source.js'),'utf8'),'export const value=1;');});
@@ -43,3 +44,13 @@ test('verification persisted unresolved stop fences sibling workflows after cont
  await f.controller.initialize();const stopped=f.store.verification.get('job',id);assert.equal(stopped.status,'finished');assert.equal(stopped.stopConfirmed,false);assert.equal(stopped.usageUnknown,true);assert.equal(f.store.verification.run(run.projectId,run.id).attempts.find(a=>a.id===id)!.settled,false);assert.throws(()=>f.store.runtime.submit({...f.input,commandId:randomUUID()}),/active independent verification/);assert.throws(()=>f.store.executionCreate({type:'start',commandId:randomUUID(),workspace:f.workspace,workspaceKind:'project',prompt:'overwrite',model:'x',effort:'low',timeoutMs:1000,tokenLimit:10000,reservation:1000,verificationReserve:1000}),/active independent verification/);});
 
 test('verification definition change preserves published implementation bytes and original counterexample identity',async t=>{const f=await fixture(t);const first=await captureDefinition(f.specPath,join(f.root,'one'));await writeFile(join(f.root,'check.mjs'),'throw new Error("changed bytes same version");');const changed=await captureDefinition(f.specPath,join(f.root,'two'));assert.throws(()=>validateBundleChange(first,changed),/version/);await writeFile(join(f.root,'check.mjs'),'throw new Error("verifier deliberately not reviewed");');await writeFile(join(f.spec.controls[1]!.workspace,'source.js'),'different easier defect');const altered=await captureDefinition(f.specPath,join(f.root,'three'));assert.throws(()=>validateBundleChange(first,altered),/control content/);});
+
+/** Explicit stored review fixture for repository/controller boundaries. Proof bytes
+ * and accounting are real, but approval metadata is NOT a live model review. */
+async function publishFixtureReview(store:SupervisorStore,proposal:Proposal,root:string):Promise<void>{
+  const run=store.verification.run(proposal.projectId,proposal.runId),id='fixture-review-'+proposal.id;
+  const proof=join(root,id+'.json'),proofText=JSON.stringify({scope:'non-model repository fixture',proposalId:proposal.id,contractDigest:proposal.contractDigest,definitionDigest:proposal.bundle.digest});await writeFile(proof,proofText);
+  store.verificationLineage.bindProposal({commandId:'fixture-binding-'+proposal.id,proposalId:proposal.id,base:store.verificationLineage.captureBase(proposal.projectId,proposal.runId),definitionFormat:'legacy-v1'});
+  const review:VerificationJob={id,runtimeId:proposal.runtimeId,projectId:proposal.projectId,runId:proposal.runId,workspace:proposal.candidate.root,kind:'review',proposalId:proposal.id,planId:null,request:{scope:'explicit non-model review fixture'},status:'finished',attemptId:id,environmentDigest:(await environmentFingerprint()).digest,config:{model:'repository-fixture-no-model-call',effort:'low',reservation:1,timeoutMs:1000},startedAt:new Date().toISOString(),finishedAt:new Date().toISOString(),intents:[],identities:[],usage:0,modelStarted:false,usageUnknown:false,results:[],controls:[],evaluation:null,approved:true,stopConfirmed:true,error:null,proofs:{[proof]:digest(proofText)},sources:[]};
+  store.verification.transaction(()=>{store.verification.act(run.projectId,run.id,{type:'startAttempt',attemptId:id,nodeId:run.nodes.at(-1)!.id,contractVersion:run.contract.version,purpose:'verification',reservation:1,resources:[]});store.verification.act(run.projectId,run.id,{type:'finishAttempt',attemptId:id,outcome:'succeeded'});store.verification.act(run.projectId,run.id,{type:'settleAttempt',attemptId:id,actual:0});store.verification.insert('job',review);proposal.reviewId=id;store.verification.publish(proposal,'fixture-publication-'+proposal.id);});
+}

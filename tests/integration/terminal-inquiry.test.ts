@@ -1,3 +1,4 @@
+import { acceptedDeliveryFixture } from '../fixtures/accepted-delivery.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -58,17 +59,7 @@ function completeInput(f:ReturnType<typeof fixture>,goal:GoalInspection):GoalIns
   f.runtime.report(operation.id,'repository-worker',{messageId:'report-'+runtimeId,outcome:'confirmed',result:{input:'persisted actual input'}});return f.goals.inspect(goal.session.id);
 }
 function deliverFixture(f:ReturnType<typeof fixture>,goal:GoalInspection,verificationUsage=0):string {
-  const version=goal.run.contract.version,digest='a'.repeat(64);
-  domain(f,goal.session.id,{type:'setArtifact',artifact:{id:'fixture-artifact',path:f.proof,digest,contractVersion:version}});
-  if(verificationUsage>0){
-    domain(f,goal.session.id,{type:'startAttempt',attemptId:'fixture-verification-accounting',nodeId:goal.run.nodes.at(-1)!.id,contractVersion:version,purpose:'verification',reservation:verificationUsage,resources:[]});
-    domain(f,goal.session.id,{type:'finishAttempt',attemptId:'fixture-verification-accounting',outcome:'succeeded'});
-    domain(f,goal.session.id,{type:'settleAttempt',attemptId:'fixture-verification-accounting',actual:verificationUsage});
-  }
-  for(const criterion of goal.run.contract.criteria)domain(f,goal.session.id,{type:'recordEvidence',evidence:{id:'fixture-evidence-'+criterion.id,criterionId:criterion.id,contractVersion:version,artifactDigest:digest,verdict:'passed',verifierVersion:'repository-fixture-only'}});
-  domain(f,goal.session.id,{type:'complete'});
-  const deliveryId='fixture-delivery-'+goal.session.id;
-  f.db.prepare("INSERT INTO verification_records(kind,id,project_id,run_id,record) VALUES ('delivery',?,?,?,?)").run(deliveryId,goal.run.projectId,goal.run.id,JSON.stringify({id:deliveryId,runId:goal.run.id,projectId:goal.run.projectId}));return deliveryId;
+  return acceptedDeliveryFixture(f.db,f.root,goal.run,f.workspace,verificationUsage);
 }
 
 

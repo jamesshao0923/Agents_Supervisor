@@ -1,6 +1,7 @@
 import type { GoalProposal, GoalSession, ReasonerConfig } from './p5.js';
 import type { Run } from './p1.js';
 import type { ProcessIdentity, ProcessIntent } from '../process-control/index.js';
+import type { AuthorizedCriterionChange } from './p4-lineage.js';
 
 export interface CriterionRetirementSource { criterionId: string; messageId: string; quote: string }
 export interface FollowupProposal {
@@ -9,6 +10,9 @@ export interface FollowupProposal {
   proposal: GoalProposal | null;
   retiredCriterionIds: string[];
   retirementSources: CriterionRetirementSource[];
+  /** Present only after a complete versioned change-source validation. Legacy
+   * follow-ups remain readable but cannot authorize control evolution. */
+  criterionChanges?: AuthorizedCriterionChange[];
 }
 
 export type ConversationMessageKind = 'question' | 'change' | 'unclassified';

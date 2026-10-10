@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-catalog-v15",
+  "revision": "dev-catalog-v17",
   "modules": [
     {
       "id": "dev-contracts",
@@ -356,7 +356,7 @@
       "id": "live-conversation",
       "layer": "live",
       "file": "dist/tests/live/conversation.test.js",
-      "timeoutMs": 600000
+      "timeoutMs": 1500000
     },
     {
       "id": "unit-terminal-assessment",
@@ -447,6 +447,36 @@
       "layer": "live",
       "file": "dist/tests/live/supervision-monitor.test.js",
       "timeoutMs": 1400000
+    },
+    {
+      "id": "unit-followup-evolution",
+      "layer": "unit",
+      "file": "dist/tests/unit/followup-evolution.test.js",
+      "timeoutMs": 120000
+    },
+    {
+      "id": "integration-verification-lineage",
+      "layer": "integration",
+      "file": "dist/tests/integration/verification-lineage.test.js",
+      "timeoutMs": 120000
+    },
+    {
+      "id": "unit-task-results",
+      "layer": "unit",
+      "file": "dist/tests/unit/task-results.test.js",
+      "timeoutMs": 120000
+    },
+    {
+      "id": "unit-control-rules",
+      "layer": "unit",
+      "file": "dist/tests/unit/control-rules.test.js",
+      "timeoutMs": 120000
+    },
+    {
+      "id": "integration-control-qualification",
+      "layer": "integration",
+      "file": "dist/tests/integration/control-qualification.test.js",
+      "timeoutMs": 300000
     }
   ],
   "cases": [
@@ -9839,6 +9869,1212 @@
       "prerequisites": "Pinned Node and authenticated actual local Codex; production adapters and at least three real 300-second windows. Explicit long-duration engineering workload, no shortened clocks or injected state.",
       "assertions": "tests/live/supervision-monitor.test.ts :: P6-MON-L01 real three five-minute windows inspect skip inspect while one Codex engineering turn remains active",
       "cleanup": "Stop only owned processes; preserve actual timing, model proofs, unknown costs, and all failed attempts",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-followup-evolution.001",
+      "name": "P6-FE-U01 new transport schema requires complete source mappings but never asks the model to compute hashes",
+      "suiteId": "unit-followup-evolution",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-followup-evolution"
+      ],
+      "scenario": "P6-FE-U01 new transport schema requires complete source mappings but never asks the model to compute hashes",
+      "impactTags": [
+        "p6-followup-evolution"
+      ],
+      "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
+      "assertions": "tests/unit/followup-evolution.test.ts :: P6-FE-U01 new transport schema requires complete source mappings but never asks the model to compute hashes",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-followup-evolution.002",
+      "name": "P6-FE-U02 additions bind exact current criterion bytes using trusted digests and leave inputs intact",
+      "suiteId": "unit-followup-evolution",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-followup-evolution"
+      ],
+      "scenario": "P6-FE-U02 additions bind exact current criterion bytes using trusted digests and leave inputs intact",
+      "impactTags": [
+        "p6-followup-evolution"
+      ],
+      "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
+      "assertions": "tests/unit/followup-evolution.test.ts :: P6-FE-U02 additions bind exact current criterion bytes using trusted digests and leave inputs intact",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-followup-evolution.003",
+      "name": "P6-FE-U03 omissions duplicates fabricated and unchanged deltas cannot authorize a different set",
+      "suiteId": "unit-followup-evolution",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-followup-evolution"
+      ],
+      "scenario": "P6-FE-U03 omissions duplicates fabricated and unchanged deltas cannot authorize a different set",
+      "impactTags": [
+        "p6-followup-evolution"
+      ],
+      "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
+      "assertions": "tests/unit/followup-evolution.test.ts :: P6-FE-U03 omissions duplicates fabricated and unchanged deltas cannot authorize a different set",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-followup-evolution.004",
+      "name": "P6-FE-U04 changed and retired criteria bind exact prior bytes and still require legacy fresh user authority",
+      "suiteId": "unit-followup-evolution",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-followup-evolution"
+      ],
+      "scenario": "P6-FE-U04 changed and retired criteria bind exact prior bytes and still require legacy fresh user authority",
+      "impactTags": [
+        "p6-followup-evolution"
+      ],
+      "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
+      "assertions": "tests/unit/followup-evolution.test.ts :: P6-FE-U04 changed and retired criteria bind exact prior bytes and still require legacy fresh user authority",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-followup-evolution.005",
+      "name": "P6-FE-U05 every source is exact nonempty nonduplicate and belongs to this processing group",
+      "suiteId": "unit-followup-evolution",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-followup-evolution"
+      ],
+      "scenario": "P6-FE-U05 every source is exact nonempty nonduplicate and belongs to this processing group",
+      "impactTags": [
+        "p6-followup-evolution"
+      ],
+      "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
+      "assertions": "tests/unit/followup-evolution.test.ts :: P6-FE-U05 every source is exact nonempty nonduplicate and belongs to this processing group",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-followup-evolution.006",
+      "name": "P6-FE-U06 a specifically bound clarification ancestor can source additions but arbitrary history cannot",
+      "suiteId": "unit-followup-evolution",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-followup-evolution"
+      ],
+      "scenario": "P6-FE-U06 a specifically bound clarification ancestor can source additions but arbitrary history cannot",
+      "impactTags": [
+        "p6-followup-evolution"
+      ],
+      "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
+      "assertions": "tests/unit/followup-evolution.test.ts :: P6-FE-U06 a specifically bound clarification ancestor can source additions but arbitrary history cannot",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-followup-evolution.007",
+      "name": "P6-FE-U07 answers and clarification cannot smuggle evolution and saved hashes cannot be rewritten",
+      "suiteId": "unit-followup-evolution",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-followup-evolution"
+      ],
+      "scenario": "P6-FE-U07 answers and clarification cannot smuggle evolution and saved hashes cannot be rewritten",
+      "impactTags": [
+        "p6-followup-evolution"
+      ],
+      "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
+      "assertions": "tests/unit/followup-evolution.test.ts :: P6-FE-U07 answers and clarification cannot smuggle evolution and saved hashes cannot be rewritten",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-followup-evolution.008",
+      "name": "P6-FE-U08 independent review binds proposal and exact ordered user sources",
+      "suiteId": "unit-followup-evolution",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-followup-evolution"
+      ],
+      "scenario": "P6-FE-U08 independent review binds proposal and exact ordered user sources",
+      "impactTags": [
+        "p6-followup-evolution"
+      ],
+      "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
+      "assertions": "tests/unit/followup-evolution.test.ts :: P6-FE-U08 independent review binds proposal and exact ordered user sources",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-followup-evolution.009",
+      "name": "P6-FE-U09 overall approval cannot override a rejected or omitted individual change",
+      "suiteId": "unit-followup-evolution",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-followup-evolution"
+      ],
+      "scenario": "P6-FE-U09 overall approval cannot override a rejected or omitted individual change",
+      "impactTags": [
+        "p6-followup-evolution"
+      ],
+      "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
+      "assertions": "tests/unit/followup-evolution.test.ts :: P6-FE-U09 overall approval cannot override a rejected or omitted individual change",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-followup-evolution.010",
+      "name": "P6-FE-U10 duplicate review identities cannot replace another required authorization",
+      "suiteId": "unit-followup-evolution",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-followup-evolution"
+      ],
+      "scenario": "P6-FE-U10 duplicate review identities cannot replace another required authorization",
+      "impactTags": [
+        "p6-followup-evolution"
+      ],
+      "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
+      "assertions": "tests/unit/followup-evolution.test.ts :: P6-FE-U10 duplicate review identities cannot replace another required authorization",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-verification-lineage.001",
+      "name": "P6-LINE-I01 independent same-project roots keep exact immutable bindings and full-payload receipts across reopen",
+      "suiteId": "integration-verification-lineage",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-verification-lineage"
+      ],
+      "scenario": "P6-LINE-I01 independent same-project roots keep exact immutable bindings and full-payload receipts across reopen",
+      "impactTags": [
+        "p6-verification-lineage"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
+      "assertions": "tests/integration/verification-lineage.test.ts :: P6-LINE-I01 independent same-project roots keep exact immutable bindings and full-payload receipts across reopen",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-verification-lineage.002",
+      "name": "P6-LINE-I02 frozen exact bases and scoped CAS reject a competing publication without touching another root",
+      "suiteId": "integration-verification-lineage",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-verification-lineage"
+      ],
+      "scenario": "P6-LINE-I02 frozen exact bases and scoped CAS reject a competing publication without touching another root",
+      "impactTags": [
+        "p6-verification-lineage"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
+      "assertions": "tests/integration/verification-lineage.test.ts :: P6-LINE-I02 frozen exact bases and scoped CAS reject a competing publication without touching another root",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-verification-lineage.003",
+      "name": "P6-LINE-I03 outer rollback atomically removes head proposal mutation and receipt while preserving parent transaction",
+      "suiteId": "integration-verification-lineage",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-verification-lineage"
+      ],
+      "scenario": "P6-LINE-I03 outer rollback atomically removes head proposal mutation and receipt while preserving parent transaction",
+      "impactTags": [
+        "p6-verification-lineage"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
+      "assertions": "tests/integration/verification-lineage.test.ts :: P6-LINE-I03 outer rollback atomically removes head proposal mutation and receipt while preserving parent transaction",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-verification-lineage.004",
+      "name": "P6-LINE-I04 continuation binds the exact delivered adjacent round and rejects unrelated or stale predecessor",
+      "suiteId": "integration-verification-lineage",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-verification-lineage"
+      ],
+      "scenario": "P6-LINE-I04 continuation binds the exact delivered adjacent round and rejects unrelated or stale predecessor",
+      "impactTags": [
+        "p6-verification-lineage"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
+      "assertions": "tests/integration/verification-lineage.test.ts :: P6-LINE-I04 continuation binds the exact delivered adjacent round and rejects unrelated or stale predecessor",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-verification-lineage.005",
+      "name": "P6-LINE-I05 exact message reviewed transition is required even when Run contract version numbers match",
+      "suiteId": "integration-verification-lineage",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-verification-lineage"
+      ],
+      "scenario": "P6-LINE-I05 exact message reviewed transition is required even when Run contract version numbers match",
+      "impactTags": [
+        "p6-verification-lineage"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
+      "assertions": "tests/integration/verification-lineage.test.ts :: P6-LINE-I05 exact message reviewed transition is required even when Run contract version numbers match",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-verification-lineage.006",
+      "name": "P6-LINE-I06 legacy migration preserves old JSON and costs and records ambiguous unrelated project ancestry as blocked",
+      "suiteId": "integration-verification-lineage",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-verification-lineage"
+      ],
+      "scenario": "P6-LINE-I06 legacy migration preserves old JSON and costs and records ambiguous unrelated project ancestry as blocked",
+      "impactTags": [
+        "p6-verification-lineage"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
+      "assertions": "tests/integration/verification-lineage.test.ts :: P6-LINE-I06 legacy migration preserves old JSON and costs and records ambiguous unrelated project ancestry as blocked",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-verification-lineage.007",
+      "name": "P6-LINE-I07 unpublished legacy base and duplicate historical versions remain blocked without nearest-head inference",
+      "suiteId": "integration-verification-lineage",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-verification-lineage"
+      ],
+      "scenario": "P6-LINE-I07 unpublished legacy base and duplicate historical versions remain blocked without nearest-head inference",
+      "impactTags": [
+        "p6-verification-lineage"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
+      "assertions": "tests/integration/verification-lineage.test.ts :: P6-LINE-I07 unpublished legacy base and duplicate historical versions remain blocked without nearest-head inference",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-verification-lineage.008",
+      "name": "P6-LINE-I08 publication rejects proof tampering unknown accounting and an active user message fence",
+      "suiteId": "integration-verification-lineage",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-verification-lineage"
+      ],
+      "scenario": "P6-LINE-I08 publication rejects proof tampering unknown accounting and an active user message fence",
+      "impactTags": [
+        "p6-verification-lineage"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
+      "assertions": "tests/integration/verification-lineage.test.ts :: P6-LINE-I08 publication rejects proof tampering unknown accounting and an active user message fence",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-verification-lineage.009",
+      "name": "P6-LINE-I09 applied authorization persists a complete two-transition chain and rollback retains no partial receipt",
+      "suiteId": "integration-verification-lineage",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-verification-lineage"
+      ],
+      "scenario": "P6-LINE-I09 applied authorization persists a complete two-transition chain and rollback retains no partial receipt",
+      "impactTags": [
+        "p6-verification-lineage"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
+      "assertions": "tests/integration/verification-lineage.test.ts :: P6-LINE-I09 applied authorization persists a complete two-transition chain and rollback retains no partial receipt",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p7.unit-task-results.001",
+      "name": "P7-RESULT-U01 strict safe data rejects authority extras unsafe paths duplicate identities and executable JSON",
+      "suiteId": "unit-task-results",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p7-task-results"
+      ],
+      "scenario": "P7-RESULT-U01 strict safe data rejects authority extras unsafe paths duplicate identities and executable JSON",
+      "impactTags": [
+        "p7-task-results"
+      ],
+      "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
+      "assertions": "tests/unit/task-results.test.ts :: P7-RESULT-U01 strict safe data rejects authority extras unsafe paths duplicate identities and executable JSON",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p7.unit-task-results.002",
+      "name": "P7-RESULT-U02 draft never releases dependencies and original manifest stays immutable",
+      "suiteId": "unit-task-results",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p7-task-results"
+      ],
+      "scenario": "P7-RESULT-U02 draft never releases dependencies and original manifest stays immutable",
+      "impactTags": [
+        "p7-task-results"
+      ],
+      "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
+      "assertions": "tests/unit/task-results.test.ts :: P7-RESULT-U02 draft never releases dependencies and original manifest stays immutable",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p7.unit-task-results.003",
+      "name": "P7-RESULT-U03 submitted and verified minimum states require exact known necessary proof",
+      "suiteId": "unit-task-results",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p7-task-results"
+      ],
+      "scenario": "P7-RESULT-U03 submitted and verified minimum states require exact known necessary proof",
+      "impactTags": [
+        "p7-task-results"
+      ],
+      "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
+      "assertions": "tests/unit/task-results.test.ts :: P7-RESULT-U03 submitted and verified minimum states require exact known necessary proof",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p7.unit-task-results.004",
+      "name": "P7-RESULT-U04 exact ref digest and historical input cannot float to latest head",
+      "suiteId": "unit-task-results",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p7-task-results"
+      ],
+      "scenario": "P7-RESULT-U04 exact ref digest and historical input cannot float to latest head",
+      "impactTags": [
+        "p7-task-results"
+      ],
+      "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
+      "assertions": "tests/unit/task-results.test.ts :: P7-RESULT-U04 exact ref digest and historical input cannot float to latest head",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p7.unit-task-results.005",
+      "name": "P7-RESULT-U05 partial or mismatched publication cannot move head or mutate ledger",
+      "suiteId": "unit-task-results",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p7-task-results"
+      ],
+      "scenario": "P7-RESULT-U05 partial or mismatched publication cannot move head or mutate ledger",
+      "impactTags": [
+        "p7-task-results"
+      ],
+      "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
+      "assertions": "tests/unit/task-results.test.ts :: P7-RESULT-U05 partial or mismatched publication cannot move head or mutate ledger",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p7.unit-task-results.006",
+      "name": "P7-RESULT-U06 identical command returns original receipt despite later revisions and conflict CAS reject",
+      "suiteId": "unit-task-results",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p7-task-results"
+      ],
+      "scenario": "P7-RESULT-U06 identical command returns original receipt despite later revisions and conflict CAS reject",
+      "impactTags": [
+        "p7-task-results"
+      ],
+      "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
+      "assertions": "tests/unit/task-results.test.ts :: P7-RESULT-U06 identical command returns original receipt despite later revisions and conflict CAS reject",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p7.unit-task-results.007",
+      "name": "P7-RESULT-U07 late generation draft cannot submit after newer producer and wrong scope rejects",
+      "suiteId": "unit-task-results",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p7-task-results"
+      ],
+      "scenario": "P7-RESULT-U07 late generation draft cannot submit after newer producer and wrong scope rejects",
+      "impactTags": [
+        "p7-task-results"
+      ],
+      "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
+      "assertions": "tests/unit/task-results.test.ts :: P7-RESULT-U07 late generation draft cannot submit after newer producer and wrong scope rejects",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p7.unit-task-results.008",
+      "name": "P7-RESULT-U08 head advancement transitively invalidates derived versions and in-flight consumers",
+      "suiteId": "unit-task-results",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p7-task-results"
+      ],
+      "scenario": "P7-RESULT-U08 head advancement transitively invalidates derived versions and in-flight consumers",
+      "impactTags": [
+        "p7-task-results"
+      ],
+      "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
+      "assertions": "tests/unit/task-results.test.ts :: P7-RESULT-U08 head advancement transitively invalidates derived versions and in-flight consumers",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p7.unit-task-results.009",
+      "name": "P7-RESULT-U09 unaffected branches stay ready and fresh attempts can consume replacement version",
+      "suiteId": "unit-task-results",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p7-task-results"
+      ],
+      "scenario": "P7-RESULT-U09 unaffected branches stay ready and fresh attempts can consume replacement version",
+      "impactTags": [
+        "p7-task-results"
+      ],
+      "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
+      "assertions": "tests/unit/task-results.test.ts :: P7-RESULT-U09 unaffected branches stay ready and fresh attempts can consume replacement version",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p7.unit-task-results.010",
+      "name": "P7-RESULT-U10 invalidated results cannot revive or verify and historical proof is retained",
+      "suiteId": "unit-task-results",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p7-task-results"
+      ],
+      "scenario": "P7-RESULT-U10 invalidated results cannot revive or verify and historical proof is retained",
+      "impactTags": [
+        "p7-task-results"
+      ],
+      "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
+      "assertions": "tests/unit/task-results.test.ts :: P7-RESULT-U10 invalidated results cannot revive or verify and historical proof is retained",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p7.unit-task-results.011",
+      "name": "P7-RESULT-U11 frozen consumer inputs and proof scope candidate contract bindings cannot be substituted",
+      "suiteId": "unit-task-results",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p7-task-results"
+      ],
+      "scenario": "P7-RESULT-U11 frozen consumer inputs and proof scope candidate contract bindings cannot be substituted",
+      "impactTags": [
+        "p7-task-results"
+      ],
+      "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
+      "assertions": "tests/unit/task-results.test.ts :: P7-RESULT-U11 frozen consumer inputs and proof scope candidate contract bindings cannot be substituted",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p7.unit-task-results.012",
+      "name": "P7-RESULT-U12 canonical request digest and immutable events do not depend on object key order",
+      "suiteId": "unit-task-results",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p7-task-results"
+      ],
+      "scenario": "P7-RESULT-U12 canonical request digest and immutable events do not depend on object key order",
+      "impactTags": [
+        "p7-task-results"
+      ],
+      "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
+      "assertions": "tests/unit/task-results.test.ts :: P7-RESULT-U12 canonical request digest and immutable events do not depend on object key order",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p7.unit-task-results.013",
+      "name": "P7-RESULT-U13 head replacement cannot revive its own transitively invalidated draft inputs",
+      "suiteId": "unit-task-results",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p7-task-results"
+      ],
+      "scenario": "P7-RESULT-U13 head replacement cannot revive its own transitively invalidated draft inputs",
+      "impactTags": [
+        "p7-task-results"
+      ],
+      "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
+      "assertions": "tests/unit/task-results.test.ts :: P7-RESULT-U13 head replacement cannot revive its own transitively invalidated draft inputs",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p7.unit-task-results.014",
+      "name": "P7-RESULT-U14 current producer cannot freeze dependencies from a different contract scope",
+      "suiteId": "unit-task-results",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p7-task-results"
+      ],
+      "scenario": "P7-RESULT-U14 current producer cannot freeze dependencies from a different contract scope",
+      "impactTags": [
+        "p7-task-results"
+      ],
+      "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
+      "assertions": "tests/unit/task-results.test.ts :: P7-RESULT-U14 current producer cannot freeze dependencies from a different contract scope",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-goal-followup.013",
+      "name": "P6-GOAL-I13 enriched follow-up atomically binds actual active and delivered-child contracts with original proof and costs",
+      "suiteId": "integration-goal-followup",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-followup-persistence"
+      ],
+      "scenario": "P6-GOAL-I13 enriched follow-up atomically binds actual active and delivered-child contracts with original proof and costs",
+      "impactTags": [
+        "p6-followup-persistence"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
+      "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I13 enriched follow-up atomically binds actual active and delivered-child contracts with original proof and costs",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-goal-followup.014",
+      "name": "P6-GOAL-I14 failed transition receipt rolls back message runtime plan and contract while keeping completed model accounting",
+      "suiteId": "integration-goal-followup",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-followup-persistence"
+      ],
+      "scenario": "P6-GOAL-I14 failed transition receipt rolls back message runtime plan and contract while keeping completed model accounting",
+      "impactTags": [
+        "p6-followup-persistence"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
+      "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I14 failed transition receipt rolls back message runtime plan and contract while keeping completed model accounting",
+      "cleanup": "Preserve formal evidence including failed attempts; close owned database handles and temporary workspaces",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-rules.001",
+      "name": "P6-CTRL-U01 immutable matrix binds exact specimen detector parameters expectation and full positive",
+      "suiteId": "unit-control-rules",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-U01 immutable matrix binds exact specimen detector parameters expectation and full positive",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real qualification matrix rules with explicit frozen descriptors and report fixtures; no live-model approval.",
+      "assertions": "tests/unit/control-rules.test.ts :: P6-CTRL-U01 immutable matrix binds exact specimen detector parameters expectation and full positive",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-rules.002",
+      "name": "P6-CTRL-U02 current target detector pass cannot be replaced by a historical or other detector failure",
+      "suiteId": "unit-control-rules",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-U02 current target detector pass cannot be replaced by a historical or other detector failure",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real qualification matrix rules with explicit frozen descriptors and report fixtures; no live-model approval.",
+      "assertions": "tests/unit/control-rules.test.ts :: P6-CTRL-U02 current target detector pass cannot be replaced by a historical or other detector failure",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-rules.003",
+      "name": "P6-CTRL-U03 error environment blocked not run and unknown can never count as expected failure",
+      "suiteId": "unit-control-rules",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-U03 error environment blocked not run and unknown can never count as expected failure",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real qualification matrix rules with explicit frozen descriptors and report fixtures; no live-model approval.",
+      "assertions": "tests/unit/control-rules.test.ts :: P6-CTRL-U03 error environment blocked not run and unknown can never count as expected failure",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-rules.004",
+      "name": "P6-CTRL-U04 missing duplicate substituted report and extraneous check cannot mask pair failure",
+      "suiteId": "unit-control-rules",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-U04 missing duplicate substituted report and extraneous check cannot mask pair failure",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real qualification matrix rules with explicit frozen descriptors and report fixtures; no live-model approval.",
+      "assertions": "tests/unit/control-rules.test.ts :: P6-CTRL-U04 missing duplicate substituted report and extraneous check cannot mask pair failure",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-rules.005",
+      "name": "P6-CTRL-U05 witness binds actual executed failed obligation parameters specimen bytes and proof refs",
+      "suiteId": "unit-control-rules",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-U05 witness binds actual executed failed obligation parameters specimen bytes and proof refs",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real qualification matrix rules with explicit frozen descriptors and report fixtures; no live-model approval.",
+      "assertions": "tests/unit/control-rules.test.ts :: P6-CTRL-U05 witness binds actual executed failed obligation parameters specimen bytes and proof refs",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-rules.006",
+      "name": "P6-CTRL-U06 safe schema rejects extra fields accessors sparse arrays duplicate scopes and witness IDs",
+      "suiteId": "unit-control-rules",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-U06 safe schema rejects extra fields accessors sparse arrays duplicate scopes and witness IDs",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real qualification matrix rules with explicit frozen descriptors and report fixtures; no live-model approval.",
+      "assertions": "tests/unit/control-rules.test.ts :: P6-CTRL-U06 safe schema rejects extra fields accessors sparse arrays duplicate scopes and witness IDs",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-rules.007",
+      "name": "P6-CTRL-U07 rehashed matrix still rejects detector expectation substitutions and unfrozen reports",
+      "suiteId": "unit-control-rules",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-U07 rehashed matrix still rejects detector expectation substitutions and unfrozen reports",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real qualification matrix rules with explicit frozen descriptors and report fixtures; no live-model approval.",
+      "assertions": "tests/unit/control-rules.test.ts :: P6-CTRL-U07 rehashed matrix still rejects detector expectation substitutions and unfrozen reports",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-rules.008",
+      "name": "P6-CTRL-U08 same-contract evolution cannot weaken required obligation or drop necessary parameter and defect coverage",
+      "suiteId": "unit-control-rules",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-U08 same-contract evolution cannot weaken required obligation or drop necessary parameter and defect coverage",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real qualification matrix rules with explicit frozen descriptors and report fixtures; no live-model approval.",
+      "assertions": "tests/unit/control-rules.test.ts :: P6-CTRL-U08 same-contract evolution cannot weaken required obligation or drop necessary parameter and defect coverage",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-rules.009",
+      "name": "P6-CTRL-U09 original controls cannot disappear and historical scope cannot silently exclude current qualification",
+      "suiteId": "unit-control-rules",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-U09 original controls cannot disappear and historical scope cannot silently exclude current qualification",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real qualification matrix rules with explicit frozen descriptors and report fixtures; no live-model approval.",
+      "assertions": "tests/unit/control-rules.test.ts :: P6-CTRL-U09 original controls cannot disappear and historical scope cannot silently exclude current qualification",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-rules.010",
+      "name": "P6-CTRL-U10 positive completeness requires all current obligations and all final parameter instances",
+      "suiteId": "unit-control-rules",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-U10 positive completeness requires all current obligations and all final parameter instances",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real qualification matrix rules with explicit frozen descriptors and report fixtures; no live-model approval.",
+      "assertions": "tests/unit/control-rules.test.ts :: P6-CTRL-U10 positive completeness requires all current obligations and all final parameter instances",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-rules.011",
+      "name": "P6-CTRL-U11 explicit applied retirement preserves old negative witness while current full spec uses new scope",
+      "suiteId": "unit-control-rules",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-U11 explicit applied retirement preserves old negative witness while current full spec uses new scope",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real qualification matrix rules with explicit frozen descriptors and report fixtures; no live-model approval.",
+      "assertions": "tests/unit/control-rules.test.ts :: P6-CTRL-U11 explicit applied retirement preserves old negative witness while current full spec uses new scope",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-rules.012",
+      "name": "P6-CTRL-U12 retirement rejects bare contract change missing review historical source and incomplete criterion delta",
+      "suiteId": "unit-control-rules",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-U12 retirement rejects bare contract change missing review historical source and incomplete criterion delta",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real qualification matrix rules with explicit frozen descriptors and report fixtures; no live-model approval.",
+      "assertions": "tests/unit/control-rules.test.ts :: P6-CTRL-U12 retirement rejects bare contract change missing review historical source and incomplete criterion delta",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-rules.013",
+      "name": "P6-CTRL-U13 authorized addition cannot retire an unchanged old requirement or lose old witness",
+      "suiteId": "unit-control-rules",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-U13 authorized addition cannot retire an unchanged old requirement or lose old witness",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real qualification matrix rules with explicit frozen descriptors and report fixtures; no live-model approval.",
+      "assertions": "tests/unit/control-rules.test.ts :: P6-CTRL-U13 authorized addition cannot retire an unchanged old requirement or lose old witness",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-rules.014",
+      "name": "P6-CTRL-U14 unknown or duplicated specimen transition and reused definition digest are refused",
+      "suiteId": "unit-control-rules",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-U14 unknown or duplicated specimen transition and reused definition digest are refused",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real qualification matrix rules with explicit frozen descriptors and report fixtures; no live-model approval.",
+      "assertions": "tests/unit/control-rules.test.ts :: P6-CTRL-U14 unknown or duplicated specimen transition and reused definition digest are refused",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-rules.015",
+      "name": "P6-CTRL-U15 frozen matrix expected fail requires exact witness and extra checks cannot satisfy missing obligations",
+      "suiteId": "unit-control-rules",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-U15 frozen matrix expected fail requires exact witness and extra checks cannot satisfy missing obligations",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real qualification matrix rules with explicit frozen descriptors and report fixtures; no live-model approval.",
+      "assertions": "tests/unit/control-rules.test.ts :: P6-CTRL-U15 frozen matrix expected fail requires exact witness and extra checks cannot satisfy missing obligations",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-rules.016",
+      "name": "P6-CTRL-U16 fresh applied message authorizes criterion delta without being duplicated in clarification ancestors",
+      "suiteId": "unit-control-rules",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-U16 fresh applied message authorizes criterion delta without being duplicated in clarification ancestors",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real qualification matrix rules with explicit frozen descriptors and report fixtures; no live-model approval.",
+      "assertions": "tests/unit/control-rules.test.ts :: P6-CTRL-U16 fresh applied message authorizes criterion delta without being duplicated in clarification ancestors",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-rules.017",
+      "name": "P6-CTRL-U17 empty criterion delta allows a fully bound continuation contract version while preserving all obligations",
+      "suiteId": "unit-control-rules",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-U17 empty criterion delta allows a fully bound continuation contract version while preserving all obligations",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real qualification matrix rules with explicit frozen descriptors and report fixtures; no live-model approval.",
+      "assertions": "tests/unit/control-rules.test.ts :: P6-CTRL-U17 empty criterion delta allows a fully bound continuation contract version while preserving all obligations",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-rules.018",
+      "name": "P6-CTRL-U18 retired scope duplicate mapping cannot disguise qualification exclusions",
+      "suiteId": "unit-control-rules",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-U18 retired scope duplicate mapping cannot disguise qualification exclusions",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real qualification matrix rules with explicit frozen descriptors and report fixtures; no live-model approval.",
+      "assertions": "tests/unit/control-rules.test.ts :: P6-CTRL-U18 retired scope duplicate mapping cannot disguise qualification exclusions",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-rules.019",
+      "name": "P6-CTRL-U19 historical full positive cannot silently narrow its original frozen scope",
+      "suiteId": "unit-control-rules",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-U19 historical full positive cannot silently narrow its original frozen scope",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real qualification matrix rules with explicit frozen descriptors and report fixtures; no live-model approval.",
+      "assertions": "tests/unit/control-rules.test.ts :: P6-CTRL-U19 historical full positive cannot silently narrow its original frozen scope",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-rules.020",
+      "name": "P6-CTRL-U20 standards version cannot be reused for semantically changed authorized contract obligations",
+      "suiteId": "unit-control-rules",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-U20 standards version cannot be reused for semantically changed authorized contract obligations",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real qualification matrix rules with explicit frozen descriptors and report fixtures; no live-model approval.",
+      "assertions": "tests/unit/control-rules.test.ts :: P6-CTRL-U20 standards version cannot be reused for semantically changed authorized contract obligations",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-rules.021",
+      "name": "P6-CTRL-U21 every declared target control has exactly one current specimen and every required obligation has a negative control",
+      "suiteId": "unit-control-rules",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-U21 every declared target control has exactly one current specimen and every required obligation has a negative control",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real qualification matrix rules with explicit frozen descriptors and report fixtures; no live-model approval.",
+      "assertions": "tests/unit/control-rules.test.ts :: P6-CTRL-U21 every declared target control has exactly one current specimen and every required obligation has a negative control",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-control-rules.022",
+      "name": "P6-CTRL-U22 successor must rerun the exact original detector and cannot substitute a new definition or instance",
+      "suiteId": "unit-control-rules",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-U22 successor must rerun the exact original detector and cannot substitute a new definition or instance",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real qualification matrix rules with explicit frozen descriptors and report fixtures; no live-model approval.",
+      "assertions": "tests/unit/control-rules.test.ts :: P6-CTRL-U22 successor must rerun the exact original detector and cannot substitute a new definition or instance",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-qualification.001",
+      "name": "P6-CTRL-I01 actual old and current detectors qualify a successor preserving fault plus complete new positive feature",
+      "suiteId": "integration-control-qualification",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-I01 actual old and current detectors qualify a successor preserving fault plus complete new positive feature",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real immutable files and actual permission-limited P4 Node command processes, identity/stop and output proofs; no model approval is fabricated.",
+      "assertions": "tests/integration/control-qualification.test.ts :: P6-CTRL-I01 actual old and current detectors qualify a successor preserving fault plus complete new positive feature",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-qualification.002",
+      "name": "P6-CTRL-I02 always passing current detector is disqualified despite actual historical original detector failure",
+      "suiteId": "integration-control-qualification",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-I02 always passing current detector is disqualified despite actual historical original detector failure",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real immutable files and actual permission-limited P4 Node command processes, identity/stop and output proofs; no model approval is fabricated.",
+      "assertions": "tests/integration/control-qualification.test.ts :: P6-CTRL-I02 always passing current detector is disqualified despite actual historical original detector failure",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-qualification.003",
+      "name": "P6-CTRL-I03 actual verifier crash is an error not a qualifying expected defect failure",
+      "suiteId": "integration-control-qualification",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-I03 actual verifier crash is an error not a qualifying expected defect failure",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real immutable files and actual permission-limited P4 Node command processes, identity/stop and output proofs; no model approval is fabricated.",
+      "assertions": "tests/integration/control-qualification.test.ts :: P6-CTRL-I03 actual verifier crash is an error not a qualifying expected defect failure",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-qualification.004",
+      "name": "P6-CTRL-I04 complete new positive really runs final new feature and cannot qualify by old scope pass",
+      "suiteId": "integration-control-qualification",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-I04 complete new positive really runs final new feature and cannot qualify by old scope pass",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real immutable files and actual permission-limited P4 Node command processes, identity/stop and output proofs; no model approval is fabricated.",
+      "assertions": "tests/integration/control-qualification.test.ts :: P6-CTRL-I04 complete new positive really runs final new feature and cannot qualify by old scope pass",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-qualification.005",
+      "name": "P6-CTRL-I05 original incompatible negative retains reports but cannot qualify a missing unrelated new behavior",
+      "suiteId": "integration-control-qualification",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-I05 original incompatible negative retains reports but cannot qualify a missing unrelated new behavior",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real immutable files and actual permission-limited P4 Node command processes, identity/stop and output proofs; no model approval is fabricated.",
+      "assertions": "tests/integration/control-qualification.test.ts :: P6-CTRL-I05 original incompatible negative retains reports but cannot qualify a missing unrelated new behavior",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-qualification.006",
+      "name": "P6-CTRL-I06 frozen old successor trees and historical witness proof bytes cannot be overwritten or quietly changed",
+      "suiteId": "integration-control-qualification",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-I06 frozen old successor trees and historical witness proof bytes cannot be overwritten or quietly changed",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real immutable files and actual permission-limited P4 Node command processes, identity/stop and output proofs; no model approval is fabricated.",
+      "assertions": "tests/integration/control-qualification.test.ts :: P6-CTRL-I06 frozen old successor trees and historical witness proof bytes cannot be overwritten or quietly changed",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-qualification.007",
+      "name": "P6-CTRL-I07 independent review includes full old new source diffs actual pairs and blocks truncation",
+      "suiteId": "integration-control-qualification",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-I07 independent review includes full old new source diffs actual pairs and blocks truncation",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real immutable files and actual permission-limited P4 Node command processes, identity/stop and output proofs; no model approval is fabricated.",
+      "assertions": "tests/integration/control-qualification.test.ts :: P6-CTRL-I07 independent review includes full old new source diffs actual pairs and blocks truncation",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-qualification.008",
+      "name": "P6-CTRL-I08 same verifier version cannot point to changed code even with a new case revision",
+      "suiteId": "integration-control-qualification",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-I08 same verifier version cannot point to changed code even with a new case revision",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real immutable files and actual permission-limited P4 Node command processes, identity/stop and output proofs; no model approval is fabricated.",
+      "assertions": "tests/integration/control-qualification.test.ts :: P6-CTRL-I08 same verifier version cannot point to changed code even with a new case revision",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-qualification.009",
+      "name": "P6-CTRL-I09 matrix mutation or missing frozen current specimen refuses dispatch before process creation",
+      "suiteId": "integration-control-qualification",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-I09 matrix mutation or missing frozen current specimen refuses dispatch before process creation",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real immutable files and actual permission-limited P4 Node command processes, identity/stop and output proofs; no model approval is fabricated.",
+      "assertions": "tests/integration/control-qualification.test.ts :: P6-CTRL-I09 matrix mutation or missing frozen current specimen refuses dispatch before process creation",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-qualification.010",
+      "name": "P6-CTRL-I10 cancelled qualification does not launch new commands or fabricate pair reports",
+      "suiteId": "integration-control-qualification",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-I10 cancelled qualification does not launch new commands or fabricate pair reports",
+      "impactTags": [
+        "p6-control-qualification"
+      ],
+      "prerequisites": "Pinned Node; real immutable files and actual permission-limited P4 Node command processes, identity/stop and output proofs; no model approval is fabricated.",
+      "assertions": "tests/integration/control-qualification.test.ts :: P6-CTRL-I10 cancelled qualification does not launch new commands or fabricate pair reports",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
       "status": "active"
     }
   ]

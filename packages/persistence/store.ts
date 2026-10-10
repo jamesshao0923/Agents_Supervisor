@@ -1,3 +1,4 @@
+import { VerificationLineageRepository } from './verification-lineage.js';
 import { SupervisionRepository } from './supervision.js';
 import { SupervisionInterruptionRepository } from './supervision-interruptions.js';
 import { SupervisionMonitorRepository } from './supervision-monitor.js';
@@ -45,6 +46,7 @@ export class SupervisorStore {
   readonly supervisionMonitor: SupervisionMonitorRepository;
   readonly conversations: ConversationRepository;
   readonly verification: VerificationRepository;
+  readonly verificationLineage: VerificationLineageRepository;
   private readonly root: string;
   private readonly objects: string;
   private readonly fault: ((point: string) => void) | undefined;
@@ -61,7 +63,7 @@ export class SupervisorStore {
     const database = resolve(this.root, 'supervisor.sqlite');
     if (existsSync(database) && lstatSync(database).isSymbolicLink()) throw new Error('Database cannot be a symbolic link');
     this.db = new DatabaseSync(database);
-    try { migrate(this.db); } catch (error) { this.db.close(); throw error; }
+    try { migrate(this.db); new VerificationLineageRepository(this.db).migrateLegacyBindings({commandId:'schema10-legacy-bindings'}); } catch (error) { this.db.close(); throw error; }
     this.runtime = new RuntimeRepository(this.db);
     this.goals = new GoalRepository(this.db);
     this.supervision = new SupervisionRepository(this.db);
@@ -69,6 +71,7 @@ export class SupervisorStore {
     this.supervisionMonitor = new SupervisionMonitorRepository(this.db);
     this.conversations = new ConversationRepository(this.db);
     this.verification = new VerificationRepository(this.db);
+    this.verificationLineage = new VerificationLineageRepository(this.db);
   }
 
   managedSnapshot(content: string): {path:string;digest:string} { return this.snapshot(content); }
@@ -165,6 +168,7 @@ export class SupervisorStore {
         const run = createRun(command.input);
         this.db.prepare('INSERT INTO runs(project_id,id,revision,snapshot) VALUES (?,?,?,?)')
           .run(run.projectId, run.id, run.revision, canonical(run));
+        this.verificationLineage.bindRoot({commandId:'lineage-root:'+command.commandId,projectId:run.projectId,runId:run.id});
         return { projectId: run.projectId, runId: run.id, value: run, events: [] };
       }
       case 'act': {
