@@ -1,3 +1,4 @@
+import { VerificationRepository } from './verification.js';
 import { RuntimeRepository } from './runtime.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { closeSync, existsSync, fsyncSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
@@ -33,6 +34,7 @@ function digest(content: string | Uint8Array): string {
 export class SupervisorStore {
   private readonly db: DatabaseSync;
   readonly runtime: RuntimeRepository;
+  readonly verification: VerificationRepository;
   private readonly root: string;
   private readonly objects: string;
   private readonly fault: ((point: string) => void) | undefined;
@@ -51,8 +53,11 @@ export class SupervisorStore {
     this.db = new DatabaseSync(database);
     try { migrate(this.db); } catch (error) { this.db.close(); throw error; }
     this.runtime = new RuntimeRepository(this.db);
+    this.verification = new VerificationRepository(this.db);
   }
 
+  managedSnapshot(content: string): {path:string;digest:string} { return this.snapshot(content); }
+  isManagedProject(projectId: string): boolean { return !!this.db.prepare('SELECT id FROM runtime_runs WHERE project_id=? UNION ALL SELECT id FROM executions WHERE project_id=? LIMIT 1').get(projectId,projectId); }
   close(): void { this.db.close(); }
 
   executionCreate(input: ResolvedExecutionStart, binding?: import('../contracts/p3.js').RuntimeBinding) { return executionCreate(this.db, input, binding); }

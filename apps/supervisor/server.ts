@@ -1,3 +1,4 @@
+import { VerificationController } from '../../packages/verification/controller.js';
 import { LocalRuntimeAdapter } from '../../packages/runtime/index.js';
 import { createServer, createConnection, type Socket } from 'node:net';
 import { chmodSync, closeSync, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
@@ -70,6 +71,7 @@ export async function startService(directory: string): Promise<{ socket: string;
   let store: SupervisorStore | undefined;
   let manager: ExecutionManager | undefined;
   let runtime: LocalRuntimeAdapter | undefined;
+  let verification: VerificationController | undefined;
   const connections = new Set<Socket>();
   const server = createServer({ allowHalfOpen: true }, socket => {
     connections.add(socket);
@@ -95,14 +97,17 @@ export async function startService(directory: string): Promise<{ socket: string;
         id = request.id;
         if(request.method==='command') {
           const command=parseCommand(request.command);
+          if ('projectId' in command && ['proposeVerificationChange','publishVerificationChange'].includes(command.type) && store!.isManagedProject(command.projectId)) throw new Error('Managed project catalog changes must use independent verification review');
           if ('projectId' in command && 'runId' in command && store!.isManagedRun(command.projectId,command.runId)) throw new Error('Managed execution updates must use the execution controller');
         }
+        if(request.method==='runtime'&&request.action.type==='cancel')verification!.cancelRuntime(request.action.runtimeId);
         if(request.method==='execution'&&'executionId' in request.action&&['cancel','reconcile'].includes(request.action.type)&&store!.executionGet(request.action.executionId).runtimeBinding)throw new Error('Use runtime controller for durable activities');
         const result = request.method === 'command' ? store!.command(parseCommand(request.command))
           : request.method === 'query' ? store!.query(parseQuery(request.query))
           : request.method === 'execution' ? await manager!.dispatch(request.action)
+          : request.method === 'verification' ? await verification!.dispatch(request.action)
           : request.method === 'runtime' ? await runtime!.dispatch(request.action)
-          : request.method === 'health' ? { status: 'ready', stage: 'P3', modelExecution: true, workspaceManagement: 'path-v1', durableRuntime: 'local-v1', runtime: await runtime!.health() }
+          : request.method === 'health' ? { status: 'ready', stage: 'P4', modelExecution: true, workspaceManagement: 'path-v1', durableRuntime: 'local-v1', runtime: await runtime!.health() }
           : (() => { throw new Error('Unknown request method'); })();
         response = { id, ok: true, value: result };
       } catch (error) { response = { id, ok: false, error: error instanceof Error ? error.message : String(error) }; }
@@ -115,6 +120,8 @@ export async function startService(directory: string): Promise<{ socket: string;
     manager = new ExecutionManager(store,dataDir,undefined,{scope:'legacy'});
     runtime = new LocalRuntimeAdapter(store,dataDir);
     await manager.initialize();
+    verification = new VerificationController(store,dataDir);
+    await verification.initialize();
     if(store.runtime.list().some(r=>!['awaiting-verification','cancelled'].includes(r.phase)) || store.runtime.operations().some(o=>['claimed','started','unknown'].includes(o.state)) || store.executionList().some(e=>e.runtimeBinding&&!e.stopConfirmed))await runtime.ensureWorker();
     server.maxConnections = 64;
     await new Promise<void>((resolvePromise, reject) => {
@@ -130,6 +137,7 @@ export async function startService(directory: string): Promise<{ socket: string;
       closing ??= new Promise<void>((resolvePromise, reject) => {
         for (const socket of connections) socket.destroy();
         server.close(async error => {
+          await verification!.close().catch(reject);
           await manager!.close().catch(reject);
           await runtime!.close().catch(reject);
           try { store!.close(); unlock(); if (error) reject(error); else resolvePromise(); }

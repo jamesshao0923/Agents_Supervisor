@@ -19,3 +19,7 @@ for (const file of ['main.cjs', 'preload.cjs', 'index.html', 'styles.css']) {
   copyFileSync(new URL(`../apps/desktop/${file}`, import.meta.url), new URL(file, desktop));
 }
 await build({ entryPoints: [fileURLToPath(new URL('../apps/desktop/renderer.tsx', import.meta.url))], outfile: fileURLToPath(new URL('renderer.js', desktop)), bundle: true, platform: 'browser', format: 'iife', jsx: 'automatic', sourcemap: true, define: { 'process.env.NODE_ENV': '"production"' } });
+
+const verificationUi = new URL('../dist/apps/verification-ui/', import.meta.url);
+mkdirSync(verificationUi, {recursive:true});
+copyFileSync(new URL('../apps/verification-ui/main.cjs',import.meta.url),new URL('main.cjs',verificationUi));

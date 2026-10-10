@@ -18,7 +18,7 @@ async function main(): Promise<void> {
   const allowed: Record<string, string[]> = {
     run: ['--root', '--stage', '--layer', '--modules', '--reason'], check: ['--root', '--run'], doctor: ['--root'], boundaries: ['--root'],
   };
-  if (!command || !allowed[command] || Object.keys(options).some(key => !allowed[command]!.includes(key))) throw new Error('Usage: cli.js run [--stage P0|P1|P2|P3] [--layer unit|integration|live] [--modules module,tag] [--reason text], check --run path, doctor, boundaries');
+  if (!command || !allowed[command] || Object.keys(options).some(key => !allowed[command]!.includes(key))) throw new Error('Usage: cli.js run [--stage P0|P1|P2|P3|P4] [--layer unit|integration|live] [--modules module,tag] [--reason text], check --run path, doctor, boundaries');
   const root = resolve(options['--root'] ?? process.cwd());
   if (command === 'doctor') {
     const report = await probeEnvironment(root);
@@ -49,10 +49,10 @@ async function main(): Promise<void> {
     process.exitCode = result.passed ? 0 : 1;
     return;
   }
-  if (options['--stage'] && !['P0', 'P1', 'P2', 'P3'].includes(options['--stage'])) throw new Error('Only P0, P1, P2 and P3 are supported; later stages are NOT PASSED');
+  if (options['--stage'] && !['P0', 'P1', 'P2', 'P3', 'P4'].includes(options['--stage'])) throw new Error('Only P0, P1, P2, P3 and P4 are supported; later stages are NOT PASSED');
   if (options['--layer'] && !['unit', 'integration', 'live'].includes(options['--layer'])) throw new Error('Invalid test layer');
   const layer = options['--layer'] as TestLayer | undefined;
-  const stage = (options['--stage'] ?? 'P3') as ImplementedStage;
+  const stage = (options['--stage'] ?? 'P4') as ImplementedStage;
   const modules = options['--modules']?.split(',').map(value => value.trim());
   const plan = await loadSelection(root, stage, { ...(layer ? { layer } : {}), ...(modules ? { modules } : {}) });
   const { dir, result } = await runStage(root, plan.manifest, { selection: plan.selection, reason: options['--reason'] ?? 'Explicit developer invocation; no automatic retries' });

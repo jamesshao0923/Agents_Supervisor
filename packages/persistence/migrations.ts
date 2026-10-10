@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 const migrations = [
   `CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
@@ -55,7 +55,11 @@ const migrations = [
    CREATE TABLE runtime_checkpoints(id TEXT PRIMARY KEY, runtime_id TEXT NOT NULL REFERENCES runtime_runs(id), digest TEXT NOT NULL, record TEXT NOT NULL CHECK(json_valid(record)));
    CREATE TABLE runtime_events(seq INTEGER PRIMARY KEY AUTOINCREMENT, runtime_id TEXT NOT NULL REFERENCES runtime_runs(id), kind TEXT NOT NULL, payload TEXT NOT NULL CHECK(json_valid(payload)), created_at TEXT NOT NULL);
    CREATE INDEX runtime_events_cursor ON runtime_events(runtime_id,seq);`,
-
+  `CREATE TABLE verification_records(kind TEXT NOT NULL CHECK(kind IN ('proposal','plan','job','delivery')), id TEXT NOT NULL,
+     project_id TEXT NOT NULL, run_id TEXT NOT NULL, record TEXT NOT NULL CHECK(json_valid(record)), PRIMARY KEY(kind,id),
+     FOREIGN KEY(project_id,run_id) REFERENCES runs(project_id,id));
+   CREATE TABLE verification_product_heads(project_id TEXT PRIMARY KEY REFERENCES projects(id), proposal_id TEXT NOT NULL);
+   CREATE TABLE verification_product_receipts(command_id TEXT PRIMARY KEY, request TEXT NOT NULL CHECK(json_valid(request)), result TEXT NOT NULL CHECK(json_valid(result)));`,
 ];
 
 export function migrate(db: DatabaseSync): void {

@@ -74,5 +74,5 @@ export type Query =
   | { type: 'catalog'; projectId: string }
   | { type: 'changes'; projectId: string }
   | { type: 'plans'; projectId: string; runId: string };
-export type Request = { id: string } & ({ method: 'command'; command: Command } | { method: 'query'; query: Query } | { method: 'health' } | { method: 'execution'; action: import('./p2.js').ExecutionAction } | { method: 'runtime'; action: import('./p3.js').RuntimeAction });
+export type Request = { id: string } & ({ method: 'command'; command: Command } | { method: 'query'; query: Query } | { method: 'health' } | { method: 'execution'; action: import('./p2.js').ExecutionAction } | { method: 'verification'; action: import('../verification/records.js').VerificationAction } | { method: 'runtime'; action: import('./p3.js').RuntimeAction });
 export type Response = { id: string; ok: true; value: unknown } | { id: string; ok: false; error: string };

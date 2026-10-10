@@ -1,3 +1,4 @@
+import { VerificationRepository } from './verification.js';
 import type { RuntimeBinding } from '../contracts/p3.js';
 import { RuntimeRepository } from './runtime.js';
 import { createHash } from 'node:crypto';
@@ -54,6 +55,7 @@ export function executionCreate(db: DatabaseSync, input: ResolvedExecutionStart,
       if(binding) { new RuntimeRepository(db).eligible(binding.operationId,binding.owner); if(record.runtimeBinding?.runtimeId!==binding.runtimeId)throw new Error('Runtime binding mismatch');record.runtimeBinding=binding;db.prepare('UPDATE executions SET record=? WHERE id=?').run(json(record),record.id); }
       db.exec('COMMIT'); return { record, created: false };
     }
+    new VerificationRepository(db).assertNoVerificationWriter(input.workspace);
     for (const record of executionList(db)) {
       const overlap = record.workspace === input.workspace || record.workspace.startsWith(input.workspace + sep) || input.workspace.startsWith(record.workspace + sep);
       if (overlap && !record.stopConfirmed) throw new Error('Workspace has an active or unverified writer; cancel or reconcile it before dispatch');

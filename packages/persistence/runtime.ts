@@ -1,3 +1,4 @@
+import { VerificationRepository } from './verification.js';
 import { createHash } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import { basename, sep } from 'node:path';
@@ -45,6 +46,7 @@ export class RuntimeRepository {
     return this.tx(()=>{
       const receipt=this.db.prepare('SELECT request,result FROM runtime_receipts WHERE command_id=?').get(input.commandId);
       if(receipt){ensure(receipt.request===runtimeCanonical(input),'Runtime commandId conflicts with prior request');return this.get(String(JSON.parse(String(receipt.result)).id));}
+      new VerificationRepository(this.db).assertNoVerificationWriter(input.workspace);
       const id='runtime-'+hash(input.commandId).slice(0,24),projectId='workspace-'+hash(input.workspace).slice(0,24),now=new Date().toISOString();
       for(const active of this.list().filter(r=>r.workspace===input.workspace||r.workspace.startsWith(input.workspace+sep)||input.workspace.startsWith(r.workspace+sep))) ensure(['cancelled','awaiting-verification'].includes(active.phase)&&this.operations(active.id).every(o=>['confirmed','cancelled'].includes(o.state)),'Workspace has unresolved runtime work');
       for(const row of this.db.prepare('SELECT record FROM executions').all()){const e=JSON.parse(String(row.record)) as {workspace:string;stopConfirmed:boolean};ensure(e.stopConfirmed||!(e.workspace===input.workspace||e.workspace.startsWith(input.workspace+sep)||input.workspace.startsWith(e.workspace+sep)),'Workspace has an active or unverified writer');}

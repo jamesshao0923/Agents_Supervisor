@@ -28,6 +28,12 @@ async function invoke(value) {
 }
 function execution(action) { return invoke({ method: 'execution', action }); }
 function runtime(action) { return invoke({ method: 'runtime', action }); }
+function verification(action) { return invoke({ method: 'verification', action }); }
+function reviewConfig(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(key => !['model', 'effort', 'reservation', 'timeoutMs'].includes(key))) throw new Error('Invalid verification model configuration');
+  if (!Number.isSafeInteger(value.reservation) || value.reservation < 1 || !Number.isSafeInteger(value.timeoutMs) || value.timeoutMs < 1000 || value.timeoutMs > 3600000) throw new Error('Invalid verification reservation or timeout');
+  return { model: id(value.model), effort: id(value.effort), reservation: value.reservation, timeoutMs: value.timeoutMs };
+}
 function register(channel, handler) {
   ipcMain.handle(`supervisor:${channel}`, (event, ...args) => { assertSender(event); return handler(...args); });
 }
@@ -52,6 +58,21 @@ function installBridge() {
   register('runtime-input', (runtimeId, commandId, stepId, text) => {
     if (typeof text !== 'string' || !text.trim() || text.length > 200000 || text.includes('\0')) throw new Error('Invalid runtime input');
     return runtime({ type: 'input', runtimeId: id(runtimeId), commandId: id(commandId), stepId: id(stepId), text });
+  });
+  register('verification-status', runtimeId => verification({ type: 'status', runtimeId: id(runtimeId) }));
+  register('verification-propose', (runtimeId, commandId, specPath) => {
+    if (typeof specPath !== 'string' || !specPath.startsWith('/') || specPath.length > 4096 || specPath.includes('\0')) throw new Error('Invalid verification spec path');
+    return verification({ type: 'propose', runtimeId: id(runtimeId), commandId: id(commandId), specPath });
+  });
+  register('verification-review', (proposalId, commandId, config) => verification({ type: 'review', proposalId: id(proposalId), commandId: id(commandId), ...reviewConfig(config) }));
+  register('verification-publish', (proposalId, reviewId, commandId) => verification({ type: 'publish', proposalId: id(proposalId), reviewId: id(reviewId), commandId: id(commandId) }));
+  register('verification-freeze', (runtimeId, commandId) => verification({ type: 'freeze', runtimeId: id(runtimeId), commandId: id(commandId), mode: 'final' }));
+  register('verification-run', (planId, commandId, config) => verification({ type: 'run', planId: id(planId), commandId: id(commandId), ...reviewConfig(config) }));
+  register('verification-deliver', (jobId, commandId) => verification({ type: 'deliver', jobId: id(jobId), commandId: id(commandId) }));
+  register('verification-cancel', jobId => verification({ type: 'cancel', jobId: id(jobId) }));
+  register('choose-verification-spec', async () => {
+    const result = await dialog.showOpenDialog(window, { title: '选择项目验收定义 JSON', properties: ['openFile'], filters: [{ name: '验收定义', extensions: ['json'] }] });
+    return result.canceled ? null : result.filePaths[0] || null;
   });
   register('list', () => execution({ type: 'list' }));
   register('inspect', executionId => execution({ type: 'inspect', executionId: id(executionId) }));

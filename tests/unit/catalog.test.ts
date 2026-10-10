@@ -100,7 +100,7 @@ test('catalog permits explained removed scope but refuses loss of necessary prof
 });
 
 test('profiles reject unknown stages stale references empty selection and uncovered necessary risks', () => {
-  assert.throws(() => parseProfile({ ...profile(), stage: 'P4' }), /stage/);
+  assert.throws(() => parseProfile({ ...profile(), stage: 'P5' }), /stage/);
   for (const key of ['caseIds', 'requiredRisks'] as const) assert.throws(() => parseProfile({ ...profile(), [key]: [] }));
   assert.throws(() => selectCases(catalog(), { ...profile(), caseIds: ['missing'] }), /unregistered case/);
   assert.throws(() => selectCases(catalog(), { ...profile(), requiredRisks: ['missing-risk'] }), /necessary risk/);

@@ -4,10 +4,13 @@ import type { ExecutionEvent, ExecutionRecord, ExecutionState, ExecutorCapabilit
 
 import type { RuntimeRecord, RuntimeSubmit, RuntimePhase, RuntimeOperation, RuntimeCheckpoint, RuntimeEvent } from '../../packages/contracts/p3.js';
 import type { Run } from '../../packages/contracts/p1.js';
+import type { Delivery, FrozenPlan, ModelConfig, Proposal, VerificationAction, VerificationJob } from '../../packages/verification/records.js';
 
 type StartInput = Omit<RuntimeSubmit, 'type'>;
 type StartResult = { accepted: true; record: RuntimeRecord } | { accepted: false; error: string };
 interface RuntimeInspection { runtime: RuntimeRecord; run: Run; operations: RuntimeOperation[]; checkpoints: { checkpoint: RuntimeCheckpoint; digest: string; valid: boolean }[] }
+interface VerificationStatus { proposals: Proposal[]; plans: FrozenPlan[]; jobs: VerificationJob[]; deliveries: Delivery[]; currentDelivery: { current: boolean; reason: string; delivery: Delivery | null } }
+type VerificationMutation = Exclude<VerificationAction, { type: 'status' | 'job' }>;
 interface TaskRecord {
   id: string; workspace: string; workspaceKind: 'project' | 'managed'; prompt: string; createdAt: string;
   state: ExecutionState | RuntimePhase; error: string | null; message: string;
@@ -37,6 +40,15 @@ interface DesktopAPI {
   runtimeCancel(id: string, commandId: string): Promise<RuntimeRecord>;
   runtimeReconcile(id: string, commandId: string): Promise<RuntimeRecord>;
   runtimeInput(id: string, commandId: string, stepId: string, text: string): Promise<RuntimeRecord>;
+  verificationStatus(id: string): Promise<VerificationStatus>;
+  verificationPropose(id: string, commandId: string, specPath: string): Promise<Proposal>;
+  verificationReview(proposalId: string, commandId: string, config: ModelConfig): Promise<VerificationJob>;
+  verificationPublish(proposalId: string, reviewId: string, commandId: string): Promise<Proposal>;
+  verificationFreeze(id: string, commandId: string): Promise<FrozenPlan>;
+  verificationRun(planId: string, commandId: string, config: ModelConfig): Promise<VerificationJob>;
+  verificationDeliver(jobId: string, commandId: string): Promise<Delivery>;
+  verificationCancel(jobId: string): Promise<VerificationJob>;
+  chooseVerificationSpec(): Promise<string | null>;
   cancel(id: string): Promise<ExecutionRecord>;
   reconcile(id: string): Promise<ExecutionRecord>;
   chooseWorkspace(): Promise<string | null>;
@@ -65,9 +77,9 @@ function Icon({ name, size = 16 }: { name: 'plus' | 'grid' | 'folder' | 'arrow' 
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
 }
-function Status({ record }: { record: TaskRecord }) {
+function Status({ record, delivered = false }: { record: TaskRecord; delivered?: boolean }) {
   const color = ['failed', 'unknown', 'interrupted', 'blocked'].includes(record.state) ? 'failed' : ['cancelled', 'completed', 'awaiting-verification', 'paused', 'waiting-input'].includes(record.state) ? 'stopped' : '';
-  return <span className={`agent-status ${color}`}><i className="dot"/>{statusLabel(record)}</span>;
+  return <span className={`agent-status ${color}`}><i className="dot"/>{delivered ? '当前交付有效 · 独立验收通过' : statusLabel(record)}</span>;
 }
 function EventItem({ event }: { event: ExecutionEvent }) {
   return <li className="event"><div className="event-meta"><span>{event.kind}</span><time>{time(event.receivedAt)}</time></div><pre>{typeof event.payload === 'string' ? event.payload : JSON.stringify(event.payload, null, 2)}</pre></li>;
@@ -78,6 +90,19 @@ function App() {
   const [runtimeDetail, setRuntimeDetail] = useState<RuntimeInspection | null>(null);
   const [runtimeEvents, setRuntimeEvents] = useState<RuntimeEvent[]>([]);
   const [inputText, setInputText] = useState('');
+  const [verificationData, setVerificationData] = useState<{ runtimeId: string; value: VerificationStatus; checkedAt: string } | null>(null);
+  const [verificationError, setVerificationError] = useState('');
+  const [verificationReadError, setVerificationReadError] = useState('');
+  const [verificationLoading, setVerificationLoading] = useState(false);
+  const [verificationRevision, setVerificationRevision] = useState(0);
+  const [specPath, setSpecPath] = useState('');
+  const [proposalId, setProposalId] = useState('');
+  const [planId, setPlanId] = useState('');
+  const [reviewModel, setReviewModel] = useState('');
+  const [reviewEffort, setReviewEffort] = useState('');
+  const [reviewReservation, setReviewReservation] = useState(20000);
+  const [reviewTimeout, setReviewTimeout] = useState(300);
+  const [verificationPending, setVerificationPending] = useState<{ runtimeId: string; action: VerificationMutation } | null>(null);
   const records = taskViews(runtimes, executions);
   const [connection, setConnection] = useState<'connecting' | 'online' | 'offline' | 'detached'>('connecting');
   const [monitoring, setMonitoring] = useState(true);
@@ -107,6 +132,8 @@ function App() {
   const [pending, setPending] = useState<StartInput | null>(null);
   const pendingRef = useRef<StartInput | null>(null);
   const capabilityLoading = useRef(false);
+  const selectedRef = useRef(selected); selectedRef.current = selected;
+  const verificationPendingRef = useRef<typeof verificationPending>(null);
   const chosen = records.find(record => record.id === selected) ?? null;
   const chosenRuntime = chosen?.runtime;
   const chosenExecution = chosen?.execution;
@@ -114,6 +141,16 @@ function App() {
   const waitingStep = chosenRuntime?.definition.steps[chosenRuntime.cursor];
   const isRuntime = Boolean(chosenRuntime);
   const childExecutionId = chosenExecution?.id;
+  const verification = verificationData?.runtimeId === selected ? verificationData.value : null;
+  const newest = <T extends { createdAt: string }>(values: T[]): T[] => values.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const proposal = verification?.proposals.find(value => value.id === proposalId) ?? (verification ? newest(verification.proposals)[0] : undefined);
+  const plan = verification?.plans.find(value => value.id === planId) ?? (verification ? newest(verification.plans)[0] : undefined);
+  const jobs = verification?.jobs.slice().sort((a, b) => b.startedAt.localeCompare(a.startedAt)) ?? [];
+  const reviewJob = jobs.find(job => job.kind === 'review' && job.proposalId === proposal?.id);
+  const verificationJob = jobs.find(job => job.kind === 'verification' && job.planId === plan?.id);
+  const activeVerificationJob = jobs.find(job => job.status === 'running');
+  const reviewCapability = capabilities?.models.find(value => value.id === reviewModel);
+  const availableBudget = detail ? Math.max(0, detail.run.budget.limit - detail.run.budget.spent - detail.run.attempts.filter(attempt => !attempt.settled).reduce((sum, attempt) => sum + attempt.reservation, 0)) : null;
   const visible = records.filter(record => record.workspace === project);
   const projects = Array.from(new Set(records.map(record => record.workspace))).map(path => ({
     path, tasks: records.filter(record => record.workspace === path),
@@ -161,6 +198,36 @@ function App() {
     return () => { ended = true; globalThis.clearTimeout(timer); };
   }, [monitoring, revision]);
   useEffect(() => { if (connection === 'online' && composer && !capabilities && !capError) void loadCapabilities(); }, [connection, composer, capabilities, capError, loadCapabilities]);
+  useEffect(() => {
+    setSpecPath(''); setProposalId(''); setPlanId(''); setVerificationError(''); setVerificationReadError(''); setVerificationData(null);
+    setReviewModel(chosenExecution?.model || model); setReviewEffort(chosenExecution?.effort || effort);
+    setReviewReservation(chosenRuntime?.definition.verificationReserve || 20000);
+  }, [selected]);
+  useEffect(() => {
+    if (connection === 'online' && chosenRuntime?.phase === 'awaiting-verification' && !capabilities && !capError) void loadCapabilities();
+    if (!reviewModel && model) { setReviewModel(model); setReviewEffort(effort); }
+  }, [connection, chosenRuntime?.phase, capabilities, capError, loadCapabilities, model, effort, reviewModel]);
+  useEffect(() => {
+    if (!selected || !isRuntime || !monitoring || connection !== 'online') { setVerificationLoading(false); return; }
+    const runtimeId = selected; let ended = false;
+    let timer: ReturnType<typeof globalThis.setTimeout>;
+    async function poll() {
+      setVerificationLoading(true);
+      try {
+        const value = await api.verificationStatus(runtimeId);
+        if (ended) return;
+        setVerificationData({ runtimeId, value, checkedAt: new Date().toISOString() }); setVerificationReadError('');
+        const pendingAction = verificationPendingRef.current;
+        const pendingCommandId = pendingAction && 'commandId' in pendingAction.action ? pendingAction.action.commandId : null;
+        if (pendingAction?.runtimeId === runtimeId && pendingCommandId && value.jobs.some(job => (job.request as { commandId?: string } | null)?.commandId === pendingCommandId)) {
+          verificationPendingRef.current = null; setVerificationPending(null);
+        }
+      } catch (error) { if (!ended) setVerificationReadError(errorText(error)); }
+      finally { if (!ended) setVerificationLoading(false); }
+      if (!ended) timer = globalThis.setTimeout(poll, 15000);
+    }
+    void poll(); return () => { ended = true; globalThis.clearTimeout(timer); };
+  }, [selected, isRuntime, monitoring, connection, verificationRevision]);
   useEffect(() => {
     setEvents([]); setRuntimeEvents([]); setRuntimeDetail(null); setInputText(''); setEventError('');
     if (!selected || !monitoring) return;
@@ -247,7 +314,69 @@ function App() {
   async function openWorkspace(id: string) { try { await api.openWorkspace(id); } catch (error) { setActionError(errorText(error)); } }
   async function chooseWorkspace() { try { const path = await api.chooseWorkspace(); if (path) setWorkspace(path); } catch (error) { setActionError(errorText(error)); } }
   async function chooseImages() { try { const paths = await api.chooseImages(); setImages(current => Array.from(new Set([...current, ...paths])).slice(0, 5)); } catch (error) { setActionError(errorText(error)); } }
+  async function chooseSpec() { try { const path = await api.chooseVerificationSpec(); if (path) setSpecPath(path); } catch (error) { setVerificationError(errorText(error)); } }
+  function modelConfig(): ModelConfig {
+    if (!reviewModel || !reviewEffort || !Number.isSafeInteger(reviewReservation) || reviewReservation < 1 || !Number.isSafeInteger(reviewTimeout) || reviewTimeout < 1 || reviewTimeout > 3600 || availableBudget !== null && reviewReservation > availableBudget) throw new Error('请选择实际模型和深度，设置可用累计额度内的验收预留，以及 1–3600 秒的超时。');
+    return { model: reviewModel, effort: reviewEffort, reservation: reviewReservation, timeoutMs: reviewTimeout * 1000 };
+  }
+  async function performVerification(action: VerificationMutation, runtimeId = chosenRuntime?.id) {
+    if (!runtimeId) return;
+    if (verificationPendingRef.current && verificationPendingRef.current.action !== action) { setVerificationError('有待核对请求，请先重试同一请求或清除待核对记录。'); return; }
+    const pendingAction = { runtimeId, action }; verificationPendingRef.current = pendingAction; setVerificationPending(pendingAction); setBusy(true); setVerificationError('');
+    try {
+      let response: Proposal | FrozenPlan | VerificationJob | Delivery;
+      switch (action.type) {
+        case 'propose': response = await api.verificationPropose(action.runtimeId, action.commandId, action.specPath); break;
+        case 'review': response = await api.verificationReview(action.proposalId, action.commandId, { model: action.model, effort: action.effort, reservation: action.reservation, timeoutMs: action.timeoutMs }); break;
+        case 'publish': response = await api.verificationPublish(action.proposalId, action.reviewId, action.commandId); break;
+        case 'freeze': response = await api.verificationFreeze(action.runtimeId, action.commandId); break;
+        case 'run': response = await api.verificationRun(action.planId, action.commandId, { model: action.model, effort: action.effort, reservation: action.reservation, timeoutMs: action.timeoutMs }); break;
+        case 'deliver': response = await api.verificationDeliver(action.jobId, action.commandId); break;
+        case 'cancel': response = await api.verificationCancel(action.jobId); break;
+      }
+      verificationPendingRef.current = null; setVerificationPending(null);
+      if (selectedRef.current === runtimeId) {
+        if (action.type === 'propose' || action.type === 'publish') setProposalId(response.id);
+        if (action.type === 'freeze') setPlanId(response.id);
+        setVerificationRevision(value => value + 1); setRevision(value => value + 1);
+      }
+    } catch (error) { if (selectedRef.current === runtimeId) setVerificationError(`${errorText(error)}。请求已保留，可核对后台后重试同一请求。`); }
+    finally { setBusy(false); }
+  }
+  function verificationAction(kind: 'propose' | 'review' | 'publish' | 'freeze' | 'run' | 'deliver' | 'cancel') {
+    if (!chosenRuntime) return;
+    const commandId = crypto.randomUUID();
+    try {
+      let action: VerificationMutation;
+      switch (kind) {
+        case 'propose': if (!specPath) throw new Error('请选择验收定义 JSON。'); action = { type: kind, runtimeId: chosenRuntime.id, commandId, specPath }; break;
+        case 'review': if (!proposal) return; action = { type: kind, proposalId: proposal.id, commandId, ...modelConfig() }; break;
+        case 'publish': if (!proposal || !reviewJob) return; action = { type: kind, proposalId: proposal.id, reviewId: reviewJob.id, commandId }; break;
+        case 'freeze': action = { type: kind, runtimeId: chosenRuntime.id, mode: 'final', commandId }; break;
+        case 'run': if (!plan) return; action = { type: kind, planId: plan.id, commandId, ...modelConfig() }; break;
+        case 'deliver': if (!verificationJob) return; action = { type: kind, jobId: verificationJob.id, commandId }; break;
+        case 'cancel': if (!activeVerificationJob) return; action = { type: kind, jobId: activeVerificationJob.id }; break;
+      }
+      void performVerification(action);
+    } catch (error) { setVerificationError(errorText(error)); }
+  }
   const online = connection === 'online';
+  const verificationReady = online && !busy && !activeVerificationJob && !verificationPending && chosenRuntime?.phase === 'awaiting-verification' && !chosenRuntime.paused && !chosenRuntime.cancelled;
+  const currentDeliveryKnown = online && !verificationLoading && !verificationReadError;
+  const deliveryCurrent = Boolean(currentDeliveryKnown && verification?.currentDelivery.current);
+  const verificationLabels = { passed: '通过', failed: '失败', unknown: '无法判断', 'not-applicable': '不适用' };
+  const executionLabels = { executed: '已执行', 'environment-blocked': '环境阻塞', 'verifier-error': '验收器错误', 'not-run': '未执行' };
+  function jobSummary(job: VerificationJob | undefined, title: string) {
+    if (!job) return <p className="no-events">{title}尚未执行。</p>;
+    return <div className="verification-job"><h4>{title}<span className="pill">{job.status === 'running' ? '正在执行' : job.approved ? '本次通过' : job.error ? '错误 · 未通过' : '本次未通过'}</span></h4>
+      <p className="form-hint">{job.config.model} / {job.config.effort} · {job.usageUnknown ? `已知 ${count(job.usage)} tokens · 用量仍有未知部分` : job.status === 'running' ? `当前账本 ${count(job.usage)} tokens · 尚未结算` : `${count(job.usage)} tokens`} · 预留 {count(job.config.reservation)}</p>
+      {job.error && <div className="notice error compact">{job.error}</div>}
+      {job.controls.length > 0 && <p className="form-hint">正反控制：{job.controls.filter(control => control.passed).length} / {job.controls.length} 符合预期</p>}
+      {job.evaluation && <p className="form-hint">{job.evaluation.complete ? '必要范围完整' : '必要范围尚不完整'}{job.evaluation.reasons.length > 0 ? ` · ${job.evaluation.reasons.join('；')}` : ''}</p>}
+      {job.results.length > 0 && <details><summary>查看必要条款结果</summary><ul className="verification-checks">{job.results.map(record => <li key={record.instanceId}><strong>{record.instanceId} · {executionLabels[record.executionStatus]}</strong><p>{record.reason}</p>{record.checks.map(check => <p key={check.obligationId}>{check.obligationId}：{verificationLabels[check.verdict]} · {check.reason}</p>)}</li>)}</ul></details>}
+      <details><summary>查看证据与作业编号</summary><p className="mono form-hint">{job.id}</p><p className="form-hint">{Object.keys(job.proofs).length} 份摘要绑定的证据 · {job.modelStarted ? '已派发独立模型' : '尚未派发模型'}</p>{Object.entries(job.proofs).map(([path, digest]) => <p className="verification-proof mono" key={path} title={path}>{path}<br/>{digest}</p>)}</details>
+    </div>;
+  }
   const modelSupportsImages = Boolean(capabilities?.imageInput && selectedModel?.inputModalities.includes('image'));
   return <div className="shell">
     <aside className="sidebar" aria-label="项目与任务">
@@ -259,7 +388,7 @@ function App() {
           <button className="project-toggle" aria-label={`${collapsed.has(item.path) ? '展开' : '折叠'}项目 ${projectName(item)}`} aria-expanded={!collapsed.has(item.path)} onClick={() => setCollapsed(current => { const next = new Set(current); if (next.has(item.path)) next.delete(item.path); else next.add(item.path); return next; })}>{collapsed.has(item.path) ? '›' : '⌄'}</button>
           <button className="project-button" title={item.path} onClick={() => { setProject(item.path); setSelected(null); setComposer(false); }}><Icon name="folder"/><span>{projectName(item)}</span>{item.managed && <small>暂存</small>}<span className="count">{item.tasks.length}</span></button>
         </div>
-        {!collapsed.has(item.path) && <div className="project-tasks">{item.tasks.map(record => <button className={`task-button ${selected === record.id ? 'selected' : ''}`} key={record.id} title={record.prompt} onClick={() => selectTask(record)}><strong>{record.prompt}</strong><small><i className={`dot ${active(record) ? '' : 'inactive'}`}/>{statusLabel(record)} · {date(record.createdAt)}</small></button>)}</div>}
+        {!collapsed.has(item.path) && <div className="project-tasks">{item.tasks.map(record => <button className={`task-button ${selected === record.id ? 'selected' : ''}`} key={record.id} title={record.prompt} onClick={() => selectTask(record)}><strong>{record.prompt}</strong><small><i className={`dot ${active(record) ? '' : 'inactive'}`}/>{selected === record.id && deliveryCurrent ? '当前交付有效' : statusLabel(record)} · {date(record.createdAt)}</small></button>)}</div>}
       </section>) : <p className="subtle">任务将归入所选项目；未选择目录时自动创建暂存工作区。</p>}</nav>
       <div className="sidebar-footer"><strong>本地监督服务</strong><br/>关闭窗口或退出界面，<br/>后台任务继续运行。</div>
     </aside>
@@ -299,19 +428,51 @@ function App() {
         </form>}
         <div className="board-head"><h2><span className="project-heading">{currentProject ? projectName(currentProject) : '项目工作台'}</span><span className="pill">{visible.length} 个任务</span></h2><span className="subtle">{visible.filter(active).length} 执行中 · 持久运行</span></div>
         {currentProject && <div className="project-context"><span className="mono" title={currentProject.path}>{currentProject.path}</span><button className="button ghost" onClick={() => { void openWorkspace(currentProject.tasks[0]!.id); }}><Icon name="folder"/>打开目录</button></div>}
-        {visible.length ? <div className="grid">{visible.map(record => <button key={record.id} className={`agent-card ${selected === record.id ? 'selected' : ''}`} onClick={() => selectTask(record)} aria-label={`查看任务：${record.prompt}`}><div className="agent-top"><span className="agent-icon"><Icon name="agent" size={25}/></span><span className="pill">{record.runtime ? '持久任务' : 'Codex'}</span></div><div className="agent-role">{record.runtime ? '监督任务 / 固定步骤' : '执行 Agent / 单次尝试'}</div><h3>{record.prompt}</h3><Status record={record}/><div className="agent-excerpt">{record.error || record.message || (record.runtime ? `${Math.min(record.runtime.cursor + 1, record.runtime.definition.steps.length)} / ${record.runtime.definition.steps.length} 步 · ${record.runtime.definition.steps[record.runtime.cursor]?.kind || '待独立验收'}` : '等待执行器事件。')}</div><div className="agent-bottom"><span title={record.workspace}>{record.workspaceKind === 'managed' ? '暂存工作区' : basename(record.workspace)}</span><span>{record.usageStatus === 'reported' && record.usage ? `${count(record.usage.totalTokens)} tokens${record.runtime ? ' · 当前尝试' : ''}` : record.runtime && !record.execution ? '尚未调用模型' : '用量待回报'}</span></div></button>)}</div>
+        {visible.length ? <div className="grid">{visible.map(record => <button key={record.id} className={`agent-card ${selected === record.id ? 'selected' : ''}`} onClick={() => selectTask(record)} aria-label={`查看任务：${record.prompt}`}><div className="agent-top"><span className="agent-icon"><Icon name="agent" size={25}/></span><span className="pill">{record.runtime ? '持久任务' : 'Codex'}</span></div><div className="agent-role">{record.runtime ? '监督任务 / 固定步骤' : '执行 Agent / 单次尝试'}</div><h3>{record.prompt}</h3><Status record={record} delivered={selected === record.id && deliveryCurrent}/><div className="agent-excerpt">{record.error || record.message || (record.runtime ? `${Math.min(record.runtime.cursor + 1, record.runtime.definition.steps.length)} / ${record.runtime.definition.steps.length} 步 · ${record.runtime.definition.steps[record.runtime.cursor]?.kind || '执行步骤已结束'}` : '等待执行器事件。')}</div><div className="agent-bottom"><span title={record.workspace}>{record.workspaceKind === 'managed' ? '暂存工作区' : basename(record.workspace)}</span><span>{record.usageStatus === 'reported' && record.usage ? `${count(record.usage.totalTokens)} tokens${record.runtime ? ' · 当前尝试' : ''}` : record.runtime && !record.execution ? '执行阶段未调用模型' : '用量待回报'}</span></div></button>)}</div>
           : <div className="empty"><Icon name="agent" size={36}/><h2>从一个明确的目标开始</h2><p>选择已有项目，或直接描述目标。没有项目目录时，Supervisor 会自动创建暂存工作区。</p><button className="button primary" onClick={() => newTask(project)}><Icon name="plus"/>创建第一个任务</button></div>}
         <div className="single-note"><i className="dot"/>卡片展示可观测执行状态；完成标记由独立验收决定。</div>
       </section>
-      {chosen && <aside className="detail" aria-label="任务详情"><header className="detail-header"><div className="detail-title"><h2>{chosenRuntime ? '任务详情' : '尝试详情'}</h2><button className="icon-button" aria-label="关闭任务详情" onClick={() => setSelected(null)}><Icon name="close"/></button></div><p className="detail-goal">{chosen.prompt}</p><Status record={chosen}/></header><div className="detail-body">
+      {chosen && <aside className="detail" aria-label="任务详情"><header className="detail-header"><div className="detail-title"><h2>{chosenRuntime ? '任务详情' : '尝试详情'}</h2><button className="icon-button" aria-label="关闭任务详情" onClick={() => setSelected(null)}><Icon name="close"/></button></div><p className="detail-goal">{chosen.prompt}</p><Status record={chosen} delivered={deliveryCurrent}/></header><div className="detail-body">
         <dl className="facts"><dt>项目目录</dt><dd>{chosen.workspace}<br/><span className="subtle">{chosen.workspaceKind === 'managed' ? 'Supervisor 暂存工作区 · 持续保留' : '本地项目'}</span></dd><dt>创建时间</dt><dd>{date(chosen.createdAt)}</dd>
           {chosenRuntime && <><dt>步骤位置</dt><dd>{Math.min(chosenRuntime.cursor + 1, chosenRuntime.definition.steps.length)} / {chosenRuntime.definition.steps.length} · {waitingStep?.kind || '全部步骤结束'}</dd><dt>累计用量</dt><dd>{detail ? `${count(detail.run.budget.spent)} tokens · ${detail.run.attempts.filter(attempt => !attempt.settled).length} 次用量待结算` : '等待后台账本'}</dd><dt>预算</dt><dd>{count(chosenRuntime.definition.tokenLimit)} tokens · 验收预留 {count(chosenRuntime.definition.verificationReserve)}</dd></>}
           {chosenExecution && <><dt>模型 / 深度</dt><dd>{chosenExecution.model} / {chosenExecution.effort}</dd><dt>当前尝试</dt><dd>{labels[chosenExecution.state]}</dd><dt>进程状态</dt><dd>{chosenExecution.stopConfirmed ? '已确认停止' : '尚未确认停止'}{chosenExecution.pid ? ` · PID ${chosenExecution.pid}` : ''}</dd><dt>超时期限</dt><dd>{date(chosenExecution.deadline)}</dd>{!chosenRuntime && <><dt>用量</dt><dd>{chosenExecution.usageStatus === 'reported' && chosenExecution.usage ? `${count(chosenExecution.usage.totalTokens)} tokens` : '未知 · 待执行器回报'}</dd><dt>预算</dt><dd>{count(chosenExecution.tokenLimit)} tokens · 验收预留 {count(chosenExecution.verificationReserve)}</dd></>}</>}
         </dl>
         {chosenRuntime?.paused && <div className="notice compact">已暂停新的步骤派发。在途执行继续运行，可另行取消任务。</div>}
-        {['completed', 'awaiting-verification'].includes(chosen.state) && <div className="notice compact">步骤或执行已结束，待独立验收。尚未判定为已交付。</div>}
+        {['completed', 'awaiting-verification'].includes(chosen.state) && !deliveryCurrent && <div className="notice compact">步骤或执行已结束，待独立验收。尚未判定为已交付。</div>}
         {chosenRuntime?.phase === 'blocked' && <div className="notice compact">恢复核对尚未完成。未知副作用不会自动重复执行。</div>}
         {chosen.error && <div className="notice error compact">{chosen.error}</div>}
+        {chosenRuntime && (chosenRuntime.phase === 'awaiting-verification' || Boolean(verification?.proposals.length || verification?.jobs.length)) && <section className="verification-panel" aria-label="独立验收与交付">
+          <div className="verification-heading"><h3>独立验收与交付</h3><button className="button ghost" disabled={!online || verificationLoading} onClick={() => setVerificationRevision(value => value + 1)} aria-label="重新核对验收状态"><Icon name="refresh"/>核对</button></div>
+          <p className="form-hint">先独立复核验收定义，再发布、冻结并实际验收；每一步单独确认。UI 验证当前支持候选目录内的本地 HTML 页面操作和截图。</p>
+          {!online && <div className="notice compact">界面未连接后台，以下为上次已知验收状态；当前交付有效性待重新核对。</div>}
+          {verificationError && <div className="notice error compact" role="alert">{verificationError}</div>}
+          {verificationReadError && <div className="notice error compact" role="alert">验收状态同步失败，当前交付有效性待核对：{verificationReadError}</div>}
+          {verification?.currentDelivery.delivery ? <div className={`notice compact ${currentDeliveryKnown && !verification.currentDelivery.current ? 'error' : ''}`} role="status">
+            {deliveryCurrent ? '当前候选已独立验收并确认交付。' : currentDeliveryKnown ? `旧交付已失效：${verification.currentDelivery.reason}` : '正在等待核对当前交付有效性。'}
+            <br/><span className="mono">{verification.currentDelivery.delivery.candidateDigest}</span>
+          </div> : <p className="form-hint">尚无已确认交付；运行结束不会自动完成验收。</p>}
+          {verificationData?.runtimeId === selected && <p className="form-hint">{verificationLoading ? '正在核对后台证据…' : `最近核对 ${time(verificationData.checkedAt)} · 选中任务每 15 秒同步`}</p>}
+          <label className="field"><span>1 · 项目验收定义 JSON</span><div className="input-action"><input aria-label="验收定义路径" value={specPath} readOnly placeholder="通过系统文件选择器选择定义"/><button type="button" className="button" disabled={!online || busy || Boolean(verificationPending)} onClick={() => { void chooseSpec(); }}>选择 JSON</button></div></label>
+          <button className="button" disabled={!verificationReady || !specPath} onClick={() => verificationAction('propose')}>提交验收提案</button>
+          <label className="field verification-select"><span>当前提案</span><select aria-label="当前验收提案" value={proposal?.id || ''} onChange={event => setProposalId(event.target.value)} disabled={!verification?.proposals.length || busy || Boolean(verificationPending)}><option value="" disabled>尚无提案</option>{verification && newest(verification.proposals).map(item => <option key={item.id} value={item.id}>{item.status === 'published' ? `已发布 v${item.version}` : '待独立复核'} · {date(item.createdAt)}</option>)}</select></label>
+          {proposal && <p className="verification-proof mono">定义 {proposal.bundle.digest}<br/>候选 {proposal.candidate.digest}</p>}
+          <details className="verification-config" open={!reviewModel}><summary>独立模型与验收预算</summary><fieldset disabled={busy || Boolean(verificationPending)}>
+            <label className="field"><span>评审模型</span><select aria-label="验收评审模型" value={reviewModel} onChange={event => { const next = capabilities?.models.find(item => item.id === event.target.value); setReviewModel(event.target.value); setReviewEffort(next?.defaultEffort || next?.reasoningEfforts[0] || ''); }} disabled={!capabilities}><option value="" disabled>发现实际模型后选择</option>{capabilities?.models.map(item => <option key={item.id} value={item.id}>{item.label || item.id}</option>)}</select></label>
+            <label className="field"><span>评审深度</span><select aria-label="验收评审深度" value={reviewEffort} onChange={event => setReviewEffort(event.target.value)} disabled={!reviewCapability}><option value="" disabled>请选择</option>{reviewCapability?.reasoningEfforts.map(item => <option key={item} value={item}>{item}</option>)}</select></label>
+            <label className="field"><span>本次验收预留（tokens）</span><input aria-label="本次验收预留" type="number" min="1" max={availableBudget ?? undefined} value={reviewReservation} onChange={event => setReviewReservation(Number(event.target.value))}/></label>
+            <label className="field"><span>本次验收超时（秒）</span><input aria-label="本次验收超时" type="number" min="1" max="3600" value={reviewTimeout} onChange={event => setReviewTimeout(Number(event.target.value))}/></label>
+          </fieldset><p className="form-hint">沿用任务累计账本；{availableBudget === null ? '正在读取可用额度' : `当前可用 ${count(availableBudget)} tokens`}。未知用量不会计作零。独立复核会执行定义中的正反控制。</p></details>
+          {capError && <div className="validation">评审模型发现失败：{capError} <button className="button ghost" disabled={!online || capLoading} onClick={() => { void loadCapabilities(); }}>重新发现模型</button></div>}
+          <div className="verification-buttons"><button className="button primary" disabled={!verificationReady || !proposal || proposal.status === 'published' || !reviewModel || !reviewEffort} onClick={() => verificationAction('review')}>2 · 独立复核定义</button><button className="button" disabled={!verificationReady || !proposal || proposal.status === 'published' || !reviewJob?.approved || reviewJob.status !== 'finished'} onClick={() => verificationAction('publish')}>3 · 发布已复核定义</button></div>
+          {jobSummary(reviewJob, '定义复核')}
+          <button className="button" disabled={!verificationReady || proposal?.status !== 'published'} onClick={() => verificationAction('freeze')}>4 · 冻结完整必要清单</button>
+          <label className="field verification-select"><span>冻结清单</span><select aria-label="当前冻结验收清单" value={plan?.id || ''} onChange={event => setPlanId(event.target.value)} disabled={!verification?.plans.length || busy || Boolean(verificationPending)}><option value="" disabled>尚未冻结</option>{verification && newest(verification.plans).map(item => <option key={item.id} value={item.id}>库 v{item.catalogVersion} · {item.selection.mode === 'final' ? '完整验收' : '影响范围'} · {date(item.createdAt)}</option>)}</select></label>
+          {plan && <p className="form-hint">冻结 {plan.selection.instances.length} 项 · {plan.selection.completeScope ? '包含完整必要范围' : '未覆盖完整交付范围'}<br/><span className="mono">候选 {plan.candidate.digest}</span></p>}
+          <div className="verification-buttons"><button className="button primary" disabled={!verificationReady || !plan || !reviewModel || !reviewEffort} onClick={() => verificationAction('run')}>5 · 执行独立验收</button><button className="button" disabled={!verificationReady || !verificationJob?.approved || verificationJob.status !== 'finished' || !verificationJob.evaluation?.complete || deliveryCurrent} onClick={() => verificationAction('deliver')}>6 · 确认当前交付</button></div>
+          {jobSummary(verificationJob, '候选验收')}
+          {activeVerificationJob && <button className="button danger" disabled={!online || busy || Boolean(verificationPending)} onClick={() => verificationAction('cancel')}>取消正在执行的验收</button>}
+          {verificationPending && <div className="notice compact"><p>有待核对的 {verificationPending.action.type} 请求。重试会复用同一请求，避免再次派发。</p><div className="verification-buttons"><button className="button" disabled={!online || busy} onClick={() => { void performVerification(verificationPending.action, verificationPending.runtimeId); }}>重试同一请求</button><button className="button ghost" disabled={busy} onClick={() => { verificationPendingRef.current = null; setVerificationPending(null); }}>清除待核对记录</button></div><p className="form-hint">清除记录不会取消后台作业。</p></div>}
+        </section>}
         {chosenRuntime && waitingStep?.kind === 'input' && !Object.hasOwn(chosenRuntime.inputs, waitingStep.id) && <form onSubmit={event => { void sendInput(event); }} className="runtime-input"><label className="field"><span>{waitingStep.prompt}</span><textarea aria-label="等待步骤输入" value={inputText} onChange={event => setInputText(event.target.value)} maxLength={200000} required disabled={!online || busy || chosenRuntime.cancelled}/></label><button className="button primary" disabled={!online || busy || chosenRuntime.cancelled || !inputText.trim()} type="submit">提交输入</button></form>}
         {chosen.message && <><h3 className="section-title">执行器输出</h3><div className="result">{chosen.message}</div></>}
         {chosenExecution?.diff && <details><summary className="section-title">查看变更差异</summary><pre className="result mono">{chosenExecution.diff}</pre></details>}
@@ -327,7 +488,7 @@ function App() {
         <button className="button danger" disabled={!online || busy || chosenRuntime.cancelled || chosenRuntime.phase === 'awaiting-verification'} onClick={() => { void control('cancel'); }}><Icon name="stop"/>取消任务</button>
         <button className="button" disabled={!online || busy} onClick={() => { void control('reconcile'); }}>核对恢复状态</button>
       </> : chosenExecution && <><button className="button danger" disabled={!online || busy || chosenExecution.stopConfirmed || chosenExecution.cancelRequested} onClick={() => { void control('cancel'); }}><Icon name="stop"/>{chosenExecution.cancelRequested && !chosenExecution.stopConfirmed ? '等待停止确认' : '取消执行'}</button>{(chosenExecution.state === 'unknown' || chosenExecution.state === 'interrupted' || (!active(chosen) && !chosenExecution.stopConfirmed)) && <button className="button" disabled={!online || busy} onClick={() => { void control('reconcile'); }}>停止并核对进程</button>}</>}</footer></aside>}
-      </div><footer className="status-strip"><span>{capabilities ? `Codex ${capabilities.version}` : '本地 IPC'} · P3 持久任务</span><span>{lastSync ? `最近同步 ${time(lastSync)}` : '等待后台连接'} · 退出界面不会停止任务</span></footer>
+      </div><footer className="status-strip"><span>{capabilities ? `Codex ${capabilities.version}` : '本地 IPC'} · 持久任务与独立验收</span><span>{lastSync ? `最近同步 ${time(lastSync)}` : '等待后台连接'} · 退出界面不会停止任务</span></footer>
     </main>
   </div>;
 }

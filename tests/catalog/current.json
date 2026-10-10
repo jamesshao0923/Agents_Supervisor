@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-catalog-v5",
+  "revision": "dev-catalog-v6",
   "modules": [
     {
       "id": "dev-contracts",
@@ -44,7 +44,8 @@
         "persistence",
         "service",
         "execution",
-        "runtime"
+        "runtime",
+        "verification"
       ]
     },
     {
@@ -61,7 +62,8 @@
       "affects": [
         "service",
         "execution",
-        "runtime"
+        "runtime",
+        "verification"
       ]
     },
     {
@@ -75,14 +77,16 @@
       "affects": [
         "executor-codex",
         "execution",
-        "runtime"
+        "runtime",
+        "verification"
       ]
     },
     {
       "id": "executor-codex",
       "affects": [
         "execution",
-        "runtime"
+        "runtime",
+        "verification"
       ]
     },
     {
@@ -100,6 +104,14 @@
       "id": "runtime",
       "affects": [
         "execution",
+        "service",
+        "desktop",
+        "verification"
+      ]
+    },
+    {
+      "id": "verification",
+      "affects": [
         "service",
         "desktop"
       ]
@@ -206,6 +218,36 @@
       "id": "live-runtime",
       "layer": "live",
       "file": "dist/tests/live/runtime.test.js",
+      "timeoutMs": 600000
+    },
+    {
+      "id": "unit-verification",
+      "layer": "unit",
+      "file": "dist/tests/unit/verification.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "integration-verification",
+      "layer": "integration",
+      "file": "dist/tests/integration/verification.test.js",
+      "timeoutMs": 120000
+    },
+    {
+      "id": "integration-verification-controller",
+      "layer": "integration",
+      "file": "dist/tests/integration/verification-controller.test.js",
+      "timeoutMs": 120000
+    },
+    {
+      "id": "live-verification",
+      "layer": "live",
+      "file": "dist/tests/live/verification.test.js",
+      "timeoutMs": 600000
+    },
+    {
+      "id": "live-verification-maintenance",
+      "layer": "live",
+      "file": "dist/tests/live/verification-maintenance.test.js",
       "timeoutMs": 600000
     }
   ],
@@ -4309,6 +4351,552 @@
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/integration/runtime.test.ts: runtime startup ownership recovery stops the released process scope before receipt takeover and fences stale publishers",
       "cleanup": "Stop owned test processes and close real SQLite; retain formal evidence",
+      "status": "active"
+    },
+    {
+      "id": "p4.unit.verification.001",
+      "name": "verification spec parses independent command UI and source definitions without retaining caller objects",
+      "suiteId": "unit-verification",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p4.unit.verification.001.behavior"
+      ],
+      "scenario": "verification spec parses independent command UI and source definitions without retaining caller objects",
+      "impactTags": [
+        "verification",
+        "persistence",
+        "runtime",
+        "execution"
+      ],
+      "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
+      "assertions": "tests/unit/verification.test.ts: verification spec parses independent command UI and source definitions without retaining caller objects",
+      "cleanup": "Stop only owned processes; preserve formal evidence and original failures",
+      "status": "active"
+    },
+    {
+      "id": "p4.unit.verification.002",
+      "name": "verification spec rejects unknown fields accessors prototypes sparse arrays and malformed primitive values",
+      "suiteId": "unit-verification",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p4.unit.verification.002.behavior"
+      ],
+      "scenario": "verification spec rejects unknown fields accessors prototypes sparse arrays and malformed primitive values",
+      "impactTags": [
+        "verification",
+        "persistence",
+        "runtime",
+        "execution"
+      ],
+      "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
+      "assertions": "tests/unit/verification.test.ts: verification spec rejects unknown fields accessors prototypes sparse arrays and malformed primitive values",
+      "cleanup": "Stop only owned processes; preserve formal evidence and original failures",
+      "status": "active"
+    },
+    {
+      "id": "p4.unit.verification.003",
+      "name": "verification spec rejects escaping command and UI paths invalid source URLs and missing good bad controls",
+      "suiteId": "unit-verification",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p4.unit.verification.003.behavior"
+      ],
+      "scenario": "verification spec rejects escaping command and UI paths invalid source URLs and missing good bad controls",
+      "impactTags": [
+        "verification",
+        "persistence",
+        "runtime",
+        "execution"
+      ],
+      "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
+      "assertions": "tests/unit/verification.test.ts: verification spec rejects escaping command and UI paths invalid source URLs and missing good bad controls",
+      "cleanup": "Stop only owned processes; preserve formal evidence and original failures",
+      "status": "active"
+    },
+    {
+      "id": "p4.unit.verification.004",
+      "name": "verification not applicable requires a frozen reason and cannot be attached to an applicable obligation",
+      "suiteId": "unit-verification",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p4.unit.verification.004.behavior"
+      ],
+      "scenario": "verification not applicable requires a frozen reason and cannot be attached to an applicable obligation",
+      "impactTags": [
+        "verification",
+        "persistence",
+        "runtime",
+        "execution"
+      ],
+      "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
+      "assertions": "tests/unit/verification.test.ts: verification not applicable requires a frozen reason and cannot be attached to an applicable obligation",
+      "cleanup": "Stop only owned processes; preserve formal evidence and original failures",
+      "status": "active"
+    },
+    {
+      "id": "p4.unit.verification.005",
+      "name": "verification standard and necessary semantics cannot change through a verifier maintenance publication",
+      "suiteId": "unit-verification",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p4.unit.verification.005.behavior"
+      ],
+      "scenario": "verification standard and necessary semantics cannot change through a verifier maintenance publication",
+      "impactTags": [
+        "verification",
+        "persistence",
+        "runtime",
+        "execution"
+      ],
+      "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
+      "assertions": "tests/unit/verification.test.ts: verification standard and necessary semantics cannot change through a verifier maintenance publication",
+      "cleanup": "Stop only owned processes; preserve formal evidence and original failures",
+      "status": "active"
+    },
+    {
+      "id": "p4.unit.verification.006",
+      "name": "verification changed implementation needs a new case revision while standards and original revision stay fixed",
+      "suiteId": "unit-verification",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p4.unit.verification.006.behavior"
+      ],
+      "scenario": "verification changed implementation needs a new case revision while standards and original revision stay fixed",
+      "impactTags": [
+        "verification",
+        "persistence",
+        "runtime",
+        "execution"
+      ],
+      "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
+      "assertions": "tests/unit/verification.test.ts: verification changed implementation needs a new case revision while standards and original revision stay fixed",
+      "cleanup": "Stop only owned processes; preserve formal evidence and original failures",
+      "status": "active"
+    },
+    {
+      "id": "p4.unit.verification.007",
+      "name": "verification publication preserves both control identities actual workspace and negative obligations",
+      "suiteId": "unit-verification",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p4.unit.verification.007.behavior"
+      ],
+      "scenario": "verification publication preserves both control identities actual workspace and negative obligations",
+      "impactTags": [
+        "verification",
+        "persistence",
+        "runtime",
+        "execution"
+      ],
+      "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
+      "assertions": "tests/unit/verification.test.ts: verification publication preserves both control identities actual workspace and negative obligations",
+      "cleanup": "Stop only owned processes; preserve formal evidence and original failures",
+      "status": "active"
+    },
+    {
+      "id": "p4.unit.verification.008",
+      "name": "verification replacement checks concrete obligations and parameter instances even when criterion labels remain equal",
+      "suiteId": "unit-verification",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p4.unit.verification.008.behavior"
+      ],
+      "scenario": "verification replacement checks concrete obligations and parameter instances even when criterion labels remain equal",
+      "impactTags": [
+        "verification",
+        "persistence",
+        "runtime",
+        "execution"
+      ],
+      "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
+      "assertions": "tests/unit/verification.test.ts: verification replacement checks concrete obligations and parameter instances even when criterion labels remain equal",
+      "cleanup": "Stop only owned processes; preserve formal evidence and original failures",
+      "status": "active"
+    },
+    {
+      "id": "p4.unit.verification.009",
+      "name": "verification transitive retirement retains original fault assertions when intermediate retired metadata narrows",
+      "suiteId": "unit-verification",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p4.unit.verification.009.behavior"
+      ],
+      "scenario": "verification transitive retirement retains original fault assertions when intermediate retired metadata narrows",
+      "impactTags": [
+        "verification",
+        "persistence",
+        "runtime",
+        "execution"
+      ],
+      "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
+      "assertions": "tests/unit/verification.test.ts: verification transitive retirement retains original fault assertions when intermediate retired metadata narrows",
+      "cleanup": "Stop only owned processes; preserve formal evidence and original failures",
+      "status": "active"
+    },
+    {
+      "id": "p4.unit.verification.010",
+      "name": "verification instance selection deduplicates canonical parameter equality but preserves every distinct fault instance",
+      "suiteId": "unit-verification",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p4.unit.verification.010.behavior"
+      ],
+      "scenario": "verification instance selection deduplicates canonical parameter equality but preserves every distinct fault instance",
+      "impactTags": [
+        "verification",
+        "persistence",
+        "runtime",
+        "execution"
+      ],
+      "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
+      "assertions": "tests/unit/verification.test.ts: verification instance selection deduplicates canonical parameter equality but preserves every distinct fault instance",
+      "cleanup": "Stop only owned processes; preserve formal evidence and original failures",
+      "status": "active"
+    },
+    {
+      "id": "p4.unit.verification.011",
+      "name": "verification impact selection expands transitive consumers broadens unknown impact and excludes retired dispatch",
+      "suiteId": "unit-verification",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p4.unit.verification.011.behavior"
+      ],
+      "scenario": "verification impact selection expands transitive consumers broadens unknown impact and excludes retired dispatch",
+      "impactTags": [
+        "verification",
+        "persistence",
+        "runtime",
+        "execution"
+      ],
+      "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
+      "assertions": "tests/unit/verification.test.ts: verification impact selection expands transitive consumers broadens unknown impact and excludes retired dispatch",
+      "cleanup": "Stop only owned processes; preserve formal evidence and original failures",
+      "status": "active"
+    },
+    {
+      "id": "p4.unit.verification.012",
+      "name": "verification completion requires every necessary check on every parameter instance with optional failures retained",
+      "suiteId": "unit-verification",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p4.unit.verification.012.behavior"
+      ],
+      "scenario": "verification completion requires every necessary check on every parameter instance with optional failures retained",
+      "impactTags": [
+        "verification",
+        "persistence",
+        "runtime",
+        "execution"
+      ],
+      "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
+      "assertions": "tests/unit/verification.test.ts: verification completion requires every necessary check on every parameter instance with optional failures retained",
+      "cleanup": "Stop only owned processes; preserve formal evidence and original failures",
+      "status": "active"
+    },
+    {
+      "id": "p4.unit.verification.013",
+      "name": "verification execution state cannot masquerade as a passed product verdict",
+      "suiteId": "unit-verification",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p4.unit.verification.013.behavior"
+      ],
+      "scenario": "verification execution state cannot masquerade as a passed product verdict",
+      "impactTags": [
+        "verification",
+        "persistence",
+        "runtime",
+        "execution"
+      ],
+      "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
+      "assertions": "tests/unit/verification.test.ts: verification execution state cannot masquerade as a passed product verdict",
+      "cleanup": "Stop only owned processes; preserve formal evidence and original failures",
+      "status": "active"
+    },
+    {
+      "id": "p4.unit.verification.014",
+      "name": "verification explicit not applicable follows the frozen contract basis and never excuses applicable assertions",
+      "suiteId": "unit-verification",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p4.unit.verification.014.behavior"
+      ],
+      "scenario": "verification explicit not applicable follows the frozen contract basis and never excuses applicable assertions",
+      "impactTags": [
+        "verification",
+        "persistence",
+        "runtime",
+        "execution"
+      ],
+      "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
+      "assertions": "tests/unit/verification.test.ts: verification explicit not applicable follows the frozen contract basis and never excuses applicable assertions",
+      "cleanup": "Stop only owned processes; preserve formal evidence and original failures",
+      "status": "active"
+    },
+    {
+      "id": "p4.unit.verification.015",
+      "name": "verification missing conflicting duplicate and foreign reports cannot conceal an earlier failure",
+      "suiteId": "unit-verification",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p4.unit.verification.015.behavior"
+      ],
+      "scenario": "verification missing conflicting duplicate and foreign reports cannot conceal an earlier failure",
+      "impactTags": [
+        "verification",
+        "persistence",
+        "runtime",
+        "execution"
+      ],
+      "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
+      "assertions": "tests/unit/verification.test.ts: verification missing conflicting duplicate and foreign reports cannot conceal an earlier failure",
+      "cleanup": "Stop only owned processes; preserve formal evidence and original failures",
+      "status": "active"
+    },
+    {
+      "id": "p4.unit.verification.016",
+      "name": "verification partial stale forged and zero instance evaluations never claim completed delivery",
+      "suiteId": "unit-verification",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p4.unit.verification.016.behavior"
+      ],
+      "scenario": "verification partial stale forged and zero instance evaluations never claim completed delivery",
+      "impactTags": [
+        "verification",
+        "persistence",
+        "runtime",
+        "execution"
+      ],
+      "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
+      "assertions": "tests/unit/verification.test.ts: verification partial stale forged and zero instance evaluations never claim completed delivery",
+      "cleanup": "Stop only owned processes; preserve formal evidence and original failures",
+      "status": "active"
+    },
+    {
+      "id": "p4.integration.verification.001",
+      "name": "verification fixed candidate includes source build binary and lock bytes and detects live or frozen changes",
+      "suiteId": "integration-verification",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p4.integration.verification.001.behavior"
+      ],
+      "scenario": "verification fixed candidate includes source build binary and lock bytes and detects live or frozen changes",
+      "impactTags": [
+        "verification",
+        "persistence",
+        "runtime",
+        "execution"
+      ],
+      "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
+      "assertions": "tests/integration/verification.test.ts: verification fixed candidate includes source build binary and lock bytes and detects live or frozen changes",
+      "cleanup": "Stop only owned processes; preserve formal evidence and original failures",
+      "status": "active"
+    },
+    {
+      "id": "p4.integration.verification.002",
+      "name": "verification snapshot refuses symlink deliverables and existing frozen destinations without modifying original bytes",
+      "suiteId": "integration-verification",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p4.integration.verification.002.behavior"
+      ],
+      "scenario": "verification snapshot refuses symlink deliverables and existing frozen destinations without modifying original bytes",
+      "impactTags": [
+        "verification",
+        "persistence",
+        "runtime",
+        "execution"
+      ],
+      "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
+      "assertions": "tests/integration/verification.test.ts: verification snapshot refuses symlink deliverables and existing frozen destinations without modifying original bytes",
+      "cleanup": "Stop only owned processes; preserve formal evidence and original failures",
+      "status": "active"
+    },
+    {
+      "id": "p4.integration.verification.003",
+      "name": "verification actual independent build assertions pass correct program and reject the known formula and illegal-input defects",
+      "suiteId": "integration-verification",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p4.integration.verification.003.behavior"
+      ],
+      "scenario": "verification actual independent build assertions pass correct program and reject the known formula and illegal-input defects",
+      "impactTags": [
+        "verification",
+        "persistence",
+        "runtime",
+        "execution"
+      ],
+      "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
+      "assertions": "tests/integration/verification.test.ts: verification actual independent build assertions pass correct program and reject the known formula and illegal-input defects",
+      "cleanup": "Stop only owned processes; preserve formal evidence and original failures",
+      "status": "active"
+    },
+    {
+      "id": "p4.integration.verification.004",
+      "name": "verification real crash missing report conflicting exit timeout and cancellation remain verifier errors with actual stopped process evidence",
+      "suiteId": "integration-verification",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p4.integration.verification.004.behavior"
+      ],
+      "scenario": "verification real crash missing report conflicting exit timeout and cancellation remain verifier errors with actual stopped process evidence",
+      "impactTags": [
+        "verification",
+        "persistence",
+        "runtime",
+        "execution"
+      ],
+      "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
+      "assertions": "tests/integration/verification.test.ts: verification real crash missing report conflicting exit timeout and cancellation remain verifier errors with actual stopped process evidence",
+      "cleanup": "Stop only owned processes; preserve formal evidence and original failures",
+      "status": "active"
+    },
+    {
+      "id": "p4.integration.verification.005",
+      "name": "verification actual parameter instances execute independently and a later pass preserves the earlier failed report",
+      "suiteId": "integration-verification",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p4.integration.verification.005.behavior"
+      ],
+      "scenario": "verification actual parameter instances execute independently and a later pass preserves the earlier failed report",
+      "impactTags": [
+        "verification",
+        "persistence",
+        "runtime",
+        "execution"
+      ],
+      "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
+      "assertions": "tests/integration/verification.test.ts: verification actual parameter instances execute independently and a later pass preserves the earlier failed report",
+      "cleanup": "Stop only owned processes; preserve formal evidence and original failures",
+      "status": "active"
+    },
+    {
+      "id": "p4.integration.verification-controller.001",
+      "name": "verification controller refuses caller verdicts unpublished plans and duplicate commands while retaining actual frozen candidate",
+      "suiteId": "integration-verification-controller",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p4.integration.verification-controller.001.behavior"
+      ],
+      "scenario": "verification controller refuses caller verdicts unpublished plans and duplicate commands while retaining actual frozen candidate",
+      "impactTags": [
+        "verification",
+        "persistence",
+        "runtime",
+        "execution"
+      ],
+      "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
+      "assertions": "tests/integration/verification-controller.test.ts: verification controller refuses caller verdicts unpublished plans and duplicate commands while retaining actual frozen candidate",
+      "cleanup": "Stop only owned processes; preserve formal evidence and original failures",
+      "status": "active"
+    },
+    {
+      "id": "p4.integration.verification-controller.002",
+      "name": "verification persisted unresolved stop fences sibling workflows after controller restart without clearing unknown usage",
+      "suiteId": "integration-verification-controller",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p4.integration.verification-controller.002.behavior"
+      ],
+      "scenario": "verification persisted unresolved stop fences sibling workflows after controller restart without clearing unknown usage",
+      "impactTags": [
+        "verification",
+        "persistence",
+        "runtime",
+        "execution"
+      ],
+      "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
+      "assertions": "tests/integration/verification-controller.test.ts: verification persisted unresolved stop fences sibling workflows after controller restart without clearing unknown usage",
+      "cleanup": "Stop only owned processes; preserve formal evidence and original failures",
+      "status": "active"
+    },
+    {
+      "id": "p4.integration.verification-controller.003",
+      "name": "verification definition change preserves published implementation bytes and original counterexample identity",
+      "suiteId": "integration-verification-controller",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p4.integration.verification-controller.003.behavior"
+      ],
+      "scenario": "verification definition change preserves published implementation bytes and original counterexample identity",
+      "impactTags": [
+        "verification",
+        "persistence",
+        "runtime",
+        "execution"
+      ],
+      "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
+      "assertions": "tests/integration/verification-controller.test.ts: verification definition change preserves published implementation bytes and original counterexample identity",
+      "cleanup": "Stop only owned processes; preserve formal evidence and original failures",
+      "status": "active"
+    },
+    {
+      "id": "p4.live.verification.001",
+      "name": "live verification reviews real positive and negative engineering UI and primary-source controls before delivery and invalidates changed evidence",
+      "suiteId": "live-verification",
+      "module": "verification",
+      "layer": "live",
+      "covers": [
+        "p4.live.verification.001.behavior"
+      ],
+      "scenario": "live verification reviews real positive and negative engineering UI and primary-source controls before delivery and invalidates changed evidence",
+      "impactTags": [
+        "verification",
+        "persistence",
+        "runtime",
+        "execution"
+      ],
+      "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
+      "assertions": "tests/live/verification.test.ts: live verification reviews real positive and negative engineering UI and primary-source controls before delivery and invalidates changed evidence",
+      "cleanup": "Stop only owned processes; preserve formal evidence and original failures",
+      "status": "active"
+    },
+    {
+      "id": "p4.live.verification-maintenance.001",
+      "name": "live verification maintenance retains defect controls rejects weakened assertions and preserves an in-flight frozen plan across publication and restart",
+      "suiteId": "live-verification-maintenance",
+      "module": "verification",
+      "layer": "live",
+      "covers": [
+        "p4.live.verification-maintenance.001.behavior"
+      ],
+      "scenario": "live verification maintenance retains defect controls rejects weakened assertions and preserves an in-flight frozen plan across publication and restart",
+      "impactTags": [
+        "verification",
+        "persistence",
+        "runtime",
+        "execution"
+      ],
+      "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
+      "assertions": "tests/live/verification-maintenance.test.ts: live verification maintenance retains defect controls rejects weakened assertions and preserves an in-flight frozen plan across publication and restart",
+      "cleanup": "Stop only owned processes; preserve formal evidence and original failures",
       "status": "active"
     }
   ]
