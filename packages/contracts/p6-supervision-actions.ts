@@ -8,6 +8,7 @@ import type { Proposal,FrozenPlan,VerificationJob,Delivery } from '../verificati
 import type { MonitorEnvelopeV1,MonitorEvent } from './p6-monitor.js';
 
 export interface SupervisionInspection {
+  controlMaintenance?:import('./p6-control-maintenance.js').MaintenanceRecord|null;
   loop:SupervisionRecord; jobs:SupervisionJob[];
   runtime:{runtime:RuntimeRecord;run:Run;operations:RuntimeOperation[];checkpoints:{checkpoint:RuntimeCheckpoint;digest:string;valid:boolean}[]};
   verification:{proposals:Proposal[];plans:FrozenPlan[];jobs:VerificationJob[];deliveries:Delivery[]};

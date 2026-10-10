@@ -1,4 +1,8 @@
+import {prepareResearchProofPlan} from './research-workflow.js';
+import {readBounded} from '../workspace/research-runtime-files.js';
 import {assertLegacyControlReviewEvidence} from './legacy-review-evidence.js';
+import {executeMaintenanceReplay} from './control-maintenance-replay.js';
+import type {MaintenancePlan} from '../contracts/p6-control-maintenance.js';
 import {createEnvironmentScope,verificationDirectory,parseEnvironmentScope} from './scoped-environment.js';
 import {createMobileDelivery,assertMobileDelivery} from './mobile-delivery.js';
 import {DeliveryOpenSessions} from './delivery-open.js';
@@ -32,10 +36,10 @@ function ensure(value:unknown,message:string):asserts value {if(!value)throw new
 const overlap=(a:string,b:string)=>a===b||a.startsWith(b+'/')||b.startsWith(a+'/');
 function parseAction(value:unknown):VerificationAction {
   ensure(value&&typeof value==='object'&&!Array.isArray(value),'Invalid verification action');const o=value as Record<string,unknown>;
-  const fields:Record<string,string[]>={open:['commandId','deliveryId','caseId','timeoutMs'],'close-open':['sessionId'],'open-session':['sessionId'],propose:['commandId','runtimeId','specPath','controlDeclarationPath','controlAuthorJobId'],review:['commandId','proposalId','model','effort','reservation','timeoutMs'],publish:['commandId','proposalId','reviewId'],freeze:['commandId','runtimeId','mode','changedModules'],run:['commandId','planId','model','effort','reservation','timeoutMs','futureVerificationAllocationId'],deliver:['commandId','jobId'],cancel:['jobId'],job:['jobId'],status:['runtimeId']};
+  const fields:Record<string,string[]>={open:['commandId','deliveryId','caseId','timeoutMs'],'close-open':['sessionId'],'open-session':['sessionId'],propose:['commandId','runtimeId','specPath','controlDeclarationPath','controlAuthorJobId','researchAuthorJobId'],review:['commandId','proposalId','model','effort','reservation','timeoutMs'],publish:['commandId','proposalId','reviewId'],freeze:['commandId','runtimeId','mode','changedModules'],run:['commandId','planId','model','effort','reservation','timeoutMs','futureVerificationAllocationId'],deliver:['commandId','jobId'],cancel:['jobId'],job:['jobId'],status:['runtimeId']};
   ensure(typeof o.type==='string'&&fields[o.type],'Unknown verification action');const keys=fields[o.type]!;
   ensure(Object.keys(o).every(k=>k==='type'||keys.includes(k)),'Unknown verification action field');
-  for(const key of keys.filter(k=>!['changedModules','reservation','timeoutMs'].includes(k)&&(!['futureVerificationAllocationId','controlDeclarationPath','controlAuthorJobId'].includes(k)||o[k]!==undefined)))ensure(typeof o[key]==='string'&&(o[key] as string).trim()&&(o[key] as string).length<=4096&&!(o[key] as string).includes('\0'),'Invalid verification '+key);
+  for(const key of keys.filter(k=>!['changedModules','reservation','timeoutMs'].includes(k)&&(!['futureVerificationAllocationId','controlDeclarationPath','controlAuthorJobId','researchAuthorJobId'].includes(k)||o[k]!==undefined)))ensure(typeof o[key]==='string'&&(o[key] as string).trim()&&(o[key] as string).length<=4096&&!(o[key] as string).includes('\0'),'Invalid verification '+key);
   if(o.type==='propose')ensure((o.controlDeclarationPath===undefined)===(o.controlAuthorJobId===undefined),'Control author and declaration must be supplied together');
   if(o.type==='freeze'){ensure(['final','impact'].includes(String(o.mode)),'Invalid verification mode');if(o.changedModules!==undefined)ensure(Array.isArray(o.changedModules)&&o.changedModules.every(x=>typeof x==='string'&&x.length>0),'Invalid changed modules');}
   if(o.type==='open')ensure(Number.isSafeInteger(o.timeoutMs)&&Number(o.timeoutMs)>=1000&&Number(o.timeoutMs)<=600000,'Invalid open session timeout');
@@ -51,6 +55,7 @@ async function allStopped(identities:ProcessIdentity[]):Promise<boolean> {
 export class VerificationController {
   private readonly pending=new Map<string,{abort:AbortController;promise:Promise<void>}>();
   private queue:Promise<unknown>=Promise.resolve();
+  private closing=false;
   private readonly openSessions:DeliveryOpenSessions;
   constructor(private readonly store:SupervisorStore,private readonly dataDir:string){this.openSessions=new DeliveryOpenSessions(join(dataDir,'delivery-open'));}
   private get repo(){return this.store.verification;}
@@ -96,23 +101,46 @@ export class VerificationController {
     if(action.type==='job')return this.repo.get('job',action.jobId);
     if(action.type==='status')return this.status(action.runtimeId);
     if(action.type==='cancel'){this.pending.get(action.jobId)?.abort.abort();return this.repo.get('job',action.jobId);}
-    const prior=this.repo.receipt(action.commandId,action);if(prior!==undefined)return prior;
+    const prior=this.repo.receipt(action.commandId,action);if(prior!==undefined){if(action.type==='deliver'&&(prior as Delivery).researchProofPlanDigest)return this.exportResearchDelivery(action.commandId,action);return prior;}
     if(action.type==='propose') {
       if(action.controlDeclarationPath)return this.proposeControl(action);
       const runtime=this.store.runtime.get(action.runtimeId);await this.writers(runtime);
       const environmentScope=await createEnvironmentScope(this.dataDir,runtime),id='proposal-'+randomUUID(),directory=verificationDirectory(this.dataDir,{...runtime,id,environmentScope}),run=this.repo.run(runtime.projectId,runtime.runId);
       ensure(isAbsolute(action.specPath),'Spec path must be absolute');
       const base=this.store.verificationLineage.captureBase(runtime.projectId,runtime.runId),previous=base.baseProposalId?this.repo.get('proposal',base.baseProposalId):null;
-      const {spec,bundle}=await captureDefinition(action.specPath,directory);validateSpecChange(previous?.spec??null,spec,run.contract);
+      const {spec,bundle}=await captureDefinition(action.specPath,directory);
+      let nativePlan:import('../contracts/p4-research-workflow.js').ResearchProofPlan|undefined;
+      if(this.store.researchWorkflow.requires(runtime.id)) {
+        ensure(action.researchAuthorJobId,'Native research proposal requires its actual frozen author/mapping');
+        const author=await new SupervisionReasoningRunner(this.store,this.dataDir).run(action.researchAuthorJobId);
+        const context=(author.input as {context:{acceptance:import('../orchestration/acceptance-authoring.js').AcceptanceAuthoringContext}}).context.acceptance;
+        ensure(context.workflowMode==='native-host-v1'&&author.runtimeId===runtime.id,
+          'Native mapping author belongs to another Run/role');
+        nativePlan=prepareResearchProofPlan(context.criteria,run.contract,spec,
+          (author.result as {researchWorkflow:import('../contracts/p4-research-workflow.js').ResearchWorkflowDeclaration}).researchWorkflow);
+      } else ensure(!action.researchAuthorJobId,'Native workflow mapping requires an admitted research scope');
+      validateSpecChange(previous?.spec??null,spec,run.contract);
       validateBundleChange(previous,{spec,bundle});await assertMaterialSpecBindings(this.store,this.dataDir,runtime.id,spec.cases.flatMap(c=>c.verifier.kind==='material'?[c.verifier]:c.verifier.kind==='source'&&c.verifier.binding?[{kind:'material' as const,version:c.verifier.version,claimFile:c.verifier.claimFile,binding:c.verifier.binding,timeoutMs:c.verifier.timeoutMs}]:[]));
       const candidate=await captureCandidate(runtime.workspace,join(directory,'candidate'));
-      const proposal:Proposal={id,environmentScope,runtimeId:runtime.id,projectId:runtime.projectId,runId:runtime.runId,baseVersion:previous?.version??0,version:null,spec,bundle,candidate,contractDigest:digest(canonical(run.contract)),status:'proposed',createdAt:new Date().toISOString()};
+      const proposal:Proposal={id,...(nativePlan?{researchProofPlanDigest:nativePlan.digest}:{}),environmentScope,runtimeId:runtime.id,projectId:runtime.projectId,runId:runtime.runId,baseVersion:previous?.version??0,version:null,spec,bundle,candidate,contractDigest:digest(canonical(run.contract)),status:'proposed',createdAt:new Date().toISOString()};
       const snapshot=this.store.managedSnapshot(canonical(candidate));
-      return this.repo.transaction(()=>{this.assertQuietWorkspace(runtime.workspace);this.repo.assertNoVerificationWriter(runtime.workspace);this.repo.insert('proposal',proposal);this.store.verificationLineage.bindProposal({commandId:'bind:'+action.commandId,proposalId:proposal.id,base,definitionFormat:'legacy-v1'});this.repo.artifact(run.projectId,run.id,{id,...snapshot,contractVersion:run.contract.version});this.repo.remember(action.commandId,action,proposal);return proposal;});
+      return this.repo.transaction(()=>{
+        this.assertQuietWorkspace(runtime.workspace);
+        this.repo.assertNoVerificationWriter(runtime.workspace);
+        this.repo.insert('proposal',proposal);
+        this.store.verificationLineage.bindProposal({commandId:'bind:'+action.commandId,
+          proposalId:proposal.id,base,definitionFormat:'legacy-v1'});
+        if(nativePlan)this.store.researchWorkflow.bindProposal({proposalId:proposal.id,
+          authorJobId:action.researchAuthorJobId!,proofPlan:nativePlan});
+        this.repo.artifact(run.projectId,run.id,{id,...snapshot,contractVersion:run.contract.version});
+        this.repo.remember(action.commandId,action,proposal);
+        return proposal;
+      });
     }
     if(action.type==='publish') {
       const proposal=this.repo.get('proposal',action.proposalId),review=this.repo.get('job',action.reviewId);
       ensure(review.kind==='review'&&review.proposalId===proposal.id&&review.status==='finished'&&review.approved&&!review.error,'Publication requires actual independent approved review');
+      if(this.repo.researchProofPlanDigest(proposal.id))this.store.researchWorkflow.assertMappingReview(proposal,review);
       if(this.store.verificationLineage.bindingForProposal(proposal.id).definitionFormat==='legacy-v1')assertLegacyControlReviewEvidence({dataDir:this.repo.dataDirectory(),proposal,review});
       await this.assertJob(review);await assertMaterialsCurrent(review.materials??[]);await assertDefinition(proposal.spec,proposal.bundle);await assertCandidate(proposal.candidate);
       ensure(digest(canonical(this.repo.run(proposal.projectId,proposal.runId).contract))===proposal.contractDigest,'Contract changed after review');
@@ -131,6 +159,7 @@ export class VerificationController {
       const plan=action.type==='run'?this.repo.get('plan',action.planId):null;
       if(action.type==='run'&&action.futureVerificationAllocationId)this.assertFinalAllocationPlan(plan!);
       const proposal=this.repo.get('proposal',plan?.proposalId??(action as Extract<VerificationAction,{type:'review'}>).proposalId),runtime=this.store.runtime.get(plan?.runtimeId??proposal.runtimeId);
+      const nativeRole=this.repo.researchProofPlanDigest(proposal.id);if(nativeRole)ensure(proposal.researchProofPlanDigest===nativeRole,'Persisted native research role differs; no new request may be reserved');
       await this.writers(runtime);await assertDefinition(proposal.spec,proposal.bundle);await assertMaterialSpecBindings(this.store,this.dataDir,runtime.id,proposal.spec.cases.flatMap(c=>c.verifier.kind==='material'?[c.verifier]:c.verifier.kind==='source'&&c.verifier.binding?[{kind:'material' as const,version:c.verifier.version,claimFile:c.verifier.claimFile,binding:c.verifier.binding,timeoutMs:c.verifier.timeoutMs}]:[]));await assertCandidate(plan?.candidate??proposal.candidate);
       if(action.type==='review')this.assertReviewBase(proposal);
       const run=this.repo.run(runtime.projectId,runtime.runId);ensure(!['succeeded','cancelled','paused'].includes(run.status),'Run is terminal or paused');
@@ -138,11 +167,13 @@ export class VerificationController {
       if(plan){ensure(plan.contractDigest===proposal.contractDigest,'Frozen plan does not match the independently reviewed task contract');ensure(plan.environmentDigest===(await environmentFingerprint(plan.environmentScope)).digest,'Frozen verifier environment changed');}
       const id='verify-'+randomUUID(),config:ModelConfig={model:action.model,effort:action.effort,reservation:action.reservation,timeoutMs:action.timeoutMs};
       const environmentScope=plan?.environmentScope??proposal.environmentScope;if(environmentScope)parseEnvironmentScope(environmentScope,{...runtime,dataDir:this.dataDir});if(plan)ensure(canonical(plan.environmentScope??null)===canonical(proposal.environmentScope??null),'Legacy and scoped verification require a new complete review');const environmentDigest=(await environmentFingerprint(environmentScope)).digest;
-      const job:VerificationJob={id,environmentDigest,...(environmentScope?{environmentScope}:{}),runtimeId:runtime.id,projectId:runtime.projectId,runId:runtime.runId,workspace:runtime.workspace,kind:action.type==='review'?'review':'verification',proposalId:proposal.id,planId:plan?.id??null,request:action,status:'running',attemptId:id,config,startedAt:new Date().toISOString(),finishedAt:null,intents:[],identities:[],usage:0,modelStarted:false,usageUnknown:false,results:[],controls:[],evaluation:null,approved:false,stopConfirmed:false,error:null,proofs:{},sources:[]};
+      const job:VerificationJob={id,...(proposal.researchProofPlanDigest?{researchProofPlanDigest:proposal.researchProofPlanDigest,...(action.type==='run'?{approvalScope:'research-artifact' as const}:{})}:{}),environmentDigest,...(environmentScope?{environmentScope}:{}),runtimeId:runtime.id,projectId:runtime.projectId,runId:runtime.runId,workspace:runtime.workspace,kind:action.type==='review'?'review':'verification',proposalId:proposal.id,planId:plan?.id??null,request:action,status:'running',attemptId:id,config,startedAt:new Date().toISOString(),finishedAt:null,intents:[],identities:[],usage:0,modelStarted:false,usageUnknown:false,results:[],controls:[],evaluation:null,approved:false,stopConfirmed:false,error:null,proofs:{},sources:[]};
       this.repo.transaction(()=>{this.assertQuietWorkspace(runtime.workspace);this.repo.assertNoVerificationWriter(runtime.workspace);if(action.type==='run'&&action.futureVerificationAllocationId)this.assertFinalAllocationPlan(plan!);if(action.type==='review')this.assertReviewBase(proposal);this.repo.act(run.projectId,run.id,{type:'startAttempt',attemptId:id,nodeId:run.nodes.at(-1)!.id,contractVersion:run.contract.version,reservation:config.reservation,purpose:'verification',resources:['verification:'+runtime.workspace],...(action.type==='run'&&action.futureVerificationAllocationId?{futureVerificationAllocationId:action.futureVerificationAllocationId}:{})});this.repo.insert('job',job);this.repo.remember(action.commandId,action,job);});
       const abort=new AbortController(),promise=this.execute(job,proposal,plan,abort.signal).finally(()=>this.pending.delete(id));this.pending.set(id,{abort,promise});return job;
     }
     const job=this.repo.get('job',action.jobId);ensure(job.kind==='verification'&&job.planId&&job.status==='finished'&&job.approved&&job.evaluation?.complete,'Delivery requires a complete actual verification');
+    if(job.approvalScope==='research-artifact')return this.deliverResearch(action,job);
+    ensure(!this.repo.researchProofPlanDigest(this.repo.get('plan',job.planId).proposalId),'Native research cannot use ordinary delivery');
     const plan=this.repo.get('plan',job.planId);await this.current(plan,job,true);await this.writers(this.store.runtime.get(job.runtimeId));
     const delivery:Delivery={id:'delivery-'+randomUUID(),jobId:job.id,planId:plan.id,runtimeId:job.runtimeId,projectId:job.projectId,runId:job.runId,candidateDigest:plan.candidate.digest,definitionDigest:plan.definitionDigest,createdAt:new Date().toISOString(),path:join(verificationDirectory(this.dataDir,job),'delivery.json')};
     const mobilePackage=await createMobileDelivery(this.dataDir,delivery.id,plan,job);if(mobilePackage)delivery.mobilePackage=mobilePackage;await this.current(plan,job);if(mobilePackage)await assertMobileDelivery(mobilePackage);
@@ -153,8 +184,58 @@ export class VerificationController {
       this.repo.act(run.projectId,run.id,{type:'complete'});this.repo.insert('delivery',delivery);this.repo.remember(action.commandId,action,delivery);return delivery;
     });
   }
+  private async deliverResearch(action: Extract<VerificationAction, {
+      type: 'deliver';
+  }>, job: VerificationJob): Promise<Delivery> {
+      ensure(!this.closing, 'Research delivery controller closed');
+      ensure(!this.store.researchWorkflow.isTransaction(), 'Public research delivery cannot return from an open parent transaction');
+      await this.store.researchWorkflow.captureArtifact(job.id);
+      await this.writers(this.store.runtime.get(job.runtimeId));
+      const plan = this.repo.get('plan', job.planId!), delivery: Delivery = {
+          id: 'delivery-' + randomUUID(),
+          jobId: job.id,
+          planId: plan.id,
+          runtimeId: job.runtimeId,
+          projectId: job.projectId,
+          runId: job.runId,
+          candidateDigest: plan.candidate.digest,
+          definitionDigest: plan.definitionDigest,
+          researchProofPlanDigest: job.researchProofPlanDigest!,
+          createdAt: new Date().toISOString(),
+          path: join(verificationDirectory(this.repo.dataDirectory(), job), 'delivery.json')
+      };
+      this.repo.transaction(() => {
+          ensure(!this.closing, 'Research delivery controller closed during preflight');
+          this.store.researchWorkflow.sealDelivery({
+              commandId: action.commandId,
+              request: action,
+              jobId: job.id,
+              delivery
+          });
+      });
+      return this.exportResearchDelivery(action.commandId, action);
+  }
+  private async exportResearchDelivery(commandId: string, request: unknown): Promise<Delivery> {
+      const committed = this.store.researchWorkflow.committed(commandId, request);
+      ensure(committed, 'Research delivery has not committed');
+      await this.store.researchWorkflow.assertCommittedCurrent(committed.delivery);
+      const bytes = JSON.stringify(committed.delivery, null, 2);
+      try {
+          await writeFile(committed.delivery.path, bytes, {
+              flag: 'wx',
+              mode: 0o600
+          });
+      }
+      catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'EEXIST')
+              throw new Error('Research receipt committed; export pending: ' + String(error));
+          ensure(readBounded(committed.delivery.path).toString() === bytes, 'Research receipt committed; export conflicts with exact committed bytes');
+      }
+      return committed.delivery;
+  }
   private async proposeControl(action:Extract<VerificationAction,{type:'propose'}>):Promise<Proposal> {
     const runtime=this.store.runtime.get(action.runtimeId);await this.writers(runtime);
+    ensure(!this.store.researchWorkflow.requires(runtime.id),'Native research historical evolution requires its explicit reviewed mapping transition');
     ensure(action.controlAuthorJobId&&action.controlDeclarationPath,'Missing control author declaration');
     const initial=this.store.supervision.job(action.controlAuthorJobId);
     ensure(initial.status==='finished'&&initial.purpose==='acceptance-authoring'&&initial.runtimeId===runtime.id&&initial.projectId===runtime.projectId&&initial.runId===runtime.runId,'Control declaration requires its completed actual author');
@@ -175,7 +256,7 @@ export class VerificationController {
     ensure(session?.proposal?.decision==='ready'&&canonical(session.proposal.criteria)===canonical(evolution.current.criteria),'Control author criteria differ from the admitted goal');
     ensure(evolution.current.criteria.length===run.contract.criteria.length&&run.contract.criteria.every(item=>{const criterion=evolution.current.criteria.find(c=>c.id===item.id);return criterion&&item.required&&item.description===[criterion.description,`Acceptance kind: ${criterion.kind}; target: ${criterion.target}`,...criterion.checks].join('\n');}),'Control criteria do not cover the exact admitted contract');
     const history=base.baseProposalId?this.store.controlQualification.loadHistory(base.baseProposalId):{definitions:[],specimens:[],manifest:null,transitions:[]};
-    const current=await captureControlEvolutionContext({current:evolution.current,base,transitions:base.transitionIds.map(id=>this.store.verificationLineage.transition(id)),history});
+    const current=await captureControlEvolutionContext({current:evolution.current,base,transitions:base.transitionIds.map(id=>this.store.verificationLineage.transition(id)),history,...(evolution.maintenance?{maintenance:evolution.maintenance}:{}),...(evolution.regression?{regression:evolution.regression}:{})});
     ensure(canonical(current)===canonical(evolution),'Frozen control author history changed');
     ensure(evolution.current.environment.digest===(await environmentFingerprint(evolution.current.environment.scope===undefined?undefined:parseEnvironmentScope(evolution.current.environment.scope,{...runtime,dataDir:this.dataDir}))).digest,'Control author environment changed');
     ensure(input.context.candidate.root===runtime.workspace&&input.context.candidate.digest===evolution.current.candidate.digest&&evolution.current.candidate.workspace===runtime.workspace,'Control candidate belongs to another workspace');
@@ -185,12 +266,13 @@ export class VerificationController {
     const environmentScope=await createEnvironmentScope(this.dataDir,runtime),id='proposal-'+randomUUID(),directory=verificationDirectory(this.dataDir,{...runtime,id,environmentScope});
     const target=await captureControlSpec({specPath:action.specPath,directory,contract:run.contract});await assertMaterialSpecBindings(this.store,this.dataDir,runtime.id,target.definition.spec.cases.flatMap(c=>c.verifier.kind==='material'?[c.verifier]:c.verifier.kind==='source'&&c.verifier.binding?[{kind:'material' as const,version:c.verifier.version,claimFile:c.verifier.claimFile,binding:c.verifier.binding,timeoutMs:c.verifier.timeoutMs}]:[]));const candidate=await captureCandidate(runtime.workspace,join(directory,'candidate'));
     ensure(candidate.digest===input.context.candidate.digest,'Candidate changed during control proposal capture');
-    const result=author.result as {plan:Parameters<typeof prepareControlDraft>[0]['authoredPlan']};
+    const result=author.result as {maintenance?:MaintenancePlan;plan:Parameters<typeof prepareControlDraft>[0]['authoredPlan']};
     const draft=await prepareControlDraft({proposalId:id,base,baseDefinition:history.definitions.find(d=>d.definition.definitionDigest===base.baseDefinitionDigest)?.definition??null,target,transitions:current.transitions,history,authoredPlan:result.plan,authorBinding:{jobId:author.id,inputDigest:author.inputDigest,resultDigest:controlDigest(author.result)}});
     const previous=base.baseProposalId?this.repo.get('proposal',base.baseProposalId):null;
-    const proposal:Proposal={id,environmentScope,runtimeId:runtime.id,projectId:runtime.projectId,runId:runtime.runId,baseVersion:previous?.version??0,version:null,spec:target.definition.spec,bundle:target.bundle,candidate,contractDigest:author.contractDigest,controlDraftDigest:draft.digest,status:'proposed',createdAt:new Date().toISOString()};
+    const maintenance=evolution.maintenance?this.store.controlMaintenance.forLoop(author.loopId):null;ensure(!evolution.maintenance||maintenance?.authorJobId===author.id,'Maintenance author reservation changed');
+    const proposal:Proposal={id,...(maintenance?{maintenanceId:maintenance.id,maintenanceDigest:maintenance.basisDigest}:{}),...((evolution.maintenance||evolution.regression)?{regressionDigest:controlDigest(evolution.maintenance?.basis??evolution.regression)}:{}),environmentScope,runtimeId:runtime.id,projectId:runtime.projectId,runId:runtime.runId,baseVersion:previous?.version??0,version:null,spec:target.definition.spec,bundle:target.bundle,candidate,contractDigest:author.contractDigest,controlDraftDigest:draft.digest,status:'proposed',createdAt:new Date().toISOString()};
     const snapshot=this.store.managedSnapshot(canonical(candidate));await assertCandidate(candidate);await assertDefinition(proposal.spec,proposal.bundle);
-    return this.repo.transaction(()=>{this.assertQuietWorkspace(runtime.workspace);this.repo.assertNoVerificationWriter(runtime.workspace);this.repo.insert('proposal',proposal);this.store.verificationLineage.bindProposal({commandId:'bind:'+action.commandId,proposalId:id,base,definitionFormat:'qualified-v2'});this.store.controlQualification.insertDraft({commandId:'draft:'+action.commandId,proposalId:id,draft});this.repo.artifact(run.projectId,run.id,{id,...snapshot,contractVersion:run.contract.version});this.repo.remember(action.commandId,action,proposal);return proposal;});
+    return this.repo.transaction(()=>{this.assertQuietWorkspace(runtime.workspace);this.repo.assertNoVerificationWriter(runtime.workspace);this.repo.insert('proposal',proposal);this.store.verificationLineage.bindProposal({commandId:'bind:'+action.commandId,proposalId:id,base,definitionFormat:'qualified-v2'});this.store.controlQualification.insertDraft({commandId:'draft:'+action.commandId,proposalId:id,draft});if(maintenance)this.store.controlMaintenance.bindProposal(id,author.id,result.maintenance!);this.repo.artifact(run.projectId,run.id,{id,...snapshot,contractVersion:run.contract.version});this.repo.remember(action.commandId,action,proposal);return proposal;});
   }
   private frozenBaseProposal(proposal:Proposal):Proposal|null {
     const base=this.store.verificationLineage.baseForProposal(proposal.id),previous=base.baseProposalId?this.repo.get('proposal',base.baseProposalId):null;
@@ -209,7 +291,7 @@ export class VerificationController {
         qualification=await this.reviewControl(context,proposal);
       }else if(job.kind==='review') {
         await executeDefinitionControls(context,proposal.spec,proposal.bundle);
-        const prompt=await definitionReviewPrompt(proposal.spec,proposal.bundle,this.frozenBaseProposal(proposal),this.repo.run(job.projectId,job.runId).contract,job.controls);
+        const prompt=await definitionReviewPrompt(proposal.spec,proposal.bundle,this.frozenBaseProposal(proposal),this.repo.run(job.projectId,job.runId).contract,job.controls,proposal.researchProofPlanDigest?this.store.researchWorkflow.proposal(proposal.id).proofPlan:undefined);
         const review=await reviewModel(context,prompt,proposal.candidate.tree,join(output,'definition-review'));job.approved=review.verdict==='passed';if(!job.approved)job.error='Independent definition review: '+review.reason;
       }else {
         job.results=await executeInstances(context,proposal.spec,proposal.bundle,plan!.candidate,plan!.selection.instances,'candidate');
@@ -248,7 +330,10 @@ export class VerificationController {
     const execution=await executeQualification(context,assembled);
     repo.appendReviewStage({commandId:context.job.id+':qualification',reviewId:context.job.id,stage:'qualification',payload:{execution}});
     ensure(execution.evaluation.qualified&&execution.stopConfirmed,'Control qualification did not preserve all required positive and negative witnesses');
-    const prompt=await controlQualificationReviewPrompt({...assembled,pairs:execution.pairs});
+    const maintenance=this.store.controlMaintenance.sourcesForProposal(proposal);
+    if(maintenance){const replay=await executeMaintenanceReplay(context,proposal,maintenance.basis,maintenance.plan);this.store.controlMaintenance.appendReplay(replay);}
+    const maintenancePayload=this.store.controlMaintenance.reviewPayload(proposal.id,context.job.id);
+    const prompt=await controlQualificationReviewPrompt({...assembled,pairs:execution.pairs,...(maintenancePayload?{maintenance:maintenancePayload}:{})});
     const independentReview=await reviewModel(context,prompt,proposal.candidate.tree,join(context.output,'definition-review'));
     context.save();context.eligible();
     const reviewPromptDigest=digest(prompt);
@@ -270,7 +355,7 @@ export class VerificationController {
   private async current(plan:FrozenPlan,job:VerificationJob,refresh=false):Promise<void>{return new VerificationProofReader(this.store).current(plan,job,refresh);}
   async status(runtimeId:string):Promise<unknown> {
     const runtime=this.store.runtime.get(runtimeId);let catalogHead:{proposalId:string;version:number|null}|null=null,catalogHeadError:string|null=null;try{const head=this.repo.headForRun(runtime.projectId,runtime.runId);if(head)catalogHead={proposalId:head.id,version:head.version};}catch(error){catalogHeadError=String(error);}const deliveries=this.repo.list('delivery',runtimeId),latest=deliveries.at(-1);let current=false,reason=latest?'':'No accepted delivery';
-    if(latest)try{await this.current(this.repo.get('plan',latest.planId),this.repo.get('job',latest.jobId));if(latest.mobilePackage)await assertMobileDelivery(latest.mobilePackage);current=true;}catch(error){reason=String(error);}
+    if(latest)try{if(latest.researchProofPlanDigest)this.store.researchWorkflow.assertCommittedDelivery(latest);await this.current(this.repo.get('plan',latest.planId),this.repo.get('job',latest.jobId));if(latest.mobilePackage)await assertMobileDelivery(latest.mobilePackage);current=true;}catch(error){reason=String(error);}
     const assessment=latest?await this.deliveryAssessment(latest):null;
     return {catalogHead,catalogHeadError,proposals:this.repo.list('proposal',runtimeId),plans:this.repo.list('plan',runtimeId),jobs:this.repo.list('job',runtimeId),deliveries,currentDelivery:{current,reason,delivery:latest??null,assessment}};
   }
@@ -299,9 +384,10 @@ export class VerificationController {
       });
       let currentEnvironmentDigest:string|null=null;try{currentEnvironmentDigest=(await environmentFingerprint(snapshot.verification.environmentScope)).digest;}catch{}
       let result=await assessDeliveryEvidence(snapshot,{dataDir:this.dataDir,checkedAt,workspaceRead:before.quiet?'quiet':'busy',currentEnvironmentDigest,qualificationReader:this.store.controlQualification});
+      if(delivery.researchProofPlanDigest)try{this.store.researchWorkflow.assertCommittedDelivery(delivery);}catch(error){result.historicalEvidenceIntact=false;result.issues.push({code:'history-evidence-invalid',area:'history',message:'Native research seal unavailable or differs: '+String(error)});}
       if(observation().token!==before.token){result=invalidateWorkspaceObservation(result);result.isActiveRound=null;result.headMatches=null;result.issues.push({code:'scope-unresolved',area:'scope',message:'Task state changed during the read-only evidence observation'});}
       return result;
     }catch(error){return unavailableDeliveryAssessment(delivery,checkedAt,{code:'history-unavailable',area:'history',message:String(error)});}
   }
-  async close():Promise<void>{for(const active of this.pending.values())active.abort.abort();const settled=await Promise.allSettled([this.openSessions.closeAll(),...[...this.pending.values()].map(p=>p.promise)]);const failed=settled.find(value=>value.status==='rejected');if(failed?.status==='rejected')throw failed.reason;}
+  async close():Promise<void>{this.closing=true;for(const active of this.pending.values())active.abort.abort();const settled=await Promise.allSettled([this.openSessions.closeAll(),...[...this.pending.values()].map(p=>p.promise)]);const failed=settled.find(value=>value.status==='rejected');if(failed?.status==='rejected')throw failed.reason;}
 }

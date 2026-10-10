@@ -39,8 +39,9 @@ test('manifest accepts both layers and inclusive timeout limits', () => {
   value.suites[0]!.timeoutMs = 1;
   value.suites.push({ ...spec, id: 'integration-suite', layer: 'integration', timeoutMs: 300_000 });
   assert.equal(parseManifest(value).suites.length, 2);
-  const live = parseManifest({ ...value, stage: 'P2', suites: [{ ...spec, id: 'live-suite', layer: 'live', file: 'dist/tests/live/execution.test.js', timeoutMs: 2_100_000 }] });
-  assert.equal(live.stage, 'P2'); assert.equal(live.suites[0]!.layer, 'live');
+  const live = parseManifest({ ...value, stage: 'P2', suites: [{ ...spec, id: 'live-suite', layer: 'live', file: 'dist/tests/live/execution.test.js', timeoutMs: 3_600_000 }] });
+  assert.equal(live.stage, 'P2'); assert.equal(live.suites[0]!.layer, 'live'); assert.equal(live.suites[0]!.timeoutMs, 3_600_000);
+  for (const layer of ['unit', 'integration'] as const) assert.equal(parseManifest({ ...value, suites: [{ ...spec, layer, timeoutMs: 300_000 }] }).suites[0]!.timeoutMs, 300_000);
 });
 
 test('manifest rejects nonobject inputs and serialized JSON', () => {
@@ -108,7 +109,8 @@ test('manifest rejects noninteger nonfinite and out of range timeouts', () => {
   for (const timeoutMs of [0, -1, 300_001, 1.5, Number.NaN, Infinity, '1000', undefined]) {
     assert.throws(() => parseManifest({ ...manifest(), suites: [{ ...spec, timeoutMs }] }), /timeoutMs/);
   }
-  assert.throws(() => parseManifest({ ...manifest(), stage: 'P2', suites: [{ ...spec, layer: 'live', timeoutMs: 2_100_001 }] }), /timeoutMs/);
+  assert.throws(() => parseManifest({ ...manifest(), stage: 'P2', suites: [{ ...spec, layer: 'live', timeoutMs: 3_600_001 }] }), /timeoutMs/);
+  for (const layer of ['unit', 'integration'] as const) assert.throws(() => parseManifest({ ...manifest(), suites: [{ ...spec, layer, timeoutMs: 300_001 }] }), /timeoutMs/);
 });
 
 test('manifest rejects sparse suite and expected name arrays', () => {

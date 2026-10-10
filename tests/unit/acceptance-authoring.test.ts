@@ -39,6 +39,20 @@ test('P6-AUTH-U01 strict proposed assets bind complete contract source environme
 });
 
 test('P6-AUTH-U02 semantic checks reject weakened necessity coverage controls and copied candidate tests', () => {
+  // Proposed-asset mechanism fixtures: necessity comes from the original criterion,
+  // including a genuinely optional criterion; no model or P4 success is implied.
+  for (const required of [true, false]) {
+    const mapped = context();
+    mapped.contract.criteria[0]!.required = required;
+    const proposed = bundle(mapped);
+    proposed.spec.obligations[0]!.required = required;
+    assert.deepEqual(validateAcceptanceBundle(proposed, mapped), proposed);
+    const mismatch = structuredClone(proposed);
+    mismatch.spec.obligations[0]!.required = !required;
+    assert.doesNotThrow(() => parseReasonerOutput(JSON.stringify(mismatch), acceptanceAuthoringSchema(mapped)));
+    assert.throws(() => validateAcceptanceBundle(mismatch, mapped), /necessary obligation|necessity/);
+    assert.equal(mapped.contract.criteria[0]!.required, required);
+  }
   const c = context();
   const mutations: ((b: AcceptanceBundle) => void)[] = [
     b => { b.spec.obligations[0]!.required = false; }, b => { b.spec.obligations[0]!.applicable = false; },

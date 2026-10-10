@@ -1,3 +1,5 @@
+import {ControlMaintenanceRepository} from './control-maintenance.js';
+import {ResearchWorkflowRepository} from './research-workflow.js';
 import {ScheduledLoopRepository} from './scheduled-loops.js';
 import { AuthorRoutingRepository } from './author-routing.js';
 import { TaskSchedulerRepository } from './task-scheduler.js';
@@ -59,7 +61,9 @@ export class SupervisorStore {
   readonly supervisionConcerns: SupervisionConcernRepository;
   readonly conversations: ConversationRepository;
   readonly verification: VerificationRepository;
+  readonly researchWorkflow:ResearchWorkflowRepository;
   readonly verificationLineage: VerificationLineageRepository;
+  readonly controlMaintenance: ControlMaintenanceRepository;
   readonly controlQualification: ControlQualificationRepository;
   readonly taskResults: TaskResultRepository;
   private readonly root: string;
@@ -92,8 +96,10 @@ export class SupervisorStore {
     this.conversations = new ConversationRepository(this.db);
     this.verification = new VerificationRepository(this.db);
     this.verificationLineage = new VerificationLineageRepository(this.db);
+    this.controlMaintenance = new ControlMaintenanceRepository(this.db, this.root);
     this.controlQualification = new ControlQualificationRepository(this.db, this.root);
     this.taskResults = new TaskResultRepository(this.db, this.root);
+    this.researchWorkflow=new ResearchWorkflowRepository(this.db,()=>this,options.fault);
   }
 
   managedSnapshot(content: string): {path:string;digest:string} { return this.snapshot(content); }

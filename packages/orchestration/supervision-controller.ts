@@ -1,3 +1,5 @@
+import type {MaintenanceBasis} from '../contracts/p6-control-maintenance.js';
+import {captureMaintenanceContext,captureRegressionContext} from '../verification/control-maintenance-replay.js';
 import {createEnvironmentScope} from '../verification/scoped-environment.js';
 import {captureMaterialBinding,readMaterialBinding} from '../verification/material.js';
 import {readBounded} from '../workspace/research-runtime-files.js';
@@ -57,7 +59,7 @@ export class SupervisionController {
   private serial<T>(work:()=>Promise<T>):Promise<T>{const result=this.queue.then(work);this.queue=result.catch(()=>{});return result;}
   async initialize():Promise<void>{ensure(!this.closed,'Supervision controller closed');await this.runner.initialize();await this.monitor.initialize();await this.scan();this.timer??=setInterval(()=>{void this.scan();},15000);this.timer.unref();}
   inspect(loopId:string):SupervisionInspection {
-    const loop=this.repo.get(loopId),monitor=this.monitor.inspect(loopId),pending=new Set(this.store.supervisionConcerns.candidates(loopId));return {loop,jobs:this.repo.jobs(loopId),routing:{rounds:this.store.supervisionRouting.rounds(loopId),routes:this.store.supervisionRouting.routes(loopId)},runtime:this.store.runtime.inspect(loop.runtimeId),verification:{proposals:this.store.verification.list('proposal',loop.runtimeId),plans:this.store.verification.list('plan',loop.runtimeId),jobs:this.store.verification.list('job',loop.runtimeId),deliveries:this.store.verification.list('delivery',loop.runtimeId)},monitor:{...monitor,diagnosisRequests:monitor.diagnosisRequests.filter(request=>pending.has(request.jobId)),concerns:this.store.supervisionConcerns.list(loopId),concernDiscards:this.store.supervisionConcerns.discards(loopId)},capabilities:{scanIntervalMs:15000,modelMonitoring:true,automaticControlEvolution:false}};
+    const loop=this.repo.get(loopId),monitor=this.monitor.inspect(loopId),pending=new Set(this.store.supervisionConcerns.candidates(loopId));return {loop,controlMaintenance:this.store.controlMaintenance.forLoop(loopId),jobs:this.repo.jobs(loopId),routing:{rounds:this.store.supervisionRouting.rounds(loopId),routes:this.store.supervisionRouting.routes(loopId)},runtime:this.store.runtime.inspect(loop.runtimeId),verification:{proposals:this.store.verification.list('proposal',loop.runtimeId),plans:this.store.verification.list('plan',loop.runtimeId),jobs:this.store.verification.list('job',loop.runtimeId),deliveries:this.store.verification.list('delivery',loop.runtimeId)},monitor:{...monitor,diagnosisRequests:monitor.diagnosisRequests.filter(request=>pending.has(request.jobId)),concerns:this.store.supervisionConcerns.list(loopId),concernDiscards:this.store.supervisionConcerns.discards(loopId)},capabilities:{scanIntervalMs:15000,modelMonitoring:true,automaticControlEvolution:false}};
   }
   async dispatch(value:unknown):Promise<SupervisionInspection|SupervisionInspection[]>{const action=parseSupervisionAction(value);return this.serial(async()=>{
     ensure(!this.closed,'Supervision controller closed');
@@ -125,7 +127,7 @@ export class SupervisionController {
    * cancellation. It never reuses the old request or treats unknown cost as zero. */
   private async resumeAnalysis(loop:SupervisionRecord):Promise<boolean>{
     const id=loop.phase==='authoring'?loop.references.authorJobId:loop.phase==='diagnosing'?loop.references.diagnosisJobId:loop.phase==='blocked'?(loop.references.diagnosisJobId??loop.references.authorJobId):undefined;
-    if(!id)return false;const job=this.repo.job(id);if(!job.error)return false;
+    if(!id)return false;const job=this.repo.job(id);if(!job.error)return false;ensure(!this.store.controlMaintenance.forLoop(loop.id),'Interrupted bounded maintenance author cannot be replayed; stopped records and charged usage remain available.');
     ensure(job.status==='finished'&&job.stopConfirmed&&job.usage!==null,'Paused analysis has unknown usage or stop; it cannot be retried');
     ensure(/cancelled|dispatch disabled|paused/i.test(job.error),'Paused analysis has an independent failure requiring explicit recovery');
     ensure(job.inputDigest===digest(runtimeCanonical(job.input))&&job.contractVersion===loop.contractVersion&&job.contractDigest===loop.contractDigest,'Paused analysis frozen input changed');
@@ -155,7 +157,7 @@ export class SupervisionController {
   }
   scan():Promise<void>{return this.serial(async()=>{if(this.closed)return;for(const loop of this.repo.list())await this.tickSafely(loop.id);});}
   private update(loopId:string,patch:Parameters<SupervisorStore['supervision']['update']>[2]):SupervisionRecord{const loop=this.repo.get(loopId);return this.repo.update(loopId,loop.revision,patch);}
-  private block(loopId:string,error:unknown):void{const loop=this.repo.get(loopId);if(loop.phase==='complete')return;const reason=error instanceof Error?error.message:String(error);if(loop.phase!=='blocked'||loop.reason!==reason)this.repo.update(loop.id,loop.revision,{phase:'blocked',reason});}
+  private block(loopId:string,error:unknown):void{const loop=this.repo.get(loopId);if(loop.phase==='complete')return;const reason=error instanceof Error?error.message:String(error);this.store.controlMaintenance.fail(loopId,reason);if(loop.phase!=='blocked'||loop.reason!==reason)this.repo.update(loop.id,loop.revision,{phase:'blocked',reason});}
   private async expire(loopId:string):Promise<boolean>{
     const loop=this.repo.get(loopId);if(loop.phase==='complete')return false;
     if(Date.now()-Date.parse(loop.createdAt)<loop.limits.maxDurationMs)return false;
@@ -210,7 +212,7 @@ export class SupervisionController {
     }
     if(loop.phase==='authoring'){
       const job=this.repo.job(loop.references.authorJobId!);if(job.status==='running'){this.launch(job);return;}
-      if(job.error!==null){const next=await this.authorRecovery.begin(loop.id,job.id,()=>{this.dispatchAllowed(loop.id);this.ensureFloor(this.repo.get(loop.id));});this.launch(next.job);return;}
+      if(job.error!==null){ensure(!this.store.controlMaintenance.forLoop(loop.id),'Required V2 maintenance author failed; no automatic replay: '+job.error);const next=await this.authorRecovery.begin(loop.id,job.id,()=>{this.dispatchAllowed(loop.id);this.ensureFloor(this.repo.get(loop.id));});this.launch(next.job);return;}
       const verified=await this.runner.run(job.id),input=modelInput(verified),context=input.context;
       if(context.evolution){
         await assertCandidate(context.candidate);
@@ -225,11 +227,11 @@ export class SupervisionController {
         this.launch(next.job);return;
       }
       const assets=await materializeAcceptanceBundle({privateRoot:join(this.dataDir,'supervision','authoring'),jobId:job.id,context:context.acceptance,bundle:verified.result});
-      await assertCandidate(context.candidate);await this.prepare(loop.id,'propose',{type:'propose',runtimeId:runtime.id,specPath:assets.specPath});return;
+      await assertCandidate(context.candidate);await this.prepare(loop.id,'propose',{type:'propose',runtimeId:runtime.id,specPath:assets.specPath,...(context.acceptance.workflowMode?{researchAuthorJobId:job.id}:{})});return;
     }
     if(loop.phase==='reviewing'){
       if(!loop.references.reviewId){await this.prepare(loop.id,'review',{type:'review',proposalId:loop.references.proposalId!,...loop.config});return;}
-      const job=this.store.verification.get('job',loop.references.reviewId);if(job.status==='running')return;await this.checkVerification(job);ensure(job.kind==='review','Unexpected verification purpose');if(!job.approved||job.error){const next=await this.authorRecovery.begin(loop.id,loop.references.authorJobId!,()=>{this.dispatchAllowed(loop.id);this.ensureFloor(this.repo.get(loop.id));},true);this.launch(next.job);return;}
+      const job=this.store.verification.get('job',loop.references.reviewId);if(job.status==='running')return;await this.checkVerification(job);ensure(job.kind==='review','Unexpected verification purpose');if(!job.approved||job.error){ensure(!this.store.controlMaintenance.forLoop(loop.id),'Required V2 maintenance review failed; original standards and failure evidence remain: '+job.error);const next=await this.authorRecovery.begin(loop.id,loop.references.authorJobId!,()=>{this.dispatchAllowed(loop.id);this.ensureFloor(this.repo.get(loop.id));},true);this.launch(next.job);return;}
       this.update(loop.id,{phase:'publishing'});loop=this.repo.get(loop.id);
     }
     if(loop.phase==='publishing'){await this.prepare(loop.id,'publish',{type:'publish',proposalId:loop.references.proposalId!,reviewId:loop.references.reviewId!});return;}
@@ -239,8 +241,13 @@ export class SupervisionController {
       const job=this.store.verification.get('job',loop.references.verificationJobId);if(job.status==='running')return;await this.checkVerification(job);
       ensure(!job.error&&job.evaluation&&job.results.every(result=>result.executionStatus==='executed'),'Verification tooling failed or did not execute; it cannot authorize product repair: '+(job.error??'nonexecuted result'));
       const progress=await this.store.supervisionRouting.observeVerification(loop.id,job.id);ensure(!progress.decision.exhausted,'Bounded repeated product failures exhausted the no-progress policy');
-      if(job.approved&&job.evaluation!.complete){this.update(loop.id,{phase:'delivering'});loop=this.repo.get(loop.id);}
-      else {const plan=this.store.verification.get('plan',job.planId!),proposal=this.store.verification.get('proposal',plan.proposalId);ensure(canonical(evaluateVerification(proposal.spec,plan.selection,job.results))===canonical(job.evaluation),'Frozen verification evaluation changed');const failed=proposal.spec.obligations.filter(item=>item.required&&item.applicable&&job.results.some(result=>result.checks.some(check=>check.obligationId===item.id&&check.verdict==='failed'))).map(item=>item.id);ensure(failed.length>0,'No actual necessary product failure; unknown or incomplete evidence cannot authorize repair');await this.startDiagnosis(loop,{kind:'verification',jobId:job.id,planId:plan.id,failedObligationIds:failed,results:job.results,proofs:job.proofs});return;}
+      if(job.approved&&job.evaluation!.complete){
+        const maintenance=this.store.controlMaintenance.forLoop(loop.id);
+        if(maintenance){ensure(maintenance.status!=='failed','Required control maintenance failed: '+maintenance.reason);this.store.controlMaintenance.complete(maintenance.id,job.id);}
+        else {const basis=this.store.controlMaintenance.assess(loop.id,job.id);if(basis){await this.startAuthor(loop,basis);return;}}
+        this.update(loop.id,{phase:'delivering'});loop=this.repo.get(loop.id);
+      }
+      else {ensure(!this.store.controlMaintenance.forLoop(loop.id),'Required maintenance final failed; no automatic rewriting of tests or additional repair allowance');const plan=this.store.verification.get('plan',job.planId!),proposal=this.store.verification.get('proposal',plan.proposalId);ensure(canonical(evaluateVerification(proposal.spec,plan.selection,job.results))===canonical(job.evaluation),'Frozen verification evaluation changed');const failed=proposal.spec.obligations.filter(item=>item.required&&item.applicable&&job.results.some(result=>result.checks.some(check=>check.obligationId===item.id&&check.verdict==='failed'))).map(item=>item.id);ensure(failed.length>0,'No actual necessary product failure; unknown or incomplete evidence cannot authorize repair');await this.startDiagnosis(loop,{kind:'verification',jobId:job.id,planId:plan.id,failedObligationIds:failed,results:job.results,proofs:job.proofs});return;}
     }
     if(loop.phase==='delivering'){await this.prepare(loop.id,'deliver',{type:'deliver',jobId:loop.references.verificationJobId!});return;}
     if(loop.phase==='diagnosing'){
@@ -272,20 +279,66 @@ export class SupervisionController {
     await assertCandidate(candidate);
     const previous=this.store.verification.headForRun(run.projectId,run.id);
     const materials:NonNullable<AcceptanceAuthoringContext['materials']>=[];for(const criterion of criteria.filter(c=>c.kind==='material')){const op=this.store.runtime.currentOperations(runtime.id).find(o=>o.step.kind==='codex'&&o.step.research&&o.step.research.reportDirectory+'/report.json'===criterion.target);ensure(op,'Material acceptance has no current Run-owned research producer');const binding=await captureMaterialBinding(this.store,this.dataDir,op!.id),actual=await readMaterialBinding(binding);materials.push({target:criterion.target,binding,evidence:{context:actual.input.context,sources:actual.input.context.sources.map(source=>({materialId:source.materialId,text:new TextDecoder('utf-8',{fatal:true,ignoreBOM:true}).decode(readBounded(source.textPath,actual.input.context.index.limits.maxItemBytes))}))}});}
-    const acceptance:AcceptanceAuthoringContext={...(materials.length?{materials}:{}),contract:run.contract,criteria,candidate:{workspace:runtime.workspace,digest:candidate.digest,files},environment:await (async()=>{const scope=await createEnvironmentScope(this.dataDir,runtime);return {...await environmentFingerprint(scope),scope};})(),failureContext,previousSpec:previous?.spec??null};return {acceptance,candidate};
+    const acceptance:AcceptanceAuthoringContext={...(materials.length?{materials,workflowMode:'native-host-v1' as const}:{}),contract:run.contract,criteria,candidate:{workspace:runtime.workspace,digest:candidate.digest,files},environment:await (async()=>{const scope=await createEnvironmentScope(this.dataDir,runtime);return {...await environmentFingerprint(scope),scope};})(),failureContext,previousSpec:previous?.spec??null};return {acceptance,candidate};
   }
   private allocation(loop:SupervisionRecord,revision:number):RuntimeFutureVerification{return {commandId:randomUUID(),runtimeId:loop.runtimeId,expectedContractVersion:loop.contractVersion,expectedRevision:revision,allocationId:`${loop.id}:final:${loop.repairCount}`,amount:loop.config.reservation,reason:'Protect a complete independent final verification within the original total budget'};}
   private ensureFloor(loop:SupervisionRecord):void {const existing=this.store.runtime.futureVerification(loop.runtimeId);if(existing){ensure(existing.contractVersion===loop.contractVersion&&existing.amount===loop.config.reservation,'Existing final verification floor differs from supervised configuration');return;}const run=this.store.runtime.inspect(loop.runtimeId).run;this.store.runtime.setFutureVerification(this.allocation(loop,run.revision));}
-  private async startAuthor(loop:SupervisionRecord):Promise<void>{
-    const context=await this.snapshot(loop,null),previous=this.store.verification.headForRun(loop.projectId,loop.runId);
-    const evolved=previous&&(previous.contractDigest!==loop.contractDigest||this.store.verificationLineage.bindingForProposal(previous.id).definitionFormat==='qualified-v2');
-    if(evolved){
-      const base=this.store.verificationLineage.captureBase(loop.projectId,loop.runId);
-      context.acceptance={...context.acceptance,previousSpec:null};
-      context.evolution=await captureControlEvolutionContext({current:context.acceptance,base,transitions:base.transitionIds.map(id=>this.store.verificationLineage.transition(id)),history:this.store.controlQualification.loadHistory(base.baseProposalId!)});
+  private async startAuthor(loop: SupervisionRecord, maintenance?: MaintenanceBasis): Promise<void> {
+    if (maintenance)
+      await this.store.controlMaintenance.assertPhysical(loop.id);
+    const context = await this.snapshot(loop, null),
+      previous = this.store.verification.headForRun(loop.projectId, loop.runId);
+    const evolved = previous && (maintenance
+      || previous.contractDigest !== loop.contractDigest
+      || this.store.verificationLineage.bindingForProposal(previous.id).definitionFormat === 'qualified-v2');
+    if (evolved && context.acceptance.workflowMode) throw new Error('Native research workflow evolution requires an independently frozen historical mapping transition');
+    if (evolved) {
+      const base = this.store.verificationLineage.captureBase(loop.projectId, loop.runId);
+      context.acceptance = { ...context.acceptance, previousSpec: null };
+      const inherited = maintenance ? [] : this.store.controlMaintenance.sourcesForTarget(
+        base.baseProposalId, context.acceptance.contract, base.transitionIds);
+      context.evolution = await captureControlEvolutionContext({
+        current: context.acceptance,
+        base,
+        transitions: base.transitionIds.map(id => this.store.verificationLineage.transition(id)),
+        history: this.store.controlQualification.loadHistory(base.baseProposalId!),
+        ...(maintenance ? { maintenance: await captureMaintenanceContext(maintenance) } : {}),
+        ...(!maintenance && this.store.controlMaintenance.hasRegressionHistory(base.baseProposalId)
+          ? { regression: await captureRegressionContext({ sources: inherited, passingCandidate: context.candidate }) } : {})
+      });
     }
-    const input={prompt:context.evolution?buildControlEvolutionAuthoringPrompt(context.evolution):buildAcceptanceAuthoringPrompt(context.acceptance),outputSchema:context.evolution?controlEvolutionAuthoringSchema(context.evolution):acceptanceAuthoringSchema(context.acceptance),context};await assertCandidate(context.candidate);
-    const job=this.repo.transaction(()=>{this.dispatchAllowed(loop.id);this.ensureFloor(loop);const current=this.repo.get(loop.id),job=this.repo.beginJob({commandId:randomUUID(),loopId:loop.id,expectedRevision:current.revision,purpose:'acceptance-authoring',context:input});this.update(loop.id,{phase:'authoring',references:{...current.references,authorJobId:job.id}});return job;});this.launch(job);
+    const input = {
+      prompt: context.evolution ? buildControlEvolutionAuthoringPrompt(context.evolution) : buildAcceptanceAuthoringPrompt(context.acceptance),
+      outputSchema: context.evolution ? controlEvolutionAuthoringSchema(context.evolution) : acceptanceAuthoringSchema(context.acceptance),
+      context
+    };
+    await assertCandidate(context.candidate);
+    if (maintenance)
+      ensure(context.acceptance.environment.digest === maintenance.environmentDigest,
+        'Environment changed since original full verification; cannot maintain against stale baseline');
+    const job = this.repo.transaction(() => {
+      this.dispatchAllowed(loop.id);
+      const current = this.repo.get(loop.id);
+      let job: SupervisionJob;
+      if (maintenance)
+        job = this.store.controlMaintenance.begin({
+          commandId: 'maintenance:' + loop.id,
+          loopId: loop.id,
+          expectedRevision: current.revision,
+          basis: maintenance,
+          authorInput: input
+        }).job;
+      else {
+        this.ensureFloor(loop);
+        job = this.repo.beginJob({
+          commandId: randomUUID(), loopId: loop.id, expectedRevision: current.revision,
+          purpose: 'acceptance-authoring', context: input
+        });
+      }
+      this.update(loop.id, { phase: 'authoring', references: { ...current.references, authorJobId: job.id } });
+      return job;
+    });
+    this.launch(job);
   }
   private async startDiagnosis(loop:SupervisionRecord,failure:DiagnosisContext['failure']):Promise<void>{
     ensure(loop.repairCount<loop.limits.maxRepairs,'Repair limit exhausted');const snapshot=await this.snapshot(loop,failure),context:DiagnosisContext={...snapshot,failure};

@@ -1,3 +1,4 @@
+import {assertLiveMaintenance} from './supervision-loop-maintenance-checker.js';
 import {assertAuthorRouteChain} from './supervision-loop-route-checker.js';
 import {readRoutingCapabilities} from '../../packages/orchestration/supervision-routing-capabilities.js';
 import {selectAcceptanceAuthorRoute} from '../../packages/orchestration/acceptance-authoring-route.js';
@@ -40,12 +41,14 @@ const injected="export function increment(value){if(typeof value!=='number'||!Nu
 // observes product APIs, exercises external Node behavior and injects one fault.
 // No seeded verification specification/approval, direct repair action, manual
 // scan, fake timer or conditional skip can substitute for the autonomous loop.
-test('P6-LOOP-L01 real autonomous supervision authors reviews rejects repairs and delivers one immutable contract',{timeout:1_480_000},async t=>{
+test('P6-LOOP-L01 real autonomous supervision authors reviews rejects repairs and delivers one immutable contract',{timeout:2_640_000},async t=>{
   const root=await realpath(await mkdtemp(join(tmpdir(),'sv-p6-loop-live-'))),data=join(root,'data'),workspace=join(root,'project');await mkdir(workspace);
   const evidence=join(process.env.SUPERVISOR_EVIDENCE_DIR??resolve('.supervisor-dev/live'),'artifacts','p6-supervision-loop-'+randomUUID());await mkdir(evidence,{recursive:true});
-  const deadline=Date.now()+1_440_000;
+  // Observe existing maximum planning + initial execution + supervision durations.
+  // Product deadlines, allocations and all acceptance assertions remain unchanged.
+  const deadline=Date.now()+600_000+600_000+1_320_000;
   const config={model:process.env.SUPERVISOR_LIVE_MODEL??'gpt-5.6-sol',effort:process.env.SUPERVISOR_LIVE_EFFORT??'low',reservation:150_000,timeoutMs:600_000};
-  const store=new SupervisorStore(data),runtime=new LocalRuntimeAdapter(store,data),orchestration=new OrchestrationController(store,data,runtime),verification=new VerificationController(store,data),supervision=new SupervisionController(store,data,runtime,verification);
+  let store=new SupervisorStore(data),runtime=new LocalRuntimeAdapter(store,data),orchestration=new OrchestrationController(store,data,runtime),verification=new VerificationController(store,data),supervision=new SupervisionController(store,data,runtime,verification);
   let runtimeId:string|undefined,loopId:string|undefined,sessionId:string|undefined,observation=0;
   const proofDigests:Record<string,string>={};
   async function save(name:string,value:unknown){await writeFile(join(evidence,name+'.json'),JSON.stringify(value,null,2));}
@@ -63,7 +66,7 @@ test('P6-LOOP-L01 real autonomous supervision authors reviews rejects repairs an
   });
   await execute('git',['init','--quiet'],{cwd:workspace});await execute('git',['-c','user.name=Supervisor Test','-c','user.email=test@localhost','commit','--allow-empty','-m','Autonomous supervision live baseline'],{cwd:workspace});
   await verification.initialize();await orchestration.initialize();await supervision.initialize();
-  await save('scenario',{goal,config,limits:{maxRepairs:3,maxReasoningCalls:12,maxDurationMs:1_320_000,maxContextChars:200_000},tokenLimit:1_600_000,verificationReserve:300_000,scope:'Real same-contract repair and delivery; no changed-contract control evolution or full P6 stage release assertion.'});
+  await save('scenario',{goal,config,limits:{maxRepairs:3,maxReasoningCalls:12,maxDurationMs:1_320_000,maxContextChars:200_000},tokenLimit:1_600_000,verificationReserve:300_000,scope:'Real same-contract repair, original full pass, mandatory regression maintenance, V2 qualification and independent review, actual bad/good fault replay, new full pass and delivery. No changed-contract or full P6 release claim.'});
   const started=await orchestration.dispatch({type:'start',commandId:randomUUID(),workspace,goal,tokenLimit:1_600_000,verificationReserve:300_000,maxContextChars:200_000,...config}) as GoalInspection;sessionId=started.session.id;
   const ready=await until(()=>store.goals.inspect(sessionId!),value=>value.session.phase!=='thinking','planning');await save('ready',ready);assert.equal(ready.session.phase,'ready',ready.session.error??JSON.stringify(ready.session.proposal));assert.equal(ready.session.proposal!.steps.length,1);assert.deepEqual(ready.session.proposal!.criteria.map(c=>({id:c.id,kind:c.kind,target:c.target})),[{id:'increment',kind:'command',target:'result.test.mjs'}]);for(const job of ready.session.jobs)await reasoning(job);
   const admitted=await orchestration.dispatch({type:'admit',commandId:randomUUID(),sessionId,expectedRevision:ready.session.revision}) as GoalInspection;runtimeId=admitted.session.runtimeId!;assert.ok(runtimeId);
@@ -80,22 +83,52 @@ test('P6-LOOP-L01 real autonomous supervision authors reviews rejects repairs an
   assert.equal(store.verification.headForRun(admitted.run.projectId,admitted.run.id),null,'No manual specification precedes product authoring');
   const attached=await supervision.dispatch({type:'attach',commandId:randomUUID(),runtimeId,config,limits:{maxRepairs:3,maxReasoningCalls:12,maxDurationMs:1_320_000,maxContextChars:200_000}}) as SupervisionInspection;loopId=attached.loop.id;await save('attached',attached);assert.equal(attached.capabilities.scanIntervalMs,15_000);assert.equal(attached.capabilities.modelMonitoring,true); // Capability availability only; this case does not establish three real 300-second inspection windows.
   let lastFingerprint='',failedBytes:string|undefined,failedId:string|undefined,publishedBytes:string|undefined;
+  const preservedJobs=new Map<string,string>(),preservedMaintenance=new Set<string>(),preservedStages=new Set<string>();
+  let previousSpent=0;
   const final=await until(async()=>{
     const state=await supervision.dispatch({type:'inspect',loopId:loopId!}) as SupervisionInspection;
     assert.equal(canonical(state.runtime.run.contract),contractBytes,'The original full contract must remain unchanged throughout repair');assert.equal(canonical(store.goals.inspect(sessionId!).session.proposal!.criteria),criteriaBytes);
+    assert.ok(state.runtime.run.budget.spent>=previousSpent,'Charged usage cannot decrease across maintenance');
+    previousSpent=state.runtime.run.budget.spent;
+    for(const job of [...state.jobs,...state.verification.jobs]){
+      if(job.status!=='finished')continue;
+      const bytes=canonical(job),previous=preservedJobs.get(job.id);
+      if(previous)assert.equal(bytes,previous,'Previously settled job changes during maintenance: '+job.id);
+      else{preservedJobs.set(job.id,bytes);await save('finished-job-'+job.id,job);if(Object.keys(job.proofs).length)await proofs(job.proofs);}
+    }
+    if(state.controlMaintenance){
+      const record=state.controlMaintenance,key=sha(canonical(record));
+      if(!preservedMaintenance.has(key)){preservedMaintenance.add(key);await save('maintenance-'+record.status+'-'+key,record);}
+    }
+    for(const review of state.verification.jobs.filter(job=>job.kind==='review')){
+      for(const stage of store.controlQualification.stagesForReview(review.id)){
+        const key=review.id+'-'+stage.sequence+'-'+stage.payloadDigest;
+        if(!preservedStages.has(key)){preservedStages.add(key);await save('qualification-stage-'+key,stage);}
+      }
+      const replay=store.controlMaintenance.replayForReview(review.id);
+      if(replay){const key='replay-'+review.id+'-'+replay.digest;if(!preservedStages.has(key)){preservedStages.add(key);await save(key,replay);}}
+    }
     const fingerprint=canonical({phase:state.loop.phase,revision:state.loop.revision,jobs:state.jobs.map(j=>[j.id,j.status]),verification:state.verification.jobs.map(j=>[j.id,j.status]),steps:state.runtime.runtime.definition.steps.length});
     if(fingerprint!==lastFingerprint){lastFingerprint=fingerprint;await save('observation-'+String(++observation).padStart(3,'0'),state);}
     const failure=state.verification.jobs.find(job=>job.kind==='verification'&&job.status==='finished'&&!job.approved);
-    if(failure&&!failedBytes){await checked(failure);assert.ok(failure.evaluation&&!failure.evaluation.complete);assert.ok(failure.results.length&&failure.results.every(result=>result.executionStatus==='executed'));assert.ok(failure.results.some(result=>result.checks.some(check=>check.verdict==='failed')));failedId=failure.id;failedBytes=canonical(failure);const plan=state.verification.plans.find(item=>item.id===failure.planId)!;const head=store.verification.headForRun(admitted.run.projectId,admitted.run.id)!;assert.equal(plan.proposalId,head.id);publishedBytes=canonical(head);await assertCandidate(plan.candidate,false);assert.equal(await readFile(join(plan.candidate.tree,'result.mjs'),'utf8'),injected);await save('original-failed-verification',{failure,plan,head});}
+    if(failure&&!failedBytes){await checked(failure);assert.ok(failure.evaluation&&!failure.evaluation.complete);assert.ok(failure.results.length&&failure.results.every(result=>result.executionStatus==='executed'));assert.ok(failure.results.some(result=>result.checks.some(check=>check.verdict==='failed')));failedId=failure.id;failedBytes=canonical(failure);const plan=state.verification.plans.find(item=>item.id===failure.planId)!;const head=store.verification.get('proposal',plan.proposalId);assert.equal(head.status,'published');assert.equal(plan.proposalId,head.id);publishedBytes=canonical(head);await assertCandidate(plan.candidate,false);assert.equal(await readFile(join(plan.candidate.tree,'result.mjs'),'utf8'),injected);await save('original-failed-verification',{failure,plan,head});}
     return state;
   },state=>state.loop.stopped||['complete','blocked'].includes(state.loop.phase),'autonomous-loop');
   await save('completed-loop',final);assert.equal(final.loop.phase,'complete',final.loop.reason??JSON.stringify(final));assert.equal(final.loop.paused,false);assert.equal(final.loop.stopped,false);assert.equal(final.runtime.run.status,'succeeded');assert.ok(failedId&&failedBytes&&publishedBytes,'A real failed verification must precede successful delivery');assert.equal(final.loop.repairCount,1,'One injected defect should require exactly one appended repair');
-  const published=store.verification.headForRun(admitted.run.projectId,admitted.run.id)!;assert.equal(canonical(published),publishedBytes,'Repair must use the exact original published head/spec/controls');assert.equal(final.verification.proposals.filter(proposal=>proposal.status==='published').length,1,'Exactly one accepted published definition');await assertCandidate(published.candidate,false);
+  const maintenance=final.controlMaintenance;assert.ok(maintenance,'A real same-contract repair requires one bounded maintenance receipt');
+  assert.equal(maintenance.status,'complete');assert.equal(maintenance.basis.necessity,'required-regression');
+  const originalPublished=JSON.parse(publishedBytes) as import('../../packages/verification/records.js').Proposal;
+  assert.equal(canonical(store.verification.get('proposal',originalPublished.id)),publishedBytes,'Original published standard is never rewritten');
+  const published=store.verification.headForRun(admitted.run.projectId,admitted.run.id)!;
+  assert.notEqual(published.id,originalPublished.id);assert.equal(published.id,maintenance.proposalId);
+  assert.equal(final.verification.proposals.filter(proposal=>proposal.status==='published').length,2,'Original standard and exactly one maintained successor');
+  await assertCandidate(published.candidate,false);
   assert.equal(canonical(store.verification.get('job',failedId)),failedBytes,'Failed job results/proofs remain immutable');const failedPlan=store.verification.get('plan',store.verification.get('job',failedId).planId!);await assertCandidate(failedPlan.candidate,false);assert.equal(await readFile(join(failedPlan.candidate.tree,'result.mjs'),'utf8'),injected);
-  const authors=final.jobs.filter(job=>job.purpose==='acceptance-authoring'),diagnoses=final.jobs.filter(job=>job.purpose==='diagnosis'),inspections=final.jobs.filter(job=>job.purpose==='inspection'),workflowJobs=final.jobs.filter(job=>job.purpose!=='inspection');
-  assert.ok(authors.length>=1&&authors.length<=3,'At most one schema/semantic replacement plus one independent review reconstruction');assert.equal(diagnoses.length,1);assert.equal(workflowJobs.length,authors.length+1);assert.equal(final.jobs.length,workflowJobs.length+inspections.length);assert.equal(final.loop.reasoningCount,workflowJobs.length+inspections.length);const authorRoutes=store.authorRouting.routes(final.loop.id);for(const job of workflowJobs)await reasoning(job,authorRoutes.some(route=>route.rejection.previousJobId===job.id&&route.rejection.kind==='schema'));
+  const allAuthors=final.jobs.filter(job=>job.purpose==='acceptance-authoring'),maintenanceAuthors=allAuthors.filter(job=>job.id===maintenance.authorJobId),authors=allAuthors.filter(job=>job.id!==maintenance.authorJobId),diagnoses=final.jobs.filter(job=>job.purpose==='diagnosis'),inspections=final.jobs.filter(job=>job.purpose==='inspection'),workflowJobs=final.jobs.filter(job=>job.purpose!=='inspection');
+  assert.ok(authors.length>=1&&authors.length<=3,'At most one schema/semantic replacement plus one independent review reconstruction');assert.equal(diagnoses.length,1);assert.equal(maintenanceAuthors.length,1);assert.equal(workflowJobs.length,authors.length+2);assert.equal(final.jobs.length,workflowJobs.length+inspections.length);assert.equal(final.loop.reasoningCount,workflowJobs.length+inspections.length);const authorRoutes=store.authorRouting.routes(final.loop.id);for(const job of workflowJobs)await reasoning(job,authorRoutes.some(route=>route.rejection.previousJobId===job.id&&route.rejection.kind==='schema'));
   const authorInput=(job:SupervisionJob)=>job.input as {outputSchema:Record<string,unknown>;context:{acceptance:AcceptanceAuthoringContext;candidate:unknown;authorFeedback?:{previousJobId:string;inputDigest:string;rejection:import('../../packages/contracts/p6-author-routing.js').AuthorRejection}}};
-  const finalAuthor=authors.find(job=>job.id===final.loop.references.authorJobId)!;assert.ok(finalAuthor);assert.equal(finalAuthor.error,null);assert.equal(diagnoseAcceptanceAuthoringResult(finalAuthor.result,authorInput(finalAuthor).context.acceptance),null,'Published author must satisfy all original semantic checks');
+  assert.equal(final.loop.references.authorJobId,maintenance.authorJobId);
+  const finalAuthor=authors.find(job=>!authorRoutes.some(route=>route.rejection.previousJobId===job.id))!;assert.ok(finalAuthor);assert.equal(finalAuthor.error,null);assert.equal(diagnoseAcceptanceAuthoringResult(finalAuthor.result,authorInput(finalAuthor).context.acceptance),null,'Published author must satisfy all original semantic checks');
   assert.equal(authorRoutes.length,authors.length-1,'Every replacement has exactly one immutable route and no extra route');
   assertAuthorRouteChain(authors,authorRoutes,finalAuthor.id);
   assert.ok(authorRoutes.filter(route=>route.rejection.kind==='review').length<=1,'Review reconstruction is independently bounded once');
@@ -142,14 +175,46 @@ test('P6-LOOP-L01 real autonomous supervision authors reviews rejects repairs an
     else{assert.notEqual(disposition,'unknown','Unknown inspection usage or stop cannot accompany complete');await save('non-applied-inspection-'+job.id,{job,attempt,disposition:dispositions[0]});}
   }
   const diagnosisInput=diagnoses[0]!.input as {context:{failure:{jobId:string;proofs:Record<string,string>}}};assert.equal(diagnosisInput.context.failure.jobId,failedId);assert.deepEqual(diagnosisInput.context.failure.proofs,store.verification.get('job',failedId).proofs);assert.equal((diagnoses[0]!.result as {decision:string}).decision,'repair');
-  const reviews=final.verification.jobs.filter(job=>job.kind==='review'),acceptedReviews=reviews.filter(job=>job.approved);assert.equal(reviews.length,1+authorRoutes.filter(route=>route.rejection.kind==='review').length);assert.equal(acceptedReviews.length,1);assert.equal(acceptedReviews[0]!.proposalId,published.id);assert.deepEqual(reviews.filter(job=>!job.approved).map(job=>job.id).sort(),authorRoutes.filter(route=>route.rejection.kind==='review').map(route=>route.rejection.review!.review.id).sort(),'Every retained rejected review has one exact reconstruction receipt');assert.equal(final.verification.proposals.length,reviews.length);await checked(acceptedReviews[0]!);assert.equal(acceptedReviews[0]!.approved,true);assert.ok(acceptedReviews[0]!.controls.length>=2&&acceptedReviews[0]!.controls.every(control=>control.passed));assert.ok(published.spec.controls.some(control=>control.expect==='passed'));assert.ok(published.spec.controls.some(control=>control.expect==='failed'));for(const control of acceptedReviews[0]!.controls)assert.ok(control.results.length&&control.results.every(result=>result.executionStatus==='executed'));
-  const verifications=final.verification.jobs.filter(job=>job.kind==='verification');assert.equal(verifications.length,2);for(const job of verifications){await checked(job);assert.equal(job.proposalId,published.id);const plan=store.verification.get('plan',job.planId!);assert.equal(plan.proposalId,published.id);assert.equal(plan.catalogVersion,published.version);assert.equal(plan.definitionDigest,published.bundle.digest);assert.equal(plan.selection.completeScope,true);await assertCandidate(plan.candidate,false);}
-  const passed=verifications.find(job=>job.approved)!;assert.ok(passed&&passed.evaluation?.complete);assert.ok(passed.results.every(result=>result.executionStatus==='executed'&&result.checks.every(check=>check.verdict==='passed')));assert.notEqual(store.verification.get('plan',passed.planId!).candidate.digest,failedPlan.candidate.digest);assert.equal(final.verification.deliveries.length,1);const delivery=final.verification.deliveries[0]!;assert.equal(delivery.jobId,passed.id);assert.equal(delivery.planId,passed.planId);assert.equal(delivery.candidateDigest,store.verification.get('plan',passed.planId!).candidate.digest);await assertCandidate(store.verification.get('plan',passed.planId!).candidate);
+  const reviews=final.verification.jobs.filter(job=>job.kind==='review'),acceptedReviews=reviews.filter(job=>job.approved);
+  assert.equal(reviews.length,2+authorRoutes.filter(route=>route.rejection.kind==='review').length);
+  assert.equal(acceptedReviews.length,2);
+  assert.deepEqual(reviews.filter(job=>!job.approved).map(job=>job.id).sort(),authorRoutes.filter(route=>route.rejection.kind==='review').map(route=>route.rejection.review!.review.id).sort(),'Every rejected original review has its exact bounded reconstruction receipt');
+  assert.equal(final.verification.proposals.length,reviews.length);
+  const originalReview=acceptedReviews.find(job=>job.proposalId===originalPublished.id)!;assert.ok(originalReview);
+  await checked(originalReview);assert.ok(originalReview.controls.length>=2&&originalReview.controls.every(control=>control.passed));
+  assert.ok(originalPublished.spec.controls.some(control=>control.expect==='passed'));assert.ok(originalPublished.spec.controls.some(control=>control.expect==='failed'));
+  for(const control of originalReview.controls)assert.ok(control.results.length&&control.results.every(result=>result.executionStatus==='executed'));
+  const verifications=final.verification.jobs.filter(job=>job.kind==='verification');assert.equal(verifications.length,3);
+  for(const job of verifications){
+    await checked(job);const plan=store.verification.get('plan',job.planId!),definition=store.verification.get('proposal',job.proposalId);
+    assert.equal(plan.proposalId,definition.id);assert.equal(plan.catalogVersion,definition.version);assert.equal(plan.definitionDigest,definition.bundle.digest);assert.equal(plan.selection.completeScope,true);await assertCandidate(plan.candidate,false);
+  }
+  const oldPass=verifications.find(job=>job.id===maintenance.basis.baselinePassJobId)!;
+  assert.ok(oldPass?.approved&&oldPass.evaluation?.complete);assert.equal(oldPass.proposalId,originalPublished.id);
+  assert.equal(verifications.filter(job=>job.proposalId===originalPublished.id).length,2,'Repair first reruns the exact original published definition');
+  const passed=verifications.find(job=>job.id===maintenance.finalJobId)!;assert.ok(passed?.approved&&passed.evaluation?.complete);assert.equal(passed.proposalId,published.id);
+  assert.ok(passed.results.every(result=>result.executionStatus==='executed'&&result.checks.every(check=>check.verdict==='passed')));
+  assert.notEqual(store.verification.get('plan',passed.planId!).candidate.digest,failedPlan.candidate.digest);
+  assert.equal(final.verification.deliveries.length,1);const delivery=final.verification.deliveries[0]!;
+  assert.equal(delivery.jobId,passed.id);assert.equal(delivery.planId,passed.planId);assert.equal(delivery.candidateDigest,store.verification.get('plan',passed.planId!).candidate.digest);await assertCandidate(store.verification.get('plan',passed.planId!).candidate);
+  await assertLiveMaintenance({store,final,original:originalPublished,failedId,oldPass,passed,proofs,checked,save});
   assert.equal(final.runtime.runtime.definition.steps.length,2);assert.deepEqual(final.runtime.runtime.definition.steps.slice(0,1),initial.runtime.definition.steps);assert.equal(final.runtime.runtime.definition.steps[1]!.kind,'codex');assert.ok(final.runtime.runtime.definition.steps[1]!.id.startsWith('repair-1-'));for(const operation of initial.operations)assert.deepEqual(final.runtime.operations.find(item=>item.id===operation.id),operation);assert.ok(final.runtime.operations.every(operation=>operation.state==='confirmed'));assert.ok(final.runtime.checkpoints.every(checkpoint=>checkpoint.valid));
   const executions=store.executionList().filter(record=>record.runId===admitted.run.id);assert.equal(executions.length,2);for(const record of executions)await execution(record);assert.equal(canonical({record:store.executionGet(initialExecutions[0]!.id),events:store.executionEvents(initialExecutions[0]!.id,0)}),initialReceipt,'Original actual execution receipt/raw events remain unchanged');
   await execute(process.execPath,['result.test.mjs'],{cwd:workspace,timeout:10_000});await execute(process.execPath,['--input-type=module','-e',externalBehavior],{cwd:workspace,timeout:10_000});
   const run=final.runtime.run;assert.ok(run.attempts.every(attempt=>attempt.settled&&attempt.actual!==null&&attempt.status!=='running'));assert.equal(run.budget.spent,run.attempts.reduce((total,attempt)=>total+attempt.actual!,0));assert.ok(run.budget.spent>0&&run.budget.spent<run.budget.limit);assert.ok(run.operations.every(operation=>operation.status==='confirmed'));assert.ok(run.leases.every(lease=>lease.released));
   for(const [path,digest] of Object.entries(proofDigests))assert.equal(sha(await readFile(path)),digest,'Previously observed raw evidence survives repair');
   const listed=await supervision.dispatch({type:'list'}) as SupervisionInspection[];assert.equal(listed.length,1);assert.deepEqual(listed[0],final);
-  await save('acceptance',{contractDigest:sha(contractBytes),criteriaDigest:sha(criteriaBytes),publishedHeadDigest:sha(publishedBytes),failedJobId:failedId,passedJobId:passed.id,delivery,actualModelCalls:{planning:ready.session.jobs.filter(job=>job.modelStarted).length,execution:executions.filter(record=>record.turnIntent).length,supervision:final.jobs.filter(job=>job.modelStarted).length,verification:final.verification.jobs.filter(job=>job.modelStarted).length},proofDigests,budget:run.budget,scope:'This scenario establishes real autonomous same-contract repair and P4 delivery only; it does not release the complete P6 gate.'});
+  // Reopen the real SQLite state. Completed work must not dispatch another model,
+  // repeat pair commands, republish or bill after process/controller recovery.
+  const deliveryStatus=await verification.status(runtimeId!) as {currentDelivery:{assessment:{historicalEvidenceIntact:boolean;issues:unknown[]}}};
+  assert.equal(deliveryStatus.currentDelivery.assessment.historicalEvidenceIntact,true,JSON.stringify(deliveryStatus.currentDelivery.assessment.issues));
+  await save('delivered-history',deliveryStatus);
+  const beforeRestart=canonical({jobs:final.jobs,verificationJobs:final.verification.jobs,deliveries:final.verification.deliveries,maintenance,budget:run.budget});
+  await supervision.close();await orchestration.close();await verification.close();await runtime.close();store.close();
+  store=new SupervisorStore(data);runtime=new LocalRuntimeAdapter(store,data);orchestration=new OrchestrationController(store,data,runtime);verification=new VerificationController(store,data);supervision=new SupervisionController(store,data,runtime,verification);
+  await verification.initialize();await orchestration.initialize();await supervision.initialize();await supervision.scan();
+  const reopened=supervision.inspect(loopId!);assert.equal(reopened.loop.phase,'complete');
+  assert.equal(canonical({jobs:reopened.jobs,verificationJobs:reopened.verification.jobs,deliveries:reopened.verification.deliveries,maintenance:reopened.controlMaintenance,budget:reopened.runtime.run.budget}),beforeRestart);
+  await save('reopened-no-replay',reopened);
+  await save('acceptance',{contractDigest:sha(contractBytes),criteriaDigest:sha(criteriaBytes),originalPublishedHeadDigest:sha(publishedBytes),publishedHeadDigest:sha(canonical(published)),maintenance,failedJobId:failedId,passedJobId:passed.id,delivery,actualModelCalls:{planning:ready.session.jobs.filter(job=>job.modelStarted).length,execution:executions.filter(record=>record.turnIntent).length,supervision:final.jobs.filter(job=>job.modelStarted).length,verification:final.verification.jobs.filter(job=>job.modelStarted).length},proofDigests,budget:run.budget,scope:'Real automatic same-contract repair followed by required regression maintenance and independent qualified-v2 publication/full delivery. This single real scenario is not full P6 or generic dedup acceptance.'});
 });

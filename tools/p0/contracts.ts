@@ -101,10 +101,10 @@ export function parseManifest(value: unknown): StageManifest {
       names.add(name);
       return name;
     });
-    // Three real five-minute inspection windows need at least fifteen minutes,
-    // plus provider startup and owned-process cleanup. Only live suites may use
-    // this bounded envelope; each frozen suite still declares its own deadline.
-    const maxTimeoutMs = entry.layer === 'live' ? 2_100_000 : 300_000;
+    // Live tests may observe sequential real planning/execution/supervision limits
+    // plus owned-process cleanup, within this 60-minute harness ceiling. This
+    // changes no product budget/deadline; each frozen suite declares its timeout.
+    const maxTimeoutMs = entry.layer === 'live' ? 3_600_000 : 300_000;
     if (typeof entry.timeoutMs !== 'number' || !Number.isInteger(entry.timeoutMs)
       || entry.timeoutMs < 1 || entry.timeoutMs > maxTimeoutMs) {
       manifestError(`${path}.timeoutMs`, `must be an integer between 1 and ${maxTimeoutMs}`);

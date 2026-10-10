@@ -16,7 +16,7 @@ const overlap=(a:string,b:string)=>a===b||a.startsWith(b+'/')||b.startsWith(a+'/
 async function allStopped(identities:ProcessIdentity[]):Promise<boolean>{for(let i=0;i<identities.length;i+=4){const checks=await Promise.all(identities.slice(i,i+4).map(inspectProcess));if(checks.some(c=>c.status!=='stopped'))return false;}return true;}
 /** Extracted existing P4 current qualification checks; no caller verdict authority. */
 export class VerificationProofReader {
- constructor(private readonly store:Pick<SupervisorStore,'verification'|'runtime'|'conversations'|'controlQualification'|'verificationLineage'|'executionList'>){}
+ constructor(private readonly store:Pick<SupervisorStore,'verification'|'runtime'|'conversations'|'controlQualification'|'verificationLineage'|'executionList'>&Partial<Pick<SupervisorStore,'researchWorkflow'>>){}
  private get repo(){return this.store.verification;}
   private assertQuietWorkspace(workspace:string):void {
     for(const runtime of this.store.runtime.list().filter(r=>overlap(r.workspace,workspace)))ensure(!this.store.conversations.hasPendingForRun(runtime.projectId,runtime.runId),'Pending follow-up must be resolved before verification publication');
@@ -30,7 +30,7 @@ export class VerificationProofReader {
     ensure(this.repo.run(job.projectId,job.runId).attempts.find(a=>a.id===job.attemptId)?.settled,'Verification usage unsettled');
     for(const [path,hash]of Object.entries(job.proofs))ensure(digest(await readFile(path))===hash,'Verification evidence changed');
     await assertMobileJob(job);
-    const proposal=this.repo.get('proposal',job.proposalId),candidates=job.kind==='verification'?[this.repo.get('plan',job.planId!).candidate]:proposal.bundle.controls.map(c=>c.candidate);await assertFullstackJob(job,proposal.spec,candidates);
+    const proposal=this.repo.get('proposal',job.proposalId),candidates=job.kind==='verification'?[this.repo.get('plan',job.planId!).candidate]:proposal.bundle.controls.map(c=>c.candidate);if(job.kind==='review')candidates.push(...this.store.controlQualification.maintenanceCandidatesForReview(job.id));await assertFullstackJob(job,proposal.spec,candidates);
     ensure(job.intents.length===job.identities.length,'Verifier intent has no stop identity');ensure(await allStopped(job.identities),'Old verification process is still active');
   }
   async assertReviewedProposal(proposal:Proposal):Promise<void> {
@@ -38,11 +38,13 @@ export class VerificationProofReader {
     const review=this.repo.get('job',proposal.reviewId);
     ensure(review.kind==='review'&&review.proposalId===proposal.id&&review.approved&&!review.error&&review.environmentDigest===proposal.reviewEnvironmentDigest,'Published catalog has no valid independent approval');
       if(this.store.verificationLineage.bindingForProposal(proposal.id).definitionFormat==='legacy-v1')assertLegacyControlReviewEvidence({dataDir:this.repo.dataDirectory(),proposal,review});
+    if(this.repo.researchProofPlanDigest(proposal.id)){ensure(this.store.researchWorkflow,'Native mapping evidence reader unavailable');this.store.researchWorkflow.assertMappingReview(proposal,review);}
     ensure(canonical(review.environmentScope??null)===canonical(proposal.environmentScope??null),'Published review scope differs');await this.assertJob(review);await assertSourcesCurrent(review.sources);await assertMaterialsCurrent(review.materials??[]);
     if(this.store.verificationLineage.bindingForProposal(proposal.id).definitionFormat==='qualified-v2')this.store.controlQualification.assertPublicationBinding({proposalId:proposal.id,reviewId:review.id});
   }
   async current(plan:FrozenPlan,job:VerificationJob,refresh=false):Promise<void> {
-    const proposal=this.repo.get('proposal',plan.proposalId);ensure(canonical(plan.environmentScope??null)===canonical(job.environmentScope??null)&&canonical(plan.environmentScope??null)===canonical(proposal.environmentScope??null),'Verification scopes differ');await this.assertReviewedProposal(proposal);this.assertQuietWorkspace(plan.candidate.root);this.repo.assertNoVerificationWriter(plan.candidate.root);ensure(this.repo.headForRun(plan.projectId,plan.runId)?.id===plan.proposalId,'Published verification catalog changed');
+    this.store.controlQualification.assertMaintenanceDelivery(plan.projectId,plan.runId,plan.contractDigest);
+    const proposal=this.repo.get('proposal',plan.proposalId);if(this.repo.researchProofPlanDigest(proposal.id)){ensure(job.approvalScope==='research-artifact'&&job.researchProofPlanDigest===proposal.researchProofPlanDigest,'Native frozen proposal cannot lose its artifact-only role');}ensure(canonical(plan.environmentScope??null)===canonical(job.environmentScope??null)&&canonical(plan.environmentScope??null)===canonical(proposal.environmentScope??null),'Verification scopes differ');await this.assertReviewedProposal(proposal);this.assertQuietWorkspace(plan.candidate.root);this.repo.assertNoVerificationWriter(plan.candidate.root);ensure(this.repo.headForRun(plan.projectId,plan.runId)?.id===plan.proposalId,'Published verification catalog changed');
     ensure(plan.contractDigest===proposal.contractDigest,'Plan differs from independently reviewed task contract');ensure(digest(canonical(this.repo.run(plan.projectId,plan.runId).contract))===plan.contractDigest,'Contract changed');ensure((await environmentFingerprint(plan.environmentScope)).digest===plan.environmentDigest,'Verifier environment changed');
     await assertCandidate(plan.candidate);await assertDefinition(proposal.spec,proposal.bundle);await this.assertJob(job);await assertSourcesCurrent(job.sources,refresh);await assertMaterialsCurrent(job.materials??[],refresh);
     assertMobileFinalBinding(plan,job,proposal);
@@ -50,9 +52,26 @@ export class VerificationProofReader {
   }
 
  async finalJob(jobId:string):Promise<{job:VerificationJob;plan:FrozenPlan;proposal:Proposal}>{
- const job=this.repo.get('job',jobId);ensure(job.kind==='verification'&&job.planId&&job.approved&&!job.error&&job.identities.length>0,'Actual approved final verification job required');
- const plan=this.repo.get('plan',job.planId),proposal=this.repo.get('proposal',plan.proposalId);
+ const job=this.repo.get('job',jobId);ensure(!job.approvalScope,'Artifact-only research cannot use ordinary finalJob authority');ensure(job.kind==='verification'&&job.planId&&job.approved&&!job.error&&job.identities.length>0,'Actual approved final verification job required');
+ const plan=this.repo.get('plan',job.planId),proposal=this.repo.get('proposal',plan.proposalId);ensure(!this.repo.researchProofPlanDigest(proposal.id)&&!proposal.researchProofPlanDigest,'Host frozen research role cannot use ordinary finalJob even if job role is missing');
  ensure(plan.selection.mode==='final'&&plan.selection.completeScope&&canonical(plan.selection)===canonical(selectInstances(proposal.spec,{mode:'final'})),'Exact complete final selection required');
  await this.current(plan,job);return {job,plan,proposal};
+ }
+ async researchArtifactJob(jobId:string,refresh=false):Promise<{job:VerificationJob;plan:FrozenPlan;proposal:Proposal}> {
+   const job=this.repo.get('job',jobId);
+   ensure(job.approvalScope==='research-artifact'&&job.kind==='verification'
+     &&job.planId&&job.approved&&!job.error&&job.identities.length>0,
+     'Actual native artifact-only final job required');
+   ensure(this.store.researchWorkflow,'Native mapping reader unavailable');
+   const plan=this.repo.get('plan',job.planId);
+   const proposal=this.repo.get('proposal',plan.proposalId);
+   const native=this.store.researchWorkflow.proposal(proposal.id);
+   ensure(proposal.researchProofPlanDigest===native.proofPlan.digest
+     &&job.researchProofPlanDigest===native.proofPlan.digest,'Host frozen artifact role differs');
+   ensure(plan.selection.mode==='final'&&plan.selection.completeScope
+     &&canonical(plan.selection)===canonical(selectInstances(proposal.spec,{mode:'final'})),
+     'Exact native full artifact selection required');
+   await this.current(plan,job,refresh);
+   return {job,plan,proposal};
  }
 }

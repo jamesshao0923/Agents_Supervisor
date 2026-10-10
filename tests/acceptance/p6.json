@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "stage": "P6",
-  "revision": "p6-autonomous-bridge-v31",
+  "revision": "p6-v36-authority-developing",
   "caseIds": [
     "dev.unit-contracts.001",
     "dev.unit-contracts.002",
@@ -635,7 +635,22 @@
     "p6.integration-author-review-rebuild.003",
     "p6.integration-author-review-rebuild.004",
     "p6.integration-author-review-rebuild.005",
-    "p6.integration-author-review-rebuild.006"
+    "p6.integration-author-review-rebuild.006",
+    "p6.p6-maint-i05",
+    "p6.p6-maint-i06",
+    "p6.p6-maint-i07",
+    "p6.p6-maint-i01",
+    "p6.p6-maint-i02",
+    "p6.p6-maint-i03",
+    "p6.p6-maint-i04",
+    "p6.p6-maint-i08",
+    "p6.p6-maint-u01",
+    "p6.p6-maint-u02",
+    "p6.p6-maint-u03",
+    "p6.p6-maint-u04",
+    "p6.p6-maint-u05",
+    "p6.p6-maint-u06",
+    "p6.p6-maint-i09"
   ],
   "requiredRisks": [
     "p0.unit-contracts.001",
@@ -923,7 +938,22 @@
     "p6-execution-warning",
     "p6-concern-consumption",
     "p6-model-routing",
-    "p6-author-regeneration"
+    "p6-author-regeneration",
+    "p6-maint-i05",
+    "p6-maint-i06",
+    "p6-maint-i07",
+    "p6-maint-i01",
+    "p6-maint-i02",
+    "p6-maint-i03",
+    "p6-maint-i04",
+    "p6-maint-i08",
+    "p6-maint-u01",
+    "p6-maint-u02",
+    "p6-maint-u03",
+    "p6-maint-u04",
+    "p6-maint-u05",
+    "p6-maint-u06",
+    "p6-maint-i09"
   ],
   "coreRegression": [
     "dev.integration-runner.003",

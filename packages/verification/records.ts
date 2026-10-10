@@ -16,6 +16,8 @@ export interface Proposal {
   status: 'proposed' | 'published'; createdAt: string; reviewId?: string; reviewEnvironmentDigest?: string;
   /** Frozen before binding; qualified evidence is appended separately after review. */
   controlDraftDigest?: string;
+  maintenanceId?:string; maintenanceDigest?:string; regressionDigest?:string;
+  researchProofPlanDigest?:string;
 }
 export interface FrozenPlan {
   environmentScope?:VerificationEnvironmentScope;
@@ -26,6 +28,8 @@ export interface FrozenPlan {
 export interface SourceObservation { id: string; url: string; digest: string; acquiredAt: string; maxAgeMs: number; path: string }
 export interface VerificationJob {
   environmentScope?:VerificationEnvironmentScope;
+  researchProofPlanDigest?:string;
+  approvalScope?:'research-artifact';
   fullstackEvidence?:import('./fullstack-verifier.js').FullstackEvidence[];
   fullstackProcessResults?:import('../process-control/index.js').ProcessResult[];
   id: string; runtimeId: string; projectId: string; runId: string; workspace: string; kind: 'review' | 'verification';
@@ -38,13 +42,13 @@ export interface VerificationJob {
 }
 export interface Delivery {
   id: string; jobId: string; planId: string; runtimeId: string; projectId: string; runId: string;
-  candidateDigest: string; definitionDigest: string; createdAt: string; path: string; mobilePackage?:{path:string;files:Record<string,string>;artifacts:MobileArtifact[]};
+  candidateDigest: string; definitionDigest: string; createdAt: string; path: string; researchProofPlanDigest?:string; mobilePackage?:{path:string;files:Record<string,string>;artifacts:MobileArtifact[]};
 }
 export type VerificationAction =
   | import('./delivery-open.js').DeliveryOpenRequest
   | {type:'close-open';sessionId:string}
   | {type:'open-session';sessionId:string}
-  | { type: 'propose'; commandId: string; runtimeId: string; specPath: string; controlDeclarationPath?: string; controlAuthorJobId?: string }
+  | { type: 'propose'; commandId: string; runtimeId: string; specPath: string; controlDeclarationPath?: string; controlAuthorJobId?: string; researchAuthorJobId?:string }
   | ({ type: 'review'; commandId: string; proposalId: string } & ModelConfig)
   | { type: 'publish'; commandId: string; proposalId: string; reviewId: string }
   | { type: 'freeze'; commandId: string; runtimeId: string; mode: 'final' | 'impact'; changedModules?: string[] }

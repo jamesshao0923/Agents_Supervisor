@@ -1,5 +1,7 @@
+import {assertResearchMappingApproval,persistedResearchWorkflow} from '../verification/research-mapping-proof.js';
 import {dirname} from 'node:path';
 import {assertLegacyControlReviewEvidence} from '../verification/legacy-review-evidence.js';
+import {ControlMaintenanceRepository} from './control-maintenance.js';
 import { createHash } from 'node:crypto';
 import { assertControlQualificationPublication } from './control-qualification.js';
 import { readFileSync } from 'node:fs';
@@ -132,6 +134,8 @@ export class VerificationLineageRepository {
     const review=this.record<VerificationJob>('job',input.reviewId),attempt=run.attempts.find(a=>a.id===review.attemptId);ensure(review.projectId===proposal.projectId&&review.runId===proposal.runId&&review.runtimeId===proposal.runtimeId&&review.proposalId===proposal.id&&review.kind==='review'&&review.status==='finished'&&review.approved&&!review.error&&!review.usageUnknown&&review.stopConfirmed&&attempt?.settled&&attempt.actual===review.usage,'Publication needs the exact settled independent review');ensure(Object.keys(review.proofs).length>0,'Publication lacks review proof');for(const [path,expected]of Object.entries(review.proofs))ensure(createHash('sha256').update(readFileSync(path)).digest('hex')===expected,'Publication review proof changed');
     if(binding.definitionFormat==='qualified-v2')assertControlQualificationPublication(this.db,{proposalId:proposal.id,reviewId:review.id});
     else {ensure(!proposal.controlDraftDigest,'Legacy publication cannot bypass control qualification');const database=this.db.prepare('PRAGMA database_list').all().find(r=>r.name==='main');ensure(database?.file,'Publication needs its actual database directory');assertLegacyControlReviewEvidence({dataDir:dirname(String(database.file)),proposal,review});}
+    new ControlMaintenanceRepository(this.db).assertPublication(proposal.id,review.id);
+    if(persistedResearchWorkflow(this.db,proposal.id))assertResearchMappingApproval(this.db,proposal,review);
     proposal.version=proposal.baseVersion+1;proposal.status='published';proposal.reviewId=review.id;proposal.reviewEnvironmentDigest=review.environmentDigest;const head:BoundHead={lineageId:base.lineageId,revision:base.expectedHeadRevision+1,proposalId:proposal.id,catalogVersion:proposal.version,contract:base.target};
     this.db.prepare("UPDATE verification_records SET record=? WHERE kind='proposal' AND id=?").run(json(proposal),proposal.id);
     if(base.expectedHeadRevision===0)this.db.prepare('INSERT INTO verification_lineage_heads(lineage_id,proposal_id,revision,record) VALUES (?,?,?,?)').run(head.lineageId,head.proposalId,head.revision,json(head));else {const updated=this.db.prepare('UPDATE verification_lineage_heads SET proposal_id=?,revision=?,record=? WHERE lineage_id=? AND revision=? AND proposal_id=?').run(head.proposalId,head.revision,json(head),head.lineageId,base.expectedHeadRevision,base.baseProposalId);ensure(updated.changes===1,'Scoped head CAS failed');}return head;
