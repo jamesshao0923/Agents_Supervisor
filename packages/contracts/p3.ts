@@ -23,6 +23,7 @@ export interface RuntimeOperation {
   executionId: string | null; result: unknown; error: string | null;
 }
 export interface RuntimeCheckpoint {
+  parentId?: string;
   id: string; runtimeId: string; schemaVersion: 1; workflowVersion: 1; cursor: number; contractVersion: number;
   domainRevision: number; budget: Run['budget']; attempts: Run['attempts']; operations: Run['operations'];
   artifact: Run['artifact']; frozenPlans: unknown[]; createdAt: string;

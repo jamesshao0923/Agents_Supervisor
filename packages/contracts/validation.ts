@@ -60,6 +60,7 @@ function action(v: unknown, p: string): void {
     case 'releaseLease': keys = ['type', 'resource', 'attemptId']; break;
     case 'pause': case 'resume': case 'cancel': case 'complete': keys = ['type']; break;
     case 'admit': keys = ['type', 'contract', 'nodes']; break;
+    case 'revisePlan': keys = ['type', 'contract', 'nodes', 'reason']; break;
     case 'replaceContract': keys = ['type', 'contract']; break;
     case 'recordEvidence': keys = ['type', 'evidence']; break;
     case 'setArtifact': keys = ['type', 'artifact']; break;
@@ -71,7 +72,8 @@ function action(v: unknown, p: string): void {
   if (t === 'finishAttempt') choice(o.outcome, `${p}.outcome`, ['succeeded', 'failed', 'cancelled']);
   if (t === 'settleAttempt') number(o.actual, `${p}.actual`, 0, true);
   if (t === 'setOperation') choice(o.status, `${p}.status`, ['pending', 'confirmed', 'unknown']);
-  if (t === 'admit') input({id:'admit',projectId:'admit',contract:o.contract,nodes:o.nodes,budget:{limit:1,verificationReserve:0}},p);
+  if (t === 'admit' || t === 'revisePlan') input({id:'admit',projectId:'admit',contract:o.contract,nodes:o.nodes,budget:{limit:1,verificationReserve:0}},p);
+  if (t === 'revisePlan') string(o.reason, `${p}.reason`);
   if (t === 'replaceContract') contract(o.contract, `${p}.contract`);
   if (t === 'recordEvidence') evidence(o.evidence, `${p}.evidence`);
   if (t === 'setArtifact') artifact(o.artifact, `${p}.artifact`);

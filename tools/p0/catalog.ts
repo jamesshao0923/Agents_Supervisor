@@ -18,6 +18,7 @@ export interface TestCatalog {
 }
 export interface AcceptanceProfile {
   schemaVersion: 2; stage: ImplementedStage; revision: string;
+  gateStatus?: 'developing' | 'ready';
   caseIds: string[]; requiredRisks: string[]; coreRegression: string[];
 }
 export interface SelectionOptions { layer?: TestLayer; modules?: string[] }
@@ -99,8 +100,9 @@ export function parseCatalog(value: unknown): TestCatalog {
 
 export function parseProfile(value: unknown): AcceptanceProfile {
   if (!object(value) || value.schemaVersion !== 2) fail('profile schemaVersion must equal 2');
-  if (value.stage !== 'P0' && value.stage !== 'P1' && value.stage !== 'P2' && value.stage !== 'P3' && value.stage !== 'P4' && value.stage !== 'P5') fail('profile stage must equal P0, P1, P2, P3, P4 or P5');
-  return { schemaVersion: 2, stage: value.stage, revision: revision(value.revision), caseIds: strings(value.caseIds, 'profile.caseIds'),
+  if (value.stage !== 'P0' && value.stage !== 'P1' && value.stage !== 'P2' && value.stage !== 'P3' && value.stage !== 'P4' && value.stage !== 'P5' && value.stage !== 'P6') fail('profile stage must equal P0, P1, P2, P3, P4, P5 or P6');
+  if(value.gateStatus !== undefined && value.gateStatus !== 'developing' && value.gateStatus !== 'ready') fail('invalid stage gateStatus');
+  return { ...(value.gateStatus === undefined ? {} : {gateStatus:value.gateStatus}), schemaVersion: 2, stage: value.stage, revision: revision(value.revision), caseIds: strings(value.caseIds, 'profile.caseIds'),
     requiredRisks: strings(value.requiredRisks, 'profile.requiredRisks'), coreRegression: strings(value.coreRegression, 'profile.coreRegression', true) };
 }
 
@@ -134,9 +136,10 @@ export function selectCases(catalogInput: unknown, profileInput: unknown, option
   const chosenIds = new Set(chosen.map(c => c.id)), seedIds = new Set(seed.map(c => c.id));
   reasons.push('Selected cases conservatively expanded to complete suites; stable IDs and suite files deduplicated');
   const suites: SuiteSpec[] = catalog.suites.filter(s => suiteIds.has(s.id)).map(s => ({ ...s, required: true, expectedTests: chosen.filter(c => c.suiteId === s.id).map(c => c.name) }));
+  if(profile.gateStatus === 'developing') reasons.push('Stage is under development; this profile cannot certify full stage completion');
   const selection: SelectionSnapshot = { schemaVersion: 1, stage: profile.stage, profileRevision: profile.revision, catalogRevision: catalog.revision,
     profileDigest: digest(profile), catalogDigest: digest(catalog), requested: { layer: options.layer ?? null, modules: requestedModules },
-    mode: options.layer || requestedModules.length ? 'partial' : 'stage', strategy: 'conservative-complete-suite', reasons,
+    mode: profile.gateStatus === 'developing' || options.layer || requestedModules.length ? 'partial' : 'stage', strategy: 'conservative-complete-suite', reasons,
     globalActiveCaseIds: catalog.cases.filter(c => c.status === 'active').map(c => c.id), profileCaseIds: [...profileIds], selectedCaseIds: chosen.map(c => c.id),
     globalCoveredRisks: [...new Set(catalog.cases.filter(c => c.status === 'active').flatMap(c => c.covers))], selectedCoveredRisks: [...new Set(chosen.flatMap(c => c.covers))],
     selected: chosen.map(c => ({ id: c.id, name: c.name, module: c.module, layer: c.layer, covers: [...c.covers], reason: seedIds.has(c.id) ? 'Applicable profile / requested layer and impact / core regression' : 'Expanded to complete selected suite' })),

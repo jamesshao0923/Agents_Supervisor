@@ -1,3 +1,4 @@
+import { ConversationRepository } from './conversations.js';
 import { GoalRepository } from './goals.js';
 import { VerificationRepository } from './verification.js';
 import { RuntimeRepository } from './runtime.js';
@@ -36,6 +37,7 @@ export class SupervisorStore {
   private readonly db: DatabaseSync;
   readonly runtime: RuntimeRepository;
   readonly goals: GoalRepository;
+  readonly conversations: ConversationRepository;
   readonly verification: VerificationRepository;
   private readonly root: string;
   private readonly objects: string;
@@ -56,6 +58,7 @@ export class SupervisorStore {
     try { migrate(this.db); } catch (error) { this.db.close(); throw error; }
     this.runtime = new RuntimeRepository(this.db);
     this.goals = new GoalRepository(this.db);
+    this.conversations = new ConversationRepository(this.db);
     this.verification = new VerificationRepository(this.db);
   }
 

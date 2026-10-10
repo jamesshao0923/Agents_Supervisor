@@ -120,3 +120,49 @@ test('runtime in-flight reservation survives owner recovery without settlement o
   assert.throws(() => reopened.report(op.id, 'new', { messageId: 'forged-success', outcome: 'confirmed', result: 'not a real Codex result' }), /durable execution receipt/);
   assert.deepEqual(reopened.inspect(r.id).run, before);
 });
+
+test('P6 runtime revision atomically replaces queued plan and retains immutable checkpoint ancestry', t => {
+  const {repo,submit}=fixture(t),r=repo.submit(submit([{id:'wait',kind:'input',prompt:'Original decision'}]));
+  repo.control({type:'input',commandId:'old-input',runtimeId:r.id,stepId:'wait',text:'old answer'});
+  const before=repo.inspect(r.id),old=before.operations[0]!,parent=repo.checkpoint(r.id)!;
+  const revision={commandId:'revision',runtimeId:r.id,expectedContractVersion:1,contract:{...before.run.contract,version:2,goal:'Changed goal'},nodes:[{id:'wait',dependencies:[],required:true}],steps:[{id:'wait',kind:'input' as const,prompt:'New decision'}],reason:'User changed the requested outcome'};
+  assert.throws(()=>repo.revise(revision,()=>{throw new Error('message acknowledgement failed');}),/acknowledgement/);
+  assert.deepEqual(repo.inspect(r.id),before,'transaction rollback includes domain, outbox, checkpoints and runtime');
+  const changed=repo.revise(revision),after=repo.inspect(r.id);
+  assert.equal(changed.phase,'waiting-input');assert.deepEqual(changed.inputs,{});assert.equal(repo.claim(r.id,'worker'),null,'old input cannot answer revised question');
+  assert.equal(after.run.contract.version,2);assert.deepEqual(after.run.budget,before.run.budget);
+  assert.equal(repo.operations(r.id).find(o=>o.id===old.id)?.state,'cancelled');
+  assert.notEqual(repo.currentOperations(r.id)[0]!.id,old.id);assert.equal(repo.currentOperations(r.id)[0]!.contractVersion,2);
+  assert.equal(repo.checkpoint(r.id)?.parentId,parent.id);assert.ok(after.checkpoints.every(c=>c.valid));assert.deepEqual(after.checkpoints[0],before.checkpoints[0]);
+  assert.deepEqual(repo.revise(revision),changed);assert.throws(()=>repo.revise({...revision,reason:'changed request'}),/conflicts/);
+  assert.throws(()=>repo.revise({...revision,commandId:'stale'}),/Contract changed/);
+  repo.control({type:'input',commandId:'new-input',runtimeId:r.id,stepId:'wait',text:'new answer'});
+  const op=repo.claim(r.id,'worker')!;assert.equal(op.contractVersion,2);repo.report(op.id,'worker',{messageId:'revised-complete',outcome:'confirmed',result:{input:'new answer'}});
+  assert.equal(repo.get(r.id).phase,'awaiting-verification');assert.equal(repo.inspect(r.id).run.status,'ready','execution completion does not imply delivery');
+});
+
+test('P6 runtime revision refuses active unknown and unsettled effects without rewriting old state',t=>{
+  const {repo,submit}=fixture(t),r=repo.submit(submit()),op=repo.claim(r.id,'worker')!;
+  const revision={commandId:'revision',runtimeId:r.id,expectedContractVersion:1,contract:{...repo.inspect(r.id).run.contract,version:2},nodes:[{id:'new',dependencies:[],required:true}],steps:[{id:'new',kind:'input' as const,prompt:'New work'}],reason:'User change'};
+  let before=repo.inspect(r.id);assert.throws(()=>repo.revise(revision),/unresolved/);assert.deepEqual(repo.inspect(r.id),before);
+  repo.markStarted(op.id,'worker');repo.report(op.id,'worker',{messageId:'lost',outcome:'unknown',result:null,error:'unknown effect'});
+  before=repo.inspect(r.id);assert.throws(()=>repo.revise(revision),/unresolved/);assert.deepEqual(repo.inspect(r.id),before);
+  assert.equal(before.run.attempts[0]!.settled,false);assert.equal(before.run.operations[0]!.status,'unknown');
+});
+
+test('P6 domain plan revision invalidates old evidence but preserves cost and refuses unresolved owners',()=>{
+  let run=applyAction({id:'r',projectId:'p',revision:0,status:'ready',contract:{version:1,goal:'old',criteria:[{id:'c',description:'original',required:true}]},nodes:[{id:'old',dependencies:[],required:true,status:'succeeded'}],budget:{unit:'token',limit:100,verificationReserve:20,spent:17},attempts:[],operations:[],leases:[],artifact:{id:'a',digest:'old',path:'/candidate',contractVersion:1},evidence:[{id:'e',criterionId:'c',contractVersion:1,artifactDigest:'old',verdict:'passed',verifierVersion:'v'}]}, {type:'pause'}).run;
+  const revision={type:'revisePlan' as const,contract:{version:2,goal:'updated',criteria:[{id:'c',description:'updated behavior',required:true}]},nodes:[{id:'new',dependencies:[],required:true}],reason:'Explicit new requirement'};
+  const x=applyAction(run,revision);assert.equal(x.run.status,'paused');assert.equal(x.run.budget.spent,17);assert.deepEqual(x.run.evidence,[]);assert.equal(x.run.artifact,null);
+  assert.deepEqual(x.events[0]!.details.previousContract,run.contract);assert.deepEqual(x.events[0]!.details.invalidatedEvidence,run.evidence);assert.deepEqual(x.events[0]!.details.previousNodes,run.nodes);
+  // Prior-version verification still counts as spent, but cannot consume the
+  // protected allowance needed to verify the new user requirement.
+  const priorVerification={...run,attempts:[{id:'old-verify',nodeId:'old',contractVersion:1,status:'succeeded' as const,settled:true,actual:17,reservation:20,purpose:'verification' as const}]};
+  const revised=applyAction(applyAction(priorVerification,revision).run,{type:'resume'}).run;
+  const dispatch={type:'startAttempt' as const,attemptId:'new-work',nodeId:'new',contractVersion:2,purpose:'execution' as const,reservation:64,resources:[]};
+  assert.throws(()=>applyAction(revised,dispatch),/insufficient budget/);
+  assert.equal(applyAction(revised,{...dispatch,reservation:63}).run.budget.spent,17);
+  for(const patch of [{attempts:[{id:'a',nodeId:'old',contractVersion:1,status:'running',settled:false,actual:null,reservation:10,purpose:'execution'}]}, {operations:[{id:'effect',attemptId:'a',status:'unknown'}]}, {leases:[{resource:'workspace',attemptId:'a',released:false}]}])assert.throws(()=>applyAction({...run,...patch} as Run,revision),/settled attempts/);
+  assert.throws(()=>applyAction(run,{...revision,nodes:[{id:'new',dependencies:['absent'],required:true}]}),/unknown dependency/);
+  assert.throws(()=>applyAction({...run,status:'succeeded'},revision),/terminal/);assert.throws(()=>applyAction({...run,status:'cancelled'},revision),/cancelled/);
+});

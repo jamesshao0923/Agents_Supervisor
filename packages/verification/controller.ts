@@ -44,12 +44,14 @@ export class VerificationController {
   cancelRuntime(runtimeId:string):void {for(const [id,active]of this.pending)if(this.repo.get('job',id).runtimeId===runtimeId)active.abort.abort();}
   async dispatch(value:unknown):Promise<unknown> {const action=parseAction(value);const next=this.queue.then(()=>this.handle(action));this.queue=next.catch(()=>{});return next;}
   private assertQuietWorkspace(workspace:string):void {
-    ensure(this.store.runtime.list().filter(r=>overlap(r.workspace,workspace)).every(r=>['cancelled','awaiting-verification'].includes(r.phase)&&this.store.runtime.operations(r.id).every(o=>['confirmed','cancelled'].includes(o.state))),'Workspace has unresolved runtime work');
+    for(const runtime of this.store.runtime.list().filter(r=>overlap(r.workspace,workspace)))ensure(!this.store.conversations.hasPendingForRun(runtime.projectId,runtime.runId),'Pending follow-up must be resolved before verification publication');
+    ensure(this.store.runtime.list().filter(r=>overlap(r.workspace,workspace)).every(r=>['cancelled','awaiting-verification'].includes(r.phase)&&this.store.runtime.currentOperations(r.id).every(o=>['confirmed','cancelled'].includes(o.state))),'Workspace has unresolved runtime work');
     ensure(this.store.executionList().filter(e=>overlap(e.workspace,workspace)).every(e=>e.stopConfirmed),'Workspace has an active writer');
   }
   private async writers(runtime:RuntimeRecord,ownJob?:string):Promise<void> {
+    ensure(!this.store.conversations.hasPendingForRun(runtime.projectId,runtime.runId),'Pending follow-up must be resolved before new verification or delivery');
     ensure(runtime.phase==='awaiting-verification'&&!runtime.cancelled&&!runtime.paused,'Workflow must finish all required steps before verification');
-    for(const r of this.store.runtime.list().filter(r=>overlap(r.workspace,runtime.workspace)))ensure(['awaiting-verification','cancelled'].includes(r.phase)&&this.store.runtime.operations(r.id).every(o=>['confirmed','cancelled'].includes(o.state)),'Overlapping workspace has unresolved workflow work');
+    for(const r of this.store.runtime.list().filter(r=>overlap(r.workspace,runtime.workspace)))ensure(['awaiting-verification','cancelled'].includes(r.phase)&&this.store.runtime.currentOperations(r.id).every(o=>['confirmed','cancelled'].includes(o.state)),'Overlapping workspace has unresolved workflow work');
     for(const e of this.store.executionList().filter(e=>overlap(e.workspace,runtime.workspace))) {
       ensure(e.stopConfirmed,'Execution writer has not stopped');
       if(e.identity)ensure((await inspectProcess(e.identity as ProcessIdentity)).status==='stopped','Old execution process is still active');
@@ -81,7 +83,7 @@ export class VerificationController {
       await this.assertJob(review);await assertDefinition(proposal.spec,proposal.bundle);await assertCandidate(proposal.candidate);
       ensure(digest(canonical(this.repo.run(proposal.projectId,proposal.runId).contract))===proposal.contractDigest,'Contract changed after review');
       proposal.reviewId=review.id;proposal.reviewEnvironmentDigest=review.environmentDigest;
-      return this.repo.transaction(()=>{this.repo.publish(proposal);this.repo.remember(action.commandId,action,proposal);return proposal;});
+      return this.repo.transaction(()=>{ensure(!this.store.conversations.hasPendingForRun(proposal.projectId,proposal.runId),'Pending follow-up prevents publication');this.repo.publish(proposal);this.repo.remember(action.commandId,action,proposal);return proposal;});
     }
     if(action.type==='freeze') {
       const runtime=this.store.runtime.get(action.runtimeId);await this.writers(runtime);const proposal=this.repo.head(runtime.projectId);ensure(proposal?.version,'Publish a reviewed verification catalog first');await this.assertReviewedProposal(proposal);await assertDefinition(proposal.spec,proposal.bundle);

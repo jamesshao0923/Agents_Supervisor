@@ -51,6 +51,7 @@ export type RunAction =
   | { type: 'releaseLease'; resource: string; attemptId: string }
   | { type: 'pause' | 'resume' | 'cancel' | 'complete' }
   | { type: 'replaceContract'; contract: TaskContract }
+  | { type: 'revisePlan'; contract: TaskContract; nodes: CreateRunInput['nodes']; reason: string }
   | { type: 'admit'; contract: TaskContract; nodes: CreateRunInput['nodes'] }
   | { type: 'recordEvidence'; evidence: Evidence }
   | { type: 'setArtifact'; artifact: Artifact };

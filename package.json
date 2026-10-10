@@ -26,7 +26,8 @@
     "verify:p2": "pnpm build && node dist/tools/p0/cli.js run --stage P2",
     "verify:p3": "pnpm build && node dist/tools/p0/cli.js run --stage P3",
     "verify:p4": "pnpm build && node dist/tools/p0/cli.js run --stage P4",
-    "verify:p5": "pnpm build && node dist/tools/p0/cli.js run --stage P5"
+    "verify:p5": "pnpm build && node dist/tools/p0/cli.js run --stage P5",
+    "verify:p6": "pnpm build && node dist/tools/p0/cli.js run --stage P6"
   },
   "devDependencies": {
     "@types/node": "24.19.2",

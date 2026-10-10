@@ -217,3 +217,22 @@ test('runtime startup ownership recovery stops the released process scope before
   await assert.rejects(writeOwnership(f.data, published), /Stale runtime worker|replaced/); assert.deepEqual(await readOwnership(f.data), replacement);
   t.diagnostic(JSON.stringify({ actualDeadLauncherPid: launcherMember.pid, oldScopePid: target.identity.pid, actualTargetPid: targetMember.pid, oldReady: false, oldWorkerReceipt: null, scopeStoppedBeforeTakeover: true, stalePublisherRejected: true }));
 });
+
+test('P6 revised workflow runs a new real HTTP effect once and preserves prior checkpoint across service restart', {timeout:45_000}, async t=>{
+  const f=await fixture(t),http=await f.http({hold:false,deduplicate:true});let service=await f.service();
+  const r=await submit(f.data,f.workspace,[httpStep(http.url)],'p6-revision');
+  await waitFor(()=>f.store.runtime.get(r.id),v=>v.phase==='awaiting-verification');
+  const before=f.store.runtime.inspect(r.id),oldOp=before.operations[0]!,parent=f.store.runtime.checkpoint(r.id)!;
+  const change={commandId:'p6-user-change',runtimeId:r.id,expectedContractVersion:1,contract:{...before.run.contract,version:2,goal:'Apply a second authorized actual effect'},nodes:[{id:'effect',dependencies:[],required:true}],steps:[{...httpStep(http.url),body:'changed actual business effect'} as RuntimeStep],reason:'Additional authorized work after the first workflow reached verification'};
+  f.store.runtime.revise(change);
+  await waitFor(()=>f.store.runtime.get(r.id),v=>v.phase==='awaiting-verification');
+  const after=f.store.runtime.inspect(r.id),newOp=f.store.runtime.currentOperations(r.id)[0]!;
+  assert.equal(http.effects().length,2);assert.equal(http.posts().length,2);assert.notEqual(newOp.id,oldOp.id);
+  assert.equal(newOp.contractVersion,2);assert.equal(after.run.contract.version,2);assert.equal(after.run.attempts.length,2);assert.equal(after.run.status,'ready');
+  assert.deepEqual(after.checkpoints.find(c=>c.checkpoint.id===parent.id),before.checkpoints.find(c=>c.checkpoint.id===parent.id));
+  const revisionCheckpoint=after.checkpoints.find(c=>c.checkpoint.contractVersion===2&&c.checkpoint.parentId===parent.id);assert.ok(revisionCheckpoint?.valid);
+  await stop(service,'SIGKILL');service=await f.service();
+  f.store.runtime.revise(change);await delay(200);
+  assert.equal(http.effects().length,2);assert.equal(http.posts().length,2);assert.equal(f.store.runtime.currentOperations(r.id)[0]?.state,'confirmed');assert.ok(f.store.runtime.inspect(r.id).checkpoints.every(c=>c.valid));
+  t.diagnostic(JSON.stringify({oldOperation:oldOp.id,newOperation:newOp.id,realHttpPosts:2,realSqliteEffects:2,servicePid:service.pid,modelInvocations:0}));
+});

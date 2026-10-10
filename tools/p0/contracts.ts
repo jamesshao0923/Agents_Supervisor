@@ -1,5 +1,5 @@
 export type TestLayer = 'unit' | 'integration' | 'live';
-export type ImplementedStage = 'P0' | 'P1' | 'P2' | 'P3' | 'P4' | 'P5';
+export type ImplementedStage = 'P0' | 'P1' | 'P2' | 'P3' | 'P4' | 'P5' | 'P6';
 
 export interface SuiteSpec {
   id: string;
@@ -61,7 +61,7 @@ function manifestError(path: string, detail: string): never {
 export function parseManifest(value: unknown): StageManifest {
   if (!isRecord(value)) manifestError('manifest', 'must be an object');
   if (value.schemaVersion !== 1) manifestError('schemaVersion', 'must equal 1');
-  if (value.stage !== 'P0' && value.stage !== 'P1' && value.stage !== 'P2' && value.stage !== 'P3' && value.stage !== 'P4' && value.stage !== 'P5') manifestError('stage', 'must equal P0, P1, P2, P3, P4 or P5');
+  if (value.stage !== 'P0' && value.stage !== 'P1' && value.stage !== 'P2' && value.stage !== 'P3' && value.stage !== 'P4' && value.stage !== 'P5' && value.stage !== 'P6') manifestError('stage', 'must equal P0, P1, P2, P3, P4, P5 or P6');
   if (!nonemptyString(value.revision) || /\s/.test(value.revision)) {
     manifestError('revision', 'must be a nonempty string without whitespace');
   }

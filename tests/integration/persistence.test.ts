@@ -74,7 +74,7 @@ test('persistence migrates real disk database and reopens state events budgets a
   f.close(store);
   // A real v1 fixture retains all core records while lacking the additive v2 entities.
   const old = new DatabaseSync(join(f.root, 'supervisor.sqlite'));
-  old.exec(`PRAGMA foreign_keys=OFF; DROP TABLE goal_receipts; DROP TABLE goal_sessions;
+  old.exec(`PRAGMA foreign_keys=OFF; DROP TABLE conversation_messages; DROP TABLE conversation_rounds; DROP TABLE conversations; DROP TABLE goal_receipts; DROP TABLE goal_sessions;
     DROP TABLE verification_product_receipts; DROP TABLE verification_product_heads; DROP TABLE verification_records;
     DROP TABLE runtime_events; DROP TABLE runtime_checkpoints; DROP TABLE runtime_receipts; DROP TABLE runtime_inbox; DROP TABLE runtime_outbox; DROP TABLE runtime_runs;
     DROP TABLE execution_events; DROP TABLE executions;
@@ -88,8 +88,8 @@ test('persistence migrates real disk database and reopens state events budgets a
   assert.equal(getRun(store).budget.spent, 3); assert.equal(getRun(store).attempts[0]?.settled, true);
   assert.deepEqual(store.query({ type: 'catalog', projectId: 'project' }), null);
   const raw = new DatabaseSync(join(f.root, 'supervisor.sqlite'));
-  assert.equal(raw.prepare('PRAGMA user_version').get()?.['user_version'], 6);
-  assert.equal(raw.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get()?.['n'], 6);
+  assert.equal(raw.prepare('PRAGMA user_version').get()?.['user_version'], 7);
+  assert.equal(raw.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get()?.['n'], 7);
   assert.equal(raw.prepare('PRAGMA journal_mode').get()?.['journal_mode'], 'wal'); raw.close();
   const repeated = store.command({ type: 'act', commandId: 'settle', projectId: 'project', runId: 'run', expectedRevision: 2, action: { type: 'settleAttempt', attemptId: 'attempt', actual: 3 } });
   assert.deepEqual(repeated.value, before);
@@ -97,11 +97,11 @@ test('persistence migrates real disk database and reopens state events budgets a
   const runtime = store.runtime.submit({ type: 'submit', commandId: 'v4-runtime', workspace: f.root, workspaceKind: 'project', goal: 'Retain the frozen P3 ledger through the P4 migration', tokenLimit: 100, verificationReserve: 20, steps: [{ id: 'wait', kind: 'input', prompt: 'Durable input wait' }] });
   const runtimeBefore = store.runtime.inspect(runtime.id), runtimeEvents = store.runtime.events(runtime.id, 0); f.close(store);
   const v4 = new DatabaseSync(join(f.root, 'supervisor.sqlite'));
-  v4.exec('PRAGMA foreign_keys=OFF; DROP TABLE goal_receipts; DROP TABLE goal_sessions; DROP TABLE verification_product_receipts; DROP TABLE verification_product_heads; DROP TABLE verification_records; DELETE FROM schema_migrations WHERE version>4; PRAGMA user_version=4;'); v4.close();
+  v4.exec('PRAGMA foreign_keys=OFF; DROP TABLE conversation_messages; DROP TABLE conversation_rounds; DROP TABLE conversations; DROP TABLE goal_receipts; DROP TABLE goal_sessions; DROP TABLE verification_product_receipts; DROP TABLE verification_product_heads; DROP TABLE verification_records; DELETE FROM schema_migrations WHERE version>4; PRAGMA user_version=4;'); v4.close();
   store = f.open(); assert.deepEqual(getRun(store), before); assert.deepEqual(store.query({ type: 'events', projectId: 'project', after: 0 }), events); assert.deepEqual(store.runtime.inspect(runtime.id), runtimeBefore); assert.deepEqual(store.runtime.events(runtime.id, 0), runtimeEvents);
   const upgraded = new DatabaseSync(join(f.root, 'supervisor.sqlite'));
-  assert.equal(upgraded.prepare('PRAGMA user_version').get()?.['user_version'], 6); assert.equal(upgraded.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get()?.['n'], 6);
-  for (const table of ['verification_records', 'verification_product_heads', 'verification_product_receipts']) assert.equal(upgraded.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()?.['n'], 0, table);
+  assert.equal(upgraded.prepare('PRAGMA user_version').get()?.['user_version'], 7); assert.equal(upgraded.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get()?.['n'], 7);
+  for (const table of ['verification_records', 'verification_product_heads', 'verification_product_receipts','conversations','conversation_rounds','conversation_messages']) assert.equal(upgraded.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()?.['n'], 0, table);
   upgraded.close(); assert.deepEqual(store.command({ type: 'act', commandId: 'settle', projectId: 'project', runId: 'run', expectedRevision: 2, action: { type: 'settleAttempt', attemptId: 'attempt', actual: 3 } }).value, before);
 });
 

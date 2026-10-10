@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-catalog-v10",
+  "revision": "dev-catalog-v11",
   "modules": [
     {
       "id": "dev-contracts",
@@ -315,6 +315,18 @@
       "layer": "live",
       "file": "dist/tests/live/verification-maintenance.test.js",
       "timeoutMs": 600000
+    },
+    {
+      "id": "unit-loop-policy",
+      "layer": "unit",
+      "file": "dist/tests/unit/loop-policy.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "integration-conversations",
+      "layer": "integration",
+      "file": "dist/tests/integration/conversations.test.js",
+      "timeoutMs": 120000
     }
   ],
   "cases": [
@@ -5875,6 +5887,652 @@
       "prerequisites": "Pinned Node; actual presentation module with explicit capability inputs",
       "assertions": "Four exact IDs; labels ordered; provider reasoning metadata retained; missing preferred model stays unavailable; input immutable",
       "cleanup": "No side effects",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-runtime.001",
+      "name": "P6 runtime revision atomically replaces queued plan and retains immutable checkpoint ancestry",
+      "suiteId": "unit-runtime",
+      "module": "runtime",
+      "layer": "unit",
+      "covers": [
+        "p6-revision"
+      ],
+      "scenario": "P6 runtime revision atomically replaces queued plan and retains immutable checkpoint ancestry",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/unit/runtime.test.ts :: P6 runtime revision atomically replaces queued plan and retains immutable checkpoint ancestry",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-runtime.002",
+      "name": "P6 runtime revision refuses active unknown and unsettled effects without rewriting old state",
+      "suiteId": "unit-runtime",
+      "module": "runtime",
+      "layer": "unit",
+      "covers": [
+        "p6-revision"
+      ],
+      "scenario": "P6 runtime revision refuses active unknown and unsettled effects without rewriting old state",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/unit/runtime.test.ts :: P6 runtime revision refuses active unknown and unsettled effects without rewriting old state",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-runtime.003",
+      "name": "P6 domain plan revision invalidates old evidence but preserves cost and refuses unresolved owners",
+      "suiteId": "unit-runtime",
+      "module": "runtime",
+      "layer": "unit",
+      "covers": [
+        "p6-revision"
+      ],
+      "scenario": "P6 domain plan revision invalidates old evidence but preserves cost and refuses unresolved owners",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/unit/runtime.test.ts :: P6 domain plan revision invalidates old evidence but preserves cost and refuses unresolved owners",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-runtime.001",
+      "name": "P6 revised workflow runs a new real HTTP effect once and preserves prior checkpoint across service restart",
+      "suiteId": "integration-runtime",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p6-revision"
+      ],
+      "scenario": "P6 revised workflow runs a new real HTTP effect once and preserves prior checkpoint across service restart",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/integration/runtime.test.ts :: P6 revised workflow runs a new real HTTP effect once and preserves prior checkpoint across service restart",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-loop-policy.001",
+      "name": "P6-POL-U01 health scans use real supplied times at default15s and configured10s without catch-up bursts",
+      "suiteId": "unit-loop-policy",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-loop-policy"
+      ],
+      "scenario": "P6-POL-U01 health scans use real supplied times at default15s and configured10s without catch-up bursts",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/unit/loop-policy.test.ts :: P6-POL-U01 health scans use real supplied times at default15s and configured10s without catch-up bursts",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-loop-policy.002",
+      "name": "P6-POL-U02 changed evidence waits for its five-minute window and unchanged evidence skips the next window",
+      "suiteId": "unit-loop-policy",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-loop-policy"
+      ],
+      "scenario": "P6-POL-U02 changed evidence waits for its five-minute window and unchanged evidence skips the next window",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/unit/loop-policy.test.ts :: P6-POL-U02 changed evidence waits for its five-minute window and unchanged evidence skips the next window",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-loop-policy.003",
+      "name": "P6-POL-U03 due anomaly and related signals inspect unchanged evidence while ordinary empty windows skip",
+      "suiteId": "unit-loop-policy",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-loop-policy"
+      ],
+      "scenario": "P6-POL-U03 due anomaly and related signals inspect unchanged evidence while ordinary empty windows skip",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/unit/loop-policy.test.ts :: P6-POL-U03 due anomaly and related signals inspect unchanged evidence while ordinary empty windows skip",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-loop-policy.004",
+      "name": "P6-POL-U04 long inspection coalesces multiple windows and pending changes with zero overlapping dispatch",
+      "suiteId": "unit-loop-policy",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-loop-policy"
+      ],
+      "scenario": "P6-POL-U04 long inspection coalesces multiple windows and pending changes with zero overlapping dispatch",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/unit/loop-policy.test.ts :: P6-POL-U04 long inspection coalesces multiple windows and pending changes with zero overlapping dispatch",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-loop-policy.005",
+      "name": "P6-POL-U05 sleep recovery merges missed windows into one inspection rather than replaying timers",
+      "suiteId": "unit-loop-policy",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-loop-policy"
+      ],
+      "scenario": "P6-POL-U05 sleep recovery merges missed windows into one inspection rather than replaying timers",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/unit/loop-policy.test.ts :: P6-POL-U05 sleep recovery merges missed windows into one inspection rather than replaying timers",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-loop-policy.006",
+      "name": "P6-POL-U06 paused and terminal runs make no health or model calls and resuming coalesces overdue windows",
+      "suiteId": "unit-loop-policy",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-loop-policy"
+      ],
+      "scenario": "P6-POL-U06 paused and terminal runs make no health or model calls and resuming coalesces overdue windows",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/unit/loop-policy.test.ts :: P6-POL-U06 paused and terminal runs make no health or model calls and resuming coalesces overdue windows",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-loop-policy.007",
+      "name": "P6-POL-U07 failed inspection retains evidence and retries next window while stale completion is rejected",
+      "suiteId": "unit-loop-policy",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-loop-policy"
+      ],
+      "scenario": "P6-POL-U07 failed inspection retains evidence and retries next window while stale completion is rejected",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/unit/loop-policy.test.ts :: P6-POL-U07 failed inspection retains evidence and retries next window while stale completion is rejected",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-loop-policy.008",
+      "name": "P6-POL-U08 monitor rejects invalid intervals backward time and corrupted durable chronology",
+      "suiteId": "unit-loop-policy",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-loop-policy"
+      ],
+      "scenario": "P6-POL-U08 monitor rejects invalid intervals backward time and corrupted durable chronology",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/unit/loop-policy.test.ts :: P6-POL-U08 monitor rejects invalid intervals backward time and corrupted durable chronology",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-loop-policy.009",
+      "name": "P6-POL-U09 simple inspections select fastest sufficient model and complex tasks directly select strong available capability",
+      "suiteId": "unit-loop-policy",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-loop-policy"
+      ],
+      "scenario": "P6-POL-U09 simple inspections select fastest sufficient model and complex tasks directly select strong available capability",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/unit/loop-policy.test.ts :: P6-POL-U09 simple inspections select fastest sufficient model and complex tasks directly select strong available capability",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-loop-policy.010",
+      "name": "P6-POL-U10 one evidenced capability failure upgrades once and missing upgrade path stays blocked",
+      "suiteId": "unit-loop-policy",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-loop-policy"
+      ],
+      "scenario": "P6-POL-U10 one evidenced capability failure upgrades once and missing upgrade path stays blocked",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/unit/loop-policy.test.ts :: P6-POL-U10 one evidenced capability failure upgrades once and missing upgrade path stays blocked",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-loop-policy.011",
+      "name": "P6-POL-U11 route chooses supported depth without degrading requested effort or upgrading exploration",
+      "suiteId": "unit-loop-policy",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-loop-policy"
+      ],
+      "scenario": "P6-POL-U11 route chooses supported depth without degrading requested effort or upgrading exploration",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/unit/loop-policy.test.ts :: P6-POL-U11 route chooses supported depth without degrading requested effort or upgrading exploration",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-loop-policy.012",
+      "name": "P6-POL-U12 context pressure requires mitigation before any model upgrade and unknown capacity stays explicit",
+      "suiteId": "unit-loop-policy",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-loop-policy"
+      ],
+      "scenario": "P6-POL-U12 context pressure requires mitigation before any model upgrade and unknown capacity stays explicit",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/unit/loop-policy.test.ts :: P6-POL-U12 context pressure requires mitigation before any model upgrade and unknown capacity stays explicit",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-loop-policy.013",
+      "name": "P6-POL-U13 routing defers model and effort changes until safe boundary and respects shared budget",
+      "suiteId": "unit-loop-policy",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-loop-policy"
+      ],
+      "scenario": "P6-POL-U13 routing defers model and effort changes until safe boundary and respects shared budget",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/unit/loop-policy.test.ts :: P6-POL-U13 routing defers model and effort changes until safe boundary and respects shared budget",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-loop-policy.014",
+      "name": "P6-POL-U14 progress fingerprint is order invariant and tracks failures criteria verification and actual artifacts",
+      "suiteId": "unit-loop-policy",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-loop-policy"
+      ],
+      "scenario": "P6-POL-U14 progress fingerprint is order invariant and tracks failures criteria verification and actual artifacts",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/unit/loop-policy.test.ts :: P6-POL-U14 progress fingerprint is order invariant and tracks failures criteria verification and actual artifacts",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-loop-policy.015",
+      "name": "P6-POL-U15 repeated observable failure triggers diagnosis then bounded blockage and real evidence change resets only streak",
+      "suiteId": "unit-loop-policy",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-loop-policy"
+      ],
+      "scenario": "P6-POL-U15 repeated observable failure triggers diagnosis then bounded blockage and real evidence change resets only streak",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/unit/loop-policy.test.ts :: P6-POL-U15 repeated observable failure triggers diagnosis then bounded blockage and real evidence change resets only streak",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-loop-policy.016",
+      "name": "P6-POL-U16 serialized policy states preserve inspection coalescing and no-progress history across session replacement",
+      "suiteId": "unit-loop-policy",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-loop-policy"
+      ],
+      "scenario": "P6-POL-U16 serialized policy states preserve inspection coalescing and no-progress history across session replacement",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/unit/loop-policy.test.ts :: P6-POL-U16 serialized policy states preserve inspection coalescing and no-progress history across session replacement",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-loop-policy.017",
+      "name": "P6-POL-U17 executor success cannot complete failed unknown stale or missing independent completion evidence",
+      "suiteId": "unit-loop-policy",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-loop-policy"
+      ],
+      "scenario": "P6-POL-U17 executor success cannot complete failed unknown stale or missing independent completion evidence",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/unit/loop-policy.test.ts :: P6-POL-U17 executor success cannot complete failed unknown stale or missing independent completion evidence",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-loop-policy.018",
+      "name": "P6-POL-U18 verified completion survives exhausted limits but user cancellation and pause prevent late success",
+      "suiteId": "unit-loop-policy",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-loop-policy"
+      ],
+      "scenario": "P6-POL-U18 verified completion survives exhausted limits but user cancellation and pause prevent late success",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/unit/loop-policy.test.ts :: P6-POL-U18 verified completion survives exhausted limits but user cancellation and pause prevent late success",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-loop-policy.019",
+      "name": "P6-POL-U19 budget attempt and elapsed limits stop new dispatch and strict mode terminates in-flight work",
+      "suiteId": "unit-loop-policy",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-loop-policy"
+      ],
+      "scenario": "P6-POL-U19 budget attempt and elapsed limits stop new dispatch and strict mode terminates in-flight work",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/unit/loop-policy.test.ts :: P6-POL-U19 budget attempt and elapsed limits stop new dispatch and strict mode terminates in-flight work",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-loop-policy.020",
+      "name": "P6-POL-U20 loop continues repair diagnoses repeated failures waits in-flight and never completes an empty runnable queue",
+      "suiteId": "unit-loop-policy",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-loop-policy"
+      ],
+      "scenario": "P6-POL-U20 loop continues repair diagnoses repeated failures waits in-flight and never completes an empty runnable queue",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/unit/loop-policy.test.ts :: P6-POL-U20 loop continues repair diagnoses repeated failures waits in-flight and never completes an empty runnable queue",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-loop-policy.021",
+      "name": "P6-POL-U21 policy input rejects unsafe budgets contradictory streaks and duplicate acceptance identities",
+      "suiteId": "unit-loop-policy",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-loop-policy"
+      ],
+      "scenario": "P6-POL-U21 policy input rejects unsafe budgets contradictory streaks and duplicate acceptance identities",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/unit/loop-policy.test.ts :: P6-POL-U21 policy input rejects unsafe budgets contradictory streaks and duplicate acceptance identities",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-conversations.001",
+      "name": "P6 conversation SQLite reopens immutable idempotent ordered messages without linking unrelated project goals",
+      "suiteId": "integration-conversations",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-conversation"
+      ],
+      "scenario": "P6 conversation SQLite reopens immutable idempotent ordered messages without linking unrelated project goals",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/integration/conversations.test.ts :: P6 conversation SQLite reopens immutable idempotent ordered messages without linking unrelated project goals",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-conversations.002",
+      "name": "P6 conversation questions remain read only while failed unclassified changes keep the durable fence",
+      "suiteId": "integration-conversations",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-conversation"
+      ],
+      "scenario": "P6 conversation questions remain read only while failed unclassified changes keep the durable fence",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/integration/conversations.test.ts :: P6 conversation questions remain read only while failed unclassified changes keep the durable fence",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-conversations.003",
+      "name": "P6 conversation processing freezes its input boundary and prevents out of order or concurrent application",
+      "suiteId": "integration-conversations",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-conversation"
+      ],
+      "scenario": "P6 conversation processing freezes its input boundary and prevents out of order or concurrent application",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/integration/conversations.test.ts :: P6 conversation processing freezes its input boundary and prevents out of order or concurrent application",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-conversations.004",
+      "name": "P6 conversation unknown usage reserves remain charged after reopening",
+      "suiteId": "integration-conversations",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-conversation"
+      ],
+      "scenario": "P6 conversation unknown usage reserves remain charged after reopening",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/integration/conversations.test.ts :: P6 conversation unknown usage reserves remain charged after reopening",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-conversations.005",
+      "name": "P6 conversation linked delivered rounds consume the original authorized budget exactly once",
+      "suiteId": "integration-conversations",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-conversation"
+      ],
+      "scenario": "P6 conversation linked delivered rounds consume the original authorized budget exactly once",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/integration/conversations.test.ts :: P6 conversation linked delivered rounds consume the original authorized budget exactly once",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-conversations.006",
+      "name": "P6 conversation rejects reset budgets spent drafts foreign workspaces and parallel active rounds",
+      "suiteId": "integration-conversations",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-conversation"
+      ],
+      "scenario": "P6 conversation rejects reset budgets spent drafts foreign workspaces and parallel active rounds",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/integration/conversations.test.ts :: P6 conversation rejects reset budgets spent drafts foreign workspaces and parallel active rounds",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-conversations.007",
+      "name": "P6 conversation parent transaction rollback restores contract version and message application together",
+      "suiteId": "integration-conversations",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-conversation"
+      ],
+      "scenario": "P6 conversation parent transaction rollback restores contract version and message application together",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/integration/conversations.test.ts :: P6 conversation parent transaction rollback restores contract version and message application together",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-conversations.008",
+      "name": "P6 conversation fence blocks new runtime claims but lets a claimed input finish without weakening failed-message fences",
+      "suiteId": "integration-conversations",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-conversation"
+      ],
+      "scenario": "P6 conversation fence blocks new runtime claims but lets a claimed input finish without weakening failed-message fences",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/integration/conversations.test.ts :: P6 conversation fence blocks new runtime claims but lets a claimed input finish without weakening failed-message fences",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-conversations.009",
+      "name": "P6 conversation runtime revision commit-hook rollback restores queued work checkpoint and message atomically",
+      "suiteId": "integration-conversations",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-conversation"
+      ],
+      "scenario": "P6 conversation runtime revision commit-hook rollback restores queued work checkpoint and message atomically",
+      "impactTags": [
+        "contracts",
+        "p6-foundation"
+      ],
+      "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
+      "assertions": "tests/integration/conversations.test.ts :: P6 conversation runtime revision commit-hook rollback restores queued work checkpoint and message atomically",
+      "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
       "status": "active"
     }
   ]

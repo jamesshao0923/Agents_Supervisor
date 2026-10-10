@@ -138,7 +138,9 @@ export async function checkRun(root: string, dir: string, expected?: StageManife
       if (record.scope !== scope) result.issues.push('Partial selection cannot be presented as a stage run');
     } else {
       if (record.scope === 'partial') result.issues.push('Partial run lacks a frozen selection');
-      expected ??= await loadLegacyManifest(root, manifest.stage, manifest.revision);
+      const legacy = await loadLegacyManifest(root, manifest.stage, manifest.revision);
+      if(expected && json(expected)!==json(legacy)) result.issues.push('Supplied manifest differs from preserved legacy standard');
+      expected = legacy;
     }
     if (record.manifestDigest !== sha256(json(manifest)) || record.manifestDigest !== sha256(json(parseManifest(expected)))) result.issues.push('Frozen manifest does not match current required manifest');
     if (record.candidateDigest !== sha256(json(record.candidateFiles)) || record.candidateDigest !== sha256(json(await candidateSnapshot(root)))) result.issues.push('Candidate changed or candidate digest is invalid');
@@ -202,6 +204,10 @@ async function writeReports(dir: string, result: GateResult): Promise<void> {
 export async function runStage(root: string, input: unknown, options: { layer?: TestLayer; reason: string; selection?: SelectionSnapshot } ): Promise<{ dir: string; result: GateResult }> {
   root = await realpath(root);
   const manifest = parseManifest(input);
+  if(!options.selection){
+    const legacy=await loadLegacyManifest(root,manifest.stage,manifest.revision);
+    if(json(legacy)!==json(manifest))throw new Error('Unregistered manifest cannot replace preserved legacy standard; freeze a catalog selection');
+  }
   if (options.selection) {
     const selected = options.selection;
     if (selected.stage !== manifest.stage || !selected.requested || !Array.isArray(selected.requested.modules)

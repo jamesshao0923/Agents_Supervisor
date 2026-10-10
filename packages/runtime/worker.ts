@@ -72,7 +72,7 @@ export class LocalRuntimeWorker {
 
   private async tick(runtimeId: string): Promise<void> {
     const runtime = this.store.runtime.get(runtimeId);
-    const operation = this.store.runtime.operations(runtimeId).find(op => op.stepIndex === runtime.cursor && ['claimed', 'started', 'unknown'].includes(op.state));
+    const operation = this.store.runtime.currentOperations(runtimeId).find(op => op.stepIndex === runtime.cursor && ['claimed', 'started', 'unknown'].includes(op.state));
     if (operation) {
       if (operation.owner !== this.owner) {
         // Adapter startup already established the previous worker is absent;

@@ -21,7 +21,7 @@ export function createDraftRun(input: Omit<CreateRunInput, 'contract' | 'nodes'>
   return {admission:'draft',id:checked.id,projectId:checked.projectId,revision:0,contract:checked.contract,status:'ready',nodes:[],attempts:[],budget:{unit:'token',...checked.budget,spent:0},leases:[],operations:[],artifact:null,evidence:[]};
 }
 function reservations(run: Run): number { return run.attempts.filter((a) => !a.settled).reduce((sum, a) => sum + a.reservation, 0); }
-function protectedReserve(run: Run): number { return Math.max(0, run.budget.verificationReserve - run.attempts.filter((a) => a.purpose === 'verification').reduce((sum, a) => sum + (a.settled ? a.actual! : a.reservation), 0)); }
+function protectedReserve(run: Run): number { return Math.max(0, run.budget.verificationReserve - run.attempts.filter((a) => a.purpose === 'verification' && a.contractVersion === run.contract.version).reduce((sum, a) => sum + (a.settled ? a.actual! : a.reservation), 0)); }
 function completionReasons(run: Run): string[] {
   const reasons: string[] = [];
   if(run.admission==='draft') reasons.push('requirements not admitted');
@@ -123,6 +123,16 @@ export function applyAction(input: Run, unparsed: RunAction): { run: Run; events
       ensure(action.contract.version===run.contract.version+1,'contract version must increment');
       const approved=createRun({id:run.id,projectId:run.projectId,contract:action.contract,nodes:action.nodes,budget:{unit:run.budget.unit,limit:run.budget.limit,verificationReserve:run.budget.verificationReserve}});
       run.contract=approved.contract;run.nodes=approved.nodes;run.admission='admitted';break;
+    }
+    case 'revisePlan': {
+      ensure(run.admission !== 'draft', 'draft requirements require admission');
+      ensure(run.attempts.every(a => a.status !== 'running' && a.settled) && run.operations.every(o => o.status === 'confirmed') && run.leases.every(l => l.released), 'plan revision requires settled attempts, confirmed effects and released writers');
+      ensure(action.contract.version === run.contract.version + 1, 'contract version must increment');
+      const revised = createRun({id:run.id, projectId:run.projectId, contract:action.contract, nodes:action.nodes, budget:{unit:run.budget.unit, limit:run.budget.limit, verificationReserve:run.budget.verificationReserve}});
+      const prior = {previousContract:run.contract, previousNodes:run.nodes, invalidatedArtifact:run.artifact, invalidatedEvidence:run.evidence};
+      run.contract = revised.contract; run.nodes = revised.nodes; run.artifact = null; run.evidence = [];
+      if(run.status !== 'paused') run.status = 'ready';
+      return audit(prior);
     }
     case 'replaceContract': {
       ensure(run.admission!=='draft','draft contract changes require admission');

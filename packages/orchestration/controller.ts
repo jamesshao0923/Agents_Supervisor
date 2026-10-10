@@ -16,6 +16,7 @@ export class OrchestrationController {
   private pending=new Map<string,{abort:AbortController;promise:Promise<void>}>();
   constructor(private store:SupervisorStore,private dataDir:string,private runtime:LocalRuntimeAdapter,private reasoner:SupervisorReasoner=new CodexReasonerAdapter(),private options:{managedWorkspaceRoot?:string}={}){}
   async initialize():Promise<void>{
+    for(const session of this.store.goals.list())this.store.conversations.ensureForGoal(session.id);
     for(const s of this.store.goals.list())for(const j of s.jobs.filter(x=>x.status==='running')){
       let stopped=j.intents.length===j.identities.length;
       for(const id of j.identities)try{stopped=(await terminateProcess(id)).stopped&&stopped;}catch{stopped=false;}
@@ -27,7 +28,7 @@ export class OrchestrationController {
     if(a.type==='list')return this.store.goals.list();if(a.type==='inspect')return this.store.goals.inspect(a.sessionId);
     if(a.type==='start'){
       const previous=this.store.goals.startReceipt(a);
-      if(previous){this.launch(previous.session);return previous;}
+      if(previous){this.store.conversations.ensureForGoal(previous.session.id);this.launch(previous.session);return previous;}
       let workspace:string,kind:'project'|'managed';
       if(a.workspace){
         if(!isAbsolute(a.workspace))throw new Error('Workspace must be absolute');
@@ -44,7 +45,7 @@ export class OrchestrationController {
         workspace=await realpath(workspace);kind='managed';
       }
       if(workspace==='/'||!(await stat(workspace)).isDirectory())throw new Error('Select an existing project directory');
-      const result=this.store.goals.start(a,workspace,kind);this.launch(result.session);return result;
+      const result=this.store.goals.start(a,workspace,kind);this.store.conversations.ensureForGoal(result.session.id);this.launch(result.session);return result;
     }
     if(a.type==='admit'){
       this.store.goals.validateAdmission(a);
