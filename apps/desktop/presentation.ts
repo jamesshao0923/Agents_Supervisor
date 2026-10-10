@@ -1,6 +1,8 @@
 import type { ExecutionEvent, ExecutionRecord, ExecutionState, ModelCapability } from '../../packages/contracts/p2.js';
 import type { Run } from '../../packages/contracts/p1.js';
 import type { RuntimeEvent, RuntimeOperation, RuntimePhase, RuntimeRecord } from '../../packages/contracts/p3.js';
+import type { ConversationInspection } from '../../packages/contracts/p6-actions.js';
+import type { ConversationMessageState } from '../../packages/contracts/p6.js';
 import type { GoalSession } from '../../packages/contracts/p5.js';
 
 export const preferredTaskModel = 'gpt-6.1-sol';
@@ -27,7 +29,7 @@ export interface DesktopTask {
   id: string; workspace: string; workspaceKind: 'project' | 'managed'; prompt: string; createdAt: string;
   state: ExecutionState | RuntimePhase | GoalSession['phase']; error: string | null; message: string;
   usage: ExecutionRecord['usage']; usageStatus: ExecutionRecord['usageStatus'];
-  runtime?: RuntimeRecord; execution?: ExecutionRecord; session?: GoalSession;
+  runtime?: RuntimeRecord; execution?: ExecutionRecord; session?: GoalSession; conversationId?: string; roundCount?: number;
 }
 export function taskViews(runtimes: RuntimeRecord[], executions: ExecutionRecord[], sessions: GoalSession[] = []): DesktopTask[] {
   const durable = runtimes.map(runtime => {
@@ -38,6 +40,31 @@ export function taskViews(runtimes: RuntimeRecord[], executions: ExecutionRecord
   const requirements = sessions.filter(session => !session.runtimeId).map(session => ({ id: session.id, workspace: session.workspace, workspaceKind: session.workspaceKind, prompt: session.goal, createdAt: session.createdAt, state: session.phase, error: session.error, message: session.proposal?.summary || '', usage: null, usageStatus: 'unknown', session } satisfies DesktopTask));
   return [...durable, ...legacy, ...requirements].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
+/** Project cards are active rounds; older rounds stay in conversation history. */
+export function conversationTaskViews(runtimes: RuntimeRecord[], executions: ExecutionRecord[], sessions: GoalSession[], conversations: ConversationInspection[]): DesktopTask[] {
+  const roundOwners = new Map(conversations.flatMap(value => value.rounds.flatMap(round => [[round.sessionId, value], [round.runId, value]] as [string, ConversationInspection][])));
+  const activeSessions = mergeGoalSessions(sessions, conversations.map(value => value.active.session));
+  const views = taskViews(runtimes, executions, activeSessions);
+  // List/inspection may expose admission before the next runtime-list response.
+  for (const value of conversations) {
+    const session = value.active.session;
+    if (session.runtimeId && !views.some(task => task.id === session.runtimeId)) views.push({id:session.runtimeId,workspace:session.workspace,workspaceKind:session.workspaceKind,prompt:value.active.run.contract.goal,createdAt:session.createdAt,state:session.phase,error:session.error,message:session.proposal?.summary || '',usage:null,usageStatus:'unknown',session});
+  }
+  return views.flatMap(task => {
+    const owner = roundOwners.get(task.id);
+    if (!owner) return [task];
+    const active = owner.active.session;
+    if (task.id !== (active.runtimeId || active.id)) return [];
+    return [{ ...task, conversationId: owner.conversation.id, roundCount: owner.rounds.length }];
+  });
+}
+export function activeConversationTaskId(conversations: ConversationInspection[], taskId: string): string {
+  const owner = conversations.find(value => value.rounds.some(round => round.sessionId === taskId || round.runId === taskId));
+  return owner ? owner.active.session.runtimeId || owner.active.session.id : taskId;
+}
+export const conversationStateLabels: Record<ConversationMessageState, string> = {
+  received: '已接收', waiting: '等待安全时机', processing: '主控处理中', clarifying: '需要补充信息', applied: '已应用需求', answered: '已答复', failed: '处理失败'
+};
 export function mergeGoalSessions(current: GoalSession[], incoming: GoalSession[]): GoalSession[] {
   const values = new Map(current.map(session => [session.id, session]));
   for (const session of incoming) {

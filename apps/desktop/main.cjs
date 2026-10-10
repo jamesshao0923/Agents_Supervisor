@@ -12,6 +12,7 @@ const documentURL = pathToFileURL(documentPath).href;
 let window;
 let request;
 let parseOrchestrationAction;
+let parseConversationAction;
 
 function assertSender(event) {
   if (!window || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame || event.senderFrame.url !== documentURL) {
@@ -31,6 +32,7 @@ function execution(action) { return invoke({ method: 'execution', action }); }
 function runtime(action) { return invoke({ method: 'runtime', action }); }
 function verification(action) { return invoke({ method: 'verification', action }); }
 function orchestration(action) { return invoke({ method: 'orchestration', action: parseOrchestrationAction(action) }); }
+function conversation(action) { return invoke({ method: 'conversation', action: parseConversationAction(action) }); }
 function reviewConfig(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(key => !['model', 'effort', 'reservation', 'timeoutMs'].includes(key))) throw new Error('Invalid verification model configuration');
   if (!Number.isSafeInteger(value.reservation) || value.reservation < 1 || !Number.isSafeInteger(value.timeoutMs) || value.timeoutMs < 1000 || value.timeoutMs > 3600000) throw new Error('Invalid verification reservation or timeout');
@@ -41,6 +43,13 @@ function register(channel, handler) {
 }
 function installBridge() {
   register('health', () => invoke({ method: 'health' }));
+  register('conversation-list', () => conversation({ type: 'list' }));
+  register('conversation-for-session', sessionId => conversation({ type: 'forSession', sessionId: id(sessionId) }));
+  register('conversation-inspect', conversationId => conversation({ type: 'inspect', conversationId: id(conversationId) }));
+  for (const type of ['send', 'retry']) register(`conversation-${type}`, input => {
+    if (!input || typeof input !== 'object' || Array.isArray(input) || Object.hasOwn(input, 'type')) throw new Error('Invalid conversation input');
+    return conversation({ type, ...input });
+  });
   register('orchestration-list', () => orchestration({ type: 'list' }));
   register('orchestration-inspect', sessionId => orchestration({ type: 'inspect', sessionId: id(sessionId) }));
   register('orchestration-start', async input => {
@@ -147,6 +156,7 @@ function createWindow() {
 app.whenReady().then(async () => {
   ({ request } = await import(pathToFileURL(join(__dirname, '../cli/client.js')).href));
   ({ parseOrchestrationAction } = await import(pathToFileURL(join(__dirname, '../../packages/contracts/p5.js')).href));
+  ({ parseConversationAction } = await import(pathToFileURL(join(__dirname, '../../packages/contracts/p6-actions.js')).href));
   installBridge();
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     { label: 'Supervisor', submenu: [{ role: 'about' }, { type: 'separator' }, { label: '退出界面（后台继续运行）', role: 'quit' }] },

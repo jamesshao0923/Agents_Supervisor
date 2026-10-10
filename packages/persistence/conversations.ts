@@ -46,12 +46,18 @@ export class ConversationRepository {
   });}
   private insertRound(round:ConversationRound):void {this.db.prepare('INSERT INTO conversation_rounds(conversation_id,ordinal,session_id,project_id,run_id,record) VALUES (?,?,?,?,?,?)').run(round.conversationId,round.ordinal,round.sessionId,round.projectId,round.runId,canonical(round));}
   receive(input:ConversationMessageInput):ConversationMessage {return this.tx(()=>{
-    ensure(input&&typeof input==='object'&&Object.keys(input).sort().join(',')==='commandId,conversationId,kind,source,text','Invalid conversation message fields');
+    ensure(input&&typeof input==='object'&&Object.keys(input).filter(k=>k!=='replyToMessageId').sort().join(',')==='commandId,conversationId,kind,source,text','Invalid conversation message fields');
     ensure(typeof input.commandId==='string'&&input.commandId.trim()&&input.commandId.length<=4096&&!input.commandId.includes('\0'),'Invalid message commandId');
     ensure(input.source==='user'&&['question','change','unclassified'].includes(input.kind),'Invalid message provenance or kind');
     ensure(typeof input.text==='string'&&input.text.trim()&&input.text.length<=40000&&!input.text.includes('\0'),'Invalid message text');
     const previous=this.db.prepare('SELECT request,record FROM conversation_messages WHERE command_id=?').get(input.commandId);
     if(previous){ensure(previous.request===canonical(input),'Conflicting conversation commandId');return JSON.parse(String(previous.record)) as ConversationMessage;}
+    if(input.replyToMessageId!==undefined){
+      ensure(typeof input.replyToMessageId==='string'&&input.replyToMessageId.trim(),'Invalid clarification parent');
+      const parent=this.message(input.replyToMessageId);
+      ensure(parent.conversationId===input.conversationId&&parent.state==='clarifying'&&parent.kind!=='question'&&input.kind!=='question','Reply must resolve a requirement clarification in this conversation');
+      ensure(!this.messages(input.conversationId).some(m=>m.replyToMessageId===parent.id),'Clarification already has a reply; retry or answer its latest clarification');
+    }
     const conversation=this.get(input.conversationId),run=this.run(conversation.projectId,conversation.activeRunId),sequence=this.messages(conversation.id).length+1,createdAt=now();
     const message:ConversationMessage={...input,id:'message-'+hash(input.commandId),sequence,receivedRunId:run.id,receivedContractVersion:run.contract.version,createdAt,state:'received',processing:null,processingHistory:[],response:null,appliedContractVersion:null,history:[{state:'received',at:createdAt,reason:null}]};
     this.db.prepare('INSERT INTO conversation_messages(id,conversation_id,sequence,command_id,request,record) VALUES (?,?,?,?,?,?)').run(message.id,conversation.id,sequence,input.commandId,canonical(input),canonical(message));return message;
@@ -59,14 +65,30 @@ export class ConversationRepository {
   hasPendingForRun(projectId:string,runId:string):boolean {const conversation=this.forRun(projectId,runId);return conversation!==null&&this.messages(conversation.id).some(fenced);}
   private save(message:ConversationMessage):ConversationMessage {this.db.prepare('UPDATE conversation_messages SET record=? WHERE id=?').run(canonical(message),message.id);return message;}
   private state(message:ConversationMessage,state:ConversationMessageState,reason:string|null):void {message.state=state;message.history.push({state,at:now(),reason});}
+  clarificationParents(messageId:string):ConversationMessage[] {
+    const message=this.message(messageId),parents:ConversationMessage[]=[];
+    let child=message;
+    while(child.replyToMessageId){const parent=this.message(child.replyToMessageId);ensure(parent.conversationId===message.conversationId&&parent.sequence<child.sequence&&parent.kind!=='question','Invalid clarification chain');parents.push(parent);child=parent;}
+    return parents.reverse();
+  }
   beginProcessing(messageId:string):ConversationMessage {return this.tx(()=>{
     const message=this.message(messageId);if(message.state==='processing')return message;
     ensure(['received','waiting'].includes(message.state),'Message needs explicit retry before processing');
     const messages=this.messages(message.conversationId);ensure(!messages.some(other=>other.state==='processing'),'Conversation already processing a message');
-    ensure(!messages.some(other=>other.sequence<message.sequence&&fenced(other)),'Earlier requirement message is unresolved');
+    const parents=this.clarificationParents(message.id);ensure(parents.every(parent=>parent.state==='clarifying'),'Clarification parent is no longer waiting');
+    ensure(!messages.some(other=>other.sequence<message.sequence&&fenced(other)&&!parents.some(parent=>parent.id===other.id)),'Earlier requirement message is unresolved');
     const conversation=this.get(message.conversationId),run=this.run(conversation.projectId,conversation.activeRunId);
     message.processing={attempt:message.processingHistory.length+1,runId:run.id,baseContractVersion:run.contract.version,throughSequence:message.sequence,startedAt:now()};
     message.processingHistory.push({...message.processing});this.state(message,'processing',null);return this.save(message);
+  });}
+  /** No parent is released until the reply's actual new contract is committed. */
+  applyProcessingGroup(messageId:string,parentIds:string[],contractVersion:number,response?:string):ConversationMessage {return this.tx(()=>{
+    const message=this.message(messageId),parents=this.clarificationParents(messageId);
+    ensure(canonical(parents.map(parent=>parent.id))===canonical(parentIds),'Clarification ancestry changed');
+    ensure(parents.every(parent=>parent.state==='clarifying'&&parent.processing&&parent.processing.runId===message.processing?.runId&&parent.processing.baseContractVersion===message.processing.baseContractVersion),'Clarification processing boundary changed');
+    const applied=this.transition(messageId,'applied',{appliedContractVersion:contractVersion,...(response===undefined?{}:{response})});
+    for(const parent of parents){parent.appliedContractVersion=contractVersion;if(response!==undefined)parent.response=response;this.state(parent,'applied',`Resolved by ${messageId}`);this.save(parent);}
+    return applied;
   });}
   transition(messageId:string,state:ConversationMessageState,details:{reason?:string;response?:string;appliedContractVersion?:number}={}):ConversationMessage {return this.tx(()=>{
     const message=this.message(messageId);
@@ -87,6 +109,7 @@ export class ConversationRepository {
   retry(messageId:string,reason:string):ConversationMessage {return this.tx(()=>{
     ensure(typeof reason==='string'&&reason.trim(),'Explicit retry reason required');const message=this.message(messageId);
     ensure(['failed','clarifying'].includes(message.state),'Only failed or clarifying messages can retry');
+    ensure(!this.messages(message.conversationId).some(other=>other.replyToMessageId===messageId),'Retry the latest clarification reply, not an ancestor that already has a reply');
     message.processing=null;this.state(message,'waiting',reason);return this.save(message);
   });}
   budget(id:string):ConversationBudget {

@@ -1,4 +1,5 @@
 import { OrchestrationController } from '../../packages/orchestration/controller.js';
+import { ConversationController } from '../../packages/orchestration/conversation-controller.js';
 import { VerificationController } from '../../packages/verification/controller.js';
 import { LocalRuntimeAdapter } from '../../packages/runtime/index.js';
 import { createServer, createConnection, type Socket } from 'node:net';
@@ -74,6 +75,7 @@ export async function startService(directory: string): Promise<{ socket: string;
   let runtime: LocalRuntimeAdapter | undefined;
   let verification: VerificationController | undefined;
   let orchestration:OrchestrationController|undefined;
+  let conversation:ConversationController|undefined;
   const connections = new Set<Socket>();
   const server = createServer({ allowHalfOpen: true }, socket => {
     connections.add(socket);
@@ -102,15 +104,17 @@ export async function startService(directory: string): Promise<{ socket: string;
           if ('projectId' in command && ['proposeVerificationChange','publishVerificationChange'].includes(command.type) && store!.isManagedProject(command.projectId)) throw new Error('Managed project catalog changes must use independent verification review');
           if ('projectId' in command && 'runId' in command && store!.isManagedRun(command.projectId,command.runId)) throw new Error('Managed execution updates must use the execution controller');
         }
-        if(request.method==='runtime'&&request.action.type==='cancel'){verification!.cancelRuntime(request.action.runtimeId);orchestration!.cancelRuntime(request.action.runtimeId);}
+        if(request.method==='runtime'&&request.action.type==='cancel'){verification!.cancelRuntime(request.action.runtimeId);orchestration!.cancelRuntime(request.action.runtimeId);conversation!.cancelRuntime(request.action.runtimeId);}
+        if(request.method==='orchestration'&&request.action.type==='cancel')conversation!.cancelSession(request.action.sessionId);
         if(request.method==='execution'&&'executionId' in request.action&&['cancel','reconcile'].includes(request.action.type)&&store!.executionGet(request.action.executionId).runtimeBinding)throw new Error('Use runtime controller for durable activities');
         const result = request.method === 'command' ? store!.command(parseCommand(request.command))
           : request.method === 'query' ? store!.query(parseQuery(request.query))
           : request.method === 'execution' ? await manager!.dispatch(request.action)
           : request.method === 'verification' ? await verification!.dispatch(request.action)
           : request.method === 'orchestration' ? await orchestration!.dispatch(request.action)
+          : request.method === 'conversation' ? await conversation!.dispatch(request.action)
           : request.method === 'runtime' ? await runtime!.dispatch(request.action)
-          : request.method === 'health' ? { status: 'ready', stage: 'P5', requirementsReasoner:'codex-v1', modelExecution: true, workspaceManagement: 'path-v1', durableRuntime: 'local-v1', runtime: await runtime!.health() }
+          : request.method === 'health' ? { status: 'ready', stage: 'P5', requirementsReasoner:'codex-v1', conversationProtocol:'v1', modelExecution: true, workspaceManagement: 'path-v1', durableRuntime: 'local-v1', runtime: await runtime!.health() }
           : (() => { throw new Error('Unknown request method'); })();
         response = { id, ok: true, value: result };
       } catch (error) { response = { id, ok: false, error: error instanceof Error ? error.message : String(error) }; }
@@ -126,6 +130,7 @@ export async function startService(directory: string): Promise<{ socket: string;
     verification = new VerificationController(store,dataDir);
     await verification.initialize();
     orchestration=new OrchestrationController(store,dataDir,runtime);await orchestration.initialize();
+    conversation=new ConversationController(store,dataDir,runtime);await conversation.initialize();
     if(store.runtime.list().some(r=>!['awaiting-verification','cancelled'].includes(r.phase)) || store.runtime.operations().some(o=>['claimed','started','unknown'].includes(o.state)) || store.executionList().some(e=>e.runtimeBinding&&!e.stopConfirmed))await runtime.ensureWorker();
     server.maxConnections = 64;
     await new Promise<void>((resolvePromise, reject) => {
@@ -133,7 +138,7 @@ export async function startService(directory: string): Promise<{ socket: string;
       server.listen(path, () => { server.off('error', reject); resolvePromise(); });
     });
     chmodSync(path, 0o600);
-  } catch (error) { server.close(); store?.close(); unlock(); throw error; }
+  } catch (error) { server.close();await conversation?.close();await orchestration?.close();await verification?.close();await manager?.close();await runtime?.close();store?.close(); unlock(); throw error; }
   let closing: Promise<void> | undefined;
   return {
     socket: path,
@@ -141,6 +146,7 @@ export async function startService(directory: string): Promise<{ socket: string;
       closing ??= new Promise<void>((resolvePromise, reject) => {
         for (const socket of connections) socket.destroy();
         server.close(async error => {
+          await conversation!.close().catch(reject);
           await orchestration!.close().catch(reject);
           await verification!.close().catch(reject);
           await manager!.close().catch(reject);

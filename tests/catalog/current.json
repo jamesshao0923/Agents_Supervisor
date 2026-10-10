@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-catalog-v11",
+  "revision": "dev-catalog-v12",
   "modules": [
     {
       "id": "dev-contracts",
@@ -327,6 +327,36 @@
       "layer": "integration",
       "file": "dist/tests/integration/conversations.test.js",
       "timeoutMs": 120000
+    },
+    {
+      "id": "unit-followup-proposal",
+      "layer": "unit",
+      "file": "dist/tests/unit/followup-proposal.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "integration-goal-followup",
+      "layer": "integration",
+      "file": "dist/tests/integration/goal-followup.test.js",
+      "timeoutMs": 45000
+    },
+    {
+      "id": "integration-conversation-controller",
+      "layer": "integration",
+      "file": "dist/tests/integration/conversation-controller.test.js",
+      "timeoutMs": 45000
+    },
+    {
+      "id": "unit-desktop-conversations",
+      "layer": "unit",
+      "file": "dist/tests/unit/desktop-conversations.test.js",
+      "timeoutMs": 10000
+    },
+    {
+      "id": "live-conversation",
+      "layer": "live",
+      "file": "dist/tests/live/conversation.test.js",
+      "timeoutMs": 600000
     }
   ],
   "cases": [
@@ -6533,6 +6563,618 @@
       "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
       "assertions": "tests/integration/conversations.test.ts :: P6 conversation runtime revision commit-hook rollback restores queued work checkpoint and message atomically",
       "cleanup": "Test-owned connections/processes closed; temporary test directories isolated; no production workspace/model calls",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-followup-proposal.001",
+      "name": "P6-FUP-U01 strict followup schema requires every field rejects extra authority and freezes source IDs",
+      "suiteId": "unit-followup-proposal",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-followup-proposal"
+      ],
+      "scenario": "P6-FUP-U01 strict followup schema requires every field rejects extra authority and freezes source IDs",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/unit/followup-proposal.test.ts :: P6-FUP-U01 strict followup schema requires every field rejects extra authority and freezes source IDs",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-followup-proposal.002",
+      "name": "P6-FUP-U02 explicit question cannot revise and explicit change cannot be dismissed as answer",
+      "suiteId": "unit-followup-proposal",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-followup-proposal"
+      ],
+      "scenario": "P6-FUP-U02 explicit question cannot revise and explicit change cannot be dismissed as answer",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/unit/followup-proposal.test.ts :: P6-FUP-U02 explicit question cannot revise and explicit change cannot be dismissed as answer",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-followup-proposal.003",
+      "name": "P6-FUP-U03 answer cannot carry plans retirements or standard changes and response must be nonempty",
+      "suiteId": "unit-followup-proposal",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-followup-proposal"
+      ],
+      "scenario": "P6-FUP-U03 answer cannot carry plans retirements or standard changes and response must be nonempty",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/unit/followup-proposal.test.ts :: P6-FUP-U03 answer cannot carry plans retirements or standard changes and response must be nonempty",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-followup-proposal.004",
+      "name": "P6-FUP-U04 clarification preserves a concrete question without a ready plan or acceptance retirement",
+      "suiteId": "unit-followup-proposal",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-followup-proposal"
+      ],
+      "scenario": "P6-FUP-U04 clarification preserves a concrete question without a ready plan or acceptance retirement",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/unit/followup-proposal.test.ts :: P6-FUP-U04 clarification preserves a concrete question without a ready plan or acceptance retirement",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-followup-proposal.005",
+      "name": "P6-FUP-U05 revision keeps old necessary acceptance and admits an additive ready fully covered plan",
+      "suiteId": "unit-followup-proposal",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-followup-proposal"
+      ],
+      "scenario": "P6-FUP-U05 revision keeps old necessary acceptance and admits an additive ready fully covered plan",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/unit/followup-proposal.test.ts :: P6-FUP-U05 revision keeps old necessary acceptance and admits an additive ready fully covered plan",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-followup-proposal.006",
+      "name": "P6-FUP-U06 old required IDs cannot be silently removed renamed or declared retired while still present",
+      "suiteId": "unit-followup-proposal",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-followup-proposal"
+      ],
+      "scenario": "P6-FUP-U06 old required IDs cannot be silently removed renamed or declared retired while still present",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/unit/followup-proposal.test.ts :: P6-FUP-U06 old required IDs cannot be silently removed renamed or declared retired while still present",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-followup-proposal.007",
+      "name": "P6-FUP-U07 explicit retirement needs an exact current-user quote and historical permission cannot authorize it",
+      "suiteId": "unit-followup-proposal",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-followup-proposal"
+      ],
+      "scenario": "P6-FUP-U07 explicit retirement needs an exact current-user quote and historical permission cannot authorize it",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/unit/followup-proposal.test.ts :: P6-FUP-U07 explicit retirement needs an exact current-user quote and historical permission cannot authorize it",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-followup-proposal.008",
+      "name": "P6-FUP-U08 same-ID description kind target and check edits all require new-user semantic-change evidence",
+      "suiteId": "unit-followup-proposal",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-followup-proposal"
+      ],
+      "scenario": "P6-FUP-U08 same-ID description kind target and check edits all require new-user semantic-change evidence",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/unit/followup-proposal.test.ts :: P6-FUP-U08 same-ID description kind target and check edits all require new-user semantic-change evidence",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-followup-proposal.009",
+      "name": "P6-FUP-U09 retirement sources cannot claim unrelated unchanged or newly added acceptance IDs",
+      "suiteId": "unit-followup-proposal",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-followup-proposal"
+      ],
+      "scenario": "P6-FUP-U09 retirement sources cannot claim unrelated unchanged or newly added acceptance IDs",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/unit/followup-proposal.test.ts :: P6-FUP-U09 retirement sources cannot claim unrelated unchanged or newly added acceptance IDs",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-followup-proposal.010",
+      "name": "P6-FUP-U10 unknown baseline cannot silently weaken checks and stale structured baseline is rejected",
+      "suiteId": "unit-followup-proposal",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-followup-proposal"
+      ],
+      "scenario": "P6-FUP-U10 unknown baseline cannot silently weaken checks and stale structured baseline is rejected",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/unit/followup-proposal.test.ts :: P6-FUP-U10 unknown baseline cannot silently weaken checks and stale structured baseline is rejected",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-followup-proposal.011",
+      "name": "P6-FUP-U11 revision reuses actual proposal validation for escaped targets uncovered acceptance bad provenance and cyclic dependencies",
+      "suiteId": "unit-followup-proposal",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-followup-proposal"
+      ],
+      "scenario": "P6-FUP-U11 revision reuses actual proposal validation for escaped targets uncovered acceptance bad provenance and cyclic dependencies",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/unit/followup-proposal.test.ts :: P6-FUP-U11 revision reuses actual proposal validation for escaped targets uncovered acceptance bad provenance and cyclic dependencies",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-followup-proposal.012",
+      "name": "P6-FUP-U12 frozen input rejects future boundaries duplicate IDs wrong conversation reordered sequences and conflicting source text",
+      "suiteId": "unit-followup-proposal",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-followup-proposal"
+      ],
+      "scenario": "P6-FUP-U12 frozen input rejects future boundaries duplicate IDs wrong conversation reordered sequences and conflicting source text",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/unit/followup-proposal.test.ts :: P6-FUP-U12 frozen input rejects future boundaries duplicate IDs wrong conversation reordered sequences and conflicting source text",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-followup-proposal.013",
+      "name": "P6-FUP-U13 quote provenance is retained for independent semantic review rather than treated as semantic authorization",
+      "suiteId": "unit-followup-proposal",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p6-followup-proposal"
+      ],
+      "scenario": "P6-FUP-U13 quote provenance is retained for independent semantic review rather than treated as semantic authorization",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/unit/followup-proposal.test.ts :: P6-FUP-U13 quote provenance is retained for independent semantic review rather than treated as semantic authorization",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-goal-followup.001",
+      "name": "P6-GOAL-I01 follow-up freezes ordered message inputs once and refuses ordinary admission through the pending fence",
+      "suiteId": "integration-goal-followup",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-followup-persistence"
+      ],
+      "scenario": "P6-GOAL-I01 follow-up freezes ordered message inputs once and refuses ordinary admission through the pending fence",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I01 follow-up freezes ordered message inputs once and refuses ordinary admission through the pending fence",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-goal-followup.002",
+      "name": "P6-GOAL-I02 follow-up rejects active work and unknown effects without partially appending requirements",
+      "suiteId": "integration-goal-followup",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-followup-persistence"
+      ],
+      "scenario": "P6-GOAL-I02 follow-up rejects active work and unknown effects without partially appending requirements",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I02 follow-up rejects active work and unknown effects without partially appending requirements",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-goal-followup.003",
+      "name": "P6-GOAL-I10 explicit and classified inquiries remain read-only requirements and legacy controls cannot bypass their processing state",
+      "suiteId": "integration-goal-followup",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-followup-persistence"
+      ],
+      "scenario": "P6-GOAL-I10 explicit and classified inquiries remain read-only requirements and legacy controls cannot bypass their processing state",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I10 explicit and classified inquiries remain read-only requirements and legacy controls cannot bypass their processing state",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-goal-followup.004",
+      "name": "P6-GOAL-I11 recursive clarification replies preserve original text and atomically apply every ancestor with the same contract",
+      "suiteId": "integration-goal-followup",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-followup-persistence"
+      ],
+      "scenario": "P6-GOAL-I11 recursive clarification replies preserve original text and atomically apply every ancestor with the same contract",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I11 recursive clarification replies preserve original text and atomically apply every ancestor with the same contract",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-goal-followup.005",
+      "name": "P6-GOAL-I12 follow-up budget refusal rolls back processing and requirement append without resetting prior spend",
+      "suiteId": "integration-goal-followup",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-followup-persistence"
+      ],
+      "scenario": "P6-GOAL-I12 follow-up budget refusal rolls back processing and requirement append without resetting prior spend",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I12 follow-up budget refusal rolls back processing and requirement append without resetting prior spend",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-goal-followup.006",
+      "name": "P6-GOAL-I03 successful follow-up finish retains the old proposal until atomic draft admission and is idempotent",
+      "suiteId": "integration-goal-followup",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-followup-persistence"
+      ],
+      "scenario": "P6-GOAL-I03 successful follow-up finish retains the old proposal until atomic draft admission and is idempotent",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I03 successful follow-up finish retains the old proposal until atomic draft admission and is idempotent",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-goal-followup.007",
+      "name": "P6-GOAL-I04 follow-up revises awaiting-verification runtime and keeps later messages fenced and out of the frozen plan",
+      "suiteId": "integration-goal-followup",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-followup-persistence"
+      ],
+      "scenario": "P6-GOAL-I04 follow-up revises awaiting-verification runtime and keeps later messages fenced and out of the frozen plan",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I04 follow-up revises awaiting-verification runtime and keeps later messages fenced and out of the frozen plan",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-goal-followup.008",
+      "name": "P6-GOAL-I05 unknown usage and failed follow-up retain the fence and cannot reserve again after explicit retry",
+      "suiteId": "integration-goal-followup",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-followup-persistence"
+      ],
+      "scenario": "P6-GOAL-I05 unknown usage and failed follow-up retain the fence and cannot reserve again after explicit retry",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I05 unknown usage and failed follow-up retain the fence and cannot reserve again after explicit retry",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-goal-followup.009",
+      "name": "P6-GOAL-I06 follow-up apply rejects missing proofs stale contract and mutated frozen requirements",
+      "suiteId": "integration-goal-followup",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-followup-persistence"
+      ],
+      "scenario": "P6-GOAL-I06 follow-up apply rejects missing proofs stale contract and mutated frozen requirements",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I06 follow-up apply rejects missing proofs stale contract and mutated frozen requirements",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-goal-followup.010",
+      "name": "P6-GOAL-I07 failed atomic acknowledgement rolls back runtime revision outbox checkpoint proposal and application marker",
+      "suiteId": "integration-goal-followup",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-followup-persistence"
+      ],
+      "scenario": "P6-GOAL-I07 failed atomic acknowledgement rolls back runtime revision outbox checkpoint proposal and application marker",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I07 failed atomic acknowledgement rolls back runtime revision outbox checkpoint proposal and application marker",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-goal-followup.011",
+      "name": "P6-GOAL-I08 delivered continuation preserves the old round and exact remaining authorization without starting a model",
+      "suiteId": "integration-goal-followup",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-followup-persistence"
+      ],
+      "scenario": "P6-GOAL-I08 delivered continuation preserves the old round and exact remaining authorization without starting a model",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I08 delivered continuation preserves the old round and exact remaining authorization without starting a model",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-goal-followup.012",
+      "name": "P6-GOAL-I09 continuation rejection rolls back new runs for exhausted reasoning capacity and forbids unrelated command reuse",
+      "suiteId": "integration-goal-followup",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-followup-persistence"
+      ],
+      "scenario": "P6-GOAL-I09 continuation rejection rolls back new runs for exhausted reasoning capacity and forbids unrelated command reuse",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I09 continuation rejection rolls back new runs for exhausted reasoning capacity and forbids unrelated command reuse",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-conversation-controller.001",
+      "name": "P6-CC-I01 send receipts queue once during P5 reasoning and existing follow-up processing without additional jobs",
+      "suiteId": "integration-conversation-controller",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-followup-controller"
+      ],
+      "scenario": "P6-CC-I01 send receipts queue once during P5 reasoning and existing follow-up processing without additional jobs",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/integration/conversation-controller.test.ts :: P6-CC-I01 send receipts queue once during P5 reasoning and existing follow-up processing without additional jobs",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-conversation-controller.002",
+      "name": "P6-CC-I02 unknown prior usage blocks queued follow-up with its reservation retained and no new model job",
+      "suiteId": "integration-conversation-controller",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-followup-controller"
+      ],
+      "scenario": "P6-CC-I02 unknown prior usage blocks queued follow-up with its reservation retained and no new model job",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/integration/conversation-controller.test.ts :: P6-CC-I02 unknown prior usage blocks queued follow-up with its reservation retained and no new model job",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-conversation-controller.003",
+      "name": "P6-CC-I03 context capacity fails before the real reasoner process receives an intent and settles known zero usage",
+      "suiteId": "integration-conversation-controller",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-followup-controller"
+      ],
+      "scenario": "P6-CC-I03 context capacity fails before the real reasoner process receives an intent and settles known zero usage",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/integration/conversation-controller.test.ts :: P6-CC-I03 context capacity fails before the real reasoner process receives an intent and settles known zero usage",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-conversation-controller.004",
+      "name": "P6-CC-I04 restored finished answer publishes once after checking its actual proof file SHA without changing requirements",
+      "suiteId": "integration-conversation-controller",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-followup-controller"
+      ],
+      "scenario": "P6-CC-I04 restored finished answer publishes once after checking its actual proof file SHA without changing requirements",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/integration/conversation-controller.test.ts :: P6-CC-I04 restored finished answer publishes once after checking its actual proof file SHA without changing requirements",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-conversation-controller.005",
+      "name": "P6-CC-I05 changed proof bytes prevent recovered answer publication and retain the unclassified message fence",
+      "suiteId": "integration-conversation-controller",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-followup-controller"
+      ],
+      "scenario": "P6-CC-I05 changed proof bytes prevent recovered answer publication and retain the unclassified message fence",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/integration/conversation-controller.test.ts :: P6-CC-I05 changed proof bytes prevent recovered answer publication and retain the unclassified message fence",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-conversation-controller.006",
+      "name": "P6-CC-I06 real service restarts preserve messages and reconcile an interrupted-model fixture without resending it",
+      "suiteId": "integration-conversation-controller",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-followup-controller"
+      ],
+      "scenario": "P6-CC-I06 real service restarts preserve messages and reconcile an interrupted-model fixture without resending it",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/integration/conversation-controller.test.ts :: P6-CC-I06 real service restarts preserve messages and reconcile an interrupted-model fixture without resending it",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-desktop-conversations.001",
+      "name": "desktop conversation projection shows one active task while preserving old round delivery and unrelated projects",
+      "suiteId": "unit-desktop-conversations",
+      "module": "desktop",
+      "layer": "unit",
+      "covers": [
+        "p6-followup-desktop"
+      ],
+      "scenario": "desktop conversation projection shows one active task while preserving old round delivery and unrelated projects",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/unit/desktop-conversations.test.ts :: desktop conversation projection shows one active task while preserving old round delivery and unrelated projects",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-desktop-conversations.002",
+      "name": "desktop conversation admission never duplicates or loses active card while runtime polling catches up",
+      "suiteId": "unit-desktop-conversations",
+      "module": "desktop",
+      "layer": "unit",
+      "covers": [
+        "p6-followup-desktop"
+      ],
+      "scenario": "desktop conversation admission never duplicates or loses active card while runtime polling catches up",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/unit/desktop-conversations.test.ts :: desktop conversation admission never duplicates or loses active card while runtime polling catches up",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.live-conversation.001",
+      "name": "P6 live conversation answers read only then applies additive changes before execution and at verification with original criteria and cumulative accounting",
+      "suiteId": "live-conversation",
+      "module": "orchestration",
+      "layer": "live",
+      "covers": [
+        "p6-followup-live"
+      ],
+      "scenario": "P6 live conversation answers read only then applies additive changes before execution and at verification with original criteria and cumulative accounting",
+      "impactTags": [
+        "p6-followup"
+      ],
+      "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
+      "assertions": "tests/live/conversation.test.ts :: P6 live conversation answers read only then applies additive changes before execution and at verification with original criteria and cumulative accounting",
+      "cleanup": "Stop owned processes; retain actual evidence and failures",
       "status": "active"
     }
   ]

@@ -15,6 +15,7 @@ async function main(): Promise<void> {
     options[key] = value;
   }
   const allowed: Record<string, string[]> = {
+    conversation:['--data','--file'],conversations:['--data'],'conversation-show':['--data','--conversation'],
     goal: ['--data','--file'], goals:['--data'], 'goal-show':['--data','--goal'],
     verify: ['--data','--file'], 'verification-status':['--data','--runtime'], serve: ['--data'], health: ['--data'], projects: ['--data'],
     runs: ['--data', '--project'], show: ['--data', '--project', '--run'],
@@ -41,7 +42,10 @@ async function main(): Promise<void> {
   const required = (flag: string): string => { const value = options[flag]; if (!value) throw new Error(`${flag} is required`); return value; };
   let payload: Request;
   const id = randomUUID();
-  if(command==='goal')payload={id,method:'orchestration',action:JSON.parse(await readFile(required('--file'),'utf8'))};
+  if(command==='conversation')payload={id,method:'conversation',action:JSON.parse(await readFile(required('--file'),'utf8'))};
+  else if(command==='conversations')payload={id,method:'conversation',action:{type:'list'}};
+  else if(command==='conversation-show')payload={id,method:'conversation',action:{type:'inspect',conversationId:required('--conversation')}};
+  else if(command==='goal')payload={id,method:'orchestration',action:JSON.parse(await readFile(required('--file'),'utf8'))};
   else if(command==='goals')payload={id,method:'orchestration',action:{type:'list'}};
   else if(command==='goal-show')payload={id,method:'orchestration',action:{type:'inspect',sessionId:required('--goal')}};
   else if(command==='verify')payload={id,method:'verification',action:JSON.parse(await readFile(required('--file'),'utf8'))};

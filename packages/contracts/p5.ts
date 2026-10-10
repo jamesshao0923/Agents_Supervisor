@@ -1,5 +1,6 @@
 import type { Run, TaskContract } from './p1.js';
 import type { RuntimeStep } from './p3.js';
+import type { FollowupProposal } from './p6.js';
 import type { ProcessIdentity, ProcessIntent } from '../process-control/index.js';
 export interface ReasonerConfig {model:string;effort:string;reservation:number;timeoutMs:number}
 export interface RequirementMessage {id:string;role:'user';text:string;createdAt:string}
@@ -11,10 +12,13 @@ export interface GoalProposal {
   steps:{id:string;description:string;dependencies:string[];acceptanceIds:string[]}[];
 }
 export interface ReasoningJob {
-  id:string;purpose:'requirements'|'restore';status:'running'|'finished';attemptId:string;config:ReasonerConfig;
+  id:string;purpose:'requirements'|'restore'|'followup';status:'running'|'finished';attemptId:string;config:ReasonerConfig;
   intents:ProcessIntent[];identities:ProcessIdentity[];startedAt:string;finishedAt:string|null;
   modelStarted:boolean;usage:number|null;observedUsage?:number;stopConfirmed:boolean;error:string|null;proofs:Record<string,string>;
   context:unknown;proposal:GoalProposal|null;threadId:string|null;
+  /** The controller builds context from this immutable input snapshot, never newer messages. */
+  followup?:{conversationId:string;messageId:string;messageSequence:number;processingAttempt:number;baseContractVersion:number;relatedMessageIds:string[];messages:RequirementMessage[];appliedContractVersion:number|null};
+  followupResult?:FollowupProposal;
 }
 export interface GoalSession {
   id:string;projectId:string;workspace:string;workspaceKind:'project'|'managed';revision:number;
@@ -22,6 +26,7 @@ export interface GoalSession {
   messages:RequirementMessage[];jobs:ReasoningJob[];proposal:GoalProposal|null;
   runtimeId:string|null;error:string|null;createdAt:string;updatedAt:string;
   config:ReasonerConfig;maxContextChars:number;
+  continuation?:{conversationId:string;predecessorSessionId:string;predecessorRunId:string;predecessorDeliveryId:string;proposalJobId:string|null};
 }
 export interface GoalInspection {session:GoalSession;run:Run}
 export type OrchestrationAction =
@@ -39,7 +44,7 @@ function proposalSchema(sourceIds?:string[]):Record<string,unknown>{return obj({
   facts:{type:'array',maxItems:128,items:obj({text:str,sourceId:sourceIds?{...str,enum:[...sourceIds]}:str,origin:{type:'string',enum:['explicit','inferred']}})},
   constraints:strings,style:strings,
   criteria:{type:'array',maxItems:64,items:obj({id:str,description:str,kind:{type:'string',enum:['command','ui','source']},target:str,checks:{...strings,minItems:1}})},
-  steps:{type:'array',maxItems:32,items:obj({id:str,description:str,dependencies:strings,acceptanceIds:strings})}
+  steps:{type:'array',maxItems:32,items:obj({id:str,description:str,dependencies:strings,acceptanceIds:{...strings,minItems:1}})}
 });}
 export const GOAL_PROPOSAL_SCHEMA=proposalSchema();
 export function goalProposalSchema(sourceIds:string[]):Record<string,unknown>{

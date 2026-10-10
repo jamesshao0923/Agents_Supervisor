@@ -16,7 +16,14 @@ const hash=(v:string)=>createHash('sha256').update(v).digest('hex');
 const ensure=(v:unknown,message:string):void=>{if(!v)throw new Error(message);};
 export class RuntimeRepository {
   constructor(private readonly db: DatabaseSync) {}
-  private tx<T>(work:()=>T):T {this.db.exec('BEGIN IMMEDIATE');try{const result=work();this.db.exec('COMMIT');return result;}catch(e){this.db.exec('ROLLBACK');throw e;}}
+  private tx<T>(work:()=>T):T {
+    // Conversation acknowledgement and plan replacement share their outer
+    // transaction. Never commit an enclosing repository's transaction here.
+    const owns=!this.db.isTransaction;
+    if(owns)this.db.exec('BEGIN IMMEDIATE');
+    try{const result=work();if(result&&typeof (result as {then?:unknown}).then==='function')throw new Error('Runtime transactions must be synchronous');if(owns)this.db.exec('COMMIT');return result;}
+    catch(e){if(owns)this.db.exec('ROLLBACK');throw e;}
+  }
   get(id:string):RuntimeRecord {const row=this.db.prepare('SELECT record FROM runtime_runs WHERE id=?').get(id);if(!row)throw new Error('Unknown runtime');return JSON.parse(String(row.record)) as RuntimeRecord;}
   list():RuntimeRecord[] {return this.db.prepare('SELECT record FROM runtime_runs ORDER BY rowid DESC').all().map(r=>JSON.parse(String(r.record)) as RuntimeRecord);}
   operations(id?:string):RuntimeOperation[] {return (id?this.db.prepare('SELECT record FROM runtime_outbox WHERE runtime_id=? ORDER BY rowid').all(id):this.db.prepare('SELECT record FROM runtime_outbox ORDER BY rowid').all()).map(r=>JSON.parse(String(r.record)) as RuntimeOperation);}

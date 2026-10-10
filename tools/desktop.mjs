@@ -49,7 +49,7 @@ function health() {
   });
 }
 function requireCompatible(value) {
-  if (value.stage !== 'P5' || value.requirementsReasoner !== 'codex-v1' || value.durableRuntime !== 'local-v1' || value.modelExecution !== true || value.workspaceManagement !== 'path-v1') throw new Error('Existing backend does not support this desktop workspace protocol; stop it explicitly before launching this version.');
+  if (value.stage !== 'P5' || value.requirementsReasoner !== 'codex-v1' || value.conversationProtocol !== 'v1' || value.durableRuntime !== 'local-v1' || value.modelExecution !== true || value.workspaceManagement !== 'path-v1') throw new Error('Existing backend does not support this desktop workspace protocol; stop it explicitly before launching this version.');
 }
 async function ensureBackend() {
   try { const value = await health(); requireCompatible(value); console.log(`Reusing independent backend: ${dataDir}`); return; }
