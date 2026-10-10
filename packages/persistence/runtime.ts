@@ -1,3 +1,5 @@
+import {ScheduledIntegrationInputsRepository} from './integration-inputs.js';
+import {integrationExecutionPrompt} from '../contracts/p7-integration-inputs.js';
 import { VerificationLineageRepository } from './verification-lineage.js';
 import { ConversationRepository } from './conversations.js';
 import { VerificationRepository } from './verification.js';
@@ -6,10 +8,10 @@ import { lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
 import type { DatabaseSync } from 'node:sqlite';
 import { basename, join, relative, sep } from 'node:path';
 import type { Run, RunAction, TaskContract, CreateRunInput } from '../contracts/p1.js';
-import { parseRuntimeAction, type RuntimeBinding, type RuntimeCheckpoint, type RuntimeControl, type RuntimeEvent, type RuntimeOperation, type RuntimeRecord, type RuntimeReport, type RuntimeSubmit } from '../contracts/p3.js';
+import { codexStart, parseRuntimeAction, type RuntimeBinding, type RuntimeCheckpoint, type RuntimeControl, type RuntimeEvent, type RuntimeOperation, type RuntimeRecord, type RuntimeReport, type RuntimeSubmit } from '../contracts/p3.js';
 import { applyAction, createRun } from '../domain/index.js';
 import type { FutureVerificationAllocation, RuntimeAppendRepair, RuntimeFutureVerification, RuntimeRepairBoundary, RuntimeRetryFailure } from '../contracts/p6-loop.js';
-import type { ExecutionRecord } from '../contracts/p2.js';
+import type { ExecutionRecord, ExecutionStart } from '../contracts/p2.js';
 import type { SupervisionJob, SupervisionRecord } from '../contracts/p6-supervision.js';
 import type { Candidate } from '../verification/candidate.js';
 import { canonical as verificationCanonical, exclusions } from '../verification/candidate.js';
@@ -259,13 +261,24 @@ export class RuntimeRepository {
     ensure((loop.monitor as {activeJobId?:string}|null)?.activeJobId===job.id,'Inspection wait has no active monitor binding');
     return true;
   }
+  private integrationFenced(runtimeId:string):boolean {const row=this.db.prepare('SELECT record FROM scheduled_records WHERE runtime_id=?').get(runtimeId);return !!row&&JSON.parse(String(row.record)).fence==='held';}
   claim(id:string,owner:string):RuntimeOperation|null {return this.tx(()=>{
     const r=this.get(id);this.compatible(r);if(r.paused||r.cancelled||new ConversationRepository(this.db).hasPendingForRun(r.projectId,r.runId))return null;const o=this.currentOperations(id).find(x=>x.stepIndex===r.cursor&&x.state==='queued');if(!o)return null;if(o.step.kind==='input'&&!Object.hasOwn(r.inputs,o.step.id))return null;
-    if(this.awaitingInspection(r))return null;
+    if(this.integrationFenced(r.id)||this.awaitingInspection(r))return null;
     this.action(r,{type:'startAttempt',attemptId:o.attemptId,nodeId:o.step.id,contractVersion:o.contractVersion,reservation:o.step.kind==='codex'?o.step.reservation:0,purpose:'execution',resources:o.step.kind==='codex'?['workspace:'+r.workspace]:[]});this.action(r,{type:'setOperation',operationId:o.attemptId,attemptId:o.attemptId,status:'pending'});
     o.owner=owner;o.state='claimed';this.saveOp(o);r.phase='running';this.save(r,'claimed',{operationId:o.id,owner});return o;
   });}
-  eligible(id:string,owner:string):void {const o=this.operation(id),r=this.get(o.runtimeId);this.compatible(r);ensure(o.owner===owner,'Stale worker qualification');ensure(!r.paused&&!r.cancelled,'Runtime dispatch is paused or cancelled');ensure(['claimed','started'].includes(o.state),'Operation is not eligible');const run=this.run(r);ensure(run.contract.version===o.contractVersion&&run.attempts.find(a=>a.id===o.attemptId)?.status==='running','Stale attempt qualification');}
+  private qualifyEligible(id:string,owner:string,checkInputs:boolean):void {const o=this.operation(id),r=this.get(o.runtimeId);this.compatible(r);ensure(!this.integrationFenced(r.id),'Scheduled branches have not released final integration');ensure(o.owner===owner,'Stale worker qualification');ensure(!r.paused&&!r.cancelled,'Runtime dispatch is paused or cancelled');ensure(['claimed','started'].includes(o.state),'Operation is not eligible');const run=this.run(r);ensure(run.contract.version===o.contractVersion&&run.attempts.find(a=>a.id===o.attemptId)?.status==='running','Stale attempt qualification');if(checkInputs)new ScheduledIntegrationInputsRepository(this.db).verify(id);}
+  eligible(id:string,owner:string):void {this.qualifyEligible(id,owner,true);}
+  verifyIntegrationInputs(id:string):void {new ScheduledIntegrationInputsRepository(this.db).verify(id);}
+  hasScheduledIntegration(id:string):boolean {return new ScheduledIntegrationInputsRepository(this.db).applies(id);}
+  prepareIntegrationInputs(id:string,owner:string) {this.qualifyEligible(id,owner,false);const receipt=new ScheduledIntegrationInputsRepository(this.db).prepare(id);this.eligible(id,owner);return receipt;}
+  /** Frozen task remains unchanged; checkpoint and host input framing are request data. */
+  executionInput(id:string,owner:string):ExecutionStart {
+    this.eligible(id,owner);const operation=this.operation(id),runtime=this.get(operation.runtimeId),input=codexStart(runtime,operation),checkpoint=this.checkpoint(runtime.id);
+    input.prompt += '\n\nSupervisor checkpoint references (task data):\n' + JSON.stringify({ checkpointId: checkpoint?.id ?? null, contractVersion: checkpoint?.contractVersion, priorArtifact: checkpoint?.artifact, frozenPlans: checkpoint?.frozenPlans ?? [] });
+    const integration=new ScheduledIntegrationInputsRepository(this.db).verify(id);if(integration)input.prompt=integrationExecutionPrompt(input.prompt,integration);return input;
+  }
   markStarted(id:string,owner:string):RuntimeOperation {return this.tx(()=>{this.eligible(id,owner);const o=this.operation(id);if(o.state==='started')return o;o.state='started';this.saveOp(o);const r=this.get(o.runtimeId);this.save(r,'effect-intent',{operationId:id,owner});return o;});}
   binding(id:string,owner:string):RuntimeBinding {this.eligible(id,owner);const o=this.operation(id),r=this.get(o.runtimeId);return {runtimeId:r.id,operationId:id,owner,projectId:r.projectId,runId:r.runId,attemptId:o.attemptId};}
   adopt(id:string,owner:string):RuntimeOperation {return this.tx(()=>{const o=this.operation(id),r=this.get(o.runtimeId);this.compatible(r);ensure(!['confirmed','failed','cancelled'].includes(o.state),'Terminal operation cannot be adopted');o.owner=owner;this.saveOp(o);this.save(r,'recovery-adopted',{operationId:id,owner});return o;});}
@@ -288,6 +301,7 @@ export class RuntimeRepository {
         ensure(execution,'Codex report needs durable execution receipt');const e=JSON.parse(String(execution!.record)) as {state:string;stopConfirmed:boolean};ensure(e.stopConfirmed||report.outcome==='unknown','Codex writer not confirmed stopped');if(report.outcome==='confirmed')ensure(e.state==='completed'&&attempt!.settled,'Codex result is not completed and settled');
       }
     }
+    if(report.outcome==='confirmed'&&o.step.kind==='codex')this.verifyIntegrationInputs(id);
     o.state=report.outcome;o.result=report.result;o.error=report.error??null;this.saveOp(o);r.error=o.error;
     if(report.outcome==='confirmed'&&!r.cancelled){r.cursor++;this.enqueue(r);}
     // Read prior checkpoint before saving the changed cursor; it remains the immutable parent.

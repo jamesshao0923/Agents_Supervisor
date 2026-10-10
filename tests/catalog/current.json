@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-catalog-v20",
+  "revision": "dev-catalog-v23",
   "modules": [
     {
       "id": "dev-contracts",
@@ -561,6 +561,60 @@
       "layer": "integration",
       "file": "dist/tests/integration/supervision-concerns.test.js",
       "timeoutMs": 180000
+    },
+    {
+      "id": "integration-supervision-routing",
+      "layer": "integration",
+      "file": "dist/tests/integration/supervision-routing.test.js",
+      "timeoutMs": 240000
+    },
+    {
+      "id": "integration-scheduled-claims",
+      "layer": "integration",
+      "file": "dist/tests/integration/scheduled-claims.test.js",
+      "timeoutMs": 240000
+    },
+    {
+      "id": "integration-scheduled-execution",
+      "layer": "integration",
+      "file": "dist/tests/integration/scheduled-execution.test.js",
+      "timeoutMs": 240000
+    },
+    {
+      "id": "integration-task-workspace",
+      "layer": "integration",
+      "file": "dist/tests/integration/task-workspace.test.js",
+      "timeoutMs": 240000
+    },
+    {
+      "id": "integration-scheduled-producer",
+      "layer": "integration",
+      "file": "dist/tests/integration/scheduled-producer.test.js",
+      "timeoutMs": 180000
+    },
+    {
+      "id": "integration-author-recovery",
+      "layer": "integration",
+      "file": "dist/tests/integration/author-recovery.test.js",
+      "timeoutMs": 60000
+    },
+    {
+      "id": "integration-scheduled-publication",
+      "layer": "integration",
+      "file": "dist/tests/integration/scheduled-publication.test.js",
+      "timeoutMs": 180000
+    },
+    {
+      "id": "integration-scheduled-inputs",
+      "layer": "integration",
+      "file": "dist/tests/integration/scheduled-inputs.test.js",
+      "timeoutMs": 180000
+    },
+    {
+      "id": "integration-integration-inputs",
+      "layer": "integration",
+      "file": "dist/tests/integration/integration-inputs.test.js",
+      "timeoutMs": 240000
     }
   ],
   "cases": [
@@ -2965,7 +3019,9 @@
       "scenario": "persistence migrates real disk database and reopens state events budgets and receipts",
       "impactTags": [
         "persistence",
-        "contracts"
+        "contracts",
+        "persistence-migrations",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence migrates real disk database and reopens state events budgets and receipts",
@@ -2984,7 +3040,9 @@
       "scenario": "persistence refuses future schema without overwriting existing database data",
       "impactTags": [
         "persistence",
-        "contracts"
+        "contracts",
+        "persistence-migrations",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence refuses future schema without overwriting existing database data",
@@ -3003,7 +3061,9 @@
       "scenario": "persistence rolls back staged state event reservation and command receipt together",
       "impactTags": [
         "persistence",
-        "contracts"
+        "contracts",
+        "persistence-migrations",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence rolls back staged state event reservation and command receipt together",
@@ -3022,7 +3082,9 @@
       "scenario": "persistence canonical command receipts reject changed payloads and isolate project cursors",
       "impactTags": [
         "persistence",
-        "contracts"
+        "contracts",
+        "persistence-migrations",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence canonical command receipts reject changed payloads and isolate project cursors",
@@ -3041,7 +3103,9 @@
       "scenario": "persistence simultaneous real writers cannot oversubscribe budget reservations",
       "impactTags": [
         "persistence",
-        "contracts"
+        "contracts",
+        "persistence-migrations",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence simultaneous real writers cannot oversubscribe budget reservations",
@@ -3060,7 +3124,9 @@
       "scenario": "persistence global resource keys reject cross run leases until terminal owner releases",
       "impactTags": [
         "persistence",
-        "contracts"
+        "contracts",
+        "persistence-migrations",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence global resource keys reject cross run leases until terminal owner releases",
@@ -3079,7 +3145,9 @@
       "scenario": "persistence SIGKILL before commit preserves no partial state event budget or receipt",
       "impactTags": [
         "persistence",
-        "contracts"
+        "contracts",
+        "persistence-migrations",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence SIGKILL before commit preserves no partial state event budget or receipt",
@@ -3098,7 +3166,9 @@
       "scenario": "persistence SIGKILL after commit retains state event budget and idempotent receipt",
       "impactTags": [
         "persistence",
-        "contracts"
+        "contracts",
+        "persistence-migrations",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence SIGKILL after commit retains state event budget and idempotent receipt",
@@ -3117,7 +3187,9 @@
       "scenario": "persistence durable artifact orphan remains invisible after real process termination",
       "impactTags": [
         "persistence",
-        "contracts"
+        "contracts",
+        "persistence-migrations",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence durable artifact orphan remains invisible after real process termination",
@@ -3136,7 +3208,9 @@
       "scenario": "persistence published artifact digest checks reject tampering missing bytes and arbitrary paths",
       "impactTags": [
         "persistence",
-        "contracts"
+        "contracts",
+        "persistence-migrations",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence published artifact digest checks reject tampering missing bytes and arbitrary paths",
@@ -3155,7 +3229,9 @@
       "scenario": "persistence rejects symlink object directories and records actual permission failure without publication",
       "impactTags": [
         "persistence",
-        "contracts"
+        "contracts",
+        "persistence-migrations",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence rejects symlink object directories and records actual permission failure without publication",
@@ -3174,7 +3250,9 @@
       "scenario": "persistence unwritable real database refuses writes and preserves previous committed data",
       "impactTags": [
         "persistence",
-        "contracts"
+        "contracts",
+        "persistence-migrations",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence unwritable real database refuses writes and preserves previous committed data",
@@ -3193,7 +3271,9 @@
       "scenario": "persistence project verification catalogs retain immutable revisions coverage and defect inheritance",
       "impactTags": [
         "persistence",
-        "contracts"
+        "contracts",
+        "persistence-migrations",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence project verification catalogs retain immutable revisions coverage and defect inheritance",
@@ -3212,7 +3292,9 @@
       "scenario": "persistence stale verification proposal cannot publish over a newer catalog pointer",
       "impactTags": [
         "persistence",
-        "contracts"
+        "contracts",
+        "persistence-migrations",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence stale verification proposal cannot publish over a newer catalog pointer",
@@ -3231,7 +3313,9 @@
       "scenario": "persistence killed catalog snapshot publishes neither pointer coverage nor proposal status",
       "impactTags": [
         "persistence",
-        "contracts"
+        "contracts",
+        "persistence-migrations",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence killed catalog snapshot publishes neither pointer coverage nor proposal status",
@@ -3250,7 +3334,9 @@
       "scenario": "persistence frozen plans retain original catalog and reject changed revisions candidates and projects",
       "impactTags": [
         "persistence",
-        "contracts"
+        "contracts",
+        "persistence-migrations",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence frozen plans retain original catalog and reject changed revisions candidates and projects",
@@ -3269,7 +3355,9 @@
       "scenario": "persistence catalog file edits invalidate reads plans and subsequent publication",
       "impactTags": [
         "persistence",
-        "contracts"
+        "contracts",
+        "persistence-migrations",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence catalog file edits invalidate reads plans and subsequent publication",
@@ -3288,7 +3376,8 @@
       "scenario": "service IPC persists commands budget events and actual artifact across restart",
       "impactTags": [
         "service",
-        "contracts"
+        "contracts",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/service.test.ts: service IPC persists commands budget events and actual artifact across restart",
@@ -3307,7 +3396,8 @@
       "scenario": "service reconciles a committed command by commandId after abrupt process death",
       "impactTags": [
         "service",
-        "contracts"
+        "contracts",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/service.test.ts: service reconciles a committed command by commandId after abrupt process death",
@@ -3326,7 +3416,8 @@
       "scenario": "service rejects stale revisions cross project reads and forged artifact actions",
       "impactTags": [
         "service",
-        "contracts"
+        "contracts",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/service.test.ts: service rejects stale revisions cross project reads and forged artifact actions",
@@ -3345,7 +3436,8 @@
       "scenario": "service rejects malformed IPC and continues serving actual health requests",
       "impactTags": [
         "service",
-        "contracts"
+        "contracts",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/service.test.ts: service rejects malformed IPC and continues serving actual health requests",
@@ -3364,7 +3456,8 @@
       "scenario": "service refuses a second owner and preserves the running service",
       "impactTags": [
         "service",
-        "contracts"
+        "contracts",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/service.test.ts: service refuses a second owner and preserves the running service",
@@ -3383,7 +3476,8 @@
       "scenario": "CLI sends real JSON requests and exits nonzero for rejected operations",
       "impactTags": [
         "service",
-        "contracts"
+        "contracts",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/service.test.ts: CLI sends real JSON requests and exits nonzero for rejected operations",
@@ -3535,7 +3629,9 @@
       "scenario": "persistence damaged artifacts block verification while stopping accounting and reconciliation remain writable",
       "impactTags": [
         "persistence",
-        "contracts"
+        "contracts",
+        "persistence-migrations",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence damaged artifacts block verification while stopping accounting and reconciliation remain writable",
@@ -3554,7 +3650,9 @@
       "scenario": "persistence verification evidence references roundtrip and reject foreign missing or altered artifacts",
       "impactTags": [
         "persistence",
-        "contracts"
+        "contracts",
+        "persistence-migrations",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence verification evidence references roundtrip and reject foreign missing or altered artifacts",
@@ -4024,7 +4122,8 @@
         "execution",
         "persistence",
         "service",
-        "process-control"
+        "process-control",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: canonical and reordered execution receipt replay once; durable reservation, lease, operation and event cursor match after SQLite reopen",
@@ -4045,7 +4144,8 @@
         "execution",
         "persistence",
         "service",
-        "process-control"
+        "process-control",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: parent, child and exact workspace overlaps rejected without state/events change; sibling allowed; unknown writer retains exclusion until confirmed stop",
@@ -4066,7 +4166,8 @@
         "execution",
         "persistence",
         "service",
-        "process-control"
+        "process-control",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: insufficient reserve rejected before actual executable marker writes and before SQLite project or execution creation",
@@ -4087,7 +4188,8 @@
         "execution",
         "persistence",
         "service",
-        "process-control"
+        "process-control",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: durable real managed writer stops after reopen and manager initialize, no replay executable invoked, lost usage remains unsettled, real Git diff/artifact captured and repeated reconcile unchanged",
@@ -4108,7 +4210,8 @@
         "execution",
         "persistence",
         "service",
-        "process-control"
+        "process-control",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: actual Unix socket rejects P1 complete/settle/cancel and artifact mutation of managed run; run and events remain queryable after service restart",
@@ -4129,7 +4232,8 @@
         "execution",
         "persistence",
         "service",
-        "process-control"
+        "process-control",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: actual slow failing version executable keeps lease and launch fenced while cancelled, no target/thread/turn invocation, actual zero settled only after launch resolves",
@@ -4151,7 +4255,8 @@
         "persistence",
         "service",
         "desktop",
-        "workspace"
+        "workspace",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: Omitted and blank paths allocate the same stable command directory; independent requests get distinct directories; real files and durable receipt survive manager/store close and reopen without replay",
@@ -4173,7 +4278,8 @@
         "persistence",
         "service",
         "desktop",
-        "workspace"
+        "workspace",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: Invalid budgets, ownership injection and images are rejected before directory creation; a generated symlink leaf cannot redirect a task into another project",
@@ -4195,7 +4301,8 @@
         "persistence",
         "service",
         "desktop",
-        "workspace"
+        "workspace",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: A real symlink alias resolves to the same project and command receipt; overlapping writers remain rejected; later tasks reuse project without creating a managed root",
@@ -4217,7 +4324,8 @@
         "persistence",
         "service",
         "desktop",
-        "workspace"
+        "workspace",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: Legacy SQLite records without workspace kind read as project; same command replay remains idempotent without rewriting stored requests or receipts",
@@ -4448,7 +4556,8 @@
         "runtime",
         "recovery",
         "persistence",
-        "execution"
+        "execution",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/integration/runtime.test.ts: runtime HTTP commit before response survives Worker SIGKILL with stable key and one SQLite effect",
@@ -4469,7 +4578,8 @@
         "runtime",
         "recovery",
         "persistence",
-        "execution"
+        "execution",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/integration/runtime.test.ts: runtime idempotent HTTP recovery resends the same key after lost response and has one actual effect",
@@ -4490,7 +4600,8 @@
         "runtime",
         "recovery",
         "persistence",
-        "execution"
+        "execution",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/integration/runtime.test.ts: runtime unknown nonidempotent HTTP effect without query is preserved and never automatically retried",
@@ -4511,7 +4622,8 @@
         "runtime",
         "recovery",
         "persistence",
-        "execution"
+        "execution",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/integration/runtime.test.ts: runtime service restart retains an alive old Worker and original declared wait history",
@@ -4532,7 +4644,8 @@
         "runtime",
         "recovery",
         "persistence",
-        "execution"
+        "execution",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/integration/runtime.test.ts: runtime Worker startup stops an actual orphan workspace writer and preserves unknown effects without model replay",
@@ -4553,7 +4666,8 @@
         "runtime",
         "recovery",
         "persistence",
-        "execution"
+        "execution",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/integration/runtime.test.ts: runtime SIGSTOP SIGCONT process suspension preserves pause input and resumes one declared effect",
@@ -4574,7 +4688,8 @@
         "runtime",
         "recovery",
         "persistence",
-        "execution"
+        "execution",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/integration/runtime.test.ts: runtime cancellation reaches an in-flight real HTTP request and prevents the later declared step",
@@ -4595,7 +4710,8 @@
         "runtime",
         "recovery",
         "persistence",
-        "execution"
+        "execution",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/integration/runtime.test.ts: runtime recovery keeps original frozen plan budget failure history and product catalog publication atomic",
@@ -4658,7 +4774,8 @@
         "runtime",
         "recovery",
         "persistence",
-        "execution"
+        "execution",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/integration/runtime.test.ts: runtime startup ownership recovery stops the released process scope before receipt takeover and fences stale publishers",
@@ -6192,7 +6309,8 @@
       "scenario": "P6 revised workflow runs a new real HTTP effect once and preserves prior checkpoint across service restart",
       "impactTags": [
         "contracts",
-        "p6-foundation"
+        "p6-foundation",
+        "schema13-startup"
       ],
       "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
       "assertions": "tests/integration/runtime.test.ts :: P6 revised workflow runs a new real HTTP effect once and preserves prior checkpoint across service restart",
@@ -12599,6 +12717,822 @@
       "prerequisites": "Actual SQLite, private proof files and owned Node processes; model/P4 metadata fixture explicitly does not certify live model approval.",
       "assertions": "tests/integration/supervision-concerns.test.ts :: P6-CONC-I08 an applied old-contract concern is durably invalidated without consuming or altering the original inspection",
       "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-routing.001",
+      "name": "P6-ROUTE-I01 actual repeated final-verification jobs count once each while restart and variable reports add no progress",
+      "suiteId": "integration-supervision-routing",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-model-routing"
+      ],
+      "scenario": "P6-ROUTE-I01 actual repeated final-verification jobs count once each while restart and variable reports add no progress",
+      "impactTags": [
+        "p6-model-routing",
+        "schema13-startup"
+      ],
+      "prerequisites": "Actual SQLite, command verifiers and managed Node capability protocol fixture; provider availability or live model success is not inferred.",
+      "assertions": "tests/integration/supervision-routing.test.ts :: P6-ROUTE-I01 actual repeated final-verification jobs count once each while restart and variable reports add no progress",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-routing.002",
+      "name": "P6-ROUTE-I02 real candidate change resets repetition but unknown accounting and modified original report are rejected",
+      "suiteId": "integration-supervision-routing",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-model-routing"
+      ],
+      "scenario": "P6-ROUTE-I02 real candidate change resets repetition but unknown accounting and modified original report are rejected",
+      "impactTags": [
+        "p6-model-routing",
+        "schema13-startup"
+      ],
+      "prerequisites": "Actual SQLite, command verifiers and managed Node capability protocol fixture; provider availability or live model success is not inferred.",
+      "assertions": "tests/integration/supervision-routing.test.ts :: P6-ROUTE-I02 real candidate change resets repetition but unknown accounting and modified original report are rejected",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-routing.003",
+      "name": "P6-ROUTE-I03 exact advertised stronger model and deeper effort reserve unchanged budget atomically and reopen without a second job",
+      "suiteId": "integration-supervision-routing",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-model-routing"
+      ],
+      "scenario": "P6-ROUTE-I03 exact advertised stronger model and deeper effort reserve unchanged budget atomically and reopen without a second job",
+      "impactTags": [
+        "p6-model-routing",
+        "schema13-startup"
+      ],
+      "prerequisites": "Actual SQLite, command verifiers and managed Node capability protocol fixture; provider availability or live model success is not inferred.",
+      "assertions": "tests/integration/supervision-routing.test.ts :: P6-ROUTE-I03 exact advertised stronger model and deeper effort reserve unchanged budget atomically and reopen without a second job",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-routing.004",
+      "name": "P6-ROUTE-I04 unsupported effort oversized context changed host policy and exhausted shared budget fail without model reservation",
+      "suiteId": "integration-supervision-routing",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-model-routing"
+      ],
+      "scenario": "P6-ROUTE-I04 unsupported effort oversized context changed host policy and exhausted shared budget fail without model reservation",
+      "impactTags": [
+        "p6-model-routing",
+        "schema13-startup"
+      ],
+      "prerequisites": "Actual SQLite, command verifiers and managed Node capability protocol fixture; provider availability or live model success is not inferred.",
+      "assertions": "tests/integration/supervision-routing.test.ts :: P6-ROUTE-I04 unsupported effort oversized context changed host policy and exhausted shared budget fail without model reservation",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-routing.005",
+      "name": "P6-ROUTE-I05 four distinct actual repeated failures exhaust the policy while duplicate observations never increment a round",
+      "suiteId": "integration-supervision-routing",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-model-routing"
+      ],
+      "scenario": "P6-ROUTE-I05 four distinct actual repeated failures exhaust the policy while duplicate observations never increment a round",
+      "impactTags": [
+        "p6-model-routing",
+        "schema13-startup"
+      ],
+      "prerequisites": "Actual SQLite, command verifiers and managed Node capability protocol fixture; provider availability or live model success is not inferred.",
+      "assertions": "tests/integration/supervision-routing.test.ts :: P6-ROUTE-I05 four distinct actual repeated failures exhaust the policy while duplicate observations never increment a round",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-routing.006",
+      "name": "P6-ROUTE-I06 missing or tampered actual capability proofs and paused boundary cannot claim model availability",
+      "suiteId": "integration-supervision-routing",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-model-routing"
+      ],
+      "scenario": "P6-ROUTE-I06 missing or tampered actual capability proofs and paused boundary cannot claim model availability",
+      "impactTags": [
+        "p6-model-routing",
+        "schema13-startup"
+      ],
+      "prerequisites": "Actual SQLite, command verifiers and managed Node capability protocol fixture; provider availability or live model success is not inferred.",
+      "assertions": "tests/integration/supervision-routing.test.ts :: P6-ROUTE-I06 missing or tampered actual capability proofs and paused boundary cannot claim model availability",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-claims.001",
+      "name": "P7-CLAIM-I01 real SQLite graph install keeps contract cost and immutable claim atomically reserves consumers leases outbox with exact CAS",
+      "suiteId": "integration-scheduled-claims",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-scheduled-claims"
+      ],
+      "scenario": "P7-CLAIM-I01 real SQLite graph install keeps contract cost and immutable claim atomically reserves consumers leases outbox with exact CAS",
+      "impactTags": [
+        "p7-scheduled-claims"
+      ],
+      "prerequisites": "Actual SQLite cross-process claims, host clock, filesystem packages and owned Node process observations.",
+      "assertions": "tests/integration/scheduled-claims.test.ts :: P7-CLAIM-I01 real SQLite graph install keeps contract cost and immutable claim atomically reserves consumers leases outbox with exact CAS",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-claims.002",
+      "name": "P7-CLAIM-I02 install and claim join actual parent rollback without losing budget CAS or leaving consumer lease outbox fragments",
+      "suiteId": "integration-scheduled-claims",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-scheduled-claims"
+      ],
+      "scenario": "P7-CLAIM-I02 install and claim join actual parent rollback without losing budget CAS or leaving consumer lease outbox fragments",
+      "impactTags": [
+        "p7-scheduled-claims"
+      ],
+      "prerequisites": "Actual SQLite cross-process claims, host clock, filesystem packages and owned Node process observations.",
+      "assertions": "tests/integration/scheduled-claims.test.ts :: P7-CLAIM-I02 install and claim join actual parent rollback without losing budget CAS or leaving consumer lease outbox fragments",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-claims.003",
+      "name": "P7-CLAIM-I03 known settled unknown effects keep conflicting leases while unrelated branch advances and unknown usage stops all new dispatch",
+      "suiteId": "integration-scheduled-claims",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-scheduled-claims"
+      ],
+      "scenario": "P7-CLAIM-I03 known settled unknown effects keep conflicting leases while unrelated branch advances and unknown usage stops all new dispatch",
+      "impactTags": [
+        "p7-scheduled-claims"
+      ],
+      "prerequisites": "Actual SQLite cross-process claims, host clock, filesystem packages and owned Node process observations.",
+      "assertions": "tests/integration/scheduled-claims.test.ts :: P7-CLAIM-I03 known settled unknown effects keep conflicting leases while unrelated branch advances and unknown usage stops all new dispatch",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-claims.004",
+      "name": "P7-CLAIM-I04 two actual SQLite child processes race one current frontier CAS and commit exactly one budget attempt and frozen consumer",
+      "suiteId": "integration-scheduled-claims",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-scheduled-claims"
+      ],
+      "scenario": "P7-CLAIM-I04 two actual SQLite child processes race one current frontier CAS and commit exactly one budget attempt and frozen consumer",
+      "impactTags": [
+        "p7-scheduled-claims"
+      ],
+      "prerequisites": "Actual SQLite cross-process claims, host clock, filesystem packages and owned Node process observations.",
+      "assertions": "tests/integration/scheduled-claims.test.ts :: P7-CLAIM-I04 two actual SQLite child processes race one current frontier CAS and commit exactly one budget attempt and frozen consumer",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-claims.005",
+      "name": "P7-CLAIM-I05 actual cooperative port database device and path leases queue conflict without blocking unrelated work or pretending OS ownership",
+      "suiteId": "integration-scheduled-claims",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-scheduled-claims"
+      ],
+      "scenario": "P7-CLAIM-I05 actual cooperative port database device and path leases queue conflict without blocking unrelated work or pretending OS ownership",
+      "impactTags": [
+        "p7-scheduled-claims"
+      ],
+      "prerequisites": "Actual SQLite cross-process claims, host clock, filesystem packages and owned Node process observations.",
+      "assertions": "tests/integration/scheduled-claims.test.ts :: P7-CLAIM-I05 actual cooperative port database device and path leases queue conflict without blocking unrelated work or pretending OS ownership",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-claims.006",
+      "name": "P7-CLAIM-I06 same actual Run future verification floor and ancestor limits reject excess across every claim without reset",
+      "suiteId": "integration-scheduled-claims",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-scheduled-claims"
+      ],
+      "scenario": "P7-CLAIM-I06 same actual Run future verification floor and ancestor limits reject excess across every claim without reset",
+      "impactTags": [
+        "p7-scheduled-claims"
+      ],
+      "prerequisites": "Actual SQLite cross-process claims, host clock, filesystem packages and owned Node process observations.",
+      "assertions": "tests/integration/scheduled-claims.test.ts :: P7-CLAIM-I06 same actual Run future verification floor and ancestor limits reject excess across every claim without reset",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-claims.007",
+      "name": "P7-CLAIM-I07 real downstream constraint failure rolls back cross-repository claim and reopened qualification observes cancel without releasing effects",
+      "suiteId": "integration-scheduled-claims",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-scheduled-claims"
+      ],
+      "scenario": "P7-CLAIM-I07 real downstream constraint failure rolls back cross-repository claim and reopened qualification observes cancel without releasing effects",
+      "impactTags": [
+        "p7-scheduled-claims"
+      ],
+      "prerequisites": "Actual SQLite cross-process claims, host clock, filesystem packages and owned Node process observations.",
+      "assertions": "tests/integration/scheduled-claims.test.ts :: P7-CLAIM-I07 real downstream constraint failure rolls back cross-repository claim and reopened qualification observes cancel without releasing effects",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-claims.008",
+      "name": "P7-CLAIM-I08 persisted synthetic completion cannot release a real live writer and exact known accounting releases only after actual process stop",
+      "suiteId": "integration-scheduled-claims",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-scheduled-claims"
+      ],
+      "scenario": "P7-CLAIM-I08 persisted synthetic completion cannot release a real live writer and exact known accounting releases only after actual process stop",
+      "impactTags": [
+        "p7-scheduled-claims"
+      ],
+      "prerequisites": "Actual SQLite cross-process claims, host clock, filesystem packages and owned Node process observations.",
+      "assertions": "tests/integration/scheduled-claims.test.ts :: P7-CLAIM-I08 persisted synthetic completion cannot release a real live writer and exact known accounting releases only after actual process stop",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-claims.009",
+      "name": "P7-CLAIM-I09 unknown or unmaterialized published dependency blocks its branch while unrelated actual claim advances",
+      "suiteId": "integration-scheduled-claims",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-scheduled-claims"
+      ],
+      "scenario": "P7-CLAIM-I09 unknown or unmaterialized published dependency blocks its branch while unrelated actual claim advances",
+      "impactTags": [
+        "p7-scheduled-claims"
+      ],
+      "prerequisites": "Actual SQLite cross-process claims, host clock, filesystem packages and owned Node process observations.",
+      "assertions": "tests/integration/scheduled-claims.test.ts :: P7-CLAIM-I09 unknown or unmaterialized published dependency blocks its branch while unrelated actual claim advances",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-execution.001",
+      "name": "P7-EXEC-I01 bound execution persists exact frozen task in original Run and retry cannot duplicate reservation",
+      "suiteId": "integration-scheduled-execution",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-scheduled-execution"
+      ],
+      "scenario": "P7-EXEC-I01 bound execution persists exact frozen task in original Run and retry cannot duplicate reservation",
+      "impactTags": [
+        "p7-scheduled-execution"
+      ],
+      "prerequisites": "Actual ExecutionManager, SQLite and local executable failures; no seeded model completion or actual provider claim.",
+      "assertions": "tests/integration/scheduled-execution.test.ts :: P7-EXEC-I01 bound execution persists exact frozen task in original Run and retry cannot duplicate reservation",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-execution.002",
+      "name": "P7-EXEC-I02 altered task authority and foreign binding rollback before executable receipt or second budget charge",
+      "suiteId": "integration-scheduled-execution",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-scheduled-execution"
+      ],
+      "scenario": "P7-EXEC-I02 altered task authority and foreign binding rollback before executable receipt or second budget charge",
+      "impactTags": [
+        "p7-scheduled-execution"
+      ],
+      "prerequisites": "Actual ExecutionManager, SQLite and local executable failures; no seeded model completion or actual provider claim.",
+      "assertions": "tests/integration/scheduled-execution.test.ts :: P7-EXEC-I02 altered task authority and foreign binding rollback before executable receipt or second budget charge",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-execution.003",
+      "name": "P7-EXEC-I03 concurrent actual executable failures settle each original attempt once without changing global candidate or releasing sibling",
+      "suiteId": "integration-scheduled-execution",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-scheduled-execution"
+      ],
+      "scenario": "P7-EXEC-I03 concurrent actual executable failures settle each original attempt once without changing global candidate or releasing sibling",
+      "impactTags": [
+        "p7-scheduled-execution"
+      ],
+      "prerequisites": "Actual ExecutionManager, SQLite and local executable failures; no seeded model completion or actual provider claim.",
+      "assertions": "tests/integration/scheduled-execution.test.ts :: P7-EXEC-I03 concurrent actual executable failures settle each original attempt once without changing global candidate or releasing sibling",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-execution.004",
+      "name": "P7-EXEC-I04 worker launches independent branches before either finishes and actual failures leave final integration fenced",
+      "suiteId": "integration-scheduled-execution",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-scheduled-execution"
+      ],
+      "scenario": "P7-EXEC-I04 worker launches independent branches before either finishes and actual failures leave final integration fenced",
+      "impactTags": [
+        "p7-scheduled-execution"
+      ],
+      "prerequisites": "Actual ExecutionManager, SQLite and local executable failures; no seeded model completion or actual provider claim.",
+      "assertions": "tests/integration/scheduled-execution.test.ts :: P7-EXEC-I04 worker launches independent branches before either finishes and actual failures leave final integration fenced",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-execution.005",
+      "name": "P7-EXEC-I05 actual branch cancellation preserves sibling work while global cancel classifies late stopped receipts consistently",
+      "suiteId": "integration-scheduled-execution",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-scheduled-execution"
+      ],
+      "scenario": "P7-EXEC-I05 actual branch cancellation preserves sibling work while global cancel classifies late stopped receipts consistently",
+      "impactTags": [
+        "p7-scheduled-execution"
+      ],
+      "prerequisites": "Actual ExecutionManager, SQLite and local executable failures; no seeded model completion or actual provider claim.",
+      "assertions": "tests/integration/scheduled-execution.test.ts :: P7-EXEC-I05 actual branch cancellation preserves sibling work while global cancel classifies late stopped receipts consistently",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-task-workspace.001",
+      "name": "P7-WS-I01 actual owned Git worktrees preserve frozen dirty untracked deleted bytes and executable bits independently of live source",
+      "suiteId": "integration-task-workspace",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-task-workspace"
+      ],
+      "scenario": "P7-WS-I01 actual owned Git worktrees preserve frozen dirty untracked deleted bytes and executable bits independently of live source",
+      "impactTags": [
+        "p7-task-workspace"
+      ],
+      "prerequisites": "Real frozen files, Git worktrees, managed processes and SIGKILL interruption.",
+      "assertions": "tests/integration/task-workspace.test.ts :: P7-WS-I01 actual owned Git worktrees preserve frozen dirty untracked deleted bytes and executable bits independently of live source",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-task-workspace.002",
+      "name": "P7-WS-I02 actual independent directories reject unowned locations symlink manifests and conflicting owner generations",
+      "suiteId": "integration-task-workspace",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-task-workspace"
+      ],
+      "scenario": "P7-WS-I02 actual independent directories reject unowned locations symlink manifests and conflicting owner generations",
+      "impactTags": [
+        "p7-task-workspace"
+      ],
+      "prerequisites": "Real frozen files, Git worktrees, managed processes and SIGKILL interruption.",
+      "assertions": "tests/integration/task-workspace.test.ts :: P7-WS-I02 actual independent directories reject unowned locations symlink manifests and conflicting owner generations",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-task-workspace.003",
+      "name": "P7-WS-I03 failed actual Git discovery preserves ownership failure and never reports or guesses ready",
+      "suiteId": "integration-task-workspace",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-task-workspace"
+      ],
+      "scenario": "P7-WS-I03 failed actual Git discovery preserves ownership failure and never reports or guesses ready",
+      "impactTags": [
+        "p7-task-workspace"
+      ],
+      "prerequisites": "Real frozen files, Git worktrees, managed processes and SIGKILL interruption.",
+      "assertions": "tests/integration/task-workspace.test.ts :: P7-WS-I03 failed actual Git discovery preserves ownership failure and never reports or guesses ready",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-task-workspace.004",
+      "name": "P7-WS-I04 actual SIGKILL after owned Git registration retains partial ownership without creating a ready receipt",
+      "suiteId": "integration-task-workspace",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-task-workspace"
+      ],
+      "scenario": "P7-WS-I04 actual SIGKILL after owned Git registration retains partial ownership without creating a ready receipt",
+      "impactTags": [
+        "p7-task-workspace"
+      ],
+      "prerequisites": "Real frozen files, Git worktrees, managed processes and SIGKILL interruption.",
+      "assertions": "tests/integration/task-workspace.test.ts :: P7-WS-I04 actual SIGKILL after owned Git registration retains partial ownership without creating a ready receipt",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-producer.001",
+      "name": "P7-PRODUCER-I01 actual scheduled outputs and executable modes publish once with exact frozen inputs while Run artifact stays untouched",
+      "suiteId": "integration-scheduled-producer",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p7-scheduled-producer"
+      ],
+      "scenario": "P7-PRODUCER-I01 actual scheduled outputs and executable modes publish once with exact frozen inputs while Run artifact stays untouched",
+      "impactTags": [
+        "p7-scheduled-producer"
+      ],
+      "prerequisites": "Real SQLite/domain/managed Node output and physical stop; synthetic P2 accounting, no model/provider or independent P4 claim.",
+      "assertions": "tests/integration/scheduled-producer.test.ts :: P7-PRODUCER-I01 actual scheduled outputs and executable modes publish once with exact frozen inputs while Run artifact stays untouched",
+      "cleanup": "Stop owned processes, close stores, remove owned fixture; preserve formal failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-producer.002",
+      "name": "P7-PRODUCER-I02 candidate snapshot tampering and partial outputs reject while stopped settled evidence can seal after the execution deadline",
+      "suiteId": "integration-scheduled-producer",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p7-scheduled-producer"
+      ],
+      "scenario": "P7-PRODUCER-I02 candidate snapshot tampering and partial outputs reject while stopped settled evidence can seal after the execution deadline",
+      "impactTags": [
+        "p7-scheduled-producer"
+      ],
+      "prerequisites": "Real SQLite/domain/managed Node output and physical stop; synthetic P2 accounting, no model/provider or independent P4 claim.",
+      "assertions": "tests/integration/scheduled-producer.test.ts :: P7-PRODUCER-I02 candidate snapshot tampering and partial outputs reject while stopped settled evidence can seal after the execution deadline",
+      "cleanup": "Stop owned processes, close stores, remove owned fixture; preserve formal failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-producer.003",
+      "name": "P7-PRODUCER-I03 unknown accounting foreign bindings and physically live writer retain publication fence",
+      "suiteId": "integration-scheduled-producer",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p7-scheduled-producer"
+      ],
+      "scenario": "P7-PRODUCER-I03 unknown accounting foreign bindings and physically live writer retain publication fence",
+      "impactTags": [
+        "p7-scheduled-producer"
+      ],
+      "prerequisites": "Real SQLite/domain/managed Node output and physical stop; synthetic P2 accounting, no model/provider or independent P4 claim.",
+      "assertions": "tests/integration/scheduled-producer.test.ts :: P7-PRODUCER-I03 unknown accounting foreign bindings and physically live writer retain publication fence",
+      "cleanup": "Stop owned processes, close stores, remove owned fixture; preserve formal failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-producer.004",
+      "name": "P7-PRODUCER-I04 upstream invalidation and stopped scheduler reject late branch publication without deleting sealed history",
+      "suiteId": "integration-scheduled-producer",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p7-scheduled-producer"
+      ],
+      "scenario": "P7-PRODUCER-I04 upstream invalidation and stopped scheduler reject late branch publication without deleting sealed history",
+      "impactTags": [
+        "p7-scheduled-producer"
+      ],
+      "prerequisites": "Real SQLite/domain/managed Node output and physical stop; synthetic P2 accounting, no model/provider or independent P4 claim.",
+      "assertions": "tests/integration/scheduled-producer.test.ts :: P7-PRODUCER-I04 upstream invalidation and stopped scheduler reject late branch publication without deleting sealed history",
+      "cleanup": "Stop owned processes, close stores, remove owned fixture; preserve formal failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-producer.005",
+      "name": "P7-PRODUCER-I05 actual SQLite publication rollback and sealed executable tampering preserve original claim ledger and cost",
+      "suiteId": "integration-scheduled-producer",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p7-scheduled-producer"
+      ],
+      "scenario": "P7-PRODUCER-I05 actual SQLite publication rollback and sealed executable tampering preserve original claim ledger and cost",
+      "impactTags": [
+        "p7-scheduled-producer"
+      ],
+      "prerequisites": "Real SQLite/domain/managed Node output and physical stop; synthetic P2 accounting, no model/provider or independent P4 claim.",
+      "assertions": "tests/integration/scheduled-producer.test.ts :: P7-PRODUCER-I05 actual SQLite publication rollback and sealed executable tampering preserve original claim ledger and cost",
+      "cleanup": "Stop owned processes, close stores, remove owned fixture; preserve formal failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-author-recovery.001",
+      "name": "P6-AUTHREC-I01 schema-valid malformed obligation rejects without decoding repair or fabricated authority",
+      "suiteId": "integration-author-recovery",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-author-regeneration"
+      ],
+      "scenario": "P6-AUTHREC-I01 schema-valid malformed obligation rejects without decoding repair or fabricated authority",
+      "impactTags": [
+        "p6-author-regeneration"
+      ],
+      "prerequisites": "Actual SQLite/parser modules; synthetic model accounting fixture explicitly does not qualify provider output.",
+      "assertions": "tests/integration/author-recovery.test.ts :: P6-AUTHREC-I01 schema-valid malformed obligation rejects without decoding repair or fabricated authority",
+      "cleanup": "Close stores and remove owned fixture; formal original failures retained",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-author-recovery.002",
+      "name": "P6-AUTHREC-I02 one atomic replacement preserves frozen inputs raw failed result and fees across restart and second invalid output rejects",
+      "suiteId": "integration-author-recovery",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-author-regeneration"
+      ],
+      "scenario": "P6-AUTHREC-I02 one atomic replacement preserves frozen inputs raw failed result and fees across restart and second invalid output rejects",
+      "impactTags": [
+        "p6-author-regeneration"
+      ],
+      "prerequisites": "Actual SQLite/parser modules; synthetic model accounting fixture explicitly does not qualify provider output.",
+      "assertions": "tests/integration/author-recovery.test.ts :: P6-AUTHREC-I02 one atomic replacement preserves frozen inputs raw failed result and fees across restart and second invalid output rejects",
+      "cleanup": "Close stores and remove owned fixture; formal original failures retained",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-author-recovery.003",
+      "name": "P6-AUTHREC-I03 diagnostic result CAS pause limits capacity and parent rollback never create an unaccounted retry",
+      "suiteId": "integration-author-recovery",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-author-regeneration"
+      ],
+      "scenario": "P6-AUTHREC-I03 diagnostic result CAS pause limits capacity and parent rollback never create an unaccounted retry",
+      "impactTags": [
+        "p6-author-regeneration"
+      ],
+      "prerequisites": "Actual SQLite/parser modules; synthetic model accounting fixture explicitly does not qualify provider output.",
+      "assertions": "tests/integration/author-recovery.test.ts :: P6-AUTHREC-I03 diagnostic result CAS pause limits capacity and parent rollback never create an unaccounted retry",
+      "cleanup": "Close stores and remove owned fixture; formal original failures retained",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-author-recovery.004",
+      "name": "P6-AUTHREC-I04 unresolved usage and changed current contract reject regeneration without erasing retained author cost",
+      "suiteId": "integration-author-recovery",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-author-regeneration"
+      ],
+      "scenario": "P6-AUTHREC-I04 unresolved usage and changed current contract reject regeneration without erasing retained author cost",
+      "impactTags": [
+        "p6-author-regeneration"
+      ],
+      "prerequisites": "Actual SQLite/parser modules; synthetic model accounting fixture explicitly does not qualify provider output.",
+      "assertions": "tests/integration/author-recovery.test.ts :: P6-AUTHREC-I04 unresolved usage and changed current contract reject regeneration without erasing retained author cost",
+      "cleanup": "Close stores and remove owned fixture; formal original failures retained",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-publication.001",
+      "name": "P7-PUBLISH-I01 real publisher unlocks frozen dependent claim and worker auto publishes all confirmed branches before integration release",
+      "suiteId": "integration-scheduled-publication",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-auto-publication"
+      ],
+      "scenario": "P7-PUBLISH-I01 real publisher unlocks frozen dependent claim and worker auto publishes all confirmed branches before integration release",
+      "impactTags": [
+        "p7-auto-publication"
+      ],
+      "prerequisites": "Real modules SQLite FS managed Node output and stop; synthetic P2 completion/usage explicitly is not provider or final delivery evidence.",
+      "assertions": "tests/integration/scheduled-publication.test.ts :: P7-PUBLISH-I01 real publisher unlocks frozen dependent claim and worker auto publishes all confirmed branches before integration release",
+      "cleanup": "Close workers before stores, stop owned processes, preserve formal failure records",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-publication.002",
+      "name": "P7-PUBLISH-I02 committed draft intent and sealed package recover across actual SQLite failure and store reopen without duplicate receipts",
+      "suiteId": "integration-scheduled-publication",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-auto-publication"
+      ],
+      "scenario": "P7-PUBLISH-I02 committed draft intent and sealed package recover across actual SQLite failure and store reopen without duplicate receipts",
+      "impactTags": [
+        "p7-auto-publication"
+      ],
+      "prerequisites": "Real modules SQLite FS managed Node output and stop; synthetic P2 completion/usage explicitly is not provider or final delivery evidence.",
+      "assertions": "tests/integration/scheduled-publication.test.ts :: P7-PUBLISH-I02 committed draft intent and sealed package recover across actual SQLite failure and store reopen without duplicate receipts",
+      "cleanup": "Close workers before stores, stop owned processes, preserve formal failure records",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-publication.003",
+      "name": "P7-PUBLISH-I03 one blocked partial publication preserves staging while unrelated confirmed output still auto submits",
+      "suiteId": "integration-scheduled-publication",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-auto-publication"
+      ],
+      "scenario": "P7-PUBLISH-I03 one blocked partial publication preserves staging while unrelated confirmed output still auto submits",
+      "impactTags": [
+        "p7-auto-publication"
+      ],
+      "prerequisites": "Real modules SQLite FS managed Node output and stop; synthetic P2 completion/usage explicitly is not provider or final delivery evidence.",
+      "assertions": "tests/integration/scheduled-publication.test.ts :: P7-PUBLISH-I03 one blocked partial publication preserves staging while unrelated confirmed output still auto submits",
+      "cleanup": "Close workers before stores, stop owned processes, preserve formal failure records",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-inputs.001",
+      "name": "P7-INPUT-I01 exact complete dependency files and executable modes are copied before launch and prompt binds their index",
+      "suiteId": "integration-scheduled-inputs",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-branch-inputs"
+      ],
+      "scenario": "P7-INPUT-I01 exact complete dependency files and executable modes are copied before launch and prompt binds their index",
+      "impactTags": [
+        "p7-branch-inputs"
+      ],
+      "prerequisites": "Real modules SQLite FS managed Node output and stop; synthetic P2 completion/usage explicitly is not provider or final delivery evidence.",
+      "assertions": "tests/integration/scheduled-inputs.test.ts :: P7-INPUT-I01 exact complete dependency files and executable modes are copied before launch and prompt binds their index",
+      "cleanup": "Close workers before stores, stop owned processes, preserve formal failure records",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-inputs.002",
+      "name": "P7-INPUT-I02 tampered copied bytes index modes and upstream prevent actual dispatch qualification without new spending",
+      "suiteId": "integration-scheduled-inputs",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-branch-inputs"
+      ],
+      "scenario": "P7-INPUT-I02 tampered copied bytes index modes and upstream prevent actual dispatch qualification without new spending",
+      "impactTags": [
+        "p7-branch-inputs"
+      ],
+      "prerequisites": "Real modules SQLite FS managed Node output and stop; synthetic P2 completion/usage explicitly is not provider or final delivery evidence.",
+      "assertions": "tests/integration/scheduled-inputs.test.ts :: P7-INPUT-I02 tampered copied bytes index modes and upstream prevent actual dispatch qualification without new spending",
+      "cleanup": "Close workers before stores, stop owned processes, preserve formal failure records",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-inputs.003",
+      "name": "P7-INPUT-I03 foreign workspace index and incomplete copy are never silently adopted or overwritten",
+      "suiteId": "integration-scheduled-inputs",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-branch-inputs"
+      ],
+      "scenario": "P7-INPUT-I03 foreign workspace index and incomplete copy are never silently adopted or overwritten",
+      "impactTags": [
+        "p7-branch-inputs"
+      ],
+      "prerequisites": "Real modules SQLite FS managed Node output and stop; synthetic P2 completion/usage explicitly is not provider or final delivery evidence.",
+      "assertions": "tests/integration/scheduled-inputs.test.ts :: P7-INPUT-I03 foreign workspace index and incomplete copy are never silently adopted or overwritten",
+      "cleanup": "Close workers before stores, stop owned processes, preserve formal failure records",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-integration-inputs.001",
+      "name": "P7-INTEGRATION-INPUT-I01 real submitted packages copy all files and modes into fixed root index and bind actual P2 request without changing frozen prompt",
+      "suiteId": "integration-integration-inputs",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-integration-inputs"
+      ],
+      "scenario": "P7-INTEGRATION-INPUT-I01 real submitted packages copy all files and modes into fixed root index and bind actual P2 request without changing frozen prompt",
+      "impactTags": [
+        "p7-integration-inputs"
+      ],
+      "prerequisites": "Real modules SQLite FS managed Node output and stop; synthetic P2 completion/usage explicitly is not provider or final delivery evidence.",
+      "assertions": "tests/integration/integration-inputs.test.ts :: P7-INTEGRATION-INPUT-I01 real submitted packages copy all files and modes into fixed root index and bind actual P2 request without changing frozen prompt",
+      "cleanup": "Close workers before stores, stop owned processes, preserve formal failure records",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-integration-inputs.002",
+      "name": "P7-INTEGRATION-INPUT-I02 before-turn qualification rejects copied bytes modes index and current upstream invalidation without silent recopy",
+      "suiteId": "integration-integration-inputs",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-integration-inputs"
+      ],
+      "scenario": "P7-INTEGRATION-INPUT-I02 before-turn qualification rejects copied bytes modes index and current upstream invalidation without silent recopy",
+      "impactTags": [
+        "p7-integration-inputs"
+      ],
+      "prerequisites": "Real modules SQLite FS managed Node output and stop; synthetic P2 completion/usage explicitly is not provider or final delivery evidence.",
+      "assertions": "tests/integration/integration-inputs.test.ts :: P7-INTEGRATION-INPUT-I02 before-turn qualification rejects copied bytes modes index and current upstream invalidation without silent recopy",
+      "cleanup": "Close workers before stores, stop owned processes, preserve formal failure records",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-integration-inputs.003",
+      "name": "P7-INTEGRATION-INPUT-I03 cancellation rejects integration dispatch while legacy request framing remains byte identical",
+      "suiteId": "integration-integration-inputs",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-integration-inputs"
+      ],
+      "scenario": "P7-INTEGRATION-INPUT-I03 cancellation rejects integration dispatch while legacy request framing remains byte identical",
+      "impactTags": [
+        "p7-integration-inputs"
+      ],
+      "prerequisites": "Real modules SQLite FS managed Node output and stop; synthetic P2 completion/usage explicitly is not provider or final delivery evidence.",
+      "assertions": "tests/integration/integration-inputs.test.ts :: P7-INTEGRATION-INPUT-I03 cancellation rejects integration dispatch while legacy request framing remains byte identical",
+      "cleanup": "Close workers before stores, stop owned processes, preserve formal failure records",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-scheduled-inputs.004",
+      "name": "P7-INPUT-I04 actual downstream process changing frozen input copies cannot publish a result while known accounting remains settled",
+      "suiteId": "integration-scheduled-inputs",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-branch-inputs"
+      ],
+      "scenario": "P7-INPUT-I04 actual downstream process changing frozen input copies cannot publish a result while known accounting remains settled",
+      "impactTags": [
+        "p7-branch-inputs"
+      ],
+      "prerequisites": "Real modules SQLite FS managed Node output and stop; synthetic P2 completion/usage explicitly is not provider or final delivery evidence.",
+      "assertions": "tests/integration/scheduled-inputs.test.ts :: P7-INPUT-I04 actual downstream process changing frozen input copies cannot publish a result while known accounting remains settled",
+      "cleanup": "Close workers before stores, stop owned processes, preserve formal failure records",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-integration-inputs.004",
+      "name": "P7-INTEGRATION-INPUT-I04 actual finalization gates changed copies before candidate publication while preserving cost stop failure reports and valid completion",
+      "suiteId": "integration-integration-inputs",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-integration-inputs"
+      ],
+      "scenario": "P7-INTEGRATION-INPUT-I04 actual finalization gates changed copies before candidate publication while preserving cost stop failure reports and valid completion",
+      "impactTags": [
+        "p7-integration-inputs"
+      ],
+      "prerequisites": "Real modules SQLite FS managed Node output and stop; synthetic P2 completion/usage explicitly is not provider or final delivery evidence.",
+      "assertions": "tests/integration/integration-inputs.test.ts :: P7-INTEGRATION-INPUT-I04 actual finalization gates changed copies before candidate publication while preserving cost stop failure reports and valid completion",
+      "cleanup": "Close workers before stores, stop owned processes, preserve formal failure records",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-integration-inputs.005",
+      "name": "P7-INTEGRATION-INPUT-I05 confirmed report independently rejects changed copies after known settlement without discarding stop cost or sealed history",
+      "suiteId": "integration-integration-inputs",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p7-integration-inputs"
+      ],
+      "scenario": "P7-INTEGRATION-INPUT-I05 confirmed report independently rejects changed copies after known settlement without discarding stop cost or sealed history",
+      "impactTags": [
+        "p7-integration-inputs"
+      ],
+      "prerequisites": "Real modules SQLite FS managed Node output and stop; synthetic P2 completion/usage explicitly is not provider or final delivery evidence.",
+      "assertions": "tests/integration/integration-inputs.test.ts :: P7-INTEGRATION-INPUT-I05 confirmed report independently rejects changed copies after known settlement without discarding stop cost or sealed history",
+      "cleanup": "Close workers before stores, stop owned processes, preserve formal failure records",
       "status": "active"
     }
   ]

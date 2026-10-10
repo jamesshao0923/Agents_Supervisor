@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "stage": "P6",
-  "revision": "p6-concern-reconciliation-v4",
+  "revision": "p6-bounded-author-v6",
   "caseIds": [
     "dev.unit-contracts.001",
     "dev.unit-contracts.002",
@@ -606,7 +606,17 @@
     "p6.integration-supervision-concerns.005",
     "p6.integration-supervision-concerns.006",
     "p6.integration-supervision-concerns.007",
-    "p6.integration-supervision-concerns.008"
+    "p6.integration-supervision-concerns.008",
+    "p6.integration-supervision-routing.001",
+    "p6.integration-supervision-routing.002",
+    "p6.integration-supervision-routing.003",
+    "p6.integration-supervision-routing.004",
+    "p6.integration-supervision-routing.005",
+    "p6.integration-supervision-routing.006",
+    "p6.integration-author-recovery.001",
+    "p6.integration-author-recovery.002",
+    "p6.integration-author-recovery.003",
+    "p6.integration-author-recovery.004"
   ],
   "requiredRisks": [
     "p0.unit-contracts.001",
@@ -892,7 +902,9 @@
     "p6-control-controller",
     "p6-delivery-history-v2",
     "p6-execution-warning",
-    "p6-concern-consumption"
+    "p6-concern-consumption",
+    "p6-model-routing",
+    "p6-author-regeneration"
   ],
   "coreRegression": [
     "dev.integration-runner.003",

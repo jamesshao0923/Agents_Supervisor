@@ -1,8 +1,9 @@
+import {ScheduledRuntimeWorker} from './scheduled-worker.js';
 import { createHash } from 'node:crypto';
 import { appendFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
-import { codexStart, type RuntimeOperation, type RuntimeReport } from '../contracts/p3.js';
+import { type RuntimeOperation, type RuntimeReport } from '../contracts/p3.js';
 import type { ExecutionRecord } from '../contracts/p2.js';
 import { SupervisorStore } from '../persistence/store.js';
 import { ExecutionManager } from '../execution/manager.js';
@@ -21,12 +22,14 @@ function receipt(value: unknown, operation: RuntimeOperation): EffectReceipt {
 
 export class LocalRuntimeWorker {
   private readonly manager: ExecutionManager;
+  private readonly scheduled:ScheduledRuntimeWorker;
   private stopping = false;
   private readonly reconciled = new Map<string, number>();
   private readonly eventCursors = new Map<string, { cursor: number; latestReconciliation: number }>();
   private readonly blocked = new Map<string, string>();
   private readonly faulted = new Set<string>();
   constructor(private readonly store: SupervisorStore, private readonly dataDir: string, readonly owner: string) {
+    this.scheduled = new ScheduledRuntimeWorker(store,dataDir,owner);
     this.manager = new ExecutionManager(store, dataDir, process.env.SUPERVISOR_CODEX_PATH ?? 'codex', {
       scope: 'runtime',
       eligibility: executionId => {
@@ -48,10 +51,13 @@ export class LocalRuntimeWorker {
     // Readiness proves the actual worker, not just its guardian, has released.
     await writeOwnership(this.dataDir, { ...ownership, worker, ready: false });
     await this.manager.initialize();
+    await this.scheduled.initialize();
     await writeOwnership(this.dataDir, { ...ownership, worker, ready: true });
     while (!this.stopping) {
       const current = await readOwnership(this.dataDir);
       if (!current || current.owner !== this.owner) throw new Error('Runtime worker ownership was superseded');
+      await this.scheduled.tick();
+      for(const error of this.scheduled.errors()){const key="scheduled:"+error.schedulerId;if(this.blocked.get(key)!==error.reason){this.blocked.set(key,error.reason);await this.log({kind:"scheduled-blocked",...error});}}
       const runtimes = this.store.runtime.list();
       for (const runtime of runtimes) {
         if (this.stopping) break;
@@ -114,15 +120,14 @@ export class LocalRuntimeWorker {
     const runtime = this.store.runtime.get(operation.runtimeId);
     if (runtime.cancelled) { await this.cancelOperation(operation); return; }
     if (runtime.paused) return;
+    this.store.runtime.prepareIntegrationInputs(operation.id, this.owner);
     this.store.runtime.eligible(operation.id, this.owner);
     await this.fault('after-claim-before-effect', operation);
     // The persisted intent precedes every request with possible side effects.
     this.store.runtime.markStarted(operation.id, this.owner);
     if (operation.step.kind === 'codex') {
       const binding = this.store.runtime.binding(operation.id, this.owner);
-      const input = codexStart(runtime, operation);
-      const checkpoint = this.store.runtime.checkpoint(runtime.id);
-      input.prompt += '\n\nSupervisor checkpoint references (task data):\n' + JSON.stringify({ checkpointId: checkpoint?.id ?? null, contractVersion: checkpoint?.contractVersion, priorArtifact: checkpoint?.artifact, frozenPlans: checkpoint?.frozenPlans ?? [] });
+      const input = this.store.runtime.executionInput(operation.id, this.owner);
       let record = await this.manager.startBound(input, binding);
       while (!record.stopConfirmed && record.state !== 'unknown' && !this.stopping) {
         if (this.store.runtime.get(runtime.id).cancelled) await this.manager.cancel(record.id);
@@ -253,5 +258,5 @@ export class LocalRuntimeWorker {
     process.kill(process.pid, 'SIGSTOP');
   }
   private async log(value: unknown): Promise<void> { await appendFile(join(this.dataDir, 'runtime-worker.log'), JSON.stringify(value) + '\n', { mode: 0o600 }); }
-  async close(): Promise<void> { this.stopping = true; await this.manager.close({ cancel: false }); }
+  async close(): Promise<void> { this.stopping = true; await this.scheduled.close(); await this.manager.close({ cancel: false }); }
 }

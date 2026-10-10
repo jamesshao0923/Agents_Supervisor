@@ -39,6 +39,7 @@ test('P7-SCHED-U04 qualitative tier admission is nested independent of agent cap
 });
 test('P7-SCHED-U05 shared budget protects max overlapping verification floor and unknown usage stops every tier without freeing reservations',()=>{
  const s=snapshot();s.budget.limit=50;s.claims=[{id:'active',taskId:'external',reservation:10,resources:[],loopIds:[],usage:'known',effects:'pending'}];const d=scheduler.evaluate(s);assert.deepEqual(d.dispatchTaskIds,['A']);assert.equal(d.reservation,10);assert.equal(d.remaining,0);
+ s.claims[0]!.reservation=0;s.claims[0]!.effects='unknown';s.claims[0]!.resources=[resource('/held')];s.nodes[0]!.resources=[resource('/held','read')];assert.deepEqual(scheduler.evaluate(s).dispatchTaskIds,['B']);assert.equal(scheduler.evaluate(s).remaining,10);assert.equal(s.claims[0]!.resources.length,1);s.claims[0]!.reservation=10;
  for(const tier of ['low','medium','high','unlimited'] as const){s.tier=tier;s.claims[0]!.usage='unknown';const stopped=scheduler.evaluate(s);assert.equal(stopped.state,'stopped');assert.equal(stopped.reservation,0);assert.equal(s.claims[0]!.reservation,10);}
 });
 test('P7-SCHED-U06 nested allocations constrain every ancestor and expansion respects depth nodes rounds and total budget',()=>{

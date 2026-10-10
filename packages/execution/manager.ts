@@ -1,3 +1,5 @@
+import {scanCandidate} from '../verification/candidate.js';
+import type { ScheduledBinding } from '../contracts/p7-dispatch.js';
 import type { RuntimeBinding } from '../contracts/p3.js';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -47,7 +49,7 @@ function transport(child: ManagedProcess): LineTransport {
   };
 }
 interface Active { process: ManagedProcess; adapter: CodexAdapter; finishing?: Promise<void>; terminalStatus?: string; launchedTurn: boolean }
-export interface ExecutionManagerOptions { managedWorkspaceRoot?: string; scope?: 'runtime'|'legacy'; eligibility?: (id:string)=>void }
+export interface ExecutionManagerOptions { managedWorkspaceRoot?: string; scope?: 'runtime'|'scheduled'|'legacy'; eligibility?: (id:string)=>void }
 export class ExecutionManager {
   private readonly active = new Map<string, Active>();
   private readonly launches = new Map<string, Promise<void>>();
@@ -58,12 +60,13 @@ export class ExecutionManager {
   private argsCache?: Promise<string[]>;
   constructor(private readonly store: SupervisorStore, private readonly dataDir: string, private readonly codex = process.env.SUPERVISOR_CODEX_PATH ?? 'codex', private readonly options: ExecutionManagerOptions = {}) {}
 
-  private owns(record:ExecutionRecord):boolean {return this.options.scope==='runtime'?!!record.runtimeBinding:this.options.scope==='legacy'?!record.runtimeBinding:true;}
+  private owns(record:ExecutionRecord):boolean {return this.options.scope==='runtime'?!!record.runtimeBinding:this.options.scope==='scheduled'?!!record.scheduledBinding:this.options.scope==='legacy'?!record.runtimeBinding&&!record.scheduledBinding:true;}
   async startBound(input:ExecutionStart,binding:RuntimeBinding):Promise<ExecutionRecord> {return this.start(input,binding);}
+  async startScheduled(input:ExecutionStart,binding:ScheduledBinding):Promise<ExecutionRecord> {return this.start(input,binding);}
   async initialize(): Promise<void> {
     // A disconnected observation is never treated as success or blindly replayed.
     for (const record of this.store.executionList()) if (this.owns(record)&&!record.stopConfirmed) {
-      if(record.runtimeBinding&&record.state==='queued'&&!record.identity&&!record.threadId)continue;
+      if((record.runtimeBinding||record.scheduledBinding)&&record.state==='queued'&&!record.identity&&!record.threadId)continue;
       await this.reconcile(record.id);
     }
   }
@@ -133,7 +136,7 @@ export class ExecutionManager {
     })().catch(error=>{delete this.capabilityCache;throw error;});
     return this.capabilityCache;
   }
-  private async start(input: ExecutionStart, binding?:RuntimeBinding): Promise<ExecutionRecord> {
+  private async start(input: ExecutionStart, binding?:RuntimeBinding|ScheduledBinding): Promise<ExecutionRecord> {
     const images=[];
     for(const path of input.images??[]) {if(!isAbsolute(path))throw new Error('Image paths must be absolute');const actual=await realpath(path);const metadata=await stat(actual);if(!metadata.isFile()||metadata.size>20*1024*1024)throw new Error('Image must be a local file at most 20 MiB');images.push(actual);}
     let workspaceKind:'managed'|'project'=input.workspace===undefined?'managed':'project';
@@ -162,6 +165,7 @@ export class ExecutionManager {
       if(metadata.isSymbolicLink()||!metadata.isDirectory())throw new Error('Managed workspace must be a directory, not a symbolic link');
       workspace=await realpath(workspace);
     }
+    if(binding&&'schedulerId' in binding)workspaceKind=this.store.scheduler.claimGet(binding.claimId).workspaceKind;
     const {record,created}=this.store.executionCreate({...input,workspace,workspaceKind,images},binding);
     if(created || binding&&record.state==='queued'&&!record.stopConfirmed&&!this.launches.has(record.id)) {
       const work=Promise.resolve().then(()=>this.launch(record.id)).catch(error=>this.fail(record.id,error)).finally(()=>{this.launches.delete(record.id);});
@@ -245,7 +249,7 @@ export class ExecutionManager {
   }
   async cancel(id:string,reason='User requested cancellation'): Promise<ExecutionRecord> {
     const record=this.store.executionGet(id);if(record.stopConfirmed)return record;
-    if(!record.cancelRequested)this.store.executionUpdate(id,{cancelRequested:true,state:'cancelling',error:reason==='User requested cancellation'?record.error:reason},'cancel-requested',{reason},[{type:'cancel'}]);
+    if(!record.cancelRequested)this.store.executionUpdate(id,{cancelRequested:true,state:'cancelling',error:reason==='User requested cancellation'?record.error:reason},'cancel-requested',{reason,scope:record.scheduledBinding?'attempt':'run'},record.scheduledBinding?[]:[{type:'cancel'}]);
     if(this.active.has(id))void this.stop(id).catch(error=>this.fail(id,error));
     else if(!this.launches.has(id))await this.reconcile(id);
     return this.store.executionGet(id);
@@ -289,14 +293,21 @@ export class ExecutionManager {
     let snapshot:unknown;
     if(stopped) {
       this.store.executionUpdate(id,{},'process-stop-observed',evidence);
-      snapshot=await this.workspaceSnapshot(record.workspace);
+      snapshot=await this.workspaceSnapshot(record.workspace,!!record.scheduledBinding);
       this.store.executionUpdate(id,{},'workspace-captured',snapshot);
     }
     record=this.store.executionGet(id);
     if(record.cancelRequested && stopped)state='cancelled';
     const run=this.store.query({type:'run',projectId:record.projectId,runId:record.runId}) as Run;
+    if(record.scheduledBinding&&run.status==='cancelled')state='cancelled';
+    // Launch qualification cannot prove the input copies survived the turn.
+    // A mismatch blocks candidate publication, but never discards real stop/usage.
+    let inputError:string|null=null;
+    if(stopped&&record.runtimeBinding){try{this.store.runtime.verifyIntegrationInputs(record.runtimeBinding.operationId);}catch(error){inputError='Integration input verification failed: '+String(error);if(state!=='cancelled')state='failed';}}
     let artifactId:string|null=record.artifactId;
-    if(stopped&&run.status!=='cancelled') {
+    let candidateSnapshot=record.candidateSnapshot;
+    if(stopped&&record.scheduledBinding){candidateSnapshot=this.store.managedSnapshot(JSON.stringify({executionId:id,threadId:record.threadId,turnId:record.turnId,state,message:record.message,diff:record.diff,usage:record.usage,snapshot}));}
+    if(stopped&&!record.scheduledBinding&&run.status!=='cancelled'&&!inputError) {
       artifactId='execution-'+id;
       // A previously published candidate is reused after interruption of finalization.
       if(run.artifact?.id===artifactId)artifactId=run.artifact.id;
@@ -309,7 +320,7 @@ export class ExecutionManager {
     actions.push({type:'setOperation',operationId:id,attemptId:id,status:stopped&&(!launched||authoritativeTerminal)?'confirmed':'unknown'});
     if(stopped&&run.leases.some(l=>!l.released))actions.push({type:'releaseLease',resource:'workspace:'+record.workspace,attemptId:id});
     const resolvedDiagnostic=this.resolvedDiagnostic(id,record,state,stopped,authoritativeTerminal);
-    this.store.executionUpdate(id,{state,stopConfirmed:stopped,artifactId,...(resolvedDiagnostic?{error:null}:{})},'execution-stopped',{evidence,usageSettled:!!record.usage&&authoritativeTerminal||!launched,...(resolvedDiagnostic?{resolvedDiagnosticEventSeq:resolvedDiagnostic}:{})},actions);
+    this.store.executionUpdate(id,{state,stopConfirmed:stopped,artifactId,...(inputError?{error:inputError}:{}),...(candidateSnapshot?{candidateSnapshot}:{}),...(record.scheduledBinding&&!launched&&!record.turnIntent&&!record.turnId?{usageStatus:'reported' as const,usage:{inputTokens:0,cachedInputTokens:0,outputTokens:0,reasoningOutputTokens:0,totalTokens:0}}:{}),...(resolvedDiagnostic?{error:null}:{})},'execution-stopped',{evidence,...(inputError?{inputError}:{}),usageSettled:!!record.usage&&authoritativeTerminal||!launched,...(resolvedDiagnostic?{resolvedDiagnosticEventSeq:resolvedDiagnostic}:{})},actions);
   }
   /** Clears only a persisted diagnostic superseded by the same authoritative
    * successful turn. Control failures/cancellation/unknown stops remain errors;
@@ -331,7 +342,19 @@ export class ExecutionManager {
     if(!success||events.some(event=>['execution-error','deadline-reached','cancel-requested'].includes(event.kind)||event.kind==='codex-event'&&event.seq<success.seq&&['protocol-error','disconnected'].includes((event.payload as Partial<NormalizedEvent>|null)?.kind??'')))return null;
     return diagnostic.seq;
   }
-  private async workspaceSnapshot(workspace:string):Promise<unknown> {
+  private async workspaceSnapshot(workspace:string,scheduled=false):Promise<unknown> {
+    if(scheduled){
+      try {
+        const inventory=await scanCandidate(workspace),files:Record<string,{digest:string;size:number;executable:number}>={};
+        for(const path of Object.keys(inventory).sort()){
+          const full=join(workspace,path),metadata=await lstat(full),bytes=await readFile(full),executable=metadata.mode&0o111;
+          if(!metadata.isFile()||metadata.isSymbolicLink()||createHash('sha256').update(bytes).update('\0executable:'+String(executable)).digest('hex')!==inventory[path])throw new Error('Scheduled candidate changed while capturing actual files');
+          files[path]={digest:createHash('sha256').update(bytes).digest('hex'),size:bytes.length,executable};
+        }
+        if(JSON.stringify(await scanCandidate(workspace))!==JSON.stringify(inventory))throw new Error('Scheduled candidate inventory changed during capture');
+        return {files};
+      }catch(error){return {unavailable:errorText(error)};}
+    }
     try {
       const status=await execute('git',['status','--porcelain=v1'],{cwd:workspace,timeout:5000,maxBuffer:1024*1024});
       const diff=await execute('git',['diff','--no-ext-diff','--binary','HEAD'],{cwd:workspace,timeout:5000,maxBuffer:4*1024*1024});
@@ -351,8 +374,8 @@ export class ExecutionManager {
     } catch(error){return {unavailable:errorText(error)};}
   }
   private async awaitLaunchEligible(id:string):Promise<void> {
-    for(;;){const record=this.store.executionGet(id);if(!record.runtimeBinding)break;
-      const runtime=this.store.runtime.get(record.runtimeBinding.runtimeId);
+    for(;;){const record=this.store.executionGet(id);const runtimeId=record.runtimeBinding?.runtimeId??(record.scheduledBinding?this.store.scheduler.get(record.scheduledBinding.schedulerId).plan.runtimeId:null);if(!runtimeId)break;
+      const runtime=this.store.runtime.get(runtimeId);
       if(!runtime.paused||runtime.cancelled||this.closing)break;
       await delay(50);
     }
@@ -361,6 +384,7 @@ export class ExecutionManager {
   private assertLaunchEligible(id:string):void {
     const record=this.store.executionGet(id);
     if(record.runtimeBinding)this.store.runtime.eligible(record.runtimeBinding.operationId,record.runtimeBinding.owner);
+    if(record.scheduledBinding)this.store.scheduler.eligible(record.scheduledBinding.operationId,record.scheduledBinding.owner);
     this.options.eligibility?.(id);
     if(this.closing||record.cancelRequested||record.stopConfirmed||terminal(record.state))throw new Error('Execution no longer eligible to launch');
   }

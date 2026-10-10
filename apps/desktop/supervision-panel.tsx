@@ -4,7 +4,7 @@ import type { ReasonerConfig } from '../../packages/contracts/p5.js';
 import type { SupervisionRecord } from '../../packages/contracts/p6-supervision.js';
 import type { SupervisionAction,SupervisionInspection } from '../../packages/contracts/p6-supervision-actions.js';
 import { describeTaskError } from './presentation.js';
-export interface SupervisionView {loop:SupervisionRecord;verification?:SupervisionInspection['verification'];monitor?:SupervisionInspection['monitor'];capabilities?:SupervisionInspection['capabilities']}
+export interface SupervisionView {loop:SupervisionRecord;routing?:SupervisionInspection['routing'];verification?:SupervisionInspection['verification'];monitor?:SupervisionInspection['monitor'];capabilities?:SupervisionInspection['capabilities']}
 export interface SupervisionDesktopAPI {
   supervisionList():Promise<SupervisionView[]>;
   supervisionAttach(input:Omit<Extract<SupervisionAction,{type:'attach'}>,'type'>):Promise<SupervisionView>;
@@ -60,6 +60,7 @@ export function SupervisionPanel({api,runtime,config,maxContextChars,online,term
           !item.binding?'已排入完整独立验收':!job?'验收状态待核对':job.status==='running'?'正在进行完整独立验收':job.error?'验收遇到问题，等待处理':job.approved&&job.evaluation?.complete?'完整验收通过；交付状态见任务':'完整验收未通过，仍需处理';
         return <p key={item.consumption.id}><strong>{state}</strong><br/>{item.consumption.observation.summary}</p>;
       })}</div>}
+      {!!view?.routing?.routes.length&&<div className="notice compact" aria-label="模型调整记录">{view.routing.routes.map(route=><p key={route.id}><strong>按验收失败调整模型与思考强度</strong><br/>{route.baseline.model} / {route.baseline.effort} → {route.selected.model} / {route.selected.effort}<br/><span className="form-hint">沿用原任务要求与单次预留 {route.selected.reservation.toLocaleString()} tokens；仍须独立验收。</span></p>)}</div>}
       {loop.reason&&<div className="notice compact"><p>{/[\u3400-\u9fff]/.test(loop.reason)?loop.reason:describeTaskError(loop.reason)}</p><details className="technical-details"><summary>查看监督原因</summary><pre>{loop.reason}</pre></details></div>}
       {!loop.stopped&&loop.phase!=='complete'&&<div className="verification-buttons"><button className="button" disabled={!online||!known||busy} onClick={()=>{void act(loop.paused?'resume':'pause');}}>{loop.paused?'恢复监督':'暂停监督'}</button><button className="button danger" disabled={!online||!known||busy} onClick={()=>{void act('stop');}}>停止自动监督</button></div>}
       <p className="form-hint">监督控制只影响主控与验收；停止整个任务请使用下方“取消任务”。</p>

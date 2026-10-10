@@ -1,3 +1,4 @@
+import type { SupervisionProgressRound, SupervisionRouteReceipt } from './p6-routing.js';
 import type { ConcernState, ConcernDiscard } from './p6-concerns.js';
 import type { ReasonerConfig } from './p5.js';
 import type { SupervisionLimits,SupervisionRecord,SupervisionJob } from './p6-supervision.js';
@@ -11,6 +12,7 @@ export interface SupervisionInspection {
   runtime:{runtime:RuntimeRecord;run:Run;operations:RuntimeOperation[];checkpoints:{checkpoint:RuntimeCheckpoint;digest:string;valid:boolean}[]};
   verification:{proposals:Proposal[];plans:FrozenPlan[];jobs:VerificationJob[];deliveries:Delivery[]};
   monitor?:{envelope:MonitorEnvelopeV1|null;events:MonitorEvent[];jobs:SupervisionJob[];diagnosisRequests:{jobId:string;summary:string}[];concerns?:ConcernState[];concernDiscards?:ConcernDiscard[]};
+  routing?:{rounds:SupervisionProgressRound[];routes:SupervisionRouteReceipt[]};
   capabilities:{scanIntervalMs:15000;modelMonitoring:boolean;automaticControlEvolution:false};
 }
 export type SupervisionAction=

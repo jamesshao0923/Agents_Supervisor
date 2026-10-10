@@ -68,8 +68,9 @@ async function child(root: string, command: Command, point: string): Promise<{ c
 // Reverse dependency order for the additive schema11-only entities. Real older
 // fixtures must omit these tables as well as their schema_migrations entries.
 const schema11Tables = ['verification_control_receipts', 'verification_control_qualifications', 'verification_control_stages', 'verification_control_drafts', 'task_result_packages', 'task_result_events', 'task_result_receipts', 'task_result_intents', 'task_result_versions', 'task_result_ledgers'];
+const schema13Tables = ['supervision_routes', 'supervision_progress_rounds', 'supervision_routing_capabilities', 'supervision_routing_policies', 'scheduled_events', 'scheduled_receipts', 'scheduled_meta', 'scheduled_leases', 'scheduled_outbox', 'scheduled_claims', 'scheduled_records', 'scheduled_plans'];
 const schema12Tables = ['supervision_concern_bindings','supervision_concern_invalidations','supervision_concern_discards','supervision_concerns'];
-const dropSchema11 = [...schema12Tables,...schema11Tables].map(table => `DROP TABLE ${table};`).join(' ');
+const dropSchema11 = [...schema13Tables,...schema12Tables,...schema11Tables].map(table => `DROP TABLE ${table};`).join(' ');
 
 test('persistence migrates real disk database and reopens state events budgets and receipts', (t) => {
   const f = fixture(t); let store = f.open(); seed(store);
@@ -94,8 +95,8 @@ test('persistence migrates real disk database and reopens state events budgets a
   assert.equal(getRun(store).budget.spent, 3); assert.equal(getRun(store).attempts[0]?.settled, true);
   assert.deepEqual(store.query({ type: 'catalog', projectId: 'project' }), null);
   const raw = new DatabaseSync(join(f.root, 'supervisor.sqlite'));
-  assert.equal(raw.prepare('PRAGMA user_version').get()?.['user_version'], 12);
-  assert.equal(raw.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get()?.['n'], 12);
+  assert.equal(raw.prepare('PRAGMA user_version').get()?.['user_version'], 13);
+  assert.equal(raw.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get()?.['n'], 13);
   assert.equal(raw.prepare('PRAGMA journal_mode').get()?.['journal_mode'], 'wal'); raw.close();
   const repeated = store.command({ type: 'act', commandId: 'settle', projectId: 'project', runId: 'run', expectedRevision: 2, action: { type: 'settleAttempt', attemptId: 'attempt', actual: 3 } });
   assert.deepEqual(repeated.value, before);
@@ -106,8 +107,8 @@ test('persistence migrates real disk database and reopens state events budgets a
   v4.exec(`PRAGMA foreign_keys=OFF; ${dropSchema11} DROP TABLE verification_lineage_receipts; DROP TABLE verification_binding_issues; DROP TABLE verification_lineage_heads; DROP TABLE verification_proposal_bindings; DROP TABLE verification_contract_transitions; DROP TABLE verification_run_bindings; DROP TABLE verification_lineages; DROP TABLE supervision_monitor_events; DROP TABLE supervision_interruptions; DROP TABLE supervision_receipts; DROP TABLE supervision_jobs; DROP TABLE supervision_loops; DROP TABLE conversation_assessments; DROP TABLE conversation_messages; DROP TABLE conversation_rounds; DROP TABLE conversations; DROP TABLE goal_receipts; DROP TABLE goal_sessions; DROP TABLE verification_product_receipts; DROP TABLE verification_product_heads; DROP TABLE verification_records; DELETE FROM schema_migrations WHERE version>4; PRAGMA user_version=4;`); v4.close();
   store = f.open(); assert.deepEqual(getRun(store), before); assert.deepEqual(store.query({ type: 'events', projectId: 'project', after: 0 }), events); assert.deepEqual(store.runtime.inspect(runtime.id), runtimeBefore); assert.deepEqual(store.runtime.events(runtime.id, 0), runtimeEvents);
   const upgraded = new DatabaseSync(join(f.root, 'supervisor.sqlite'));
-  assert.equal(upgraded.prepare('PRAGMA user_version').get()?.['user_version'], 12); assert.equal(upgraded.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get()?.['n'], 12);
-  for (const table of ['verification_records', 'verification_product_heads', 'verification_product_receipts','conversations','conversation_rounds','conversation_messages','conversation_assessments','supervision_loops','supervision_jobs','supervision_receipts','supervision_interruptions','supervision_monitor_events',...schema11Tables,...schema12Tables]) assert.equal(upgraded.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()?.['n'], 0, table);
+  assert.equal(upgraded.prepare('PRAGMA user_version').get()?.['user_version'], 13); assert.equal(upgraded.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get()?.['n'], 13);
+  for (const table of ['verification_records', 'verification_product_heads', 'verification_product_receipts','conversations','conversation_rounds','conversation_messages','conversation_assessments','supervision_loops','supervision_jobs','supervision_receipts','supervision_interruptions','supervision_monitor_events',...schema11Tables,...schema12Tables,...schema13Tables]) assert.equal(upgraded.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()?.['n'], table==='scheduled_meta'?1:0, table);
   upgraded.close(); assert.deepEqual(store.command({ type: 'act', commandId: 'settle', projectId: 'project', runId: 'run', expectedRevision: 2, action: { type: 'settleAttempt', attemptId: 'attempt', actual: 3 } }).value, before);
   // Upgrade an actual v8 supervision ledger with unresolved usage. The additive
   // monitor tables must not release its reservation or fabricate recovery.
@@ -119,9 +120,9 @@ test('persistence migrates real disk database and reopens state events budgets a
   v8.exec(`PRAGMA foreign_keys=OFF; ${dropSchema11} DROP TABLE verification_lineage_receipts; DROP TABLE verification_binding_issues; DROP TABLE verification_lineage_heads; DROP TABLE verification_proposal_bindings; DROP TABLE verification_contract_transitions; DROP TABLE verification_run_bindings; DROP TABLE verification_lineages; DROP TABLE supervision_monitor_events; DROP TABLE supervision_interruptions; DELETE FROM schema_migrations WHERE version>=9; PRAGMA user_version=8;`);v8.close();
   store=f.open();assert.deepEqual(store.supervision.get(loop.id),supervisionBefore);assert.deepEqual(store.supervision.jobs(loop.id),jobsBefore);assert.deepEqual(store.runtime.inspect(runtime.id),ledgerBefore);
   const latest = new DatabaseSync(join(f.root, 'supervisor.sqlite'));
-  assert.equal(latest.prepare('PRAGMA user_version').get()?.['user_version'], 12);
-  assert.equal(latest.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get()?.['n'], 12);
-  for (const table of [...schema11Tables,...schema12Tables]) assert.equal(latest.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()?.['n'], 0, table);
+  assert.equal(latest.prepare('PRAGMA user_version').get()?.['user_version'], 13);
+  assert.equal(latest.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get()?.['n'], 13);
+  for (const table of [...schema11Tables,...schema12Tables,...schema13Tables]) assert.equal(latest.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()?.['n'], table==='scheduled_meta'?1:0, table);
   latest.close();
   assert.equal(store.supervisionMonitor.envelope(loop.id),null);assert.deepEqual(store.supervisionMonitor.events(loop.id),[]);assert.deepEqual(store.supervisionInterruptions.list(loop.id),[]);
   assert.throws(()=>store.supervision.beginJob({commandId:'post-migration',loopId:loop.id,expectedRevision:supervisionBefore.revision,purpose:'diagnosis',context:{}}),/Unresolved/);
@@ -294,7 +295,7 @@ test('persistence killed catalog snapshot publishes neither pointer coverage nor
   assert.equal((reopened.query({ type: 'changes', projectId: 'project' }) as VerificationChange[])[0]?.status, 'proposed');
   const raw = new DatabaseSync(join(f.root, 'supervisor.sqlite'));
   for (const table of ['verification_catalog_heads', 'verification_catalogs', 'verification_cases', 'verification_coverage', 'verification_replacements']) {
-    assert.equal(raw.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()?.['n'], 0, table);
+    assert.equal(raw.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()?.['n'], table==='scheduled_meta'?1:0, table);
   } raw.close();
   f.close(reopened);
   const staged = await child(f.root, command, 'beforeCommit'); assert.equal(staged.signal, 'SIGKILL'); assert.match(staged.stdout, /beforeCommit/);
@@ -302,7 +303,7 @@ test('persistence killed catalog snapshot publishes neither pointer coverage nor
   assert.equal((reopened.query({ type: 'changes', projectId: 'project' }) as VerificationChange[])[0]?.status, 'proposed');
   const stagedCheck = new DatabaseSync(join(f.root, 'supervisor.sqlite'));
   for (const table of ['verification_catalog_heads', 'verification_catalogs', 'verification_cases', 'verification_coverage', 'verification_replacements']) {
-    assert.equal(stagedCheck.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()?.['n'], 0, table);
+    assert.equal(stagedCheck.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()?.['n'], table==='scheduled_meta'?1:0, table);
   } stagedCheck.close(); f.close(reopened);
   const committed = await child(f.root, command, 'afterCommit'); assert.equal(committed.signal, 'SIGKILL'); assert.match(committed.stdout, /afterCommit/);
   reopened = f.open(); const catalog = reopened.query({ type: 'catalog', projectId: 'project' }) as VerificationCatalog;

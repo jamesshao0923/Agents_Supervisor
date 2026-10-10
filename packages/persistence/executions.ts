@@ -1,3 +1,5 @@
+import type { ScheduledBinding } from '../contracts/p7-dispatch.js';
+import type { TaskSchedulerRepository } from './task-scheduler.js';
 import { VerificationRepository } from './verification.js';
 import type { RuntimeBinding } from '../contracts/p3.js';
 import { RuntimeRepository } from './runtime.js';
@@ -40,11 +42,14 @@ function runEvents(db: DatabaseSync, run: Run, commandId: string, events: unknow
   for (const e of events) db.prepare('INSERT INTO events(command_id,project_id,run_id,type,payload) VALUES (?,?,?,?,?)').run(commandId, run.projectId, run.id, String((e as {type:string}).type), json(e));
 }
 /** The intent, domain reservation, resource lease and execution receipt commit together before spawn. */
-export function executionCreate(db: DatabaseSync, input: ResolvedExecutionStart, binding?: RuntimeBinding): {record: ExecutionRecord; created: boolean} {
+export function executionCreate(db: DatabaseSync, input: ResolvedExecutionStart, binding?: RuntimeBinding | ScheduledBinding, scheduler?:TaskSchedulerRepository): {record: ExecutionRecord; created: boolean} {
+  const scheduled=binding&&'schedulerId' in binding?binding:undefined;
+  const runtimeBinding=binding&&!scheduled?binding as RuntimeBinding:undefined;
+  const assertEligible=()=>{if(scheduled){if(!scheduler)throw new Error('Scheduled execution requires host repository');scheduler.eligible(scheduled.operationId,scheduled.owner);if(canonicalRequest({...scheduler.binding(scheduled.claimId,scheduled.owner)})!==canonicalRequest({...scheduled}))throw new Error('Scheduled binding mismatch');const expected=scheduler.executionInput(scheduled.claimId);if(canonicalRequest({...input,images:input.images??[]})!==canonicalRequest({...expected,images:expected.images??[]}))throw new Error('Scheduled input differs from frozen authorized task');}else if(runtimeBinding){const runtime=new RuntimeRepository(db);runtime.eligible(runtimeBinding.operationId,runtimeBinding.owner);if(runtime.hasScheduledIntegration(runtimeBinding.operationId)){const expected={...runtime.executionInput(runtimeBinding.operationId,runtimeBinding.owner),workspaceKind:runtime.get(runtimeBinding.runtimeId).workspaceKind};if(canonicalRequest({...input})!==canonicalRequest({...expected}))throw new Error('Integration input differs from frozen authorized request');}}};
   const { workspaceKind, ...action } = input;
   parseExecutionAction(action);
   if (!isAbsolute(input.workspace) || input.workspace === sep || !['project', 'managed'].includes(workspaceKind)) throw new Error('Execution workspace must be resolved by the controller');
-  const normalized = { ...input, images: input.images ?? [], ...(binding ? { runtimeBinding: { ...binding, owner: undefined } } : {}) };
+  const normalized = { ...input, images: input.images ?? [], ...(binding ? { [scheduled?'scheduledBinding':'runtimeBinding']: { ...binding, owner: undefined } } : {}) };
   const request = canonicalRequest(normalized);
   db.exec('BEGIN IMMEDIATE');
   try {
@@ -52,7 +57,7 @@ export function executionCreate(db: DatabaseSync, input: ResolvedExecutionStart,
     if (existing) {
       if (canonicalRequest(JSON.parse(String(existing.request)) as Record<string, unknown>) !== request) throw new Error('commandId already used with a different execution');
       const record=readRecord(existing.record);
-      if(binding) { new RuntimeRepository(db).eligible(binding.operationId,binding.owner); if(record.runtimeBinding?.runtimeId!==binding.runtimeId)throw new Error('Runtime binding mismatch');record.runtimeBinding=binding;db.prepare('UPDATE executions SET record=? WHERE id=?').run(json(record),record.id); }
+      if(binding) { assertEligible();if(scheduled){if(record.scheduledBinding?.claimId!==scheduled.claimId)throw new Error('Scheduled receipt binding mismatch');record.scheduledBinding=scheduled;}else {if(record.runtimeBinding?.runtimeId!==runtimeBinding!.runtimeId)throw new Error('Runtime binding mismatch');record.runtimeBinding=runtimeBinding!;}db.prepare('UPDATE executions SET record=? WHERE id=?').run(json(record),record.id); }
       db.exec('COMMIT'); return { record, created: false };
     }
     new VerificationRepository(db).assertNoVerificationWriter(input.workspace);
@@ -60,12 +65,12 @@ export function executionCreate(db: DatabaseSync, input: ResolvedExecutionStart,
       const overlap = record.workspace === input.workspace || record.workspace.startsWith(input.workspace + sep) || input.workspace.startsWith(record.workspace + sep);
       if (overlap && !record.stopConfirmed) throw new Error('Workspace has an active or unverified writer; cancel or reconcile it before dispatch');
     }
-    if(binding)new RuntimeRepository(db).eligible(binding.operationId,binding.owner);
+    if(binding)assertEligible();
     else for(const runtime of new RuntimeRepository(db).list()) {
       const overlap=runtime.workspace===input.workspace||runtime.workspace.startsWith(input.workspace+sep)||input.workspace.startsWith(runtime.workspace+sep);
       if(overlap && (!['cancelled','awaiting-verification'].includes(runtime.phase)||new RuntimeRepository(db).operations(runtime.id).some(o=>!['confirmed','cancelled'].includes(o.state))))throw new Error('Workspace has unresolved runtime work');
     }
-    const id = 'exec-' + hash(input.commandId).slice(0,24), projectId = binding?.projectId ?? 'workspace-' + hash(input.workspace).slice(0,24);
+    const id = 'exec-' + (scheduled?hash(input.commandId):hash(input.commandId).slice(0,24)), projectId = binding?.projectId ?? 'workspace-' + hash(input.workspace).slice(0,24);
     if(binding && binding.attemptId!==id)throw new Error('Runtime attempt identity mismatch');
     const now = new Date().toISOString();
     db.prepare('INSERT OR IGNORE INTO projects(id,name) VALUES (?,?)').run(projectId, basename(input.workspace));
@@ -77,7 +82,7 @@ export function executionCreate(db: DatabaseSync, input: ResolvedExecutionStart,
     ] as RunAction[])) { const result = applyAction(run, action); run = result.run; events.push(...result.events); }
     if(!binding)db.prepare('INSERT INTO runs(project_id,id,revision,snapshot) VALUES (?,?,?,?)').run(projectId, id, run.revision, json(run));
     runEvents(db, run, input.commandId, events);
-    const record: ExecutionRecord = { id, commandId: input.commandId, projectId, runId: binding?.runId ?? id, attemptId: id, ...(binding?{runtimeBinding:binding}:{}), workspace: input.workspace, workspaceKind, prompt: input.prompt,
+    const record: ExecutionRecord = { id, commandId: input.commandId, projectId, runId: binding?.runId ?? id, attemptId: id, ...(scheduled?{scheduledBinding:scheduled}:runtimeBinding?{runtimeBinding}:{} ), workspace: input.workspace, workspaceKind, prompt: input.prompt,
       model: input.model, effort: input.effort, images: normalized.images, state: 'queued', createdAt: now, updatedAt: now,
       deadline: new Date(Date.now() + input.timeoutMs).toISOString(), timeoutMs: input.timeoutMs, tokenLimit: input.tokenLimit, reservation: input.reservation, verificationReserve: input.verificationReserve,
       identity: null, pid: null, threadId: null, turnId: null, lastEventSeq: 0, message: '', diff: '', error: null, usage: null, usageStatus: 'unknown',
@@ -95,13 +100,21 @@ export function executionUpdate(db: DatabaseSync, id: string, patch: Partial<Exe
     const previous = executionGet(db,id);
     if(expectedEventSeq!==undefined){if(!Number.isSafeInteger(expectedEventSeq)||expectedEventSeq<0)throw new Error('Invalid execution event CAS');if(previous.lastEventSeq!==expectedEventSeq){db.exec('COMMIT');return previous;}}
     if (patch.id !== undefined && patch.id !== id) throw new Error('Execution identity immutable');
-    const record = { ...previous, ...patch, updatedAt: new Date().toISOString() };
+    const effectivePatch={...patch};let effectiveActions=actions;
+    // Cancellation may commit through another SQLite connection after the
+    // controller observed the Run. Classify the stopped receipt under this
+    // same write lock so its attempt and record can never disagree.
+    if(previous.scheduledBinding&&kind==='execution-stopped'&&patch.stopConfirmed){
+      const current=JSON.parse(String(db.prepare('SELECT snapshot FROM runs WHERE project_id=? AND id=?').get(previous.projectId,previous.runId)!.snapshot)) as Run;
+      if(current.status==='cancelled'){effectivePatch.state='cancelled';effectiveActions=actions.map(action=>action.type==='finishAttempt'&&action.attemptId===previous.attemptId?{...action,outcome:'cancelled' as const}:action);}
+    }
+    const record = { ...previous, ...effectivePatch, updatedAt: new Date().toISOString() };
     if (previous.cancelRequested && record.state === 'completed') throw new Error('Cancelled execution cannot become completed');
-    if (actions.length) {
+    if (effectiveActions.length) {
       const row = db.prepare('SELECT snapshot FROM runs WHERE project_id=? AND id=?').get(record.projectId,record.runId)!;
       let run = JSON.parse(String(row.snapshot)) as Run;
       const events = [];
-      for(const action of actions) { const result=applyAction(run,action);run=result.run;events.push(...result.events); }
+      for(const action of effectiveActions) { const result=applyAction(run,action);run=result.run;events.push(...result.events); }
       runEvents(db,run,`${id}:${kind}:${Date.now()}`,events);
     }
     record.lastEventSeq = event(db,id,kind,payload);

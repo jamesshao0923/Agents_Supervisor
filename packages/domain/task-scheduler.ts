@@ -58,7 +58,7 @@ export function createTaskScheduler({ sha256, decisionId }: { sha256: (canonical
       ensure(l.limit <= (parent?.limit ?? s.budget.limit), 'child allocation exceeds parent');
       ensure(l.spent <= (parent?.spent ?? s.budget.spent), 'child spending exceeds parent accounting');
     }
-    for (const c of s.claims) { exact(c, ['id','taskId','reservation','resources','loopIds','usage','effects']); text(c.taskId); integer(c.reservation, 1); resources(c.resources); ancestors(c.loopIds); ensure(['known','unknown'].includes(c.usage) && ['pending','unknown'].includes(c.effects), 'invalid claim state'); }
+    for (const c of s.claims) { exact(c, ['id','taskId','reservation','resources','loopIds','usage','effects']); text(c.taskId); integer(c.reservation); resources(c.resources); ancestors(c.loopIds); ensure(['known','unknown'].includes(c.usage) && ['pending','unknown'].includes(c.effects), 'invalid claim state'); }
     for (const n of s.nodes) {
       if(n.status==='running')ensure(s.claims.some(c=>c.taskId===n.id), 'running node has no held claim');
       exact(n, ['id','dependencies','required','status','inputs','admission','resources','reservation','loopIds']); unique(n.dependencies, 'dependency'); ensure(typeof n.required === 'boolean' && ['pending','running','succeeded','failed','blocked'].includes(n.status), 'invalid node'); integer(n.reservation, 1); resources(n.resources); ancestors(n.loopIds); parseDependencyBindings(n.inputs);

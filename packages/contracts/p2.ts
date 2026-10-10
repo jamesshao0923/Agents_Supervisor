@@ -16,6 +16,8 @@ export interface TokenUsage {
 export interface ExecutionRecord {
   terminalStatus?: string;
   turnIntent?: boolean;
+  candidateSnapshot?: {path:string;digest:string};
+  scheduledBinding?: import('./p7-dispatch.js').ScheduledBinding;
   runtimeBinding?: import('./p3.js').RuntimeBinding;
   id: string; commandId: string; projectId: string; runId: string; attemptId: string;
   workspace: string; workspaceKind: 'project' | 'managed'; prompt: string; model: string; effort: string; images: string[];

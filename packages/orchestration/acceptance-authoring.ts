@@ -177,6 +177,7 @@ export function buildAcceptanceAuthoringPrompt(context: AcceptanceAuthoringConte
     'For source acceptance, the authoritative P5 criterion.target is the exact HTTPS sourceURL, never a candidate filename. Preserve it unchanged in the contract and include that exact URL in each corresponding source verifier.sources. Select a separate project-relative claimFile containing the candidate research claim, and include that real local file in both candidate and every new control project. Source provenance, actual acquisition, freshness and claim support remain P4 review/execution requirements.',
     'Use symbolic IDs for new controls: spec.controls.workspace must equal its id; controls contains the corresponding full project text. Retain every previousSpec control unchanged at its published absolute workspace; do not include its text in controls. Retain every previous case revision unchanged, and use new revisions/versions for modified implementations. No new absolute paths. Include positive controls and negative controls covering every necessary obligation.',
     'Write independent command verifier implementation, not copies of candidate tests. Optional command candidateEntries are Node CLI entries actually executed before the independent checker, not declarations of imported modules. Checkers receive candidate directory as argv[2], parameters JSON as argv[3], and write {schemaVersion:1,checks:[{obligationId,verdict,reason}]} to SUPERVISOR_VERIFY_REPORT. A custom checker must perform its own assertions, since zero CLI exit proves execution only; TypeScript build sources and output entries must be accurate. Modules are criterion IDs; moduleDependencies has every criterion ID. New cases use revision 1, parameters [{}]; subsequent revisions must retain historical definitions and P4 replacement/defect coverage.',
+    'Define every obligation as a separate object with one atomic identifier. Before responding, verify that every cases[].obligationIds value, negative control mustFail value and checker report obligationId exactly matches one declared spec.obligations[].id. Never pack multiple IDs or JSON delimiters into a single string. Criterion IDs and obligation IDs are separate namespaces. Declare all necessary obligations and cover every required one; a referenced but undeclared ID invalidates the whole proposal. Regenerate a complete coherent bundle rather than inventing a repair mapping.',
     'coverageExplanation maps every frozen check exactly once to executable cases of its original kind. Explain how the assertions detect the defect; do not waive or replace requirements. Control projects must contain all sources required by every case.',
     `contextDigest=${hash(canonical(frozen))}`, 'Complete frozen context (candidate contents, authoritative contract, environment and prior failures):', canonical(frozen),
   ].join('\n\n');
@@ -185,6 +186,13 @@ export function validateAcceptanceBundle(value: unknown, context: AcceptanceAuth
   const frozen = frozenContext(context);
   const bundle = parseReasonerOutput(safeJson(value), acceptanceAuthoringSchema(frozen)) as AcceptanceBundle;
   return validateAcceptanceAssetSemantics(bundle, frozen);
+}
+/** Actual schema-valid semantic rejection only; never synthesizes a mapping or verdict. */
+export function diagnoseAcceptanceAuthoringResult(value: unknown, context: AcceptanceAuthoringContext): {resultDigest:string;message:string}|null {
+  const frozen=frozenContext(context);
+  const bundle=parseReasonerOutput(safeJson(value),acceptanceAuthoringSchema(frozen)) as AcceptanceBundle;
+  try { validateAcceptanceAssetSemantics(bundle,frozen); return null; }
+  catch(error) { return {resultDigest:hash(canonical(value)),message:error instanceof Error?error.message:String(error)}; }
 }
 /** Does not grant publication: V2 additionally requires immutable history, real controls and independent review. */
 export function validateCurrentAcceptanceAssets(value: unknown, context: AcceptanceAuthoringContext, historicalCases: VerificationSpecCase[]): AcceptanceBundle {
