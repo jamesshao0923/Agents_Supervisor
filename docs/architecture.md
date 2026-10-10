@@ -2,7 +2,7 @@
 
 Supervisor（项目目录 Agents_Supervisor）定位为运行在 macOS 上的长程任务监督管理器：把用户目标转成可验证的任务契约，调度 Codex 执行，持续检查产物是否可用，并在失败、中断或需求变化后继续推进。产品价值集中在需求质量、执行控制、验收证据与恢复能力。
 
-已确认：产品采用独立 macOS App，先供个人长期自用验证，放弃作为 Codex 插件的产品路线；首接 Codex CLI，保留 Claude Code 适配接口。桌面工作台与独立本地监督服务共同组成产品，CLI 是同一服务的控制入口。本文是设计基线；P0 工程与测试基座、P1 领域内核与真实持久化已完成；P2 真实 Codex 单次执行与 Electron/React 桌面薄切片已通过阶段门禁及独立复核。自主 Loop、产品独立验证器和完整恢复编排仍按后续阶段实现。实际进度以 [README](../README.md) 为准。基础技术资料核对日期为 2026 年 10 月 9 日；监控、模型路由、UI 验收、记忆与 Temporal 决策更新于 2026 年 10 月 10 日。
+已确认：产品采用独立 macOS App，先供个人长期自用验证，放弃作为 Codex 插件的产品路线；首接 Codex CLI，保留 Claude Code 适配接口。桌面工作台与独立本地监督服务共同组成产品，CLI 是同一服务的控制入口。本文是设计基线；P0 工程与测试基座、P1 领域内核与真实持久化已完成；P2 真实 Codex 单次执行与 Electron/React 桌面薄切片已通过阶段门禁及独立复核。P3 本地持久运行与 P4 产品独立验证器已完成；需求/计划主控与自主 Loop 分别在 P5/P6 落地。实际进度以 [README](../README.md) 为准。基础技术资料核对日期为 2026 年 10 月 9 日；监控、模型路由、UI 验收、记忆与 Temporal 决策更新于 2026 年 10 月 10 日。
 
 已确认的任务范围：代码开发、修复与项目交付是核心需求；研究、资料整理和 deep research 同样需要支持，并作为检验通用长程监督能力的重要场景。首版同时提供工程交付与研究整理的任务模板和验收方式，共用同一监督内核。
 
@@ -256,7 +256,7 @@ DeliveryLoop
 
 每轮开始提供策略调整点，允许修改任务粒度、执行器配置、并发、上下文包、工具组合、重试方式和验证顺序。变更生成 PlanPatch，包含理由、影响范围和预期证据；控制器校验后仅作用于尚未开始的节点。涉及在途节点时，先中断并核对结果。验收标准、权限和预算上限的变化走契约变更流程。
 
-建议接口：Planner.propose(snapshot)、Executor.start/observe/interrupt/resume、VerificationCatalog.proposeChange/review/publish、VerificationPlanner.select/freeze、Verifier.evaluate(contract, artifact, frozenPlan)、Strategy.proposePatch(snapshot)、Scheduler.admit(request)、Store.commit(events)。这些是产品内部接口，不假定供应商原生支持相同方法。用例库和选择器先作为验证模块内的职责实现，不新增独立服务。
+建议接口：SupervisorReasoner.request(purpose, snapshot)、Planner.propose(snapshot)、Executor.start/observe/interrupt/resume、VerificationCatalog.proposeChange/review/publish、VerificationPlanner.select/freeze、Verifier.evaluate(contract, artifact, frozenPlan)、Strategy.proposePatch(snapshot)、Scheduler.admit(request)、Store.commit(events)。这些是产品内部接口，不假定供应商原生支持相同方法。用例库和选择器先作为验证模块内的职责实现，不新增独立服务。
 
 扩展模块声明版本、输入输出 schema、所需能力、超时、资源消耗和兼容的核心版本。模块返回结果或提案，不能直接改主控状态。运行中的尝试固定模块版本；升级在后续尝试或新运行生效并记录版本变化。首版采用内置模块及配置文件，后续按实际需要开放扩展接口和可视化流程编辑。
 
@@ -278,6 +278,8 @@ flowchart TD
     K --> R["持久化工作流接口"]
     R -.-> T["Temporal Service 与 Worker：M0 验证采用"]
     K --> P["需求与策略提案模块"]
+    P --> B["SupervisorReasoner / CodexReasonerAdapter"]
+    B --> X
     K --> A["执行器适配层"]
     A --> X["Codex CLI app-server"]
     A -.-> Y["后续 Claude Code 适配器"]
@@ -309,7 +311,17 @@ turn/start 支持 image 和 localImage 输入；model/list 提供模型、inputM
 
 适配器声明能力：结构化事件、指定会话恢复、中断、审批事件、用量、模型选择、工具约束和交互输入。缺失能力明确向上层报告，不能用超时等待模拟暂停或恢复成功。Claude Code 首版只定义契约和测试替身，不宣称已接入。
 
-首版需求分析、计划和评审也可通过 Codex 执行器承担，但使用独立会话、适当工具权限和结构化结果；所有调用进入同一账本。执行器自身可能包含内部工具循环或子 Agent，监督器默认只控制外层尝试；只有能观测和核算的内部并发才开放，避免隐藏的执行树绕过资源管理。
+**Supervisor 自身由大模型驱动。** 首版默认使用本机 Codex CLI `app-server` 作为主控推理后端，复用当前可用的安装与认证。Supervisor 启动自己的受管进程，不控制或接管用户正在使用的 Codex 窗口。需求理解、计划、巡检与诊断通过内部 `SupervisorReasoner` 接口调用首个 `CodexReasonerAdapter`；模型生成结构化提案，确定性控制器校验版本、授权、预算、资源及验收门禁后执行。该统一接口在 P5/P6 实施；P4 已通过同一 Codex 协议真实执行独立评审，但不代表主控规划闭环已经完成。[官方 App Server](https://learn.chatgpt.com/docs/app-server)
+
+- P5 提供 `clarify`、`proposeContract`、`proposePlan` 和 `proposeMemoryUpdate`；P6 扩展 `inspectProgress`、`diagnose` 和 `proposePlanPatch`。
+- 每次调用绑定 Run、用途、契约版本、ContextManifest、证据引用、稳定操作标识、模型/思考量、预算预留和时限；结果经过 schema 与领域约束校验，不直接写完成状态或修改验收标准。
+- 主控、执行者和独立验收者使用独立上下文。公共进程、认证、事件和用量设施可以复用，不能为了通用规划放宽 P4 独立验收的只读权限、原始证据和未知结果规则。
+- 首版采用“模型提出动作 → 控制器执行受管操作 → 回传事实与证据”的循环。当前适配器没有动态工具桥；如后续使用 `dynamicTools`，需对锁定 CLI 协议另做兼容验证，不能把接口设计当成已实现能力。
+- 主控和子任务的调用进入同一账本。换角色、换会话、重试或升级模型不清零预算；本机 Codex 是客户端接入，不等于本地离线模型，也不代表免费额度。实际认证方式决定使用订阅访问还是 API 计费，不能把 CLI 登录凭证当作任意 API 的通用密钥。[认证说明](https://learn.chatgpt.com/docs/auth)
+
+如果本机另有独立模型代理，可后续增加直接模型适配器，但必须验证 endpoint 协议、认证、结构化输出、图像、流式终态、用量和取消。Codex `app-server` 本身是 Codex 会话协议，不是通用 OpenAI HTTP 模型代理；默认路线无需额外搭建代理。Codex 已配置的 provider/gateway 仍由 Codex 处理。[高级配置](https://learn.chatgpt.com/docs/config-file/config-advanced)
+
+执行器自身可能包含内部工具循环或子 Agent，监督器默认只控制外层尝试；只有能观测和核算的内部并发才开放，避免隐藏的执行树绕过资源管理。
 
 ## 持久化与恢复
 

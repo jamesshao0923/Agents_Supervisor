@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-catalog-v6",
+  "revision": "dev-catalog-v7",
   "modules": [
     {
       "id": "dev-contracts",
@@ -249,6 +249,12 @@
       "layer": "live",
       "file": "dist/tests/live/verification-maintenance.test.js",
       "timeoutMs": 600000
+    },
+    {
+      "id": "unit-desktop-presentation",
+      "layer": "unit",
+      "file": "dist/tests/unit/desktop-presentation.test.js",
+      "timeoutMs": 10000
     }
   ],
   "cases": [
@@ -4897,6 +4903,63 @@
       "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
       "assertions": "tests/live/verification-maintenance.test.ts: live verification maintenance retains defect controls rejects weakened assertions and preserves an in-flight frozen plan across publication and restart",
       "cleanup": "Stop only owned processes; preserve formal evidence and original failures",
+      "status": "active"
+    },
+    {
+      "id": "p4.desktop.001",
+      "name": "desktop timeline folds protocol fragments while retaining failures waiting and authoritative messages",
+      "suiteId": "unit-desktop-presentation",
+      "module": "desktop",
+      "layer": "unit",
+      "covers": [
+        "desktop-event-truth"
+      ],
+      "scenario": "Actual presentation module processes stream fragments, completed messages, failed commands and waiting/retry states",
+      "impactTags": [
+        "desktop",
+        "presentation"
+      ],
+      "prerequisites": "Node runtime and compiled actual presentation module",
+      "assertions": "Raw events remain unchanged; only redundant fragments fold, errors and waiting survive, fragments never claim to be a full reply",
+      "cleanup": "No external writes; input events remain unchanged",
+      "status": "active"
+    },
+    {
+      "id": "p4.desktop.002",
+      "name": "desktop runtime summaries distinguish step completion failure and unknown from delivery",
+      "suiteId": "unit-desktop-presentation",
+      "module": "desktop",
+      "layer": "unit",
+      "covers": [
+        "desktop-completion-distinction"
+      ],
+      "scenario": "Actual presentation module formats confirmed, failed, unknown and cancelled durable step reports",
+      "impactTags": [
+        "desktop",
+        "presentation"
+      ],
+      "prerequisites": "Node runtime and compiled actual presentation module",
+      "assertions": "A final confirmed step still requires independent verification; failure/unknown/cancel do not announce delivery or the next step",
+      "cleanup": "No external writes; input events remain unchanged",
+      "status": "active"
+    },
+    {
+      "id": "p4.desktop.003",
+      "name": "desktop invalidation guidance preserves uncertainty without exposing raw diagnostics in the overview",
+      "suiteId": "unit-desktop-presentation",
+      "module": "desktop",
+      "layer": "unit",
+      "covers": [
+        "desktop-invalidation-guidance"
+      ],
+      "scenario": "Actual presentation module maps environment, workspace and unknown failure reasons",
+      "impactTags": [
+        "desktop",
+        "presentation"
+      ],
+      "prerequisites": "Node runtime and compiled actual presentation module",
+      "assertions": "Chinese guidance retains invalid status and unknown cause; no fabricated specific configuration diagnosis or raw error in overview",
+      "cleanup": "No external writes; input events remain unchanged",
       "status": "active"
     }
   ]

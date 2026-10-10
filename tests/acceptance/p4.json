@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "stage": "P4",
-  "revision": "p4-catalog-v1",
+  "revision": "p4-v2",
   "caseIds": [
     "dev.unit-contracts.001",
     "dev.unit-contracts.002",
@@ -233,7 +233,10 @@
     "p4.integration.verification-controller.002",
     "p4.integration.verification-controller.003",
     "p4.live.verification.001",
-    "p4.live.verification-maintenance.001"
+    "p4.live.verification-maintenance.001",
+    "p4.desktop.001",
+    "p4.desktop.002",
+    "p4.desktop.003"
   ],
   "requiredRisks": [
     "p0.unit-contracts.001",
@@ -475,7 +478,10 @@
     "p4.integration.verification-controller.002.behavior",
     "p4.integration.verification-controller.003.behavior",
     "p4.live.verification.001.behavior",
-    "p4.live.verification-maintenance.001.behavior"
+    "p4.live.verification-maintenance.001.behavior",
+    "desktop-event-truth",
+    "desktop-completion-distinction",
+    "desktop-invalidation-guidance"
   ],
   "coreRegression": [
     "dev.integration-runner.003",

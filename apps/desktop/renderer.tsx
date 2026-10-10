@@ -5,6 +5,8 @@ import type { ExecutionEvent, ExecutionRecord, ExecutionState, ExecutorCapabilit
 import type { RuntimeRecord, RuntimeSubmit, RuntimePhase, RuntimeOperation, RuntimeCheckpoint, RuntimeEvent } from '../../packages/contracts/p3.js';
 import type { Run } from '../../packages/contracts/p1.js';
 import type { Delivery, FrozenPlan, ModelConfig, Proposal, VerificationAction, VerificationJob } from '../../packages/verification/records.js';
+import { buildTimeline, describeTaskError, describeVerificationProblem } from './presentation.js';
+import type { TimelineEntry } from './presentation.js';
 
 type StartInput = Omit<RuntimeSubmit, 'type'>;
 type StartResult = { accepted: true; record: RuntimeRecord } | { accepted: false; error: string };
@@ -77,12 +79,12 @@ function Icon({ name, size = 16 }: { name: 'plus' | 'grid' | 'folder' | 'arrow' 
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
 }
-function Status({ record, delivered = false }: { record: TaskRecord; delivered?: boolean }) {
+function Status({ record, deliveryLabel = '' }: { record: TaskRecord; deliveryLabel?: string }) {
   const color = ['failed', 'unknown', 'interrupted', 'blocked'].includes(record.state) ? 'failed' : ['cancelled', 'completed', 'awaiting-verification', 'paused', 'waiting-input'].includes(record.state) ? 'stopped' : '';
-  return <span className={`agent-status ${color}`}><i className="dot"/>{delivered ? '当前交付有效 · 独立验收通过' : statusLabel(record)}</span>;
+  return <span className={`agent-status ${deliveryLabel ? deliveryLabel.includes('重新核验') ? 'failed' : 'stopped' : color}`}><i className="dot"/>{deliveryLabel || statusLabel(record)}</span>;
 }
-function EventItem({ event }: { event: ExecutionEvent }) {
-  return <li className="event"><div className="event-meta"><span>{event.kind}</span><time>{time(event.receivedAt)}</time></div><pre>{typeof event.payload === 'string' ? event.payload : JSON.stringify(event.payload, null, 2)}</pre></li>;
+function EventItem({ entry }: { entry: TimelineEntry }) {
+  return <li className={`event ${entry.tone || ''}`}><div className="event-meta"><span>{entry.source}</span><time dateTime={entry.at} title={date(entry.at)}>{time(entry.at)}</time></div><h4 className="event-title">{entry.title}</h4><p className="event-description">{entry.description}</p><details className="technical-details"><summary>查看此事件的技术详情</summary><p className="mono subtle">{entry.event.kind} · 事件 {entry.event.seq}</p><pre>{JSON.stringify(entry.event.payload, null, 2)}</pre></details></li>;
 }
 function App() {
   const [executions, setExecutions] = useState<ExecutionRecord[]>([]);
@@ -142,6 +144,7 @@ function App() {
   const isRuntime = Boolean(chosenRuntime);
   const childExecutionId = chosenExecution?.id;
   const verification = verificationData?.runtimeId === selected ? verificationData.value : null;
+  const timeline = buildTimeline(runtimeEvents, events, chosenRuntime, detail?.operations);
   const newest = <T extends { createdAt: string }>(values: T[]): T[] => values.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const proposal = verification?.proposals.find(value => value.id === proposalId) ?? (verification ? newest(verification.proposals)[0] : undefined);
   const plan = verification?.plans.find(value => value.id === planId) ?? (verification ? newest(verification.plans)[0] : undefined);
@@ -310,6 +313,12 @@ function App() {
     if (pendingRef.current) return;
     setWorkspace(path ?? ''); setPrompt(''); setImages([]);
   }
+  function renewTask() {
+    if (!chosen) return;
+    const goal = chosen.prompt, path = chosen.workspace;
+    newTask(path);
+    if (!pendingRef.current) setPrompt(goal);
+  }
   function selectTask(record: TaskRecord) { setSelected(record.id); setProject(record.workspace); setComposer(false); }
   async function openWorkspace(id: string) { try { await api.openWorkspace(id); } catch (error) { setActionError(errorText(error)); } }
   async function chooseWorkspace() { try { const path = await api.chooseWorkspace(); if (path) setWorkspace(path); } catch (error) { setActionError(errorText(error)); } }
@@ -345,6 +354,7 @@ function App() {
   }
   function verificationAction(kind: 'propose' | 'review' | 'publish' | 'freeze' | 'run' | 'deliver' | 'cancel') {
     if (!chosenRuntime) return;
+    if (kind !== 'cancel' && detail && ['succeeded', 'cancelled'].includes(detail.run.status)) { setVerificationError('此任务已结束，不能再派发新的验收。请在同项目新建任务，重新执行并验收当前候选。'); return; }
     const commandId = crypto.randomUUID();
     try {
       let action: VerificationMutation;
@@ -361,16 +371,21 @@ function App() {
     } catch (error) { setVerificationError(errorText(error)); }
   }
   const online = connection === 'online';
-  const verificationReady = online && !busy && !activeVerificationJob && !verificationPending && chosenRuntime?.phase === 'awaiting-verification' && !chosenRuntime.paused && !chosenRuntime.cancelled;
-  const currentDeliveryKnown = online && !verificationLoading && !verificationReadError;
-  const deliveryCurrent = Boolean(currentDeliveryKnown && verification?.currentDelivery.current);
+  const verificationTerminal = Boolean(detail && ['succeeded', 'cancelled'].includes(detail.run.status));
+  const verificationReady = online && !busy && !verificationLoading && !verificationReadError && Boolean(detail) && !verificationTerminal && !activeVerificationJob && !verificationPending && chosenRuntime?.phase === 'awaiting-verification' && !chosenRuntime.paused && !chosenRuntime.cancelled;
+  const currentDeliveryKnown = online && Boolean(verification) && !verificationReadError;
+  const deliveryCurrent = Boolean(currentDeliveryKnown && !verificationLoading && verification?.currentDelivery.current);
+  const hasDelivery = Boolean(verification?.currentDelivery.delivery) || detail?.run.status === 'succeeded';
+  const deliveryLabel = !hasDelivery ? '' : !currentDeliveryKnown ? '交付有效性待核对' : verificationLoading ? verification?.currentDelivery.current ? '上次核对通过 · 正在核对' : '上次交付需重新核验 · 正在核对' : deliveryCurrent ? '当前交付有效 · 独立验收通过' : '交付需重新核验';
+  const deliveryProblem = verification ? describeVerificationProblem(verification.currentDelivery.reason) : null;
   const verificationLabels = { passed: '通过', failed: '失败', unknown: '无法判断', 'not-applicable': '不适用' };
   const executionLabels = { executed: '已执行', 'environment-blocked': '环境阻塞', 'verifier-error': '验收器错误', 'not-run': '未执行' };
   function jobSummary(job: VerificationJob | undefined, title: string) {
     if (!job) return <p className="no-events">{title}尚未执行。</p>;
-    return <div className="verification-job"><h4>{title}<span className="pill">{job.status === 'running' ? '正在执行' : job.approved ? '本次通过' : job.error ? '错误 · 未通过' : '本次未通过'}</span></h4>
+    return <div className="verification-job"><h4>{title}<span className="pill">{job.status === 'running' ? '正在执行' : job.approved ? hasDelivery ? '历史作业通过' : '本次作业通过' : job.error ? '错误 · 未通过' : '本次未通过'}</span></h4>
+      {job.status === 'finished' && job.approved && <p className="form-hint">通过结果对应 {date(job.finishedAt || job.startedAt)} 的候选、定义与环境。当前交付有效性以本页最新核对为准。</p>}
       <p className="form-hint">{job.config.model} / {job.config.effort} · {job.usageUnknown ? `已知 ${count(job.usage)} tokens · 用量仍有未知部分` : job.status === 'running' ? `当前账本 ${count(job.usage)} tokens · 尚未结算` : `${count(job.usage)} tokens`} · 预留 {count(job.config.reservation)}</p>
-      {job.error && <div className="notice error compact">{job.error}</div>}
+      {job.error && <div className="notice error compact"><strong>{describeVerificationProblem(job.error).title}</strong><p>{describeVerificationProblem(job.error).description}</p><details className="technical-details"><summary>查看作业错误原文</summary><pre>{job.error}</pre></details></div>}
       {job.controls.length > 0 && <p className="form-hint">正反控制：{job.controls.filter(control => control.passed).length} / {job.controls.length} 符合预期</p>}
       {job.evaluation && <p className="form-hint">{job.evaluation.complete ? '必要范围完整' : '必要范围尚不完整'}{job.evaluation.reasons.length > 0 ? ` · ${job.evaluation.reasons.join('；')}` : ''}</p>}
       {job.results.length > 0 && <details><summary>查看必要条款结果</summary><ul className="verification-checks">{job.results.map(record => <li key={record.instanceId}><strong>{record.instanceId} · {executionLabels[record.executionStatus]}</strong><p>{record.reason}</p>{record.checks.map(check => <p key={check.obligationId}>{check.obligationId}：{verificationLabels[check.verdict]} · {check.reason}</p>)}</li>)}</ul></details>}
@@ -388,7 +403,7 @@ function App() {
           <button className="project-toggle" aria-label={`${collapsed.has(item.path) ? '展开' : '折叠'}项目 ${projectName(item)}`} aria-expanded={!collapsed.has(item.path)} onClick={() => setCollapsed(current => { const next = new Set(current); if (next.has(item.path)) next.delete(item.path); else next.add(item.path); return next; })}>{collapsed.has(item.path) ? '›' : '⌄'}</button>
           <button className="project-button" title={item.path} onClick={() => { setProject(item.path); setSelected(null); setComposer(false); }}><Icon name="folder"/><span>{projectName(item)}</span>{item.managed && <small>暂存</small>}<span className="count">{item.tasks.length}</span></button>
         </div>
-        {!collapsed.has(item.path) && <div className="project-tasks">{item.tasks.map(record => <button className={`task-button ${selected === record.id ? 'selected' : ''}`} key={record.id} title={record.prompt} onClick={() => selectTask(record)}><strong>{record.prompt}</strong><small><i className={`dot ${active(record) ? '' : 'inactive'}`}/>{selected === record.id && deliveryCurrent ? '当前交付有效' : statusLabel(record)} · {date(record.createdAt)}</small></button>)}</div>}
+        {!collapsed.has(item.path) && <div className="project-tasks">{item.tasks.map(record => <button className={`task-button ${selected === record.id ? 'selected' : ''}`} key={record.id} title={record.prompt} onClick={() => selectTask(record)}><strong>{record.prompt}</strong><small><i className={`dot ${active(record) ? '' : 'inactive'}`}/>{selected === record.id && deliveryLabel ? deliveryLabel : statusLabel(record)} · {date(record.createdAt)}</small></button>)}</div>}
       </section>) : <p className="subtle">任务将归入所选项目；未选择目录时自动创建暂存工作区。</p>}</nav>
       <div className="sidebar-footer"><strong>本地监督服务</strong><br/>关闭窗口或退出界面，<br/>后台任务继续运行。</div>
     </aside>
@@ -428,19 +443,19 @@ function App() {
         </form>}
         <div className="board-head"><h2><span className="project-heading">{currentProject ? projectName(currentProject) : '项目工作台'}</span><span className="pill">{visible.length} 个任务</span></h2><span className="subtle">{visible.filter(active).length} 执行中 · 持久运行</span></div>
         {currentProject && <div className="project-context"><span className="mono" title={currentProject.path}>{currentProject.path}</span><button className="button ghost" onClick={() => { void openWorkspace(currentProject.tasks[0]!.id); }}><Icon name="folder"/>打开目录</button></div>}
-        {visible.length ? <div className="grid">{visible.map(record => <button key={record.id} className={`agent-card ${selected === record.id ? 'selected' : ''}`} onClick={() => selectTask(record)} aria-label={`查看任务：${record.prompt}`}><div className="agent-top"><span className="agent-icon"><Icon name="agent" size={25}/></span><span className="pill">{record.runtime ? '持久任务' : 'Codex'}</span></div><div className="agent-role">{record.runtime ? '监督任务 / 固定步骤' : '执行 Agent / 单次尝试'}</div><h3>{record.prompt}</h3><Status record={record} delivered={selected === record.id && deliveryCurrent}/><div className="agent-excerpt">{record.error || record.message || (record.runtime ? `${Math.min(record.runtime.cursor + 1, record.runtime.definition.steps.length)} / ${record.runtime.definition.steps.length} 步 · ${record.runtime.definition.steps[record.runtime.cursor]?.kind || '执行步骤已结束'}` : '等待执行器事件。')}</div><div className="agent-bottom"><span title={record.workspace}>{record.workspaceKind === 'managed' ? '暂存工作区' : basename(record.workspace)}</span><span>{record.usageStatus === 'reported' && record.usage ? `${count(record.usage.totalTokens)} tokens${record.runtime ? ' · 当前尝试' : ''}` : record.runtime && !record.execution ? '执行阶段未调用模型' : '用量待回报'}</span></div></button>)}</div>
+        {visible.length ? <div className="grid">{visible.map(record => <button key={record.id} className={`agent-card ${selected === record.id ? 'selected' : ''}`} onClick={() => selectTask(record)} aria-label={`查看任务：${record.prompt}`}><div className="agent-top"><span className="agent-icon"><Icon name="agent" size={25}/></span><span className="pill">{record.runtime ? '持久任务' : 'Codex'}</span></div><div className="agent-role">{record.runtime ? '监督任务 / 固定步骤' : '执行 Agent / 单次尝试'}</div><h3>{record.prompt}</h3><Status record={record} deliveryLabel={selected === record.id ? deliveryLabel : ''}/><div className="agent-excerpt">{(record.error ? describeTaskError(record.error) : '') || record.message || (record.runtime ? `${Math.min(record.runtime.cursor + 1, record.runtime.definition.steps.length)} / ${record.runtime.definition.steps.length} 步 · ${record.runtime.definition.steps[record.runtime.cursor]?.kind || '执行步骤已结束'}` : '等待执行器事件。')}</div><div className="agent-bottom"><span title={record.workspace}>{record.workspaceKind === 'managed' ? '暂存工作区' : basename(record.workspace)}</span><span>{record.usageStatus === 'reported' && record.usage ? `${count(record.usage.totalTokens)} tokens${record.runtime ? ' · 当前尝试' : ''}` : record.runtime && !record.execution ? '执行阶段未调用模型' : '用量待回报'}</span></div></button>)}</div>
           : <div className="empty"><Icon name="agent" size={36}/><h2>从一个明确的目标开始</h2><p>选择已有项目，或直接描述目标。没有项目目录时，Supervisor 会自动创建暂存工作区。</p><button className="button primary" onClick={() => newTask(project)}><Icon name="plus"/>创建第一个任务</button></div>}
         <div className="single-note"><i className="dot"/>卡片展示可观测执行状态；完成标记由独立验收决定。</div>
       </section>
-      {chosen && <aside className="detail" aria-label="任务详情"><header className="detail-header"><div className="detail-title"><h2>{chosenRuntime ? '任务详情' : '尝试详情'}</h2><button className="icon-button" aria-label="关闭任务详情" onClick={() => setSelected(null)}><Icon name="close"/></button></div><p className="detail-goal">{chosen.prompt}</p><Status record={chosen} delivered={deliveryCurrent}/></header><div className="detail-body">
+      {chosen && <aside className="detail" aria-label="任务详情"><header className="detail-header"><div className="detail-title"><h2>{chosenRuntime ? '任务详情' : '尝试详情'}</h2><button className="icon-button" aria-label="关闭任务详情" onClick={() => setSelected(null)}><Icon name="close"/></button></div><p className="detail-goal">{chosen.prompt}</p><Status record={chosen} deliveryLabel={deliveryLabel}/></header><div className="detail-body">
         <dl className="facts"><dt>项目目录</dt><dd>{chosen.workspace}<br/><span className="subtle">{chosen.workspaceKind === 'managed' ? 'Supervisor 暂存工作区 · 持续保留' : '本地项目'}</span></dd><dt>创建时间</dt><dd>{date(chosen.createdAt)}</dd>
           {chosenRuntime && <><dt>步骤位置</dt><dd>{Math.min(chosenRuntime.cursor + 1, chosenRuntime.definition.steps.length)} / {chosenRuntime.definition.steps.length} · {waitingStep?.kind || '全部步骤结束'}</dd><dt>累计用量</dt><dd>{detail ? `${count(detail.run.budget.spent)} tokens · ${detail.run.attempts.filter(attempt => !attempt.settled).length} 次用量待结算` : '等待后台账本'}</dd><dt>预算</dt><dd>{count(chosenRuntime.definition.tokenLimit)} tokens · 验收预留 {count(chosenRuntime.definition.verificationReserve)}</dd></>}
-          {chosenExecution && <><dt>模型 / 深度</dt><dd>{chosenExecution.model} / {chosenExecution.effort}</dd><dt>当前尝试</dt><dd>{labels[chosenExecution.state]}</dd><dt>进程状态</dt><dd>{chosenExecution.stopConfirmed ? '已确认停止' : '尚未确认停止'}{chosenExecution.pid ? ` · PID ${chosenExecution.pid}` : ''}</dd><dt>超时期限</dt><dd>{date(chosenExecution.deadline)}</dd>{!chosenRuntime && <><dt>用量</dt><dd>{chosenExecution.usageStatus === 'reported' && chosenExecution.usage ? `${count(chosenExecution.usage.totalTokens)} tokens` : '未知 · 待执行器回报'}</dd><dt>预算</dt><dd>{count(chosenExecution.tokenLimit)} tokens · 验收预留 {count(chosenExecution.verificationReserve)}</dd></>}</>}
+          {chosenExecution && <><dt>模型 / 深度</dt><dd>{chosenExecution.model} / {chosenExecution.effort}</dd><dt>当前尝试</dt><dd>{chosenExecution.state === 'completed' ? '模型执行已结束' : labels[chosenExecution.state]}</dd><dt>进程状态</dt><dd>{chosenExecution.stopConfirmed ? '已确认停止' : '尚未确认停止'}{chosenExecution.pid ? ` · PID ${chosenExecution.pid}` : ''}</dd><dt>超时期限</dt><dd>{date(chosenExecution.deadline)}</dd>{!chosenRuntime && <><dt>用量</dt><dd>{chosenExecution.usageStatus === 'reported' && chosenExecution.usage ? `${count(chosenExecution.usage.totalTokens)} tokens` : '未知 · 待执行器回报'}</dd><dt>预算</dt><dd>{count(chosenExecution.tokenLimit)} tokens · 验收预留 {count(chosenExecution.verificationReserve)}</dd></>}</>}
         </dl>
         {chosenRuntime?.paused && <div className="notice compact">已暂停新的步骤派发。在途执行继续运行，可另行取消任务。</div>}
-        {['completed', 'awaiting-verification'].includes(chosen.state) && !deliveryCurrent && <div className="notice compact">步骤或执行已结束，待独立验收。尚未判定为已交付。</div>}
+        {['completed', 'awaiting-verification'].includes(chosen.state) && !hasDelivery && <div className="notice compact">步骤或执行已结束，待独立验收。尚未判定为已交付。</div>}
         {chosenRuntime?.phase === 'blocked' && <div className="notice compact">恢复核对尚未完成。未知副作用不会自动重复执行。</div>}
-        {chosen.error && <div className="notice error compact">{chosen.error}</div>}
+        {chosen.error && <div className="notice error compact"><strong>{describeTaskError(chosen.error)}</strong><details className="technical-details"><summary>查看执行或恢复错误原文</summary><pre>{chosen.error}</pre></details></div>}
         {chosenRuntime && (chosenRuntime.phase === 'awaiting-verification' || Boolean(verification?.proposals.length || verification?.jobs.length)) && <section className="verification-panel" aria-label="独立验收与交付">
           <div className="verification-heading"><h3>独立验收与交付</h3><button className="button ghost" disabled={!online || verificationLoading} onClick={() => setVerificationRevision(value => value + 1)} aria-label="重新核对验收状态"><Icon name="refresh"/>核对</button></div>
           <p className="form-hint">先独立复核验收定义，再发布、冻结并实际验收；每一步单独确认。UI 验证当前支持候选目录内的本地 HTML 页面操作和截图。</p>
@@ -448,14 +463,17 @@ function App() {
           {verificationError && <div className="notice error compact" role="alert">{verificationError}</div>}
           {verificationReadError && <div className="notice error compact" role="alert">验收状态同步失败，当前交付有效性待核对：{verificationReadError}</div>}
           {verification?.currentDelivery.delivery ? <div className={`notice compact ${currentDeliveryKnown && !verification.currentDelivery.current ? 'error' : ''}`} role="status">
-            {deliveryCurrent ? '当前候选已独立验收并确认交付。' : currentDeliveryKnown ? `旧交付已失效：${verification.currentDelivery.reason}` : '正在等待核对当前交付有效性。'}
-            <br/><span className="mono">{verification.currentDelivery.delivery.candidateDigest}</span>
+            <strong>{deliveryCurrent ? '当前候选已独立验收并确认交付。' : !currentDeliveryKnown ? '交付有效性待核对' : verificationLoading ? verification.currentDelivery.current ? '上次核对通过，正在重新核对' : '上次交付需重新核验，正在重新核对' : `交付需重新核验：${deliveryProblem?.title}`}</strong>
+            {currentDeliveryKnown && !verificationLoading && !deliveryCurrent && <><p>{deliveryProblem?.description}</p><p>下一步：{verificationTerminal ? '此任务已有交付记录。如需重新交付，请在同项目新建任务，独立复核当前定义并重新验收。' : deliveryProblem?.next}</p></>}
+            {(!currentDeliveryKnown || verificationLoading) && <p>这里保留上次交付记录；当前有效性等待本轮后台证据核对。</p>}
+            <details className="technical-details"><summary>查看交付记录与技术原因</summary><dl className="facts"><dt>交付编号</dt><dd className="mono">{verification.currentDelivery.delivery.id}</dd><dt>候选摘要</dt><dd className="mono">{verification.currentDelivery.delivery.candidateDigest}</dd><dt>后台原因</dt><dd>{verification.currentDelivery.reason || '上次核对未返回失效原因。'}</dd></dl></details>
           </div> : <p className="form-hint">尚无已确认交付；运行结束不会自动完成验收。</p>}
+          {verificationTerminal && <div className="notice compact"><p>{hasDelivery ? '此任务已有交付记录；原任务已结束，不能再次派发验收。' : '此任务已结束，不能再派发新的验收。'}如需重新交付，请在同项目新建任务。</p><button className="button primary" disabled={busy || Boolean(pending)} onClick={renewTask}>在同项目新建任务</button><p className="form-hint">将预填项目目录和原目标，确认后才会提交执行。</p></div>}
           {verificationData?.runtimeId === selected && <p className="form-hint">{verificationLoading ? '正在核对后台证据…' : `最近核对 ${time(verificationData.checkedAt)} · 选中任务每 15 秒同步`}</p>}
           <label className="field"><span>1 · 项目验收定义 JSON</span><div className="input-action"><input aria-label="验收定义路径" value={specPath} readOnly placeholder="通过系统文件选择器选择定义"/><button type="button" className="button" disabled={!online || busy || Boolean(verificationPending)} onClick={() => { void chooseSpec(); }}>选择 JSON</button></div></label>
           <button className="button" disabled={!verificationReady || !specPath} onClick={() => verificationAction('propose')}>提交验收提案</button>
           <label className="field verification-select"><span>当前提案</span><select aria-label="当前验收提案" value={proposal?.id || ''} onChange={event => setProposalId(event.target.value)} disabled={!verification?.proposals.length || busy || Boolean(verificationPending)}><option value="" disabled>尚无提案</option>{verification && newest(verification.proposals).map(item => <option key={item.id} value={item.id}>{item.status === 'published' ? `已发布 v${item.version}` : '待独立复核'} · {date(item.createdAt)}</option>)}</select></label>
-          {proposal && <p className="verification-proof mono">定义 {proposal.bundle.digest}<br/>候选 {proposal.candidate.digest}</p>}
+          {proposal && <details className="technical-details"><summary>查看当前提案的定义与候选摘要</summary><dl className="facts"><dt>定义摘要</dt><dd className="mono">{proposal.bundle.digest}</dd><dt>候选摘要</dt><dd className="mono">{proposal.candidate.digest}</dd><dt>提案编号</dt><dd className="mono">{proposal.id}</dd></dl></details>}
           <details className="verification-config" open={!reviewModel}><summary>独立模型与验收预算</summary><fieldset disabled={busy || Boolean(verificationPending)}>
             <label className="field"><span>评审模型</span><select aria-label="验收评审模型" value={reviewModel} onChange={event => { const next = capabilities?.models.find(item => item.id === event.target.value); setReviewModel(event.target.value); setReviewEffort(next?.defaultEffort || next?.reasoningEfforts[0] || ''); }} disabled={!capabilities}><option value="" disabled>发现实际模型后选择</option>{capabilities?.models.map(item => <option key={item.id} value={item.id}>{item.label || item.id}</option>)}</select></label>
             <label className="field"><span>评审深度</span><select aria-label="验收评审深度" value={reviewEffort} onChange={event => setReviewEffort(event.target.value)} disabled={!reviewCapability}><option value="" disabled>请选择</option>{reviewCapability?.reasoningEfforts.map(item => <option key={item} value={item}>{item}</option>)}</select></label>
@@ -467,7 +485,7 @@ function App() {
           {jobSummary(reviewJob, '定义复核')}
           <button className="button" disabled={!verificationReady || proposal?.status !== 'published'} onClick={() => verificationAction('freeze')}>4 · 冻结完整必要清单</button>
           <label className="field verification-select"><span>冻结清单</span><select aria-label="当前冻结验收清单" value={plan?.id || ''} onChange={event => setPlanId(event.target.value)} disabled={!verification?.plans.length || busy || Boolean(verificationPending)}><option value="" disabled>尚未冻结</option>{verification && newest(verification.plans).map(item => <option key={item.id} value={item.id}>库 v{item.catalogVersion} · {item.selection.mode === 'final' ? '完整验收' : '影响范围'} · {date(item.createdAt)}</option>)}</select></label>
-          {plan && <p className="form-hint">冻结 {plan.selection.instances.length} 项 · {plan.selection.completeScope ? '包含完整必要范围' : '未覆盖完整交付范围'}<br/><span className="mono">候选 {plan.candidate.digest}</span></p>}
+          {plan && <><p className="form-hint">冻结 {plan.selection.instances.length} 项 · {plan.selection.completeScope ? '包含完整必要范围' : '未覆盖完整交付范围'}</p><details className="technical-details"><summary>查看冻结清单与候选摘要</summary><dl className="facts"><dt>清单编号</dt><dd className="mono">{plan.id}</dd><dt>候选摘要</dt><dd className="mono">{plan.candidate.digest}</dd></dl></details></>}
           <div className="verification-buttons"><button className="button primary" disabled={!verificationReady || !plan || !reviewModel || !reviewEffort} onClick={() => verificationAction('run')}>5 · 执行独立验收</button><button className="button" disabled={!verificationReady || !verificationJob?.approved || verificationJob.status !== 'finished' || !verificationJob.evaluation?.complete || deliveryCurrent} onClick={() => verificationAction('deliver')}>6 · 确认当前交付</button></div>
           {jobSummary(verificationJob, '候选验收')}
           {activeVerificationJob && <button className="button danger" disabled={!online || busy || Boolean(verificationPending)} onClick={() => verificationAction('cancel')}>取消正在执行的验收</button>}
@@ -479,10 +497,11 @@ function App() {
         {chosenRuntime && <details><summary className="section-title">恢复信息</summary><dl className="facts"><dt>检查点</dt><dd className="mono">{chosenRuntime.checkpointId || '尚未记录'}</dd><dt>游标 / 版本</dt><dd>{chosenRuntime.cursor} · 编排 v{chosenRuntime.workflowVersion} · 投影 v{chosenRuntime.projectionVersion}</dd><dt>任务编号</dt><dd className="mono">{chosenRuntime.id}</dd><dt>未决操作</dt><dd>{detail ? detail.operations.filter(operation => !['confirmed', 'cancelled'].includes(operation.state)).length : '等待核对'}</dd><dt>检查点摘要</dt><dd>{detail?.checkpoints.at(-1) ? (detail.checkpoints.at(-1)!.valid ? '核对一致' : '不一致 · 恢复阻塞') : '等待核对'}</dd></dl></details>}
         {chosenExecution && <details><summary className="section-title">当前尝试会话</summary><dl className="facts"><dt>会话</dt><dd className="mono">{chosenExecution.threadId || '尚未建立'}</dd><dt>Turn</dt><dd className="mono">{chosenExecution.turnId || '尚未建立'}</dd><dt>尝试编号</dt><dd className="mono">{chosenExecution.id}</dd></dl></details>}
         {eventError && <div className="notice error compact">状态与事件同步失败：{eventError}</div>}
-        {chosenRuntime && <><h3 className="section-title">任务事件<span className="mono">游标 {runtimeEvents.at(-1)?.seq ?? 0}</span></h3>{runtimeEvents.length ? <ol className="events">{runtimeEvents.slice().reverse().map(event => <li className="event" key={event.seq}><div className="event-meta"><span>{event.kind}</span><time>{time(event.createdAt)}</time></div><pre>{JSON.stringify(event.payload, null, 2)}</pre></li>)}</ol> : <p className="no-events">尚无已同步任务事件。</p>}</>}
-        <h3 className="section-title">执行事件<span className="mono">游标 {events.at(-1)?.seq ?? 0}</span></h3>
-        {events.length ? <ol className="events">{events.slice().reverse().map(event => <EventItem key={event.seq} event={event}/>)}</ol> : <p className="no-events">尚无已同步执行事件。任务可先等待输入或派发。</p>}
-        {events.length >= 300 && <p className="no-events">界面显示最近 300 条；完整事件保存在后台账本。</p>}
+        <h3 className="section-title">活动时间线<span className="subtle">最新在前</span></h3>
+        <p className="form-hint">任务调度与模型执行按时间排列；执行结束后仍需独立验收。{timeline.folded > 0 && `已将 ${timeline.folded} 条重复通信、输出片段及进度更新收进原始记录。`}</p>
+        {timeline.entries.length ? <ol className="events" aria-label="任务与执行活动">{timeline.entries.map(entry => <EventItem key={entry.key} entry={entry}/>)}</ol> : <p className="no-events">尚无已同步活动。任务可先等待输入或派发；原始通信可在技术记录中核对。</p>}
+        {(runtimeEvents.length > 0 || events.length > 0) && <details className="technical-details raw-events"><summary>查看已同步的原始事件（{runtimeEvents.length + events.length} 条）</summary><p className="form-hint">含概览折叠的输出片段与原始通信；界面最多保留最近 100 条任务事件及 300 条执行事件，完整证据保存在后台账本。</p>{chosenRuntime && <p className="mono subtle">任务事件游标 {runtimeEvents.at(-1)?.seq ?? 0}</p>}{runtimeEvents.slice().reverse().map(event => <details key={`raw-runtime-${event.seq}`}><summary>任务 · {event.kind} · {time(event.createdAt)} · #{event.seq}</summary><pre className="result mono">{JSON.stringify(event.payload, null, 2)}</pre></details>)}<p className="mono subtle">执行事件游标 {events.at(-1)?.seq ?? 0}</p>{events.slice().reverse().map(event => <details key={`raw-execution-${event.seq}`}><summary>执行 · {event.kind} · {time(event.receivedAt)} · #{event.seq}</summary><pre className="result mono">{JSON.stringify(event.payload, null, 2)}</pre></details>)}</details>}
+        {(events.length >= 300 || runtimeEvents.length >= 100) && <p className="no-events">界面仅保留最近事件；完整事件保存在后台账本。</p>}
       </div><footer className="detail-actions">{chosenRuntime ? <>
         {chosenRuntime.paused ? <button className="button" disabled={!online || busy || chosenRuntime.cancelled} onClick={() => { void control('resume'); }}>恢复派发</button> : <button className="button" disabled={!online || busy || ['cancelled', 'awaiting-verification'].includes(chosenRuntime.phase)} onClick={() => { void control('pause'); }}>暂停派发</button>}
         <button className="button danger" disabled={!online || busy || chosenRuntime.cancelled || chosenRuntime.phase === 'awaiting-verification'} onClick={() => { void control('cancel'); }}><Icon name="stop"/>取消任务</button>
