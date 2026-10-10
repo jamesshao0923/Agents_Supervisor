@@ -101,9 +101,10 @@ export function parseManifest(value: unknown): StageManifest {
       names.add(name);
       return name;
     });
-    // Live suites serialize several bounded provider calls and cleanup. Keep the
-    // historical unit/integration cap while allowing a ten-minute live envelope.
-    const maxTimeoutMs = entry.layer === 'live' ? 600_000 : 300_000;
+    // Three real five-minute inspection windows need at least fifteen minutes,
+    // plus provider startup and owned-process cleanup. Only live suites may use
+    // this bounded envelope; each frozen suite still declares its own deadline.
+    const maxTimeoutMs = entry.layer === 'live' ? 1_500_000 : 300_000;
     if (typeof entry.timeoutMs !== 'number' || !Number.isInteger(entry.timeoutMs)
       || entry.timeoutMs < 1 || entry.timeoutMs > maxTimeoutMs) {
       manifestError(`${path}.timeoutMs`, `must be an integer between 1 and ${maxTimeoutMs}`);

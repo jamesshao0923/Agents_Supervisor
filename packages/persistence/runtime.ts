@@ -9,6 +9,7 @@ import { parseRuntimeAction, type RuntimeBinding, type RuntimeCheckpoint, type R
 import { applyAction, createRun } from '../domain/index.js';
 import type { FutureVerificationAllocation, RuntimeAppendRepair, RuntimeFutureVerification, RuntimeRepairBoundary, RuntimeRetryFailure } from '../contracts/p6-loop.js';
 import type { ExecutionRecord } from '../contracts/p2.js';
+import type { SupervisionJob, SupervisionRecord } from '../contracts/p6-supervision.js';
 import type { Candidate } from '../verification/candidate.js';
 import { canonical as verificationCanonical, exclusions } from '../verification/candidate.js';
 import { evaluateVerification } from '../verification/rules.js';
@@ -242,8 +243,23 @@ export class RuntimeRepository {
   });}
   private compatible(r:RuntimeRecord){ensure(r.engine==='local-v1'&&r.workflowVersion===1,'Unsupported runtime workflow version');this.checkpoint(r.id);}
   private phase(r:RuntimeRecord):RuntimeRecord['phase'] {if(r.cancelled)return 'cancelled';if(r.paused)return 'paused';if(r.cursor>=r.definition.steps.length)return 'awaiting-verification';const o=this.currentOperations(r.id).find(x=>x.stepIndex===r.cursor);if(o&&['unknown','failed'].includes(o.state))return 'blocked';if(o&&['claimed','started'].includes(o.state))return 'running';const s=r.definition.steps[r.cursor]!;return s.kind==='input'&&!Object.hasOwn(r.inputs,s.id)?'waiting-input':'ready';}
+  /** A known in-flight read-only inspection briefly delays the next node. It
+   * cannot turn arbitrary pending effects or unknown accounting into a wait. */
+  private awaitingInspection(r:RuntimeRecord):boolean {
+    const run=this.run(r),outstanding=run.attempts.filter(a=>!a.settled||a.status==='running');
+    if(outstanding.length!==1||outstanding[0]!.purpose!=='inspection')return false;
+    const attempt=outstanding[0]!;
+    ensure(attempt.status==='running'&&!attempt.settled&&attempt.nodeId==='@inspection'&&attempt.contractVersion===run.contract.version,'Inspection accounting requires reconciliation');
+    ensure(run.operations.every(o=>o.status==='confirmed'||o.status==='pending'&&o.attemptId===attempt.id)&&run.operations.some(o=>o.id===attempt.id&&o.attemptId===attempt.id&&o.status==='pending')&&run.leases.every(l=>l.released),'Inspection wait cannot bypass unresolved effects or leases');
+    const row=this.db.prepare('SELECT record FROM supervision_jobs WHERE id=?').get(attempt.id);ensure(row,'Inspection wait has no durable job');const job=JSON.parse(String(row!.record)) as SupervisionJob;
+    const saved=this.db.prepare('SELECT record FROM supervision_loops WHERE id=?').get(job.loopId);ensure(saved,'Inspection wait has no supervision owner');const loop=JSON.parse(String(saved!.record)) as SupervisionRecord;
+    ensure(job.purpose==='inspection'&&job.status==='running'&&job.attemptId===attempt.id&&job.runtimeId===r.id&&job.projectId===r.projectId&&job.runId===r.runId&&job.contractVersion===run.contract.version&&job.config.reservation===attempt.reservation&&loop.runtimeId===r.id&&loop.contractVersion===run.contract.version&&loop.contractDigest===job.contractDigest&&job.contractDigest===hash(runtimeCanonical(run.contract)),'Inspection wait boundary is stale or inconsistent');
+    ensure((loop.monitor as {activeJobId?:string}|null)?.activeJobId===job.id,'Inspection wait has no active monitor binding');
+    return true;
+  }
   claim(id:string,owner:string):RuntimeOperation|null {return this.tx(()=>{
     const r=this.get(id);this.compatible(r);if(r.paused||r.cancelled||new ConversationRepository(this.db).hasPendingForRun(r.projectId,r.runId))return null;const o=this.currentOperations(id).find(x=>x.stepIndex===r.cursor&&x.state==='queued');if(!o)return null;if(o.step.kind==='input'&&!Object.hasOwn(r.inputs,o.step.id))return null;
+    if(this.awaitingInspection(r))return null;
     this.action(r,{type:'startAttempt',attemptId:o.attemptId,nodeId:o.step.id,contractVersion:o.contractVersion,reservation:o.step.kind==='codex'?o.step.reservation:0,purpose:'execution',resources:o.step.kind==='codex'?['workspace:'+r.workspace]:[]});this.action(r,{type:'setOperation',operationId:o.attemptId,attemptId:o.attemptId,status:'pending'});
     o.owner=owner;o.state='claimed';this.saveOp(o);r.phase='running';this.save(r,'claimed',{operationId:o.id,owner});return o;
   });}

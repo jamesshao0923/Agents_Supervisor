@@ -30,6 +30,21 @@ export function futureVerificationFloor(run: Run): number {
   ensure(Number.isSafeInteger(allocation.amount)&&allocation.amount>0,'invalid future verification allocation amount');
   return allocation.amount;
 }
+/** Only the current in-flight execution may overlap a read-only inspection.
+ * Process/receipt ownership is checked by the repository and transport, not by
+ * model assertions or this pure ledger function. Ordinary dispatch stays quiet. */
+function inspectionExecution(run:Run):void {
+  const active=run.attempts.filter(attempt=>!attempt.settled);
+  ensure(active.length===1,'inspection needs exactly one current execution and no unresolved history');
+  const execution=active[0]!;
+  ensure(execution.purpose==='execution'&&execution.status==='running'&&execution.contractVersion===run.contract.version&&execution.actual===null&&Number.isSafeInteger(execution.reservation)&&execution.reservation>=0,'inspection needs a current running execution');
+  const node=run.nodes.find(item=>item.id===execution.nodeId);
+  ensure(node?.status==='running'&&node.dependencies.every(id=>run.nodes.find(item=>item.id===id)?.status==='succeeded'),'inspection execution node is not current');
+  ensure(run.attempts.every(attempt=>attempt.id===execution.id||attempt.settled&&attempt.status!=='running'),'inspection has unsettled or active historical attempts');
+  const pending=run.operations.filter(operation=>operation.status!=='confirmed');
+  ensure(pending.length>0&&pending.every(operation=>operation.status==='pending'&&operation.attemptId===execution.id),'inspection has unknown or unrelated pending effects');
+  ensure(run.leases.every(lease=>lease.released||lease.attemptId===execution.id),'inspection has unrelated writer leases');
+}
 function quiet(run:Run):void {ensure(run.attempts.every(a=>a.status!=='running'&&a.settled)&&run.operations.every(o=>o.status==='confirmed')&&run.leases.every(l=>l.released),'repair requires settled attempts, confirmed effects and released writers');}
 function completionReasons(run: Run): string[] {
   const reasons: string[] = [];
@@ -80,10 +95,15 @@ export function applyAction(input: Run, unparsed: RunAction): { run: Run; events
       ensure(!run.attempts.some((a) => a.id === action.attemptId), 'attempt id already exists');
       ensure(action.purpose==='reasoning'||run.admission!=='draft','requirements not admitted');
       if(action.purpose!=='reasoning')ensure(run.attempts.filter(a=>a.purpose==='reasoning').every(a=>a.settled),'unsettled reasoning prevents dispatch');
-      const node = action.purpose==='reasoning'?{id:'@supervisor',dependencies:[] as string[],status:'pending'}:run.nodes.find((n) => n.id === action.nodeId); ensure(node && node.id===action.nodeId, 'unknown node');
+      if(action.purpose==='inspection'){
+        ensure(action.nodeId==='@inspection'&&action.resources.length===0&&action.reservation>0&&action.futureVerificationAllocationId===undefined,'inspection requires its read-only node, positive budget and no resources or allocation consumption');
+        ensure(!run.nodes.some(node=>node.id==='@inspection'),'inspection node collides with a task node');
+        inspectionExecution(run);
+      } else ensure(run.attempts.filter(attempt=>attempt.purpose==='inspection').every(attempt=>attempt.settled&&attempt.status!=='running'),'unsettled inspection prevents dispatch');
+      const node = action.purpose==='reasoning'?{id:'@supervisor',dependencies:[] as string[],status:'pending'}:action.purpose==='inspection'?{id:'@inspection',dependencies:[] as string[],status:'pending'}:run.nodes.find((n) => n.id === action.nodeId); ensure(node && node.id===action.nodeId, 'unknown node');
       if(action.purpose==='reasoning') ensure(!run.attempts.some(a=>!a.settled),'unsettled attempts prevent reasoning');
       ensure(!run.attempts.some((a) => a.nodeId === node.id && a.status === 'running'), 'node has active attempt');
-      ensure(run.operations.every((o) => o.status === 'confirmed'), 'unresolved operation prevents dispatch');
+      if(action.purpose!=='inspection')ensure(run.operations.every((o) => o.status === 'confirmed'), 'unresolved operation prevents dispatch');
       ensure(node.dependencies.every((id) => run.nodes.find((n) => n.id === id)?.status === 'succeeded'), 'dependencies unfinished');
       if (action.purpose === 'execution') ensure(node.status === 'pending' || node.status === 'failed', 'node not dispatchable');
       else if(action.purpose==='verification') ensure(run.artifact?.contractVersion === run.contract.version && run.nodes.every((n) => !n.required || n.status === 'succeeded'), 'verification needs current candidate and completed required nodes');

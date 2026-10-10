@@ -1,8 +1,10 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { SUPERVISION_MIGRATION_SQL } from './supervision.js';
+import { SUPERVISION_INTERRUPTION_MIGRATION_SQL } from './supervision-interruptions.js';
+import { SUPERVISION_MONITOR_MIGRATION_SQL } from './supervision-monitor.js';
 import { CONVERSATION_MIGRATION_SQL, ASSESSMENT_MIGRATION_SQL } from './conversations.js';
 
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 const migrations = [
   `CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
@@ -66,6 +68,7 @@ const migrations = [
    CREATE TABLE goal_receipts(command_id TEXT PRIMARY KEY, request TEXT NOT NULL CHECK(json_valid(request)), session_id TEXT NOT NULL REFERENCES goal_sessions(id));`,
   CONVERSATION_MIGRATION_SQL,
   ASSESSMENT_MIGRATION_SQL + SUPERVISION_MIGRATION_SQL,
+  SUPERVISION_INTERRUPTION_MIGRATION_SQL + SUPERVISION_MONITOR_MIGRATION_SQL,
 ];
 
 export function migrate(db: DatabaseSync): void {

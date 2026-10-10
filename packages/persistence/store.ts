@@ -1,4 +1,6 @@
 import { SupervisionRepository } from './supervision.js';
+import { SupervisionInterruptionRepository } from './supervision-interruptions.js';
+import { SupervisionMonitorRepository } from './supervision-monitor.js';
 import { ConversationRepository } from './conversations.js';
 import { GoalRepository } from './goals.js';
 import { VerificationRepository } from './verification.js';
@@ -39,6 +41,8 @@ export class SupervisorStore {
   readonly runtime: RuntimeRepository;
   readonly goals: GoalRepository;
   readonly supervision: SupervisionRepository;
+  readonly supervisionInterruptions: SupervisionInterruptionRepository;
+  readonly supervisionMonitor: SupervisionMonitorRepository;
   readonly conversations: ConversationRepository;
   readonly verification: VerificationRepository;
   private readonly root: string;
@@ -61,6 +65,8 @@ export class SupervisorStore {
     this.runtime = new RuntimeRepository(this.db);
     this.goals = new GoalRepository(this.db);
     this.supervision = new SupervisionRepository(this.db);
+    this.supervisionInterruptions = new SupervisionInterruptionRepository(this.db);
+    this.supervisionMonitor = new SupervisionMonitorRepository(this.db);
     this.conversations = new ConversationRepository(this.db);
     this.verification = new VerificationRepository(this.db);
   }

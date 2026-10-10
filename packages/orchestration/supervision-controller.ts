@@ -9,6 +9,8 @@ import type { RuntimeAppendRepair,RuntimeRetryFailure,RuntimeFutureVerification 
 import type { VerificationAction,VerificationJob,Proposal,FrozenPlan,Delivery } from '../verification/records.js';
 import { SupervisorStore } from '../persistence/store.js';
 import { runtimeCanonical } from '../persistence/runtime.js';
+import { applyAction } from '../domain/index.js';
+import { assertDefinition } from '../verification/definition.js';
 import { LocalRuntimeAdapter } from '../runtime/index.js';
 import { VerificationController } from '../verification/controller.js';
 import { assertCandidate,captureCandidate,canonical,digest,environmentFingerprint,type Candidate } from '../verification/candidate.js';
@@ -17,6 +19,7 @@ import { inspectProcess,type ProcessIdentity } from '../process-control/index.js
 import { acceptanceAuthoringSchema,buildAcceptanceAuthoringPrompt,validateAcceptanceBundle,materializeAcceptanceBundle,type AcceptanceAuthoringContext } from './acceptance-authoring.js';
 import { parseReasonerOutput,validateReasonerSchema } from './reasoner-schema.js';
 import { SupervisionReasoningRunner } from './supervision-reasoning.js';
+import { SupervisionMonitorController } from './supervision-monitor-controller.js';
 
 const ensure=(condition:unknown,message:string):void=>{if(!condition)throw new Error(message);};
 const hash=(value:unknown)=>digest(canonical(value));
@@ -29,21 +32,22 @@ interface Diagnosis {decision:'repair'|'block';reason:string;repairPrompt:string
 interface RepairIntent {type:'supervision-repair';allocation:RuntimeFutureVerification;append:RuntimeAppendRepair|null;retry:RuntimeRetryFailure|null}
 const modelInput=(job:SupervisionJob)=>job.input as {prompt:string;outputSchema:Record<string,unknown>;context:SnapshotContext|DiagnosisContext};
 
-/** Durable engineering supervision. Fifteen-second scans only inspect records;
- * there is deliberately no claim of a five-minute LLM monitor in this controller. */
+/** Durable engineering supervision. The existing fifteen-second scan reads
+ * records and composes the separate five-minute private-context model monitor. */
 export class SupervisionController {
   private readonly runner:SupervisionReasoningRunner;
+  private readonly monitor:SupervisionMonitorController;
   private queue:Promise<unknown>=Promise.resolve();
   private readonly running=new Map<string,Promise<unknown>>();
   private timer:ReturnType<typeof setInterval>|null=null;
   private readonly deadlines=new Map<string,ReturnType<typeof setTimeout>>();
   private closed=false;
-  constructor(private readonly store:SupervisorStore,private readonly dataDir:string,private readonly runtime:LocalRuntimeAdapter,private readonly verification:VerificationController,runner?:SupervisionReasoningRunner){this.runner=runner??new SupervisionReasoningRunner(store,dataDir);}
+  constructor(private readonly store:SupervisorStore,private readonly dataDir:string,private readonly runtime:LocalRuntimeAdapter,private readonly verification:VerificationController,runner?:SupervisionReasoningRunner){this.runner=runner??new SupervisionReasoningRunner(store,dataDir);this.monitor=new SupervisionMonitorController(store,dataDir,undefined,()=>{if(!this.closed)void this.scan();});}
   private get repo(){return this.store.supervision;}
   private serial<T>(work:()=>Promise<T>):Promise<T>{const result=this.queue.then(work);this.queue=result.catch(()=>{});return result;}
-  async initialize():Promise<void>{ensure(!this.closed,'Supervision controller closed');await this.runner.initialize();await this.scan();this.timer??=setInterval(()=>{void this.scan();},15000);this.timer.unref();}
+  async initialize():Promise<void>{ensure(!this.closed,'Supervision controller closed');await this.runner.initialize();await this.monitor.initialize();await this.scan();this.timer??=setInterval(()=>{void this.scan();},15000);this.timer.unref();}
   inspect(loopId:string):SupervisionInspection {
-    const loop=this.repo.get(loopId);return {loop,jobs:this.repo.jobs(loopId),runtime:this.store.runtime.inspect(loop.runtimeId),verification:{proposals:this.store.verification.list('proposal',loop.runtimeId),plans:this.store.verification.list('plan',loop.runtimeId),jobs:this.store.verification.list('job',loop.runtimeId),deliveries:this.store.verification.list('delivery',loop.runtimeId)},capabilities:{scanIntervalMs:15000,modelMonitoring:false,automaticControlEvolution:false}};
+    const loop=this.repo.get(loopId);return {loop,jobs:this.repo.jobs(loopId),runtime:this.store.runtime.inspect(loop.runtimeId),verification:{proposals:this.store.verification.list('proposal',loop.runtimeId),plans:this.store.verification.list('plan',loop.runtimeId),jobs:this.store.verification.list('job',loop.runtimeId),deliveries:this.store.verification.list('delivery',loop.runtimeId)},monitor:this.monitor.inspect(loopId),capabilities:{scanIntervalMs:15000,modelMonitoring:true,automaticControlEvolution:false}};
   }
   async dispatch(value:unknown):Promise<SupervisionInspection|SupervisionInspection[]>{const action=parseSupervisionAction(value);return this.serial(async()=>{
     ensure(!this.closed,'Supervision controller closed');
@@ -53,17 +57,60 @@ export class SupervisionController {
       const {type,...input}=action;const loop=this.repo.attach(input);await this.tickSafely(loop.id);return this.inspect(loop.id);
     }
     let loop=this.repo.get(action.loopId);
-    if(action.type==='pause'){if(!loop.paused)loop=this.repo.update(loop.id,loop.revision,{paused:true,reason:'Supervision paused; main execution is unchanged. In-flight supervision work is being stopped; accounting remains authoritative.'});await this.abortOwned(loop);}
+    if(action.type==='pause'){
+      this.repo.transaction(()=>{
+        if(loop.intent&&!loop.intent.completedAt)this.recoverReceipt(loop);loop=this.repo.get(loop.id);
+        if(!loop.paused)loop=this.repo.update(loop.id,loop.revision,{paused:true,reason:'Supervision paused; main execution is unchanged. In-flight supervision work is being stopped; accounting remains authoritative.'});
+        if(!loop.stopped)for(const id of new Set([loop.references.reviewId,loop.references.verificationJobId].filter((id):id is string=>Boolean(id)))){const job=this.store.verification.get('job',id);if(job.status==='running'&&!job.error)this.store.supervisionInterruptions.requestPause(loop.id,id);}
+      });await this.abortOwned(loop);
+    }
     else if(action.type==='stop'){if(!loop.stopped)loop=this.repo.update(loop.id,loop.revision,{stopped:true,reason:'Supervision stopped; main execution is unchanged. In-flight supervision work is being stopped; unknown usage is not cleared.'});await this.abortOwned(loop);}
     else {
       ensure(!loop.stopped,'Stopped supervision cannot resume');
-      if(loop.paused){try{if(await this.resumeAnalysis(loop))return this.inspect(loop.id);}catch(error){this.block(loop.id,error);throw error;}}
+      if(loop.paused){try{if(await this.resumeVerification(loop)||await this.resumeAnalysis(loop))return this.inspect(loop.id);}catch(error){this.block(loop.id,error);throw error;}}
       ensure(loop.phase!=='blocked','Blocked supervision requires explicit diagnosis/recovery; resume cannot erase its failure');
       if(loop.paused)this.repo.update(loop.id,loop.revision,{paused:false,reason:null});await this.tickSafely(loop.id);
     }
     return this.inspect(loop.id);
   });}
   async cancelRuntime(runtimeId:string):Promise<void>{return this.serial(async()=>{const loop=this.repo.forRuntime(runtimeId);if(!loop)return;if(!loop.stopped)this.repo.update(loop.id,loop.revision,{stopped:true,reason:'Supervision stopped because task cancellation was requested; domain cancellation is controlled by the task controller.'});await this.abortOwned(this.repo.get(loop.id));});}
+  /** Preserve the original P4 target and typed pause provenance; only a fresh
+   * explicitly authorized request can replace a settled cancelled verifier. */
+  private async resumeVerification(loop:SupervisionRecord):Promise<boolean>{
+    const id=loop.phase==='reviewing'?loop.references.reviewId:loop.phase==='verifying'?loop.references.verificationJobId:loop.phase==='blocked'?(loop.references.verificationJobId??loop.references.reviewId):undefined;
+    if(!id)return false;const interruption=this.store.supervisionInterruptions.forJob(id);if(!interruption)return false;
+    const job=this.store.verification.get('job',id);ensure(interruption.loopId===loop.id&&!interruption.replacement,'Pause replacement already authorized');
+    if(job.status==='running'){this.update(loop.id,{reason:'Paused verification is still stopping; resume cannot allocate a new request before settlement.'});return true;}
+    if(!job.error&&job.approved)return false;
+    this.store.supervisionInterruptions.assertBoundary(interruption);
+    ensure(job.error!==null,'Paused verifier failed independently without cancellation evidence');await this.checkVerification(job);
+    ensure(job.intents.length===new Set(job.intents.map(item=>item.operationId)).size&&job.identities.length===new Set(job.identities.map(item=>item.operationId)).size,'Paused verifier has duplicate process identities');
+    for(const identity of job.identities)ensure(job.intents.some(intent=>intent.operationId===identity.operationId&&intent.ownerToken===identity.ownerToken),'Paused verifier process identity is unbound');
+    const proposal=this.store.verification.get('proposal',job.proposalId),plan=job.planId?this.store.verification.get('plan',job.planId):null;
+    await assertDefinition(proposal.spec,proposal.bundle);await assertCandidate(plan?.candidate??proposal.candidate);
+    ensure(job.environmentDigest===(await environmentFingerprint()).digest,'Paused verifier environment changed');
+    const commandId=randomUUID();
+    this.repo.transaction(()=>{
+      const current=this.repo.get(loop.id);ensure(current.paused&&!current.stopped,'Pause boundary changed');this.store.supervisionInterruptions.assertBoundary(interruption);
+      const settled=this.store.verification.get('job',job.id);ensure(runtimeCanonical(settled)===runtimeCanonical(job),'Paused verifier changed during recovery');
+      this.update(loop.id,{paused:false,reason:null});this.dispatchAllowed(loop.id);
+      let run=this.store.runtime.inspect(loop.runtimeId).run;
+      ensure(run.attempts.every(attempt=>attempt.settled&&attempt.status!=='running')&&run.operations.every(operation=>operation.status==='confirmed')&&run.leases.every(lease=>lease.released),'Paused verification requires fully settled execution');
+      if(plan){ensure(plan.selection.mode==='final'&&plan.selection.completeScope&&run.artifact?.id===plan.id,'Pause recovery requires the original current final plan');const head=this.store.verification.head(run.projectId);ensure(head?.id===plan.proposalId&&head.version===plan.catalogVersion,'Paused verification head changed');
+        this.store.runtime.setFutureVerification({...this.allocation(current,run.revision),allocationId:`${loop.id}:resume:${commandId}`,amount:job.config.reservation,reason:'Protect the explicitly resumed original final verification after known cancellation'});
+      }else {ensure(run.artifact?.id===proposal.id,'Paused review candidate was superseded');this.ensureFloor(current);}
+      run=this.store.runtime.inspect(loop.runtimeId).run;const allocation=plan?this.store.runtime.futureVerification(loop.runtimeId)!:null;
+      // Admission is checked now without spending; the real P4 job reservation and
+      // floor consumption remain atomic in VerificationController on dispatch.
+      applyAction(run,{type:'startAttempt',attemptId:'resume-admission-'+commandId,nodeId:run.nodes.at(-1)!.id,contractVersion:run.contract.version,purpose:'verification',reservation:job.config.reservation,resources:['verification:'+job.workspace],...(allocation?{futureVerificationAllocationId:allocation.allocationId}:{})});
+      const action=plan?{type:'run',commandId,planId:plan.id,...job.config,futureVerificationAllocationId:allocation!.allocationId}:{type:'review',commandId,proposalId:proposal.id,...job.config};
+      const references={...current.references};if(plan)delete references.verificationJobId;else delete references.reviewId;
+      this.update(loop.id,{phase:plan?'verifying':'reviewing',references});const revised=this.repo.get(loop.id);
+      this.repo.prepareIntent({commandId,loopId:loop.id,expectedRevision:revised.revision,kind:plan?'verify':'review',action});this.store.supervisionInterruptions.authorizeReplacement(interruption.id,commandId);
+    });
+    // A later scan owns the external request and reuses this durable commandId.
+    return true;
+  }
   /** An explicit resume may authorize a fresh request only after a known pause
    * cancellation. It never reuses the old request or treats unknown cost as zero. */
   private async resumeAnalysis(loop:SupervisionRecord):Promise<boolean>{
@@ -88,7 +135,8 @@ export class SupervisionController {
     return true;
   }
   private async abortOwned(loop:SupervisionRecord):Promise<void>{
-    for(const job of this.repo.jobs(loop.id).filter(job=>job.status==='running'))await this.runner.cancel(job.id);
+    await this.monitor.stop(loop.id);
+    for(const job of this.repo.jobs(loop.id).filter(job=>job.purpose!=='inspection'&&job.status==='running'))await this.runner.cancel(job.id);
     const ids=new Set([loop.references.reviewId,loop.references.verificationJobId].filter((id):id is string=>Boolean(id)));
     if(loop.intent&&!loop.intent.completedAt&&['review','verify'].includes(loop.intent.kind)){
       const receipt=this.store.verification.receipt(loop.intent.commandId,loop.intent.input) as VerificationJob|undefined;if(receipt?.id)ids.add(receipt.id);
@@ -129,6 +177,7 @@ export class SupervisionController {
     if(runtime.paused||run.status==='paused'||this.store.conversations.hasPendingForRun(run.projectId,run.id)){
       await this.abortOwned(loop);const reason=runtime.paused||run.status==='paused'?'Task paused; supervision waits without clearing accounting.':'Pending user follow-up; supervision waits without changing frozen requirements.';if(loop.reason!==reason)this.update(loop.id,{reason});return;
     }
+    const monitoring=await this.monitor.tick(loop.id);loop=this.repo.get(loop.id);if(monitoring.waiting){if(loop.reason!==monitoring.reason)this.update(loop.id,{reason:monitoring.reason});return;}
     if(loop.phase==='blocked')return;
     this.dispatchAllowed(loop.id);this.criteria(loop);
     if(loop.reason)this.update(loop.id,{reason:null});
@@ -226,7 +275,7 @@ export class SupervisionController {
     const receipt=this.store.verification.receipt(intent.commandId,intent.input) as {id:string;runtimeId:string;projectId:string;runId:string}|undefined;if(receipt===undefined)return false;ensure(receipt.runtimeId===loop.runtimeId&&receipt.projectId===loop.projectId&&receipt.runId===loop.runId,'Recovered verification receipt belongs to another boundary');this.acknowledge(loop.id,intent,receipt.id);return true;
   }
   private acknowledge(loopId:string,intent:SupervisionIntent,id:string):void{this.repo.transaction(()=>{
-    const current=this.repo.get(loopId);ensure(current.intent?.id===intent.id,'Supervision intent changed');this.repo.acknowledgeIntent(loopId,intent.id,{id});
+    const current=this.repo.get(loopId);ensure(current.intent?.id===intent.id,'Supervision intent changed');const interruption=this.store.supervisionInterruptions.forCommand(intent.commandId);if(interruption)this.store.supervisionInterruptions.acknowledgeReplacement(interruption.id,id);this.repo.acknowledgeIntent(loopId,intent.id,{id});
     const references={...current.references};let phase:SupervisionRecord['phase'];
     switch(intent.kind){case 'propose':references.proposalId=id;delete references.reviewId;phase='reviewing';break;case 'review':references.reviewId=id;phase='reviewing';break;case 'publish':phase='freezing';break;case 'freeze':references.planId=id;delete references.verificationJobId;phase='verifying';break;case 'verify':references.verificationJobId=id;phase='verifying';break;case 'deliver':phase='complete';break;case 'repair':case 'retry':delete references.planId;delete references.verificationJobId;delete references.diagnosisJobId;phase='executing';break;}
     this.update(loopId,{phase,references,reason:current.paused||current.stopped?current.reason:null});
@@ -239,5 +288,5 @@ export class SupervisionController {
     }
     const result=await this.verification.dispatch(intent.input) as Proposal|FrozenPlan|VerificationJob|Delivery;ensure(result.runtimeId===loop.runtimeId&&result.projectId===loop.projectId&&result.runId===loop.runId,'Verification receipt belongs to another boundary');this.acknowledge(loop.id,intent,result.id);
   }
-  async close():Promise<void>{if(this.closed)return;this.closed=true;if(this.timer)clearInterval(this.timer);for(const timer of this.deadlines.values())clearTimeout(timer);this.deadlines.clear();await this.queue;for(const loop of this.repo.list())await this.abortOwned(loop);await this.runner.close();await Promise.all(this.running.values());}
+  async close():Promise<void>{if(this.closed)return;this.closed=true;if(this.timer)clearInterval(this.timer);for(const timer of this.deadlines.values())clearTimeout(timer);this.deadlines.clear();await this.queue;for(const loop of this.repo.list())await this.abortOwned(loop);await this.monitor.close();await this.runner.close();await Promise.all(this.running.values());}
 }

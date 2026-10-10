@@ -72,6 +72,7 @@ test('P6-SUP-I04 outer rollback preserves loop counters original ledger and comm
 test('P6-SUP-I05 context and budget failures precede intents while overrun remains charged and completion cannot be fabricated',()=>{
   const f=fixture();try{
     const initial=f.store.runtime.inspect(f.runtime.id).run;
+    assert.throws(()=>f.store.supervision.beginJob({commandId:'inspection-wrong-route',loopId:f.loop.id,expectedRevision:0,purpose:'inspection',context:{}}),/dedicated monitor reservation/);
     assert.throws(()=>f.store.supervision.beginJob({commandId:'large',loopId:f.loop.id,expectedRevision:0,purpose:'diagnosis',context:{text:'x'.repeat(3000)}}),/capacity/);
     assert.throws(()=>f.store.supervision.beginJob({commandId:'budget',loopId:f.loop.id,expectedRevision:0,purpose:'diagnosis',context:{},config:{...f.attach.config,reservation:81}}),/budget/);
     assert.deepEqual(f.store.runtime.inspect(f.runtime.id).run,initial);assert.equal(f.store.supervision.jobs(f.loop.id).length,0);

@@ -2,9 +2,9 @@ import React,{useEffect,useRef,useState} from 'react';
 import type { RuntimeRecord } from '../../packages/contracts/p3.js';
 import type { ReasonerConfig } from '../../packages/contracts/p5.js';
 import type { SupervisionRecord } from '../../packages/contracts/p6-supervision.js';
-import type { SupervisionAction } from '../../packages/contracts/p6-supervision-actions.js';
+import type { SupervisionAction,SupervisionInspection } from '../../packages/contracts/p6-supervision-actions.js';
 import { describeTaskError } from './presentation.js';
-export interface SupervisionView {loop:SupervisionRecord}
+export interface SupervisionView {loop:SupervisionRecord;monitor?:SupervisionInspection['monitor'];capabilities?:SupervisionInspection['capabilities']}
 export interface SupervisionDesktopAPI {
   supervisionList():Promise<SupervisionView[]>;
   supervisionAttach(input:Omit<Extract<SupervisionAction,{type:'attach'}>,'type'>):Promise<SupervisionView>;
@@ -40,13 +40,20 @@ export function SupervisionPanel({api,runtime,config,maxContextChars,online,term
     finally{if(alive.current)setBusy(false);}
   }
   const loop=view?.loop;
+  const monitor=view?.monitor,latestWindow=monitor?.events.filter(event=>event.kind==='window'||event.kind==='transition').at(-1);
+  const applied=monitor?.events.filter(event=>event.kind==='disposition'&&event.record.disposition==='applied').at(-1);
+  const observation=applied?monitor?.jobs.find(job=>job.id===applied.jobId):null;
+  const activeInspection=monitor?.jobs.find(job=>job.id===monitor.envelope?.activeJobId);
+  const summary=observation?.result&&typeof observation.result==='object'&&'summary'in observation.result&&typeof observation.result.summary==='string'?observation.result.summary:null;
+  const monitorStatus=!online||!known?'巡检状态待核对':activeInspection?.status==='finished'&&(activeInspection.usage===null||!activeInspection.stopConfirmed)?'巡检用量或停止状态待核对':loop?.phase==='blocked'?'巡检等待问题处理':monitor?.envelope?.activeJobId?'正在核对运行进展':loop?.phase!=='executing'?'正在处理当前阶段，执行巡检待命':latestWindow?.record.decision==='skip'?'进展没有变化，本轮未调用模型':monitor?.envelope?'等待下一个巡检时点':'尚未进入执行巡检';
   return <section className="verification-panel" aria-label="自动监督">
     <h3 className="section-title">自动监督</h3>
     <p className="form-hint">实施完成后自动生成验收提案，独立复核、验证；产品缺陷按原标准修复后复验。所有调用共用任务累计预算。</p>
     {!online&&<p className="notice compact">后台未连接，当前监督状态待核对。</p>}
     {loop?<>
       <p role="status"><strong>{loop.stopped?'监督已停止':loop.paused?'监督已暂停':phases[loop.phase]}</strong></p>
-      <p className="form-hint">已修复 {loop.repairCount} / {loop.limits.maxRepairs} 次 · 主控分析 {loop.reasoningCount} / {loop.limits.maxReasoningCalls} 次<br/>每 15 秒核对状态；模型分析在阶段切换时触发。</p>
+      <p className="form-hint">已修复 {loop.repairCount} / {loop.limits.maxRepairs} 次 · 主控分析 {loop.reasoningCount} / {loop.limits.maxReasoningCalls} 次<br/>每 15 秒核对状态；{view?.capabilities?.modelMonitoring?'执行期间每 5 分钟按进展变化巡检，阶段切换时另行分析。':'模型分析在阶段切换时触发。'}</p>
+      {view?.capabilities?.modelMonitoring&&<div className="notice compact" aria-label="运行巡检"><p><strong>{loop.stopped?'巡检已停止':loop.paused?'巡检已暂停':loop.phase==='complete'?'任务已交付，巡检结束':monitorStatus}</strong></p>{summary&&<><p>{summary}</p><p className="form-hint">最近有效观察 · {new Date(applied!.record.observedAt).toLocaleString()}。巡检结论不代替独立验收。</p></>}</div>}
       {loop.reason&&<div className="notice compact"><p>{/[\u3400-\u9fff]/.test(loop.reason)?loop.reason:describeTaskError(loop.reason)}</p><details className="technical-details"><summary>查看监督原因</summary><pre>{loop.reason}</pre></details></div>}
       {!loop.stopped&&loop.phase!=='complete'&&<div className="verification-buttons"><button className="button" disabled={!online||!known||busy} onClick={()=>{void act(loop.paused?'resume':'pause');}}>{loop.paused?'恢复监督':'暂停监督'}</button><button className="button danger" disabled={!online||!known||busy} onClick={()=>{void act('stop');}}>停止自动监督</button></div>}
       <p className="form-hint">监督控制只影响主控与验收；停止整个任务请使用下方“取消任务”。</p>

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-catalog-v14",
+  "revision": "dev-catalog-v15",
   "modules": [
     {
       "id": "dev-contracts",
@@ -417,6 +417,36 @@
       "layer": "live",
       "file": "dist/tests/live/supervision-loop.test.js",
       "timeoutMs": 600000
+    },
+    {
+      "id": "unit-inspection-domain",
+      "layer": "unit",
+      "file": "dist/tests/unit/inspection-domain.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "integration-supervision-monitor",
+      "layer": "integration",
+      "file": "dist/tests/integration/supervision-monitor.test.js",
+      "timeoutMs": 120000
+    },
+    {
+      "id": "integration-supervision-monitor-controller",
+      "layer": "integration",
+      "file": "dist/tests/integration/supervision-monitor-controller.test.js",
+      "timeoutMs": 120000
+    },
+    {
+      "id": "integration-supervision-inspection",
+      "layer": "integration",
+      "file": "dist/tests/integration/supervision-inspection.test.js",
+      "timeoutMs": 180000
+    },
+    {
+      "id": "live-supervision-monitor",
+      "layer": "live",
+      "file": "dist/tests/live/supervision-monitor.test.js",
+      "timeoutMs": 1400000
     }
   ],
   "cases": [
@@ -8639,6 +8669,1176 @@
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-controller.test.ts :: P6-SCTL-I09 actual duration deadline stops a silent owned process and retains unknown cost without cancelling main execution",
       "cleanup": "Stop owned processes; preserve formal evidence and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-inspection-domain.001",
+      "name": "P6-INSP-U01 inspection parser accepts the distinct purpose and rejects unsafe or extra fields",
+      "suiteId": "unit-inspection-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-inspection-domain"
+      ],
+      "scenario": "P6-INSP-U01 inspection parser accepts the distinct purpose and rejects unsafe or extra fields",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual domain and policy functions",
+      "assertions": "tests/unit/inspection-domain.test.ts :: P6-INSP-U01 inspection parser accepts the distinct purpose and rejects unsafe or extra fields",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-inspection-domain.002",
+      "name": "P6-INSP-U02 current running execution can overlap read-only inspection without task or writer mutations",
+      "suiteId": "unit-inspection-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-inspection-domain"
+      ],
+      "scenario": "P6-INSP-U02 current running execution can overlap read-only inspection without task or writer mutations",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual domain and policy functions",
+      "assertions": "tests/unit/inspection-domain.test.ts :: P6-INSP-U02 current running execution can overlap read-only inspection without task or writer mutations",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-inspection-domain.003",
+      "name": "P6-INSP-U03 synthetic inspection node positive reservation and empty resources cannot be bypassed",
+      "suiteId": "unit-inspection-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-inspection-domain"
+      ],
+      "scenario": "P6-INSP-U03 synthetic inspection node positive reservation and empty resources cannot be bypassed",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual domain and policy functions",
+      "assertions": "tests/unit/inspection-domain.test.ts :: P6-INSP-U03 synthetic inspection node positive reservation and empty resources cannot be bypassed",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-inspection-domain.004",
+      "name": "P6-INSP-U04 draft paused cancelled succeeded stale or quiet runs cannot begin inspection",
+      "suiteId": "unit-inspection-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-inspection-domain"
+      ],
+      "scenario": "P6-INSP-U04 draft paused cancelled succeeded stale or quiet runs cannot begin inspection",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual domain and policy functions",
+      "assertions": "tests/unit/inspection-domain.test.ts :: P6-INSP-U04 draft paused cancelled succeeded stale or quiet runs cannot begin inspection",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-inspection-domain.005",
+      "name": "P6-INSP-U05 ordinary reasoning retains its settled boundary during active execution and inspection",
+      "suiteId": "unit-inspection-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-inspection-domain"
+      ],
+      "scenario": "P6-INSP-U05 ordinary reasoning retains its settled boundary during active execution and inspection",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual domain and policy functions",
+      "assertions": "tests/unit/inspection-domain.test.ts :: P6-INSP-U05 ordinary reasoning retains its settled boundary during active execution and inspection",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-inspection-domain.006",
+      "name": "P6-INSP-U06 unknown current effect orphan pending or absent current pending blocks inspection",
+      "suiteId": "unit-inspection-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-inspection-domain"
+      ],
+      "scenario": "P6-INSP-U06 unknown current effect orphan pending or absent current pending blocks inspection",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual domain and policy functions",
+      "assertions": "tests/unit/inspection-domain.test.ts :: P6-INSP-U06 unknown current effect orphan pending or absent current pending blocks inspection",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-inspection-domain.007",
+      "name": "P6-INSP-U07 terminal unknown usage and historical running corruption cannot be treated as live execution",
+      "suiteId": "unit-inspection-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-inspection-domain"
+      ],
+      "scenario": "P6-INSP-U07 terminal unknown usage and historical running corruption cannot be treated as live execution",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual domain and policy functions",
+      "assertions": "tests/unit/inspection-domain.test.ts :: P6-INSP-U07 terminal unknown usage and historical running corruption cannot be treated as live execution",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-inspection-domain.008",
+      "name": "P6-INSP-U08 unrelated unreleased writer lease and multiple active executions are refused",
+      "suiteId": "unit-inspection-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-inspection-domain"
+      ],
+      "scenario": "P6-INSP-U08 unrelated unreleased writer lease and multiple active executions are refused",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual domain and policy functions",
+      "assertions": "tests/unit/inspection-domain.test.ts :: P6-INSP-U08 unrelated unreleased writer lease and multiple active executions are refused",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-inspection-domain.009",
+      "name": "P6-INSP-U09 a second concurrent inspection is rejected and first reservation is retained",
+      "suiteId": "unit-inspection-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-inspection-domain"
+      ],
+      "scenario": "P6-INSP-U09 a second concurrent inspection is rejected and first reservation is retained",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual domain and policy functions",
+      "assertions": "tests/unit/inspection-domain.test.ts :: P6-INSP-U09 a second concurrent inspection is rejected and first reservation is retained",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-inspection-domain.010",
+      "name": "P6-INSP-U10 original budget includes worker and inspector reservations while overlapping future floor only once",
+      "suiteId": "unit-inspection-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-inspection-domain"
+      ],
+      "scenario": "P6-INSP-U10 original budget includes worker and inspector reservations while overlapping future floor only once",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual domain and policy functions",
+      "assertions": "tests/unit/inspection-domain.test.ts :: P6-INSP-U10 original budget includes worker and inspector reservations while overlapping future floor only once",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-inspection-domain.011",
+      "name": "P6-INSP-U11 larger original verification reserve remains protected and no inspection consumes allocation",
+      "suiteId": "unit-inspection-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-inspection-domain"
+      ],
+      "scenario": "P6-INSP-U11 larger original verification reserve remains protected and no inspection consumes allocation",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual domain and policy functions",
+      "assertions": "tests/unit/inspection-domain.test.ts :: P6-INSP-U11 larger original verification reserve remains protected and no inspection consumes allocation",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-inspection-domain.012",
+      "name": "P6-INSP-U12 inspection finish settlement and confirmation preserve ongoing node lease artifact and evidence",
+      "suiteId": "unit-inspection-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-inspection-domain"
+      ],
+      "scenario": "P6-INSP-U12 inspection finish settlement and confirmation preserve ongoing node lease artifact and evidence",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual domain and policy functions",
+      "assertions": "tests/unit/inspection-domain.test.ts :: P6-INSP-U12 inspection finish settlement and confirmation preserve ongoing node lease artifact and evidence",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-inspection-domain.013",
+      "name": "P6-INSP-U13 finished inspection with unknown usage blocks ordinary execution reasoning and verification",
+      "suiteId": "unit-inspection-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-inspection-domain"
+      ],
+      "scenario": "P6-INSP-U13 finished inspection with unknown usage blocks ordinary execution reasoning and verification",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual domain and policy functions",
+      "assertions": "tests/unit/inspection-domain.test.ts :: P6-INSP-U13 finished inspection with unknown usage blocks ordinary execution reasoning and verification",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-inspection-domain.014",
+      "name": "P6-INSP-U14 known settled usage with unknown inspection effect still blocks the next dispatch",
+      "suiteId": "unit-inspection-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-inspection-domain"
+      ],
+      "scenario": "P6-INSP-U14 known settled usage with unknown inspection effect still blocks the next dispatch",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual domain and policy functions",
+      "assertions": "tests/unit/inspection-domain.test.ts :: P6-INSP-U14 known settled usage with unknown inspection effect still blocks the next dispatch",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-inspection-domain.015",
+      "name": "P6-INSP-U15 pause and cancellation permit real accounting without reviving task nodes or release of worker lease",
+      "suiteId": "unit-inspection-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-inspection-domain"
+      ],
+      "scenario": "P6-INSP-U15 pause and cancellation permit real accounting without reviving task nodes or release of worker lease",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual domain and policy functions",
+      "assertions": "tests/unit/inspection-domain.test.ts :: P6-INSP-U15 pause and cancellation permit real accounting without reviving task nodes or release of worker lease",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-inspection-domain.016",
+      "name": "P6-INSP-U16 inspection alone cannot complete required nodes or authorize independent acceptance",
+      "suiteId": "unit-inspection-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-inspection-domain"
+      ],
+      "scenario": "P6-INSP-U16 inspection alone cannot complete required nodes or authorize independent acceptance",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual domain and policy functions",
+      "assertions": "tests/unit/inspection-domain.test.ts :: P6-INSP-U16 inspection alone cannot complete required nodes or authorize independent acceptance",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-inspection-domain.017",
+      "name": "P6-INSP-U17 inspection overrun is charged as actual cost and prevents new inspection or execution",
+      "suiteId": "unit-inspection-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-inspection-domain"
+      ],
+      "scenario": "P6-INSP-U17 inspection overrun is charged as actual cost and prevents new inspection or execution",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual domain and policy functions",
+      "assertions": "tests/unit/inspection-domain.test.ts :: P6-INSP-U17 inspection overrun is charged as actual cost and prevents new inspection or execution",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-inspection-domain.018",
+      "name": "P6-INSP-U18 revision cannot cross unsettled inspection and old cancelled accounting cannot satisfy new standards",
+      "suiteId": "unit-inspection-domain",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p6-inspection-domain"
+      ],
+      "scenario": "P6-INSP-U18 revision cannot cross unsettled inspection and old cancelled accounting cannot satisfy new standards",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual domain and policy functions",
+      "assertions": "tests/unit/inspection-domain.test.ts :: P6-INSP-U18 revision cannot cross unsettled inspection and old cancelled accounting cannot satisfy new standards",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-controller.010",
+      "name": "P6-SCTL-I10 explicit pause of an actual P4 review persists provenance and resumes the same proposal exactly once after reopen",
+      "suiteId": "integration-supervision-controller",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-controller"
+      ],
+      "scenario": "P6-SCTL-I10 explicit pause of an actual P4 review persists provenance and resumes the same proposal exactly once after reopen",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-controller.test.ts :: P6-SCTL-I10 explicit pause of an actual P4 review persists provenance and resumes the same proposal exactly once after reopen",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-controller.011",
+      "name": "P6-SCTL-I11 known cancelled final P4 run restores a fresh floor and request for the identical plan without changing old history",
+      "suiteId": "integration-supervision-controller",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-controller"
+      ],
+      "scenario": "P6-SCTL-I11 known cancelled final P4 run restores a fresh floor and request for the identical plan without changing old history",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-controller.test.ts :: P6-SCTL-I11 known cancelled final P4 run restores a fresh floor and request for the identical plan without changing old history",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-controller.012",
+      "name": "P6-SCTL-I12 changed candidate or proof and unknown accounting reject paused P4 recovery without a replacement",
+      "suiteId": "integration-supervision-controller",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-controller"
+      ],
+      "scenario": "P6-SCTL-I12 changed candidate or proof and unknown accounting reject paused P4 recovery without a replacement",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-controller.test.ts :: P6-SCTL-I12 changed candidate or proof and unknown accounting reject paused P4 recovery without a replacement",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-controller.013",
+      "name": "P6-SCTL-I13 insufficient remaining budget atomically preserves pause and the old P4 request without leaking a floor",
+      "suiteId": "integration-supervision-controller",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-controller"
+      ],
+      "scenario": "P6-SCTL-I13 insufficient remaining budget atomically preserves pause and the old P4 request without leaking a floor",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-controller.test.ts :: P6-SCTL-I13 insufficient remaining budget atomically preserves pause and the old P4 request without leaking a floor",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-controller.014",
+      "name": "P6-SCTL-I14 pause provenance joins the parent transaction and changed published head cannot authorize an old P4 plan",
+      "suiteId": "integration-supervision-controller",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-supervision-controller"
+      ],
+      "scenario": "P6-SCTL-I14 pause provenance joins the parent transaction and changed published head cannot authorize an old P4 plan",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-controller.test.ts :: P6-SCTL-I14 pause provenance joins the parent transaction and changed published head cannot authorize an old P4 plan",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-monitor.001",
+      "name": "P6-MON-I01 policy observation and inspection reservation commit atomically and exact receipts survive reopen",
+      "suiteId": "integration-supervision-monitor",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-monitor-ledger"
+      ],
+      "scenario": "P6-MON-I01 policy observation and inspection reservation commit atomically and exact receipts survive reopen",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-monitor.test.ts :: P6-MON-I01 policy observation and inspection reservation commit atomically and exact receipts survive reopen",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-monitor.002",
+      "name": "P6-MON-I02 failed outer transaction rolls back monitor active job counters reservation operation and receipt together",
+      "suiteId": "integration-supervision-monitor",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-monitor-ledger"
+      ],
+      "scenario": "P6-MON-I02 failed outer transaction rolls back monitor active job counters reservation operation and receipt together",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-monitor.test.ts :: P6-MON-I02 failed outer transaction rolls back monitor active job counters reservation operation and receipt together",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-monitor.003",
+      "name": "P6-MON-I03 successful settled current result advances only cursor then no-change window skips with zero allocation",
+      "suiteId": "integration-supervision-monitor",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-monitor-ledger"
+      ],
+      "scenario": "P6-MON-I03 successful settled current result advances only cursor then no-change window skips with zero allocation",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-monitor.test.ts :: P6-MON-I03 successful settled current result advances only cursor then no-change window skips with zero allocation",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-monitor.004",
+      "name": "P6-MON-I04 unknown usage or stop preserves active intent reservation and blocks new monitor jobs",
+      "suiteId": "integration-supervision-monitor",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-monitor-ledger"
+      ],
+      "scenario": "P6-MON-I04 unknown usage or stop preserves active intent reservation and blocks new monitor jobs",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-monitor.test.ts :: P6-MON-I04 unknown usage or stop preserves active intent reservation and blocks new monitor jobs",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-monitor.005",
+      "name": "P6-MON-I05 pause after actual accounting discards the result without erasing spent or applying cursor",
+      "suiteId": "integration-supervision-monitor",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-monitor-ledger"
+      ],
+      "scenario": "P6-MON-I05 pause after actual accounting discards the result without erasing spent or applying cursor",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-monitor.test.ts :: P6-MON-I05 pause after actual accounting discards the result without erasing spent or applying cursor",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-monitor.006",
+      "name": "P6-MON-I06 snapshot rejects foreign evidence and shared budget rejection leaves every reservation counter unchanged",
+      "suiteId": "integration-supervision-monitor",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-monitor-ledger"
+      ],
+      "scenario": "P6-MON-I06 snapshot rejects foreign evidence and shared budget rejection leaves every reservation counter unchanged",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-monitor.test.ts :: P6-MON-I06 snapshot rejects foreign evidence and shared budget rejection leaves every reservation counter unchanged",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-monitor.007",
+      "name": "P6-MON-I07 persistent same-window merge and append-only traces cannot overwrite previous decisions",
+      "suiteId": "integration-supervision-monitor",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-monitor-ledger"
+      ],
+      "scenario": "P6-MON-I07 persistent same-window merge and append-only traces cannot overwrite previous decisions",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-monitor.test.ts :: P6-MON-I07 persistent same-window merge and append-only traces cannot overwrite previous decisions",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-monitor.008",
+      "name": "P6-MON-I08 transport schema avoids unsupported uniqueItems while local result parser rejects duplicate evidence",
+      "suiteId": "integration-supervision-monitor",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-monitor-ledger"
+      ],
+      "scenario": "P6-MON-I08 transport schema avoids unsupported uniqueItems while local result parser rejects duplicate evidence",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-monitor.test.ts :: P6-MON-I08 transport schema avoids unsupported uniqueItems while local result parser rejects duplicate evidence",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-monitor.009",
+      "name": "P6-MON-I09 legitimate active inspector makes next queued node wait without mutation then known completion permits dispatch",
+      "suiteId": "integration-supervision-monitor",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-monitor-ledger"
+      ],
+      "scenario": "P6-MON-I09 legitimate active inspector makes next queued node wait without mutation then known completion permits dispatch",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-monitor.test.ts :: P6-MON-I09 legitimate active inspector makes next queued node wait without mutation then known completion permits dispatch",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-monitor.010",
+      "name": "P6-MON-I10 unknown inspector accounting cannot make next node wait as if it were a healthy running model",
+      "suiteId": "integration-supervision-monitor",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-monitor-ledger"
+      ],
+      "scenario": "P6-MON-I10 unknown inspector accounting cannot make next node wait as if it were a healthy running model",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-monitor.test.ts :: P6-MON-I10 unknown inspector accounting cannot make next node wait as if it were a healthy running model",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-monitor.011",
+      "name": "P6-MON-I11 changed unclaimed observation defers with no model reservation and preserves a due future window",
+      "suiteId": "integration-supervision-monitor",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-monitor-ledger"
+      ],
+      "scenario": "P6-MON-I11 changed unclaimed observation defers with no model reservation and preserves a due future window",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-monitor.test.ts :: P6-MON-I11 changed unclaimed observation defers with no model reservation and preserves a due future window",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-monitor.012",
+      "name": "P6-MON-I12 unknown stop operation blocks next queued node even with reported usage settled",
+      "suiteId": "integration-supervision-monitor",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-monitor-ledger"
+      ],
+      "scenario": "P6-MON-I12 unknown stop operation blocks next queued node even with reported usage settled",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-monitor.test.ts :: P6-MON-I12 unknown stop operation blocks next queued node even with reported usage settled",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-monitor.013",
+      "name": "P6-MON-I13 cursor ignores token-only event growth and rejects a forged caller cursor without mutation",
+      "suiteId": "integration-supervision-monitor",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-monitor-ledger"
+      ],
+      "scenario": "P6-MON-I13 cursor ignores token-only event growth and rejects a forged caller cursor without mutation",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-monitor.test.ts :: P6-MON-I13 cursor ignores token-only event growth and rejects a forged caller cursor without mutation",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-monitor.014",
+      "name": "P6-MON-I14 merged next window can become a deferred skip with both original and transition records preserved",
+      "suiteId": "integration-supervision-monitor",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-monitor-ledger"
+      ],
+      "scenario": "P6-MON-I14 merged next window can become a deferred skip with both original and transition records preserved",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-monitor.test.ts :: P6-MON-I14 merged next window can become a deferred skip with both original and transition records preserved",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-monitor.015",
+      "name": "P6-MON-I15 merged next window with pending signal dispatches one deferred inspection without rewriting its window",
+      "suiteId": "integration-supervision-monitor",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p6-monitor-ledger"
+      ],
+      "scenario": "P6-MON-I15 merged next window with pending signal dispatches one deferred inspection without rewriting its window",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-monitor.test.ts :: P6-MON-I15 merged next window with pending signal dispatches one deferred inspection without rewriting its window",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-monitor-controller.001",
+      "name": "P6-MCTL-I01 attach baseline and service monitor restart retain the real epoch without model allocation",
+      "suiteId": "integration-supervision-monitor-controller",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-monitor-controller"
+      ],
+      "scenario": "P6-MCTL-I01 attach baseline and service monitor restart retain the real epoch without model allocation",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-monitor-controller.test.ts :: P6-MCTL-I01 attach baseline and service monitor restart retain the real epoch without model allocation",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-monitor-controller.002",
+      "name": "P6-MCTL-I02 database evidence excludes paginated token noise but includes distinct normalized diffs and rejects capacity overflow",
+      "suiteId": "integration-supervision-monitor-controller",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-monitor-controller"
+      ],
+      "scenario": "P6-MCTL-I02 database evidence excludes paginated token noise but includes distinct normalized diffs and rejects capacity overflow",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-monitor-controller.test.ts :: P6-MCTL-I02 database evidence excludes paginated token noise but includes distinct normalized diffs and rejects capacity overflow",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-monitor-controller.003",
+      "name": "P6-MCTL-I03 a persisted due observation whose writer ended defers without leaving an in-flight reservation",
+      "suiteId": "integration-supervision-monitor-controller",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-monitor-controller"
+      ],
+      "scenario": "P6-MCTL-I03 a persisted due observation whose writer ended defers without leaving an in-flight reservation",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-monitor-controller.test.ts :: P6-MCTL-I03 a persisted due observation whose writer ended defers without leaving an in-flight reservation",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-monitor-controller.004",
+      "name": "P6-MCTL-I04 restart preserves unknown inspection usage and blocks replay while the actual writer is left alone",
+      "suiteId": "integration-supervision-monitor-controller",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-monitor-controller"
+      ],
+      "scenario": "P6-MCTL-I04 restart preserves unknown inspection usage and blocks replay while the actual writer is left alone",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-monitor-controller.test.ts :: P6-MCTL-I04 restart preserves unknown inspection usage and blocks replay while the actual writer is left alone",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-monitor-controller.005",
+      "name": "P6-MCTL-I05 writer completion drains an actual pre-turn inspection process before the next workflow node can start",
+      "suiteId": "integration-supervision-monitor-controller",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-monitor-controller"
+      ],
+      "scenario": "P6-MCTL-I05 writer completion drains an actual pre-turn inspection process before the next workflow node can start",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-monitor-controller.test.ts :: P6-MCTL-I05 writer completion drains an actual pre-turn inspection process before the next workflow node can start",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-monitor-controller.006",
+      "name": "P6-MCTL-I06 a future persisted observation explicitly blocks the main loop when the real clock is behind it",
+      "suiteId": "integration-supervision-monitor-controller",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-monitor-controller"
+      ],
+      "scenario": "P6-MCTL-I06 a future persisted observation explicitly blocks the main loop when the real clock is behind it",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-monitor-controller.test.ts :: P6-MCTL-I06 a future persisted observation explicitly blocks the main loop when the real clock is behind it",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-monitor-controller.007",
+      "name": "P6-MCTL-I07 the existing real fifteen-second main timer records health without a second monitor timer or model request",
+      "suiteId": "integration-supervision-monitor-controller",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-monitor-controller"
+      ],
+      "scenario": "P6-MCTL-I07 the existing real fifteen-second main timer records health without a second monitor timer or model request",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-monitor-controller.test.ts :: P6-MCTL-I07 the existing real fifteen-second main timer records health without a second monitor timer or model request",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-inspection.001",
+      "name": "P6-SIR-I01 concurrent real writer survives one inspection with full frozen prompt private cwd and settled budget",
+      "suiteId": "integration-supervision-inspection",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-inspection-runner"
+      ],
+      "scenario": "P6-SIR-I01 concurrent real writer survives one inspection with full frozen prompt private cwd and settled budget",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-inspection.test.ts :: P6-SIR-I01 concurrent real writer survives one inspection with full frozen prompt private cwd and settled budget",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-inspection.002",
+      "name": "P6-SIR-I02 frozen input mutation rejects before transport without spending or changing execution",
+      "suiteId": "integration-supervision-inspection",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-inspection-runner"
+      ],
+      "scenario": "P6-SIR-I02 frozen input mutation rejects before transport without spending or changing execution",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-inspection.test.ts :: P6-SIR-I02 frozen input mutation rejects before transport without spending or changing execution",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-inspection.003",
+      "name": "P6-SIR-I03 caller-rehashed weakened schema is still refused with known zero accounting",
+      "suiteId": "integration-supervision-inspection",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-inspection-runner"
+      ],
+      "scenario": "P6-SIR-I03 caller-rehashed weakened schema is still refused with known zero accounting",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-inspection.test.ts :: P6-SIR-I03 caller-rehashed weakened schema is still refused with known zero accounting",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-inspection.004",
+      "name": "P6-SIR-I04 persisted successful result rechecks actual proof bytes across reopen without replay",
+      "suiteId": "integration-supervision-inspection",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-inspection-runner"
+      ],
+      "scenario": "P6-SIR-I04 persisted successful result rechecks actual proof bytes across reopen without replay",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-inspection.test.ts :: P6-SIR-I04 persisted successful result rechecks actual proof bytes across reopen without replay",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-inspection.005",
+      "name": "P6-SIR-I05 pause after actual inspection stop rejects publication while preserving known final cost",
+      "suiteId": "integration-supervision-inspection",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-inspection-runner"
+      ],
+      "scenario": "P6-SIR-I05 pause after actual inspection stop rejects publication while preserving known final cost",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-inspection.test.ts :: P6-SIR-I05 pause after actual inspection stop rejects publication while preserving known final cost",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-inspection.006",
+      "name": "P6-SIR-I06 explicit cancel terminates only inspector and preserves unknown model usage reservation",
+      "suiteId": "integration-supervision-inspection",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-inspection-runner"
+      ],
+      "scenario": "P6-SIR-I06 explicit cancel terminates only inspector and preserves unknown model usage reservation",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-inspection.test.ts :: P6-SIR-I06 explicit cancel terminates only inspector and preserves unknown model usage reservation",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-inspection.007",
+      "name": "P6-SIR-I07 initialize stops persisted orphan process without replay and conservatively retains started usage",
+      "suiteId": "integration-supervision-inspection",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-inspection-runner"
+      ],
+      "scenario": "P6-SIR-I07 initialize stops persisted orphan process without replay and conservatively retains started usage",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-inspection.test.ts :: P6-SIR-I07 initialize stops persisted orphan process without replay and conservatively retains started usage",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-inspection.008",
+      "name": "P6-SIR-I08 original writer may settle after turn authorization while inspection retains frozen evidence",
+      "suiteId": "integration-supervision-inspection",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-inspection-runner"
+      ],
+      "scenario": "P6-SIR-I08 original writer may settle after turn authorization while inspection retains frozen evidence",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-inspection.test.ts :: P6-SIR-I08 original writer may settle after turn authorization while inspection retains frozen evidence",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-inspection.009",
+      "name": "P6-SIR-I09 physical writer loss before turn rejects without trusting stale running metadata",
+      "suiteId": "integration-supervision-inspection",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-inspection-runner"
+      ],
+      "scenario": "P6-SIR-I09 physical writer loss before turn rejects without trusting stale running metadata",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-inspection.test.ts :: P6-SIR-I09 physical writer loss before turn rejects without trusting stale running metadata",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-inspection.010",
+      "name": "P6-SIR-I10 unknown underreported overspent and exact reserved usage keep honest accounting",
+      "suiteId": "integration-supervision-inspection",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-inspection-runner"
+      ],
+      "scenario": "P6-SIR-I10 unknown underreported overspent and exact reserved usage keep honest accounting",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-inspection.test.ts :: P6-SIR-I10 unknown underreported overspent and exact reserved usage keep honest accounting",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-inspection.011",
+      "name": "P6-SIR-I11 transport cannot invent evidence IDs or business authorization in structured result",
+      "suiteId": "integration-supervision-inspection",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-inspection-runner"
+      ],
+      "scenario": "P6-SIR-I11 transport cannot invent evidence IDs or business authorization in structured result",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-inspection.test.ts :: P6-SIR-I11 transport cannot invent evidence IDs or business authorization in structured result",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-inspection.012",
+      "name": "P6-SIR-I12 false process stop flag cannot publish and inspector is actually terminated",
+      "suiteId": "integration-supervision-inspection",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-inspection-runner"
+      ],
+      "scenario": "P6-SIR-I12 false process stop flag cannot publish and inspector is actually terminated",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-inspection.test.ts :: P6-SIR-I12 false process stop flag cannot publish and inspector is actually terminated",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-inspection.013",
+      "name": "P6-SIR-I13 ordinary runner never recovers cancels or closes an active inspection owned by dedicated runner",
+      "suiteId": "integration-supervision-inspection",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-inspection-runner"
+      ],
+      "scenario": "P6-SIR-I13 ordinary runner never recovers cancels or closes an active inspection owned by dedicated runner",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-inspection.test.ts :: P6-SIR-I13 ordinary runner never recovers cancels or closes an active inspection owned by dedicated runner",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-inspection.014",
+      "name": "P6-SIR-I14 reservation floor and a foreign unresolved operation prevent model dispatch",
+      "suiteId": "integration-supervision-inspection",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-inspection-runner"
+      ],
+      "scenario": "P6-SIR-I14 reservation floor and a foreign unresolved operation prevent model dispatch",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-inspection.test.ts :: P6-SIR-I14 reservation floor and a foreign unresolved operation prevent model dispatch",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-inspection.015",
+      "name": "P6-SIR-I15 missing persisted birth identity remains unknown stop across recovery and cannot release reserve",
+      "suiteId": "integration-supervision-inspection",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-inspection-runner"
+      ],
+      "scenario": "P6-SIR-I15 missing persisted birth identity remains unknown stop across recovery and cannot release reserve",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-inspection.test.ts :: P6-SIR-I15 missing persisted birth identity remains unknown stop across recovery and cannot release reserve",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-inspection.016",
+      "name": "P6-SIR-I16 runtime cancel after process stop retains known cost and rejects late inspection",
+      "suiteId": "integration-supervision-inspection",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-inspection-runner"
+      ],
+      "scenario": "P6-SIR-I16 runtime cancel after process stop retains known cost and rejects late inspection",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-inspection.test.ts :: P6-SIR-I16 runtime cancel after process stop retains known cost and rejects late inspection",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-inspection.017",
+      "name": "P6-SIR-I17 missing proof rejects finished output while preserving truthful process and cost evidence",
+      "suiteId": "integration-supervision-inspection",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-inspection-runner"
+      ],
+      "scenario": "P6-SIR-I17 missing proof rejects finished output while preserving truthful process and cost evidence",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-inspection.test.ts :: P6-SIR-I17 missing proof rejects finished output while preserving truthful process and cost evidence",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-inspection.018",
+      "name": "P6-SIR-I18 writer receipt birth identity mutation prevents a successful raw result from application",
+      "suiteId": "integration-supervision-inspection",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-inspection-runner"
+      ],
+      "scenario": "P6-SIR-I18 writer receipt birth identity mutation prevents a successful raw result from application",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-inspection.test.ts :: P6-SIR-I18 writer receipt birth identity mutation prevents a successful raw result from application",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-inspection.019",
+      "name": "P6-SIR-I19 future verification allocation remains intact during actual concurrent inspection accounting",
+      "suiteId": "integration-supervision-inspection",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-inspection-runner"
+      ],
+      "scenario": "P6-SIR-I19 future verification allocation remains intact during actual concurrent inspection accounting",
+      "impactTags": [
+        "p6-monitor-foundation"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
+      "assertions": "tests/integration/supervision-inspection.test.ts :: P6-SIR-I19 future verification allocation remains intact during actual concurrent inspection accounting",
+      "cleanup": "Stop owned processes and preserve formal evidence including failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.live-supervision-monitor.001",
+      "name": "P6-MON-L01 real three five-minute windows inspect skip inspect while one Codex engineering turn remains active",
+      "suiteId": "live-supervision-monitor",
+      "module": "orchestration",
+      "layer": "live",
+      "covers": [
+        "p6-monitor-live"
+      ],
+      "scenario": "P6-MON-L01 real three five-minute windows inspect skip inspect while one Codex engineering turn remains active",
+      "impactTags": [
+        "p6-monitor-live"
+      ],
+      "prerequisites": "Pinned Node and authenticated actual local Codex; production adapters and at least three real 300-second windows. Explicit long-duration engineering workload, no shortened clocks or injected state.",
+      "assertions": "tests/live/supervision-monitor.test.ts :: P6-MON-L01 real three five-minute windows inspect skip inspect while one Codex engineering turn remains active",
+      "cleanup": "Stop only owned processes; preserve actual timing, model proofs, unknown costs, and all failed attempts",
       "status": "active"
     }
   ]

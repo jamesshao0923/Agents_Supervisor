@@ -3,12 +3,14 @@ import type { SupervisionLimits,SupervisionRecord,SupervisionJob } from './p6-su
 import type { Run } from './p1.js';
 import type { RuntimeRecord,RuntimeOperation,RuntimeCheckpoint } from './p3.js';
 import type { Proposal,FrozenPlan,VerificationJob,Delivery } from '../verification/records.js';
+import type { MonitorEnvelopeV1,MonitorEvent } from './p6-monitor.js';
 
 export interface SupervisionInspection {
   loop:SupervisionRecord; jobs:SupervisionJob[];
   runtime:{runtime:RuntimeRecord;run:Run;operations:RuntimeOperation[];checkpoints:{checkpoint:RuntimeCheckpoint;digest:string;valid:boolean}[]};
   verification:{proposals:Proposal[];plans:FrozenPlan[];jobs:VerificationJob[];deliveries:Delivery[]};
-  capabilities:{scanIntervalMs:15000;modelMonitoring:false;automaticControlEvolution:false};
+  monitor?:{envelope:MonitorEnvelopeV1|null;events:MonitorEvent[];jobs:SupervisionJob[];diagnosisRequests:{jobId:string;summary:string}[]};
+  capabilities:{scanIntervalMs:15000;modelMonitoring:boolean;automaticControlEvolution:false};
 }
 export type SupervisionAction=
   | {type:'list'}

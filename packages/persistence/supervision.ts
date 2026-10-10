@@ -85,10 +85,11 @@ export class SupervisionRepository {
     intent.receipt=JSON.parse(serializable(receipt));intent.completedAt=now();if(['repair','retry'].includes(intent.kind))loop.repairCount++;this.save(loop);return loop;
   });}
   beginJob(input:{commandId:string;loopId:string;expectedRevision:number;purpose:SupervisionJob['purpose'];context:unknown;config?:ReasonerConfig}):SupervisionJob{return this.transaction(()=>{
+    ensure(input.purpose!=='inspection','Inspection requires the dedicated monitor reservation and frozen evidence binding');
     const prior=this.receipt<{jobId:string}>(input.commandId,input);if(prior)return this.job(prior.jobId);
     const loop=this.get(input.loopId);ensure(loop.revision===input.expectedRevision,'Stale supervision revision');const run=this.eligible(loop);
     ensure(!loop.intent||loop.intent.completedAt!==null,'Unacknowledged supervision intent');
-    ensure(loop.reasoningCount<loop.limits.maxReasoningCalls,'Supervision reasoning limit exhausted');ensure(['acceptance-authoring','diagnosis','inspection'].includes(input.purpose),'Unknown supervision purpose');
+    ensure(loop.reasoningCount<loop.limits.maxReasoningCalls,'Supervision reasoning limit exhausted');ensure(['acceptance-authoring','diagnosis'].includes(input.purpose),'Unknown supervision purpose');
     ensure(!this.jobs(loop.id).some(job=>job.status==='running'||!job.stopConfirmed||job.usage===null),'Unresolved supervision reasoning');
     const config=structuredClone(input.config??loop.config);configValid(config);const context=serializable(input.context);ensure(context.length+6000<=loop.limits.maxContextChars,'Supervision context exceeds capacity');
     // Assets and diagnoses are built only at a settled boundary. Concurrent read-only

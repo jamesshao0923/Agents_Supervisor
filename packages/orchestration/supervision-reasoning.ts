@@ -160,6 +160,7 @@ export class SupervisionReasoningRunner {
     } catch (error) { throw new SupervisionReasoningError(message(error), this.store.supervision.job(job.id), { cause: error }); }
   }
   run(jobId: string): Promise<SupervisionJob> {
+    ensure(this.store.supervision.job(jobId).purpose !== 'inspection', 'Inspection requires its dedicated read-only runner');
     const existing = this.pending.get(jobId); if (existing) return existing.promise;
     const controller = new AbortController();
     const promise = Promise.resolve().then(async () => {
@@ -220,6 +221,7 @@ export class SupervisionReasoningRunner {
     ensure(this.pending.size === 0, 'Cannot recover locally running supervision jobs');
     this.recovery = (async () => {
       for (const loop of this.store.supervision.list()) for (const job of this.store.supervision.jobs(loop.id)) {
+        if (job.purpose === 'inspection') continue;
         if (job.status !== 'running') { if (!job.stopConfirmed) await this.stopped(job, true); continue; }
         const stopConfirmed = await this.stopped(job, true);
         this.store.supervision.finishJob(job.id, { usage: !job.modelStarted && stopConfirmed ? 0 : null, stopConfirmed, error: 'Interrupted supervision reasoning recovered without replay', proofs: {}, threadId: null, result: null });
@@ -228,6 +230,7 @@ export class SupervisionReasoningRunner {
     return this.recovery;
   }
   async cancel(jobId: string): Promise<SupervisionJob> {
+    ensure(this.store.supervision.job(jobId).purpose !== 'inspection', 'Inspection cancellation belongs to its dedicated runner');
     const pending = this.pending.get(jobId); pending?.controller.abort();
     const job = this.store.supervision.job(jobId);
     if (job.status === 'running') {
@@ -240,7 +243,7 @@ export class SupervisionReasoningRunner {
   async close(): Promise<void> {
     this.closing = true;
     const ids = new Set(this.pending.keys());
-    for (const loop of this.store.supervision.list()) for (const job of this.store.supervision.jobs(loop.id)) if (job.status === 'running') ids.add(job.id);
+    for (const loop of this.store.supervision.list()) for (const job of this.store.supervision.jobs(loop.id)) if (job.purpose !== 'inspection' && job.status === 'running') ids.add(job.id);
     await Promise.all([...ids].map(id => this.cancel(id)));
     if (this.recovery) await this.recovery;
   }

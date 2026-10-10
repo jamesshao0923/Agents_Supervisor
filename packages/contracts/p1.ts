@@ -3,9 +3,10 @@ export interface Criterion { id: string; description: string; required: boolean 
 export interface TaskContract { version: number; goal: string; criteria: Criterion[] }
 export type RunStatus = 'ready' | 'running' | 'paused' | 'blocked' | 'cancelled' | 'succeeded';
 export interface TaskNode { id: string; dependencies: string[]; required: boolean; status: 'pending' | 'running' | 'succeeded' | 'failed' | 'blocked' }
+export type AttemptPurpose = 'execution' | 'verification' | 'reasoning' | 'inspection';
 export interface Attempt {
   id: string; nodeId: string; contractVersion: number; status: 'running' | 'succeeded' | 'failed' | 'cancelled';
-  reservation: number; purpose: 'execution' | 'verification' | 'reasoning'; settled: boolean; actual: number | null;
+  reservation: number; purpose: AttemptPurpose; settled: boolean; actual: number | null;
 }
 export interface Budget { unit: 'work-unit' | 'token'; limit: number; spent: number; verificationReserve: number; futureVerification?: import('./p6-loop.js').FutureVerificationAllocation }
 export interface Lease { resource: string; attemptId: string; released: boolean }
@@ -44,7 +45,7 @@ export interface CreateRunInput {
   budget: { limit: number; verificationReserve: number; unit?: 'work-unit' | 'token' };
 }
 export type RunAction =
-  | { type: 'startAttempt'; attemptId: string; nodeId: string; contractVersion: number; reservation: number; purpose: 'execution' | 'verification' | 'reasoning'; resources: string[]; futureVerificationAllocationId?: string }
+  | { type: 'startAttempt'; attemptId: string; nodeId: string; contractVersion: number; reservation: number; purpose: AttemptPurpose; resources: string[]; futureVerificationAllocationId?: string }
   | { type: 'finishAttempt'; attemptId: string; outcome: 'succeeded' | 'failed' | 'cancelled' }
   | { type: 'settleAttempt'; attemptId: string; actual: number }
   | { type: 'setOperation'; operationId: string; attemptId: string; status: Operation['status'] }

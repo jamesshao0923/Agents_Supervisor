@@ -70,7 +70,7 @@ function action(v: unknown, p: string): void {
   }
   const o = object(v, p, keys, t === 'startAttempt' ? ['futureVerificationAllocationId'] : []);
   for (const k of ['attemptId', 'nodeId', 'operationId', 'resource']) if (keys.includes(k)) string(o[k], `${p}.${k}`);
-  if (t === 'startAttempt') { number(o.contractVersion, `${p}.contractVersion`, 1, true); number(o.reservation, `${p}.reservation`, 0, true); choice(o.purpose, `${p}.purpose`, ['execution', 'verification', 'reasoning']); strings(o.resources, `${p}.resources`); }
+  if (t === 'startAttempt') { number(o.contractVersion, `${p}.contractVersion`, 1, true); number(o.reservation, `${p}.reservation`, 0, true); choice(o.purpose, `${p}.purpose`, ['execution', 'verification', 'reasoning', 'inspection']); strings(o.resources, `${p}.resources`); }
   if (t === 'startAttempt' && Object.hasOwn(o, 'futureVerificationAllocationId')) string(o.futureVerificationAllocationId, `${p}.futureVerificationAllocationId`);
   if (t === 'finishAttempt') choice(o.outcome, `${p}.outcome`, ['succeeded', 'failed', 'cancelled']);
   if (t === 'settleAttempt') number(o.actual, `${p}.actual`, 0, true);
