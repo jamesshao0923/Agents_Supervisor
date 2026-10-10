@@ -1,3 +1,4 @@
+import {publishLegacyControlReviewFixture} from '../helpers/legacy-control-review-fixture.js';
 import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
@@ -149,10 +150,6 @@ test('P6-REPAIR-I11 a job id alone cannot authorize repair with mismatched froze
 
 /** Explicit stored review fixture for repository/controller boundaries. Proof bytes
  * and accounting are real, but approval metadata is NOT a live model review. */
-async function publishFixtureReview(store:SupervisorStore,proposal:Proposal,root:string):Promise<void>{
-  const run=store.verification.run(proposal.projectId,proposal.runId),id='fixture-review-'+proposal.id;
-  const proof=join(root,id+'.json'),proofText=JSON.stringify({scope:'non-model repository fixture',proposalId:proposal.id,contractDigest:proposal.contractDigest,definitionDigest:proposal.bundle.digest});await writeFile(proof,proofText);
-  store.verificationLineage.bindProposal({commandId:'fixture-binding-'+proposal.id,proposalId:proposal.id,base:store.verificationLineage.captureBase(proposal.projectId,proposal.runId),definitionFormat:'legacy-v1'});
-  const review:VerificationJob={id,runtimeId:proposal.runtimeId,projectId:proposal.projectId,runId:proposal.runId,workspace:proposal.candidate.root,kind:'review',proposalId:proposal.id,planId:null,request:{scope:'explicit non-model review fixture'},status:'finished',attemptId:id,environmentDigest:(await environmentFingerprint()).digest,config:{model:'repository-fixture-no-model-call',effort:'low',reservation:1,timeoutMs:1000},startedAt:new Date().toISOString(),finishedAt:new Date().toISOString(),intents:[],identities:[],usage:0,modelStarted:false,usageUnknown:false,results:[],controls:[],evaluation:null,approved:true,stopConfirmed:true,error:null,proofs:{[proof]:digest(proofText)},sources:[]};
-  store.verification.transaction(()=>{store.verification.act(run.projectId,run.id,{type:'startAttempt',attemptId:id,nodeId:run.nodes.at(-1)!.id,contractVersion:run.contract.version,purpose:'verification',reservation:1,resources:[]});store.verification.act(run.projectId,run.id,{type:'finishAttempt',attemptId:id,outcome:'succeeded'});store.verification.act(run.projectId,run.id,{type:'settleAttempt',attemptId:id,actual:0});store.verification.insert('job',review);proposal.reviewId=id;store.verification.publish(proposal,'fixture-publication-'+proposal.id);});
+async function publishFixtureReview(store:SupervisorStore,proposal:Proposal,_root:string):Promise<void>{
+ await publishLegacyControlReviewFixture(store,proposal);
 }

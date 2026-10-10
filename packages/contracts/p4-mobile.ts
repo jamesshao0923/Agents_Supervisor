@@ -1,0 +1,29 @@
+/** Frozen mobile test declaration. Devices/tool paths and verdicts are host authority. */
+export type MobileAction={id:string;kind:'tap';selector:string}|{id:string;kind:'inputText';selector:string;text:string}|{id:string;kind:'reopen'};
+export interface MobileFrame {stepId:string;phase:'before'|'after';expectation:string}
+export interface MobileVerifier {kind:'mobile';version:string;platform:'android'|'ios';sourceRoot:string;sourceEntry:string;appIdentifier:string;timeoutMs:number;actions:MobileAction[];observe:string[];frames:MobileFrame[]}
+const fail=(m:string):never=>{throw Error('Mobile verifier: '+m);};
+function obj(v:unknown,keys:string[]):Record<string,unknown>{if(!v||typeof v!=='object'||Array.isArray(v)||Object.getPrototypeOf(v)!==Object.prototype)fail('plain object required');const o=v as Record<string,unknown>;if(Object.keys(o).sort().join(',')!==keys.sort().join(','))fail('unexpected/missing fields');for(const k of Reflect.ownKeys(o)){const d=Object.getOwnPropertyDescriptor(o,k)!;if(typeof k!=='string'||!('value'in d)||!d.enumerable)fail('nonplain fields');}return o;}
+function text(v:unknown,max=12000):asserts v is string {if(typeof v!=='string'||!v.trim()||v.length>max)fail('bounded nonempty text required');}
+export function mobileSourceTarget(value:string):{platform:'android'|'ios';entry:string}{const match=/^(android|ios):(.+)$/.exec(value);if(!match)return fail('target needs android: or ios: source entry');relative(match[2]);return {platform:match[1] as 'android'|'ios',entry:match[2]!};}
+function relative(v:unknown):asserts v is string{text(v,1024);if(v.startsWith('/')||v.includes('\\')||v.includes(':')||/[?#]/.test(v)||v.split('/').some(p=>!p||p==='.'||p==='..'))fail('normalized source path required');}
+function list(v:unknown,max:number):asserts v is unknown[]{if(!Array.isArray(v)||!v.length||v.length>max||Object.keys(v).length!==v.length)fail('bounded nonempty array required');}
+export function parseMobileVerifier(value:unknown):MobileVerifier{
+ const o=obj(value,['kind','version','platform','sourceRoot','sourceEntry','appIdentifier','timeoutMs','actions','observe','frames']);if(o.kind!=='mobile'||!['android','ios'].includes(String(o.platform)))fail('unsupported kind/platform');text(o.version);if(o.sourceRoot!=='.')relative(o.sourceRoot);relative(o.sourceEntry);if(o.sourceRoot!=='.'&&!(o.sourceEntry as string).startsWith(String(o.sourceRoot)+'/'))fail('entry outside source root');
+ text(o.appIdentifier,128);if(!/^[A-Za-z][A-Za-z0-9]*(\.[A-Za-z][A-Za-z0-9]*)+$/.test(o.appIdentifier))fail('app identifier');if(!Number.isSafeInteger(o.timeoutMs)||Number(o.timeoutMs)<1000||Number(o.timeoutMs)>600000)fail('deadline');
+ if(o.platform==='android'&&!(o.sourceEntry as string).endsWith('MainActivity.java')||o.platform==='ios'&&!(o.sourceEntry as string).endsWith('.swift'))fail('unsupported source project entry');
+ list(o.actions,8);const ids=new Set<string>();for(const value of o.actions){const k=(value as Record<string,unknown>)?.kind;const a=obj(value,k==='reopen'?['id','kind']:k==='tap'?['id','kind','selector']:['id','kind','selector','text']);text(a.id,64);if(!/^[A-Za-z0-9_-]+$/.test(a.id)||ids.has(a.id))fail('unique action id required');ids.add(a.id);if(!['tap','inputText','reopen'].includes(String(k)))fail('unsupported action');if(k!=='reopen'){text(a.selector,64);if(!(o.platform==='android'?/^[A-Za-z0-9 _-]+$/:/^[A-Za-z0-9_.-]+$/).test(a.selector))fail('unsupported selector');}if(k==='inputText'){text(a.text,64);if(!/^[A-Za-z0-9 _.-]+$/.test(a.text))fail('unsupported text input');}}
+ if(!Array.isArray(o.observe)||o.observe.length>16||new Set(o.observe).size!==o.observe.length)fail('unique observation identifiers');for(const [i,id] of (o.observe as unknown[]).entries()){if(typeof id!=='string'||!id.trim()||id.length>64)fail('observe['+i+']: bounded nonempty identifier of at most 64 characters required');if(!/^[A-Za-z0-9_.-]+$/.test(id as string))fail('observe['+i+']: unsupported observation identifier');}
+ list(o.frames,5);const frames=new Set<string>();for(const value of o.frames){const f=obj(value,['stepId','phase','expectation']);text(f.stepId,64);if(!ids.has(f.stepId)||!['before','after'].includes(String(f.phase)))fail('frame references missing action');text(f.expectation);const key=f.stepId+':'+f.phase;if(frames.has(key))fail('duplicate frame');frames.add(key);}
+ return structuredClone(o) as unknown as MobileVerifier;
+}
+// Schema bounds match the unchanged supported host grammar. Uniqueness, exact
+// source path/platform and cross-field action/frame bindings remain local gates.
+const str={type:'string',minLength:1,maxLength:12000};
+const actionId={type:'string',minLength:1,maxLength:64};
+const observationId={type:'string',minLength:1,maxLength:64,pattern:'^[A-Za-z0-9_.-]+$'};
+const selector={type:'string',minLength:1,maxLength:64};
+const inputText={type:'string',minLength:1,maxLength:64};
+const sourcePath={type:'string',minLength:1,maxLength:1024};
+const objSchema=(p:Record<string,unknown>)=>({type:'object',additionalProperties:false,properties:p,required:Object.keys(p)});
+export const MOBILE_VERIFIER_SCHEMA=objSchema({kind:{type:'string',const:'mobile'},version:str,platform:{type:'string',enum:['android','ios']},sourceRoot:sourcePath,sourceEntry:sourcePath,appIdentifier:{type:'string',minLength:1,maxLength:128},timeoutMs:{type:'integer',minimum:1000,maximum:600000},actions:{type:'array',minItems:1,maxItems:8,items:{anyOf:[objSchema({id:actionId,kind:{type:'string',const:'tap'},selector}),objSchema({id:actionId,kind:{type:'string',const:'inputText'},selector,text:inputText}),objSchema({id:actionId,kind:{type:'string',const:'reopen'}})]}},observe:{type:'array',maxItems:16,items:observationId},frames:{type:'array',minItems:1,maxItems:5,items:objSchema({stepId:actionId,phase:{type:'string',enum:['before','after']},expectation:str})}});

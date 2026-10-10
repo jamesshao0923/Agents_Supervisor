@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-catalog-v31",
+  "revision": "dev-v35-prefix-recovery-fixture-compat",
   "modules": [
     {
       "id": "dev-contracts",
@@ -753,6 +753,144 @@
       "layer": "integration",
       "file": "dist/tests/integration/goal-loop-admission.test.js",
       "timeoutMs": 180000
+    },
+    {
+      "id": "live-mobile-cancel",
+      "layer": "live",
+      "file": "dist/tests/integration/mobile-cancel.test.js",
+      "timeoutMs": 400000
+    },
+    {
+      "id": "integration-mobile-controller",
+      "layer": "integration",
+      "file": "dist/tests/integration/mobile-controller.test.js",
+      "timeoutMs": 300000
+    },
+    {
+      "id": "integration-mobile-evidence",
+      "layer": "integration",
+      "file": "dist/tests/integration/mobile-evidence.test.js",
+      "timeoutMs": 300000
+    },
+    {
+      "id": "live-mobile-ios-p4",
+      "layer": "live",
+      "file": "dist/tests/integration/mobile-ios-p4.test.js",
+      "timeoutMs": 900000
+    },
+    {
+      "id": "live-mobile-p4",
+      "layer": "live",
+      "file": "dist/tests/integration/mobile-p4.test.js",
+      "timeoutMs": 720000
+    },
+    {
+      "id": "unit-mobile-authoring",
+      "layer": "unit",
+      "file": "dist/tests/unit/mobile-authoring.test.js",
+      "timeoutMs": 60000
+    },
+    {
+      "id": "unit-mobile-verifier",
+      "layer": "unit",
+      "file": "dist/tests/unit/mobile-verifier.test.js",
+      "timeoutMs": 60000
+    },
+    {
+      "id": "integration-fullstack-p4-wiring",
+      "layer": "integration",
+      "file": "dist/tests/integration/fullstack-p4-wiring.test.js",
+      "timeoutMs": 300000
+    },
+    {
+      "id": "integration-fullstack-host",
+      "layer": "integration",
+      "file": "dist/tests/integration/fullstack-host.test.js",
+      "timeoutMs": 300000
+    },
+    {
+      "id": "integration-fullstack-verifier",
+      "layer": "integration",
+      "file": "dist/tests/integration/fullstack-verifier.test.js",
+      "timeoutMs": 300000
+    },
+    {
+      "id": "integration-research-runtime",
+      "layer": "integration",
+      "file": "dist/tests/integration/research-runtime.test.js",
+      "timeoutMs": 300000
+    },
+    {
+      "id": "unit-research-planning",
+      "layer": "unit",
+      "file": "dist/tests/unit/research-planning.test.js",
+      "timeoutMs": 60000
+    },
+    {
+      "id": "integration-research-output-rules",
+      "layer": "integration",
+      "file": "dist/tests/integration/research-output-rules.test.js",
+      "timeoutMs": 300000
+    },
+    {
+      "id": "unit-p8-integration-compatibility",
+      "layer": "unit",
+      "file": "dist/tests/unit/p8-integration-compatibility.test.js",
+      "timeoutMs": 60000
+    },
+    {
+      "id": "unit-mobile-schema-consistency",
+      "layer": "unit",
+      "file": "dist/tests/unit/mobile-schema-consistency.test.js",
+      "timeoutMs": 60000
+    },
+    {
+      "id": "integration-mobile-attribution",
+      "layer": "integration",
+      "file": "dist/tests/integration/mobile-attribution.test.js",
+      "timeoutMs": 300000
+    },
+    {
+      "id": "unit-material-obligation",
+      "layer": "unit",
+      "file": "dist/tests/unit/material-obligation.test.js",
+      "timeoutMs": 60000
+    },
+    {
+      "id": "unit-verification-versions",
+      "layer": "unit",
+      "file": "dist/tests/unit/verification-versions.test.js",
+      "timeoutMs": 60000
+    },
+    {
+      "id": "integration-verification-versions",
+      "layer": "integration",
+      "file": "dist/tests/integration/verification-versions.test.js",
+      "timeoutMs": 300000
+    },
+    {
+      "id": "integration-runtime-cancellation-sync",
+      "layer": "integration",
+      "file": "dist/tests/integration/runtime-cancellation-sync.test.js",
+      "timeoutMs": 300000
+    },
+    {
+      "id": "integration-control-failfast",
+      "layer": "integration",
+      "file": "dist/tests/integration/control-failfast.test.js",
+      "timeoutMs": 300000
+    },
+    {
+      "id": "unit-scoped-environment",
+      "layer": "unit",
+      "file": "dist/tests/unit/scoped-environment.test.js",
+      "timeoutMs": 60000
+    },
+    {
+      "id": "integration-scoped-environment",
+      "layer": "integration",
+      "file": "dist/tests/integration/scoped-environment.test.js",
+      "timeoutMs": 300000
     }
   ],
   "cases": [
@@ -4934,7 +5072,8 @@
         "verification",
         "persistence",
         "runtime",
-        "execution"
+        "execution",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
       "assertions": "tests/unit/verification.test.ts: verification spec parses independent command UI and source definitions without retaining caller objects",
@@ -4955,7 +5094,8 @@
         "verification",
         "persistence",
         "runtime",
-        "execution"
+        "execution",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
       "assertions": "tests/unit/verification.test.ts: verification spec rejects unknown fields accessors prototypes sparse arrays and malformed primitive values",
@@ -4976,7 +5116,8 @@
         "verification",
         "persistence",
         "runtime",
-        "execution"
+        "execution",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
       "assertions": "tests/unit/verification.test.ts: verification spec rejects escaping command and UI paths invalid source URLs and missing good bad controls",
@@ -4997,7 +5138,8 @@
         "verification",
         "persistence",
         "runtime",
-        "execution"
+        "execution",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
       "assertions": "tests/unit/verification.test.ts: verification not applicable requires a frozen reason and cannot be attached to an applicable obligation",
@@ -5018,7 +5160,8 @@
         "verification",
         "persistence",
         "runtime",
-        "execution"
+        "execution",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
       "assertions": "tests/unit/verification.test.ts: verification standard and necessary semantics cannot change through a verifier maintenance publication",
@@ -5039,7 +5182,8 @@
         "verification",
         "persistence",
         "runtime",
-        "execution"
+        "execution",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
       "assertions": "tests/unit/verification.test.ts: verification changed implementation needs a new case revision while standards and original revision stay fixed",
@@ -5060,7 +5204,8 @@
         "verification",
         "persistence",
         "runtime",
-        "execution"
+        "execution",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
       "assertions": "tests/unit/verification.test.ts: verification publication preserves both control identities actual workspace and negative obligations",
@@ -5081,7 +5226,8 @@
         "verification",
         "persistence",
         "runtime",
-        "execution"
+        "execution",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
       "assertions": "tests/unit/verification.test.ts: verification replacement checks concrete obligations and parameter instances even when criterion labels remain equal",
@@ -5102,7 +5248,8 @@
         "verification",
         "persistence",
         "runtime",
-        "execution"
+        "execution",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
       "assertions": "tests/unit/verification.test.ts: verification transitive retirement retains original fault assertions when intermediate retired metadata narrows",
@@ -5123,7 +5270,8 @@
         "verification",
         "persistence",
         "runtime",
-        "execution"
+        "execution",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
       "assertions": "tests/unit/verification.test.ts: verification instance selection deduplicates canonical parameter equality but preserves every distinct fault instance",
@@ -5144,7 +5292,8 @@
         "verification",
         "persistence",
         "runtime",
-        "execution"
+        "execution",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
       "assertions": "tests/unit/verification.test.ts: verification impact selection expands transitive consumers broadens unknown impact and excludes retired dispatch",
@@ -5165,7 +5314,8 @@
         "verification",
         "persistence",
         "runtime",
-        "execution"
+        "execution",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
       "assertions": "tests/unit/verification.test.ts: verification completion requires every necessary check on every parameter instance with optional failures retained",
@@ -5186,7 +5336,8 @@
         "verification",
         "persistence",
         "runtime",
-        "execution"
+        "execution",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
       "assertions": "tests/unit/verification.test.ts: verification execution state cannot masquerade as a passed product verdict",
@@ -5207,7 +5358,8 @@
         "verification",
         "persistence",
         "runtime",
-        "execution"
+        "execution",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
       "assertions": "tests/unit/verification.test.ts: verification explicit not applicable follows the frozen contract basis and never excuses applicable assertions",
@@ -5228,7 +5380,8 @@
         "verification",
         "persistence",
         "runtime",
-        "execution"
+        "execution",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
       "assertions": "tests/unit/verification.test.ts: verification missing conflicting duplicate and foreign reports cannot conceal an earlier failure",
@@ -5249,7 +5402,8 @@
         "verification",
         "persistence",
         "runtime",
-        "execution"
+        "execution",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
       "assertions": "tests/unit/verification.test.ts: verification partial stale forged and zero instance evaluations never claim completed delivery",
@@ -5270,7 +5424,8 @@
         "verification",
         "persistence",
         "runtime",
-        "execution"
+        "execution",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
       "assertions": "tests/integration/verification.test.ts: verification fixed candidate includes source build binary and lock bytes and detects live or frozen changes",
@@ -5291,7 +5446,8 @@
         "verification",
         "persistence",
         "runtime",
-        "execution"
+        "execution",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
       "assertions": "tests/integration/verification.test.ts: verification snapshot refuses symlink deliverables and existing frozen destinations without modifying original bytes",
@@ -5312,7 +5468,8 @@
         "verification",
         "persistence",
         "runtime",
-        "execution"
+        "execution",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
       "assertions": "tests/integration/verification.test.ts: verification actual independent build assertions pass correct program and reject the known formula and illegal-input defects",
@@ -5333,7 +5490,8 @@
         "verification",
         "persistence",
         "runtime",
-        "execution"
+        "execution",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
       "assertions": "tests/integration/verification.test.ts: verification real crash missing report conflicting exit timeout and cancellation remain verifier errors with actual stopped process evidence",
@@ -5354,7 +5512,8 @@
         "verification",
         "persistence",
         "runtime",
-        "execution"
+        "execution",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
       "assertions": "tests/integration/verification.test.ts: verification actual parameter instances execute independently and a later pass preserves the earlier failed report",
@@ -5375,7 +5534,9 @@
         "verification",
         "persistence",
         "runtime",
-        "execution"
+        "execution",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
       ],
       "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
       "assertions": "tests/integration/verification-controller.test.ts: verification controller refuses caller verdicts unpublished plans and duplicate commands while retaining actual frozen candidate",
@@ -5396,7 +5557,9 @@
         "verification",
         "persistence",
         "runtime",
-        "execution"
+        "execution",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
       ],
       "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
       "assertions": "tests/integration/verification-controller.test.ts: verification persisted unresolved stop fences sibling workflows after controller restart without clearing unknown usage",
@@ -5417,7 +5580,9 @@
         "verification",
         "persistence",
         "runtime",
-        "execution"
+        "execution",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
       ],
       "prerequisites": "Real pinned Node, filesystem and SQLite; live additionally requires Codex account, Electron and HTTPS primary source",
       "assertions": "tests/integration/verification-controller.test.ts: verification definition change preserves published implementation bytes and original counterexample identity",
@@ -7270,7 +7435,8 @@
       ],
       "scenario": "P6-GOAL-I01 follow-up freezes ordered message inputs once and refuses ordinary admission through the pending fence",
       "impactTags": [
-        "p6-followup"
+        "p6-followup",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I01 follow-up freezes ordered message inputs once and refuses ordinary admission through the pending fence",
@@ -7288,7 +7454,8 @@
       ],
       "scenario": "P6-GOAL-I02 follow-up rejects active work and unknown effects without partially appending requirements",
       "impactTags": [
-        "p6-followup"
+        "p6-followup",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I02 follow-up rejects active work and unknown effects without partially appending requirements",
@@ -7306,7 +7473,8 @@
       ],
       "scenario": "P6-GOAL-I10 explicit and classified inquiries remain read-only requirements and legacy controls cannot bypass their processing state",
       "impactTags": [
-        "p6-followup"
+        "p6-followup",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I10 explicit and classified inquiries remain read-only requirements and legacy controls cannot bypass their processing state",
@@ -7324,7 +7492,8 @@
       ],
       "scenario": "P6-GOAL-I11 recursive clarification replies preserve original text and atomically apply every ancestor with the same contract",
       "impactTags": [
-        "p6-followup"
+        "p6-followup",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I11 recursive clarification replies preserve original text and atomically apply every ancestor with the same contract",
@@ -7342,7 +7511,8 @@
       ],
       "scenario": "P6-GOAL-I12 follow-up budget refusal rolls back processing and requirement append without resetting prior spend",
       "impactTags": [
-        "p6-followup"
+        "p6-followup",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I12 follow-up budget refusal rolls back processing and requirement append without resetting prior spend",
@@ -7360,7 +7530,8 @@
       ],
       "scenario": "P6-GOAL-I03 successful follow-up finish retains the old proposal until atomic draft admission and is idempotent",
       "impactTags": [
-        "p6-followup"
+        "p6-followup",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I03 successful follow-up finish retains the old proposal until atomic draft admission and is idempotent",
@@ -7378,7 +7549,8 @@
       ],
       "scenario": "P6-GOAL-I04 follow-up revises awaiting-verification runtime and keeps later messages fenced and out of the frozen plan",
       "impactTags": [
-        "p6-followup"
+        "p6-followup",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I04 follow-up revises awaiting-verification runtime and keeps later messages fenced and out of the frozen plan",
@@ -7396,7 +7568,8 @@
       ],
       "scenario": "P6-GOAL-I05 unknown usage and failed follow-up retain the fence and cannot reserve again after explicit retry",
       "impactTags": [
-        "p6-followup"
+        "p6-followup",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I05 unknown usage and failed follow-up retain the fence and cannot reserve again after explicit retry",
@@ -7414,7 +7587,8 @@
       ],
       "scenario": "P6-GOAL-I06 follow-up apply rejects missing proofs stale contract and mutated frozen requirements",
       "impactTags": [
-        "p6-followup"
+        "p6-followup",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I06 follow-up apply rejects missing proofs stale contract and mutated frozen requirements",
@@ -7432,7 +7606,8 @@
       ],
       "scenario": "P6-GOAL-I07 failed atomic acknowledgement rolls back runtime revision outbox checkpoint proposal and application marker",
       "impactTags": [
-        "p6-followup"
+        "p6-followup",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I07 failed atomic acknowledgement rolls back runtime revision outbox checkpoint proposal and application marker",
@@ -7450,7 +7625,8 @@
       ],
       "scenario": "P6-GOAL-I08 delivered continuation preserves the old round and exact remaining authorization without starting a model",
       "impactTags": [
-        "p6-followup"
+        "p6-followup",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I08 delivered continuation preserves the old round and exact remaining authorization without starting a model",
@@ -7468,7 +7644,8 @@
       ],
       "scenario": "P6-GOAL-I09 continuation rejection rolls back new runs for exhausted reasoning capacity and forbids unrelated command reuse",
       "impactTags": [
-        "p6-followup"
+        "p6-followup",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I09 continuation rejection rolls back new runs for exhausted reasoning capacity and forbids unrelated command reuse",
@@ -7702,7 +7879,8 @@
       ],
       "scenario": "P6-TERM-I01 terminal question publishes once across SQLite reopen without changing historical Run Goal runtime or delivery bytes",
       "impactTags": [
-        "p6-autoloop-foundation"
+        "p6-autoloop-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
       "assertions": "tests/integration/terminal-inquiry.test.ts :: P6-TERM-I01 terminal question publishes once across SQLite reopen without changing historical Run Goal runtime or delivery bytes",
@@ -7720,7 +7898,8 @@
       ],
       "scenario": "P6-TERM-I02 external reasoning budget reserves actual cost once preserves unknown usage and authorizes exact remaining child limit",
       "impactTags": [
-        "p6-autoloop-foundation"
+        "p6-autoloop-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
       "assertions": "tests/integration/terminal-inquiry.test.ts :: P6-TERM-I02 external reasoning budget reserves actual cost once preserves unknown usage and authorizes exact remaining child limit",
@@ -7738,7 +7917,8 @@
       ],
       "scenario": "P6-TERM-I03 unclassified answer and clarification keep old round; a clarified inquiry clears only its own parent chain",
       "impactTags": [
-        "p6-autoloop-foundation"
+        "p6-autoloop-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
       "assertions": "tests/integration/terminal-inquiry.test.ts :: P6-TERM-I03 unclassified answer and clarification keep old round; a clarified inquiry clears only its own parent chain",
@@ -7756,7 +7936,8 @@
       ],
       "scenario": "P6-TERM-I04 continue promotion rolls back completely then creates one exact-budget child and applies terminal clarification ancestors atomically",
       "impactTags": [
-        "p6-autoloop-foundation"
+        "p6-autoloop-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
       "assertions": "tests/integration/terminal-inquiry.test.ts :: P6-TERM-I04 continue promotion rolls back completely then creates one exact-budget child and applies terminal clarification ancestors atomically",
@@ -7774,7 +7955,8 @@
       ],
       "scenario": "P6-TERM-I05 scoped cancellation suppresses late publication and stale cancel never cancels a retried assessment",
       "impactTags": [
-        "p6-autoloop-foundation"
+        "p6-autoloop-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
       "assertions": "tests/integration/terminal-inquiry.test.ts :: P6-TERM-I05 scoped cancellation suppresses late publication and stale cancel never cancels a retried assessment",
@@ -7792,7 +7974,8 @@
       ],
       "scenario": "P6-TERM-I06 proof tampering rejects terminal publication; interrupted possible turn remains unknown and never replays on restart",
       "impactTags": [
-        "p6-autoloop-foundation"
+        "p6-autoloop-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
       "assertions": "tests/integration/terminal-inquiry.test.ts :: P6-TERM-I06 proof tampering rejects terminal publication; interrupted possible turn remains unknown and never replays on restart",
@@ -7810,7 +7993,8 @@
       ],
       "scenario": "P6-TERM-I07 terminal capacity rejection occurs before process intent and cannot replace delivered status",
       "impactTags": [
-        "p6-autoloop-foundation"
+        "p6-autoloop-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
       "assertions": "tests/integration/terminal-inquiry.test.ts :: P6-TERM-I07 terminal capacity rejection occurs before process intent and cannot replace delivered status",
@@ -7828,7 +8012,8 @@
       ],
       "scenario": "P6-TERM-I08 assessment overruns remain actual spend while contradictory final usage stays unknown with its original report",
       "impactTags": [
-        "p6-autoloop-foundation"
+        "p6-autoloop-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
       "assertions": "tests/integration/terminal-inquiry.test.ts :: P6-TERM-I08 assessment overruns remain actual spend while contradictory final usage stays unknown with its original report",
@@ -8314,7 +8499,8 @@
       ],
       "scenario": "P6-REPAIR-I01 real verifier failure appends once preserving contract failed evidence and checkpoint ancestry",
       "impactTags": [
-        "p6-autoloop-foundation"
+        "p6-autoloop-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
       "assertions": "tests/integration/runtime-repair.test.ts :: P6-REPAIR-I01 real verifier failure appends once preserving contract failed evidence and checkpoint ancestry",
@@ -8332,7 +8518,8 @@
       ],
       "scenario": "P6-REPAIR-I02 failed commit rolls back domain repair artifact checkpoint outbox events and receipt",
       "impactTags": [
-        "p6-autoloop-foundation"
+        "p6-autoloop-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
       "assertions": "tests/integration/runtime-repair.test.ts :: P6-REPAIR-I02 failed commit rolls back domain repair artifact checkpoint outbox events and receipt",
@@ -8350,7 +8537,8 @@
       ],
       "scenario": "P6-REPAIR-I03 current candidate or actual proof tampering cannot authorize product repair",
       "impactTags": [
-        "p6-autoloop-foundation"
+        "p6-autoloop-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
       "assertions": "tests/integration/runtime-repair.test.ts :: P6-REPAIR-I03 current candidate or actual proof tampering cannot authorize product repair",
@@ -8368,7 +8556,8 @@
       ],
       "scenario": "P6-REPAIR-I04 verifier error unknown usage or nonexecuted result remains blocked and never becomes repair",
       "impactTags": [
-        "p6-autoloop-foundation"
+        "p6-autoloop-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
       "assertions": "tests/integration/runtime-repair.test.ts :: P6-REPAIR-I04 verifier error unknown usage or nonexecuted result remains blocked and never becomes repair",
@@ -8386,7 +8575,8 @@
       ],
       "scenario": "P6-REPAIR-I05 stale revision pause cancellation and an unfundable repair cannot mutate old standards",
       "impactTags": [
-        "p6-autoloop-foundation"
+        "p6-autoloop-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
       "assertions": "tests/integration/runtime-repair.test.ts :: P6-REPAIR-I05 stale revision pause cancellation and an unfundable repair cannot mutate old standards",
@@ -8404,7 +8594,8 @@
       ],
       "scenario": "P6-REPAIR-I06 confirmed failure creates a new generation once and restart selects it preserving old receipt",
       "impactTags": [
-        "p6-autoloop-foundation"
+        "p6-autoloop-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
       "assertions": "tests/integration/runtime-repair.test.ts :: P6-REPAIR-I06 confirmed failure creates a new generation once and restart selects it preserving old receipt",
@@ -8422,7 +8613,8 @@
       ],
       "scenario": "P6-REPAIR-I07 retry rollback unknown usage changed step id and cancellation do not release a new operation",
       "impactTags": [
-        "p6-autoloop-foundation"
+        "p6-autoloop-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
       "assertions": "tests/integration/runtime-repair.test.ts :: P6-REPAIR-I07 retry rollback unknown usage changed step id and cancellation do not release a new operation",
@@ -8440,7 +8632,8 @@
       ],
       "scenario": "P6-REPAIR-I08 allocation persists through restart and constrains real claim without double charging legacy reserve",
       "impactTags": [
-        "p6-autoloop-foundation"
+        "p6-autoloop-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
       "assertions": "tests/integration/runtime-repair.test.ts :: P6-REPAIR-I08 allocation persists through restart and constrains real claim without double charging legacy reserve",
@@ -8458,7 +8651,8 @@
       ],
       "scenario": "P6-REPAIR-I09 enclosing SQLite rollback retains budget allocation checkpoint and receipt consistency",
       "impactTags": [
-        "p6-autoloop-foundation"
+        "p6-autoloop-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
       "assertions": "tests/integration/runtime-repair.test.ts :: P6-REPAIR-I09 enclosing SQLite rollback retains budget allocation checkpoint and receipt consistency",
@@ -8476,7 +8670,8 @@
       ],
       "scenario": "P6-REPAIR-I10 asynchronous commit callbacks are rejected without partial allocation publication",
       "impactTags": [
-        "p6-autoloop-foundation"
+        "p6-autoloop-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
       "assertions": "tests/integration/runtime-repair.test.ts :: P6-REPAIR-I10 asynchronous commit callbacks are rejected without partial allocation publication",
@@ -8494,7 +8689,8 @@
       ],
       "scenario": "P6-REPAIR-I11 a job id alone cannot authorize repair with mismatched frozen results or actual settlement",
       "impactTags": [
-        "p6-autoloop-foundation"
+        "p6-autoloop-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
       "assertions": "tests/integration/runtime-repair.test.ts :: P6-REPAIR-I11 a job id alone cannot authorize repair with mismatched frozen results or actual settlement",
@@ -8530,7 +8726,8 @@
       ],
       "scenario": "P6-SCTL-I01 attach is payload idempotent and restart preserves a waiting runtime without model dispatch",
       "impactTags": [
-        "p6-autoloop-foundation"
+        "p6-autoloop-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-controller.test.ts :: P6-SCTL-I01 attach is payload idempotent and restart preserves a waiting runtime without model dispatch",
@@ -8548,7 +8745,8 @@
       ],
       "scenario": "P6-SCTL-I02 pending user requirements fence supervision without allocating or revising the task",
       "impactTags": [
-        "p6-autoloop-foundation"
+        "p6-autoloop-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-controller.test.ts :: P6-SCTL-I02 pending user requirements fence supervision without allocating or revising the task",
@@ -8566,7 +8764,8 @@
       ],
       "scenario": "P6-SCTL-I03 supervision pause resume stop and task cancellation hooks do not mutate the main execution ledger",
       "impactTags": [
-        "p6-autoloop-foundation"
+        "p6-autoloop-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-controller.test.ts :: P6-SCTL-I03 supervision pause resume stop and task cancellation hooks do not mutate the main execution ledger",
@@ -8584,7 +8783,8 @@
       ],
       "scenario": "P6-SCTL-I04 raw runtime without authoritative structured criteria blocks before any reasoning reservation",
       "impactTags": [
-        "p6-autoloop-foundation"
+        "p6-autoloop-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-controller.test.ts :: P6-SCTL-I04 raw runtime without authoritative structured criteria blocks before any reasoning reservation",
@@ -8602,7 +8802,8 @@
       ],
       "scenario": "P6-SCTL-I05 full bounded context rejection rolls back future floor checkpoint and reasoning reservation",
       "impactTags": [
-        "p6-autoloop-foundation"
+        "p6-autoloop-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-controller.test.ts :: P6-SCTL-I05 full bounded context rejection rolls back future floor checkpoint and reasoning reservation",
@@ -8620,7 +8821,8 @@
       ],
       "scenario": "P6-SCTL-I06 restart acknowledges an actual P4 proposal receipt while paused without launching its review",
       "impactTags": [
-        "p6-autoloop-foundation"
+        "p6-autoloop-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-controller.test.ts :: P6-SCTL-I06 restart acknowledges an actual P4 proposal receipt while paused without launching its review",
@@ -8638,7 +8840,8 @@
       ],
       "scenario": "P6-SCTL-I07 recovery never relaunches a durable started reasoning job with unknown usage",
       "impactTags": [
-        "p6-autoloop-foundation"
+        "p6-autoloop-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-controller.test.ts :: P6-SCTL-I07 recovery never relaunches a durable started reasoning job with unknown usage",
@@ -8656,7 +8859,8 @@
       ],
       "scenario": "P6-SCTL-I08 pause stops an actual pre-turn process and explicit resume reserves a distinct request preserving frozen input",
       "impactTags": [
-        "p6-autoloop-foundation"
+        "p6-autoloop-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-controller.test.ts :: P6-SCTL-I08 pause stops an actual pre-turn process and explicit resume reserves a distinct request preserving frozen input",
@@ -9034,7 +9238,8 @@
       ],
       "scenario": "P6-SCTL-I09 actual duration deadline stops a silent owned process and retains unknown cost without cancelling main execution",
       "impactTags": [
-        "p6-autoloop-foundation"
+        "p6-autoloop-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-controller.test.ts :: P6-SCTL-I09 actual duration deadline stops a silent owned process and retains unknown cost without cancelling main execution",
@@ -9376,7 +9581,8 @@
       ],
       "scenario": "P6-SCTL-I10 explicit pause of an actual P4 review persists provenance and resumes the same proposal exactly once after reopen",
       "impactTags": [
-        "p6-monitor-foundation"
+        "p6-monitor-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
       "assertions": "tests/integration/supervision-controller.test.ts :: P6-SCTL-I10 explicit pause of an actual P4 review persists provenance and resumes the same proposal exactly once after reopen",
@@ -9394,7 +9600,8 @@
       ],
       "scenario": "P6-SCTL-I11 known cancelled final P4 run restores a fresh floor and request for the identical plan without changing old history",
       "impactTags": [
-        "p6-monitor-foundation"
+        "p6-monitor-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
       "assertions": "tests/integration/supervision-controller.test.ts :: P6-SCTL-I11 known cancelled final P4 run restores a fresh floor and request for the identical plan without changing old history",
@@ -9412,7 +9619,8 @@
       ],
       "scenario": "P6-SCTL-I12 changed candidate or proof and unknown accounting reject paused P4 recovery without a replacement",
       "impactTags": [
-        "p6-monitor-foundation"
+        "p6-monitor-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
       "assertions": "tests/integration/supervision-controller.test.ts :: P6-SCTL-I12 changed candidate or proof and unknown accounting reject paused P4 recovery without a replacement",
@@ -9430,7 +9638,8 @@
       ],
       "scenario": "P6-SCTL-I13 insufficient remaining budget atomically preserves pause and the old P4 request without leaking a floor",
       "impactTags": [
-        "p6-monitor-foundation"
+        "p6-monitor-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
       "assertions": "tests/integration/supervision-controller.test.ts :: P6-SCTL-I13 insufficient remaining budget atomically preserves pause and the old P4 request without leaking a floor",
@@ -9448,7 +9657,8 @@
       ],
       "scenario": "P6-SCTL-I14 pause provenance joins the parent transaction and changed published head cannot authorize an old P4 plan",
       "impactTags": [
-        "p6-monitor-foundation"
+        "p6-monitor-foundation",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
       "assertions": "tests/integration/supervision-controller.test.ts :: P6-SCTL-I14 pause provenance joins the parent transaction and changed published head cannot authorize an old P4 plan",
@@ -10402,7 +10612,9 @@
       ],
       "scenario": "P6-LINE-I01 independent same-project roots keep exact immutable bindings and full-payload receipts across reopen",
       "impactTags": [
-        "p6-verification-lineage"
+        "p6-verification-lineage",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
       "assertions": "tests/integration/verification-lineage.test.ts :: P6-LINE-I01 independent same-project roots keep exact immutable bindings and full-payload receipts across reopen",
@@ -10420,7 +10632,9 @@
       ],
       "scenario": "P6-LINE-I02 frozen exact bases and scoped CAS reject a competing publication without touching another root",
       "impactTags": [
-        "p6-verification-lineage"
+        "p6-verification-lineage",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
       "assertions": "tests/integration/verification-lineage.test.ts :: P6-LINE-I02 frozen exact bases and scoped CAS reject a competing publication without touching another root",
@@ -10438,7 +10652,9 @@
       ],
       "scenario": "P6-LINE-I03 outer rollback atomically removes head proposal mutation and receipt while preserving parent transaction",
       "impactTags": [
-        "p6-verification-lineage"
+        "p6-verification-lineage",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
       "assertions": "tests/integration/verification-lineage.test.ts :: P6-LINE-I03 outer rollback atomically removes head proposal mutation and receipt while preserving parent transaction",
@@ -10456,7 +10672,9 @@
       ],
       "scenario": "P6-LINE-I04 continuation binds the exact delivered adjacent round and rejects unrelated or stale predecessor",
       "impactTags": [
-        "p6-verification-lineage"
+        "p6-verification-lineage",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
       "assertions": "tests/integration/verification-lineage.test.ts :: P6-LINE-I04 continuation binds the exact delivered adjacent round and rejects unrelated or stale predecessor",
@@ -10474,7 +10692,9 @@
       ],
       "scenario": "P6-LINE-I05 exact message reviewed transition is required even when Run contract version numbers match",
       "impactTags": [
-        "p6-verification-lineage"
+        "p6-verification-lineage",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
       "assertions": "tests/integration/verification-lineage.test.ts :: P6-LINE-I05 exact message reviewed transition is required even when Run contract version numbers match",
@@ -10492,7 +10712,9 @@
       ],
       "scenario": "P6-LINE-I06 legacy migration preserves old JSON and costs and records ambiguous unrelated project ancestry as blocked",
       "impactTags": [
-        "p6-verification-lineage"
+        "p6-verification-lineage",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
       "assertions": "tests/integration/verification-lineage.test.ts :: P6-LINE-I06 legacy migration preserves old JSON and costs and records ambiguous unrelated project ancestry as blocked",
@@ -10510,7 +10732,9 @@
       ],
       "scenario": "P6-LINE-I07 unpublished legacy base and duplicate historical versions remain blocked without nearest-head inference",
       "impactTags": [
-        "p6-verification-lineage"
+        "p6-verification-lineage",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
       "assertions": "tests/integration/verification-lineage.test.ts :: P6-LINE-I07 unpublished legacy base and duplicate historical versions remain blocked without nearest-head inference",
@@ -10528,7 +10752,9 @@
       ],
       "scenario": "P6-LINE-I08 publication rejects proof tampering unknown accounting and an active user message fence",
       "impactTags": [
-        "p6-verification-lineage"
+        "p6-verification-lineage",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
       "assertions": "tests/integration/verification-lineage.test.ts :: P6-LINE-I08 publication rejects proof tampering unknown accounting and an active user message fence",
@@ -10546,7 +10772,9 @@
       ],
       "scenario": "P6-LINE-I09 applied authorization persists a complete two-transition chain and rollback retains no partial receipt",
       "impactTags": [
-        "p6-verification-lineage"
+        "p6-verification-lineage",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
       "assertions": "tests/integration/verification-lineage.test.ts :: P6-LINE-I09 applied authorization persists a complete two-transition chain and rollback retains no partial receipt",
@@ -10816,7 +11044,8 @@
       ],
       "scenario": "P6-GOAL-I13 enriched follow-up atomically binds actual active and delivered-child contracts with original proof and costs",
       "impactTags": [
-        "p6-followup-persistence"
+        "p6-followup-persistence",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
       "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I13 enriched follow-up atomically binds actual active and delivered-child contracts with original proof and costs",
@@ -10834,7 +11063,8 @@
       ],
       "scenario": "P6-GOAL-I14 failed transition receipt rolls back message runtime plan and contract while keeping completed model accounting",
       "impactTags": [
-        "p6-followup-persistence"
+        "p6-followup-persistence",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
       "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I14 failed transition receipt rolls back message runtime plan and contract while keeping completed model accounting",
@@ -12004,7 +12234,8 @@
       ],
       "scenario": "P6-HIST-I01 stored delivery audits exact frozen files and settled records without mutations across SQLite reopen",
       "impactTags": [
-        "p6-delivery-history"
+        "p6-delivery-history",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
       "assertions": "tests/integration/delivery-status.test.ts :: P6-HIST-I01 stored delivery audits exact frozen files and settled records without mutations across SQLite reopen",
@@ -12022,7 +12253,8 @@
       ],
       "scenario": "P6-HIST-I02 child round head workspace and environment changes preserve the original historical delivery",
       "impactTags": [
-        "p6-delivery-history"
+        "p6-delivery-history",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
       "assertions": "tests/integration/delivery-status.test.ts :: P6-HIST-I02 child round head workspace and environment changes preserve the original historical delivery",
@@ -12040,7 +12272,8 @@
       ],
       "scenario": "P6-HIST-I03 actual archived proof detector candidate artifact and delivery byte changes cannot remain intact",
       "impactTags": [
-        "p6-delivery-history"
+        "p6-delivery-history",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
       "assertions": "tests/integration/delivery-status.test.ts :: P6-HIST-I03 actual archived proof detector candidate artifact and delivery byte changes cannot remain intact",
@@ -12058,7 +12291,8 @@
       ],
       "scenario": "P6-HIST-I04 expired source windows differ from damaged archival bytes without any remote refresh",
       "impactTags": [
-        "p6-delivery-history"
+        "p6-delivery-history",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
       "assertions": "tests/integration/delivery-status.test.ts :: P6-HIST-I04 expired source windows differ from damaged archival bytes without any remote refresh",
@@ -12076,7 +12310,8 @@
       ],
       "scenario": "P6-HIST-I05 identity accounting partial scope and self-declared completion cannot replace historical evidence",
       "impactTags": [
-        "p6-delivery-history"
+        "p6-delivery-history",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
       "assertions": "tests/integration/delivery-status.test.ts :: P6-HIST-I05 identity accounting partial scope and self-declared completion cannot replace historical evidence",
@@ -12094,7 +12329,8 @@
       ],
       "scenario": "P6-HIST-I06 symlink and external proof paths fail while unsupported history remains explicitly unknown",
       "impactTags": [
-        "p6-delivery-history"
+        "p6-delivery-history",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
       "assertions": "tests/integration/delivery-status.test.ts :: P6-HIST-I06 symlink and external proof paths fail while unsupported history remains explicitly unknown",
@@ -12112,7 +12348,8 @@
       ],
       "scenario": "P6-HIST-I07 busy missing and changed read observations never erase the saved delivery or grant authority",
       "impactTags": [
-        "p6-delivery-history"
+        "p6-delivery-history",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
       "assertions": "tests/integration/delivery-status.test.ts :: P6-HIST-I07 busy missing and changed read observations never erase the saved delivery or grant authority",
@@ -12364,7 +12601,8 @@
       ],
       "scenario": "P6-HISTV2-I01 actual SQLite qualification receipt and full final command preserve historical acceptance across reopen",
       "impactTags": [
-        "p6-delivery-history-v2"
+        "p6-delivery-history-v2",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
       "assertions": "tests/integration/delivery-status-v2.test.ts :: P6-HISTV2-I01 actual SQLite qualification receipt and full final command preserve historical acceptance across reopen",
@@ -12382,7 +12620,8 @@
       ],
       "scenario": "P6-HISTV2-I02 changed current environment head child workspace and source TTL do not erase authentic V2 history",
       "impactTags": [
-        "p6-delivery-history-v2"
+        "p6-delivery-history-v2",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
       "assertions": "tests/integration/delivery-status-v2.test.ts :: P6-HISTV2-I02 changed current environment head child workspace and source TTL do not erase authentic V2 history",
@@ -12400,7 +12639,8 @@
       ],
       "scenario": "P6-HISTV2-I03 unavailable reader missing persisted receipt and snapshot substitution cannot claim intact history",
       "impactTags": [
-        "p6-delivery-history-v2"
+        "p6-delivery-history-v2",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
       "assertions": "tests/integration/delivery-status-v2.test.ts :: P6-HISTV2-I03 unavailable reader missing persisted receipt and snapshot substitution cannot claim intact history",
@@ -12418,7 +12658,8 @@
       ],
       "scenario": "P6-HISTV2-I04 mutated qualification archive and self-rehashed SQLite receipt are rejected as history damage",
       "impactTags": [
-        "p6-delivery-history-v2"
+        "p6-delivery-history-v2",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
       "assertions": "tests/integration/delivery-status-v2.test.ts :: P6-HISTV2-I04 mutated qualification archive and self-rehashed SQLite receipt are rejected as history damage",
@@ -12436,7 +12677,9 @@
       ],
       "scenario": "P7-BRIDGE-I01 new sealed packages preserve exact executable bits and reject later mode changes",
       "impactTags": [
-        "p7-result-bridge"
+        "p7-result-bridge",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
       ],
       "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
       "assertions": "tests/integration/task-results-bridge.test.ts :: P7-BRIDGE-I01 new sealed packages preserve exact executable bits and reject later mode changes",
@@ -12454,7 +12697,9 @@
       ],
       "scenario": "P7-BRIDGE-I02 submitted result cannot acquire authority from missing P4 job or caller supplied descriptor",
       "impactTags": [
-        "p7-result-bridge"
+        "p7-result-bridge",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
       ],
       "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
       "assertions": "tests/integration/task-results-bridge.test.ts :: P7-BRIDGE-I02 submitted result cannot acquire authority from missing P4 job or caller supplied descriptor",
@@ -12472,7 +12717,9 @@
       ],
       "scenario": "P7-BRIDGE-I03 actual command final binds complete package and verified reads reject changed original proof",
       "impactTags": [
-        "p7-result-bridge"
+        "p7-result-bridge",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
       ],
       "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
       "assertions": "tests/integration/task-results-bridge.test.ts :: P7-BRIDGE-I03 actual command final binds complete package and verified reads reject changed original proof",
@@ -13468,7 +13715,8 @@
       ],
       "scenario": "P7-PUBLISH-I01 real publisher unlocks frozen dependent claim and worker auto publishes all confirmed branches before integration release",
       "impactTags": [
-        "p7-auto-publication"
+        "p7-auto-publication",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Real modules SQLite FS managed Node output and stop; synthetic P2 completion/usage explicitly is not provider or final delivery evidence.",
       "assertions": "tests/integration/scheduled-publication.test.ts :: P7-PUBLISH-I01 real publisher unlocks frozen dependent claim and worker auto publishes all confirmed branches before integration release",
@@ -13486,7 +13734,8 @@
       ],
       "scenario": "P7-PUBLISH-I02 committed draft intent and sealed package recover across actual SQLite failure and store reopen without duplicate receipts",
       "impactTags": [
-        "p7-auto-publication"
+        "p7-auto-publication",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Real modules SQLite FS managed Node output and stop; synthetic P2 completion/usage explicitly is not provider or final delivery evidence.",
       "assertions": "tests/integration/scheduled-publication.test.ts :: P7-PUBLISH-I02 committed draft intent and sealed package recover across actual SQLite failure and store reopen without duplicate receipts",
@@ -13504,7 +13753,8 @@
       ],
       "scenario": "P7-PUBLISH-I03 one blocked partial publication preserves staging while unrelated confirmed output still auto submits",
       "impactTags": [
-        "p7-auto-publication"
+        "p7-auto-publication",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Real modules SQLite FS managed Node output and stop; synthetic P2 completion/usage explicitly is not provider or final delivery evidence.",
       "assertions": "tests/integration/scheduled-publication.test.ts :: P7-PUBLISH-I03 one blocked partial publication preserves staging while unrelated confirmed output still auto submits",
@@ -13576,7 +13826,8 @@
       ],
       "scenario": "P7-INTEGRATION-INPUT-I01 real submitted packages copy all files and modes into fixed root index and bind actual P2 request without changing frozen prompt",
       "impactTags": [
-        "p7-integration-inputs"
+        "p7-integration-inputs",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Real modules SQLite FS managed Node output and stop; synthetic P2 completion/usage explicitly is not provider or final delivery evidence.",
       "assertions": "tests/integration/integration-inputs.test.ts :: P7-INTEGRATION-INPUT-I01 real submitted packages copy all files and modes into fixed root index and bind actual P2 request without changing frozen prompt",
@@ -13594,7 +13845,8 @@
       ],
       "scenario": "P7-INTEGRATION-INPUT-I02 before-turn qualification rejects copied bytes modes index and current upstream invalidation without silent recopy",
       "impactTags": [
-        "p7-integration-inputs"
+        "p7-integration-inputs",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Real modules SQLite FS managed Node output and stop; synthetic P2 completion/usage explicitly is not provider or final delivery evidence.",
       "assertions": "tests/integration/integration-inputs.test.ts :: P7-INTEGRATION-INPUT-I02 before-turn qualification rejects copied bytes modes index and current upstream invalidation without silent recopy",
@@ -13612,7 +13864,8 @@
       ],
       "scenario": "P7-INTEGRATION-INPUT-I03 cancellation rejects integration dispatch while legacy request framing remains byte identical",
       "impactTags": [
-        "p7-integration-inputs"
+        "p7-integration-inputs",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Real modules SQLite FS managed Node output and stop; synthetic P2 completion/usage explicitly is not provider or final delivery evidence.",
       "assertions": "tests/integration/integration-inputs.test.ts :: P7-INTEGRATION-INPUT-I03 cancellation rejects integration dispatch while legacy request framing remains byte identical",
@@ -13648,7 +13901,8 @@
       ],
       "scenario": "P7-INTEGRATION-INPUT-I04 actual finalization gates changed copies before candidate publication while preserving cost stop failure reports and valid completion",
       "impactTags": [
-        "p7-integration-inputs"
+        "p7-integration-inputs",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Real modules SQLite FS managed Node output and stop; synthetic P2 completion/usage explicitly is not provider or final delivery evidence.",
       "assertions": "tests/integration/integration-inputs.test.ts :: P7-INTEGRATION-INPUT-I04 actual finalization gates changed copies before candidate publication while preserving cost stop failure reports and valid completion",
@@ -13666,7 +13920,8 @@
       ],
       "scenario": "P7-INTEGRATION-INPUT-I05 confirmed report independently rejects changed copies after known settlement without discarding stop cost or sealed history",
       "impactTags": [
-        "p7-integration-inputs"
+        "p7-integration-inputs",
+        "v34-legacy-portability-impact"
       ],
       "prerequisites": "Real modules SQLite FS managed Node output and stop; synthetic P2 completion/usage explicitly is not provider or final delivery evidence.",
       "assertions": "tests/integration/integration-inputs.test.ts :: P7-INTEGRATION-INPUT-I05 confirmed report independently rejects changed copies after known settlement without discarding stop cost or sealed history",
@@ -15291,7 +15546,9 @@
       ],
       "scenario": "P6-AUTHREVIEW-I01 actual P4 command rejection reserves one fresh author atomically and preserves original history across reopen",
       "impactTags": [
-        "p6-author-review"
+        "p6-author-review",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
       ],
       "prerequisites": "Pinned Node; real modules; explicit synthetic planner/P2 accounting where stated",
       "assertions": "tests/integration/author-review-rebuild.test.ts :: P6-AUTHREVIEW-I01 actual P4 command rejection reserves one fresh author atomically and preserves original history across reopen",
@@ -15309,7 +15566,9 @@
       ],
       "scenario": "P6-AUTHREVIEW-I02 changed actual review proof and changed original candidate reject without granting a replacement",
       "impactTags": [
-        "p6-author-review"
+        "p6-author-review",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
       ],
       "prerequisites": "Pinned Node; real modules; explicit synthetic planner/P2 accounting where stated",
       "assertions": "tests/integration/author-review-rebuild.test.ts :: P6-AUTHREVIEW-I02 changed actual review proof and changed original candidate reject without granting a replacement",
@@ -15327,7 +15586,9 @@
       ],
       "scenario": "P6-AUTHREVIEW-I03 second actually rejected rebuilt author remains retained and cannot regenerate again",
       "impactTags": [
-        "p6-author-review"
+        "p6-author-review",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
       ],
       "prerequisites": "Pinned Node; real modules; explicit synthetic planner/P2 accounting where stated",
       "assertions": "tests/integration/author-review-rebuild.test.ts :: P6-AUTHREVIEW-I03 second actually rejected rebuilt author remains retained and cannot regenerate again",
@@ -15345,7 +15606,9 @@
       ],
       "scenario": "P6-AUTHREVIEW-I04 unknown review accounting and queued overlapping Run cannot consume replacement authority",
       "impactTags": [
-        "p6-author-review"
+        "p6-author-review",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
       ],
       "prerequisites": "Pinned Node; real modules; explicit synthetic planner/P2 accounting where stated",
       "assertions": "tests/integration/author-review-rebuild.test.ts :: P6-AUTHREVIEW-I04 unknown review accounting and queued overlapping Run cannot consume replacement authority",
@@ -15363,7 +15626,9 @@
       ],
       "scenario": "P6-AUTHREVIEW-U01 actual advertised Astra high upgrades strictly to xhigh without changing reservation or guessing effort",
       "impactTags": [
-        "p6-author-review"
+        "p6-author-review",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
       ],
       "prerequisites": "Pinned Node; real modules; explicit synthetic planner/P2 accounting where stated",
       "assertions": "tests/integration/author-review-rebuild.test.ts :: P6-AUTHREVIEW-U01 actual advertised Astra high upgrades strictly to xhigh without changing reservation or guessing effort",
@@ -15381,7 +15646,9 @@
       ],
       "scenario": "P6-AUTHREVIEW-I05 completed synthetic review transport with real P4 controls binds failed independent judgment and retains its cost",
       "impactTags": [
-        "p6-author-review"
+        "p6-author-review",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
       ],
       "prerequisites": "Pinned Node; real modules; explicit synthetic planner/P2 accounting where stated",
       "assertions": "tests/integration/author-review-rebuild.test.ts :: P6-AUTHREVIEW-I05 completed synthetic review transport with real P4 controls binds failed independent judgment and retains its cost",
@@ -15494,6 +15761,1762 @@
       "prerequisites": "Pinned Node; real modules; explicit synthetic planner/P2 accounting where stated",
       "assertions": "tests/integration/goal-loop-admission.test.ts :: P7-AUTOLOOP-I06 real out-of-scope occurrence bytes cannot publish or trigger another numeric iteration",
       "cleanup": "Stop owned processes; preserve original failed evidence",
+      "status": "active"
+    },
+    {
+      "id": "p8.live-mobile-cancel.001",
+      "name": "P8M-P4-I05 real cancellation during action capture preserves partial progress and forbids later actions",
+      "suiteId": "live-mobile-cancel",
+      "module": "verification",
+      "layer": "live",
+      "covers": [
+        "p8-mobile-p4"
+      ],
+      "scenario": "P8M-P4-I05 real cancellation during action capture preserves partial progress and forbids later actions",
+      "impactTags": [
+        "p8-mobile-p4"
+      ],
+      "prerequisites": "Actual configured native device/toolchain; no installation or synthetic native success; original long-chain deadline retained",
+      "assertions": "tests/integration/mobile-cancel.test.ts :: P8M-P4-I05 real cancellation during action capture preserves partial progress and forbids later actions",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-mobile-controller.001",
+      "name": "P8M-P4-I06 native declaration enters original controller but cannot impersonate review or delivery",
+      "suiteId": "integration-mobile-controller",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-mobile-p4"
+      ],
+      "scenario": "P8M-P4-I06 native declaration enters original controller but cannot impersonate review or delivery",
+      "impactTags": [
+        "p8-mobile-p4",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/mobile-controller.test.ts :: P8M-P4-I06 native declaration enters original controller but cannot impersonate review or delivery",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-mobile-evidence.001",
+      "name": "P8M-P4-I02 closed mobile captures retain partial originals and reject changed or linked bytes",
+      "suiteId": "integration-mobile-evidence",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-mobile-p4"
+      ],
+      "scenario": "P8M-P4-I02 closed mobile captures retain partial originals and reject changed or linked bytes",
+      "impactTags": [
+        "p8-mobile-p4",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/mobile-evidence.test.ts :: P8M-P4-I02 closed mobile captures retain partial originals and reject changed or linked bytes",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-mobile-evidence.002",
+      "name": "P8M-P4-I03 final native package preserves exact bytes and modes and detects later replacement",
+      "suiteId": "integration-mobile-evidence",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-mobile-p4"
+      ],
+      "scenario": "P8M-P4-I03 final native package preserves exact bytes and modes and detects later replacement",
+      "impactTags": [
+        "p8-mobile-p4",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/mobile-evidence.test.ts :: P8M-P4-I03 final native package preserves exact bytes and modes and detects later replacement",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-mobile-evidence.003",
+      "name": "P8M-P4-I04 final binding rejects omitted functions altered candidates and mixed native artifacts",
+      "suiteId": "integration-mobile-evidence",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-mobile-p4"
+      ],
+      "scenario": "P8M-P4-I04 final binding rejects omitted functions altered candidates and mixed native artifacts",
+      "impactTags": [
+        "p8-mobile-p4",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/mobile-evidence.test.ts :: P8M-P4-I04 final binding rejects omitted functions altered candidates and mixed native artifacts",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.live-mobile-ios-p4.001",
+      "name": "P8M-P4-I07 actual iOS engine seam reuses same app and retains exact native frames and stop receipts",
+      "suiteId": "live-mobile-ios-p4",
+      "module": "verification",
+      "layer": "live",
+      "covers": [
+        "p8-mobile-p4"
+      ],
+      "scenario": "P8M-P4-I07 actual iOS engine seam reuses same app and retains exact native frames and stop receipts",
+      "impactTags": [
+        "p8-mobile-p4"
+      ],
+      "prerequisites": "Actual configured native device/toolchain; no installation or synthetic native success; original long-chain deadline retained",
+      "assertions": "tests/integration/mobile-ios-p4.test.ts :: P8M-P4-I07 actual iOS engine seam reuses same app and retains exact native frames and stop receipts",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.live-mobile-p4.001",
+      "name": "P8M-P4-I01 actual engine mobile seam binds two functions to same built APK and all process receipts",
+      "suiteId": "live-mobile-p4",
+      "module": "verification",
+      "layer": "live",
+      "covers": [
+        "p8-mobile-p4"
+      ],
+      "scenario": "P8M-P4-I01 actual engine mobile seam binds two functions to same built APK and all process receipts",
+      "impactTags": [
+        "p8-mobile-p4"
+      ],
+      "prerequisites": "Actual configured native device/toolchain; no installation or synthetic native success; original long-chain deadline retained",
+      "assertions": "tests/integration/mobile-p4.test.ts :: P8M-P4-I01 actual engine mobile seam binds two functions to same built APK and all process receipts",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-mobile-authoring.001",
+      "name": "P8M-P4-U03 automatic author mobile assets preserve both authoritative platforms without command downgrade",
+      "suiteId": "unit-mobile-authoring",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p8-mobile-p4"
+      ],
+      "scenario": "P8M-P4-U03 automatic author mobile assets preserve both authoritative platforms without command downgrade",
+      "impactTags": [
+        "p8-mobile-p4",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/unit/mobile-authoring.test.ts :: P8M-P4-U03 automatic author mobile assets preserve both authoritative platforms without command downgrade",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-mobile-verifier.001",
+      "name": "P8M-P4-U01 strict mobile declaration binds platform source and every selected frame",
+      "suiteId": "unit-mobile-verifier",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p8-mobile-p4"
+      ],
+      "scenario": "P8M-P4-U01 strict mobile declaration binds platform source and every selected frame",
+      "impactTags": [
+        "p8-mobile-p4",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/unit/mobile-verifier.test.ts :: P8M-P4-U01 strict mobile declaration binds platform source and every selected frame",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-mobile-verifier.002",
+      "name": "P8M-P4-U02 actual disposition policy never upgrades unknown stop or cancellation to candidate failure",
+      "suiteId": "unit-mobile-verifier",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p8-mobile-p4"
+      ],
+      "scenario": "P8M-P4-U02 actual disposition policy never upgrades unknown stop or cancellation to candidate failure",
+      "impactTags": [
+        "p8-mobile-p4",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/unit/mobile-verifier.test.ts :: P8M-P4-U02 actual disposition policy never upgrades unknown stop or cancellation to candidate failure",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-fullstack-p4-wiring.001",
+      "name": "P8-FULLSTACK-P4-I02 fullstack schema author and planner preserve fixed ABI checks and reject downgrade",
+      "suiteId": "integration-fullstack-p4-wiring",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-fullstack-p4"
+      ],
+      "scenario": "P8-FULLSTACK-P4-I02 fullstack schema author and planner preserve fixed ABI checks and reject downgrade",
+      "impactTags": [
+        "p8-fullstack-p4",
+        "p8-v32-mechanisms",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/fullstack-p4-wiring.test.ts :: P8-FULLSTACK-P4-I02 fullstack schema author and planner preserve fixed ABI checks and reject downgrade",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-fullstack-p4-wiring.002",
+      "name": "P8-FULLSTACK-P4-I03 real persisted HTTP SQLite facts reopen and tampering cannot become proof",
+      "suiteId": "integration-fullstack-p4-wiring",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-fullstack-p4"
+      ],
+      "scenario": "P8-FULLSTACK-P4-I03 real persisted HTTP SQLite facts reopen and tampering cannot become proof",
+      "impactTags": [
+        "p8-fullstack-p4",
+        "p8-v32-mechanisms",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/fullstack-p4-wiring.test.ts :: P8-FULLSTACK-P4-I03 real persisted HTTP SQLite facts reopen and tampering cannot become proof",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-fullstack-p4-wiring.003",
+      "name": "P8-FULLSTACK-P4-I04 original P4 engine classifies real bad response without model or approval",
+      "suiteId": "integration-fullstack-p4-wiring",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-fullstack-p4"
+      ],
+      "scenario": "P8-FULLSTACK-P4-I04 original P4 engine classifies real bad response without model or approval",
+      "impactTags": [
+        "p8-fullstack-p4",
+        "p8-v32-mechanisms",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/fullstack-p4-wiring.test.ts :: P8-FULLSTACK-P4-I04 original P4 engine classifies real bad response without model or approval",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-fullstack-p4-wiring.004",
+      "name": "P8-FULLSTACK-P4-I05 OPEN snapshot creates private data and command retry restart never replays processes",
+      "suiteId": "integration-fullstack-p4-wiring",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-fullstack-p4"
+      ],
+      "scenario": "P8-FULLSTACK-P4-I05 OPEN snapshot creates private data and command retry restart never replays processes",
+      "impactTags": [
+        "p8-fullstack-p4",
+        "p8-v32-mechanisms",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/fullstack-p4-wiring.test.ts :: P8-FULLSTACK-P4-I05 OPEN snapshot creates private data and command retry restart never replays processes",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-fullstack-p4-wiring.005",
+      "name": "P8-FULLSTACK-P4-I06 controller OPEN refuses missing authority and overlong lifetime without running service",
+      "suiteId": "integration-fullstack-p4-wiring",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-fullstack-p4"
+      ],
+      "scenario": "P8-FULLSTACK-P4-I06 controller OPEN refuses missing authority and overlong lifetime without running service",
+      "impactTags": [
+        "p8-fullstack-p4",
+        "p8-v32-mechanisms",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/fullstack-p4-wiring.test.ts :: P8-FULLSTACK-P4-I06 controller OPEN refuses missing authority and overlong lifetime without running service",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-fullstack-p4-wiring.006",
+      "name": "P8-FULLSTACK-P4-I07 original publish freeze deliver and historical OPEN retain exact source with explicit review metadata fixture",
+      "suiteId": "integration-fullstack-p4-wiring",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-fullstack-p4"
+      ],
+      "scenario": "P8-FULLSTACK-P4-I07 original publish freeze deliver and historical OPEN retain exact source with explicit review metadata fixture",
+      "impactTags": [
+        "p8-fullstack-p4",
+        "p8-v32-mechanisms",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/fullstack-p4-wiring.test.ts :: P8-FULLSTACK-P4-I07 original publish freeze deliver and historical OPEN retain exact source with explicit review metadata fixture",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-fullstack-p4-wiring.007",
+      "name": "P8-FULLSTACK-P4-I08 actual silent application deadline stops original job processes and retains failure facts",
+      "suiteId": "integration-fullstack-p4-wiring",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-fullstack-p4"
+      ],
+      "scenario": "P8-FULLSTACK-P4-I08 actual silent application deadline stops original job processes and retains failure facts",
+      "impactTags": [
+        "p8-fullstack-p4",
+        "p8-v32-mechanisms",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/fullstack-p4-wiring.test.ts :: P8-FULLSTACK-P4-I08 actual silent application deadline stops original job processes and retains failure facts",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-fullstack-host.001",
+      "name": "P8-FULLSTACK-I01 actual HTTP SQLite write read error and owned restart preserve data and frozen source",
+      "suiteId": "integration-fullstack-host",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-fullstack-p4"
+      ],
+      "scenario": "P8-FULLSTACK-I01 actual HTTP SQLite write read error and owned restart preserve data and frozen source",
+      "impactTags": [
+        "p8-fullstack-p4",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/fullstack-host.test.ts :: P8-FULLSTACK-I01 actual HTTP SQLite write read error and owned restart preserve data and frozen source",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-fullstack-host.002",
+      "name": "P8-FULLSTACK-I02 changed source and foreign request origin cannot establish verified execution",
+      "suiteId": "integration-fullstack-host",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-fullstack-p4"
+      ],
+      "scenario": "P8-FULLSTACK-I02 changed source and foreign request origin cannot establish verified execution",
+      "impactTags": [
+        "p8-fullstack-p4",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/fullstack-host.test.ts :: P8-FULLSTACK-I02 changed source and foreign request origin cannot establish verified execution",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-fullstack-host.003",
+      "name": "P8-FULLSTACK-I03 actual abort stops owned service and cannot be restarted",
+      "suiteId": "integration-fullstack-host",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-fullstack-p4"
+      ],
+      "scenario": "P8-FULLSTACK-I03 actual abort stops owned service and cannot be restarted",
+      "impactTags": [
+        "p8-fullstack-p4",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/fullstack-host.test.ts :: P8-FULLSTACK-I03 actual abort stops owned service and cannot be restarted",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-fullstack-host.004",
+      "name": "P8-FULLSTACK-I04 foreign listener replacement rejects before response acceptance",
+      "suiteId": "integration-fullstack-host",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-fullstack-p4"
+      ],
+      "scenario": "P8-FULLSTACK-I04 foreign listener replacement rejects before response acceptance",
+      "impactTags": [
+        "p8-fullstack-p4",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/fullstack-host.test.ts :: P8-FULLSTACK-I04 foreign listener replacement rejects before response acceptance",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-fullstack-host.005",
+      "name": "P8-FULLSTACK-I05 listener loss during request prevents response acceptance",
+      "suiteId": "integration-fullstack-host",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-fullstack-p4"
+      ],
+      "scenario": "P8-FULLSTACK-I05 listener loss during request prevents response acceptance",
+      "impactTags": [
+        "p8-fullstack-p4",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/fullstack-host.test.ts :: P8-FULLSTACK-I05 listener loss during request prevents response acceptance",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-fullstack-verifier.001",
+      "name": "P8-FULLSTACK-P4-I01 real host pipeline records HTTP SQLite restart and all physical hooks",
+      "suiteId": "integration-fullstack-verifier",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-fullstack-p4"
+      ],
+      "scenario": "P8-FULLSTACK-P4-I01 real host pipeline records HTTP SQLite restart and all physical hooks",
+      "impactTags": [
+        "p8-fullstack-p4",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/fullstack-verifier.test.ts :: P8-FULLSTACK-P4-I01 real host pipeline records HTTP SQLite restart and all physical hooks",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-fullstack-verifier.002",
+      "name": "P8-FULLSTACK-P4-U01 declaration rejects origin escapes and malformed requested behavior",
+      "suiteId": "integration-fullstack-verifier",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-fullstack-p4"
+      ],
+      "scenario": "P8-FULLSTACK-P4-U01 declaration rejects origin escapes and malformed requested behavior",
+      "impactTags": [
+        "p8-fullstack-p4",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/fullstack-verifier.test.ts :: P8-FULLSTACK-P4-U01 declaration rejects origin escapes and malformed requested behavior",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-runtime.001",
+      "name": "P8-RUN-I01 actual materials operation same Run structured input and stopped process materialization charge only real activity types without claiming semantic delivery",
+      "suiteId": "integration-research-runtime",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p8-research-runtime"
+      ],
+      "scenario": "P8-RUN-I01 actual materials operation same Run structured input and stopped process materialization charge only real activity types without claiming semantic delivery",
+      "impactTags": [
+        "p8-research-runtime",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/research-runtime.test.ts :: P8-RUN-I01 actual materials operation same Run structured input and stopped process materialization charge only real activity types without claiming semantic delivery",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-runtime.002",
+      "name": "P8-RUN-I02 actual input tamper blocks dispatch and terminal artifact while stopped known fixture usage settles and original material archive stays unchanged",
+      "suiteId": "integration-research-runtime",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p8-research-runtime"
+      ],
+      "scenario": "P8-RUN-I02 actual input tamper blocks dispatch and terminal artifact while stopped known fixture usage settles and original material archive stays unchanged",
+      "impactTags": [
+        "p8-research-runtime",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/research-runtime.test.ts :: P8-RUN-I02 actual input tamper blocks dispatch and terminal artifact while stopped known fixture usage settles and original material archive stays unchanged",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-runtime.003",
+      "name": "P8-RUN-I03 actual incomplete archive is retained unknown on recovery and cannot invent a receipt or free a pending operation",
+      "suiteId": "integration-research-runtime",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p8-research-runtime"
+      ],
+      "scenario": "P8-RUN-I03 actual incomplete archive is retained unknown on recovery and cannot invent a receipt or free a pending operation",
+      "impactTags": [
+        "p8-research-runtime",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/research-runtime.test.ts :: P8-RUN-I03 actual incomplete archive is retained unknown on recovery and cannot invent a receipt or free a pending operation",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-runtime.004",
+      "name": "P8-RUN-I04 actual frozen input self-rehash cannot change original prompt schema requirements or report target and failed binding rolls back unchanged Run",
+      "suiteId": "integration-research-runtime",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p8-research-runtime"
+      ],
+      "scenario": "P8-RUN-I04 actual frozen input self-rehash cannot change original prompt schema requirements or report target and failed binding rolls back unchanged Run",
+      "impactTags": [
+        "p8-research-runtime",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/research-runtime.test.ts :: P8-RUN-I04 actual frozen input self-rehash cannot change original prompt schema requirements or report target and failed binding rolls back unchanged Run",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-runtime.005",
+      "name": "P8-RUN-I05 actual native P4 proposal freezes same-Run material receipts literal evidence and real refresh rejects changed original without granting semantic delivery",
+      "suiteId": "integration-research-runtime",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p8-research-runtime"
+      ],
+      "scenario": "P8-RUN-I05 actual native P4 proposal freezes same-Run material receipts literal evidence and real refresh rejects changed original without granting semantic delivery",
+      "impactTags": [
+        "p8-research-runtime",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/research-runtime.test.ts :: P8-RUN-I05 actual native P4 proposal freezes same-Run material receipts literal evidence and real refresh rejects changed original without granting semantic delivery",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-runtime.006",
+      "name": "P8-RUN-I06 actual P5 research admission preserves original material criteria and budget while host appends only acquisition dependency",
+      "suiteId": "integration-research-runtime",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p8-research-runtime"
+      ],
+      "scenario": "P8-RUN-I06 actual P5 research admission preserves original material criteria and budget while host appends only acquisition dependency",
+      "impactTags": [
+        "p8-research-runtime",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/research-runtime.test.ts :: P8-RUN-I06 actual P5 research admission preserves original material criteria and budget while host appends only acquisition dependency",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-runtime.007",
+      "name": "P8-RUN-I07 actual existing worker acquires a partial unsupported local archive and records exact-once zero-cost receipt without any model or delivery",
+      "suiteId": "integration-research-runtime",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p8-research-runtime"
+      ],
+      "scenario": "P8-RUN-I07 actual existing worker acquires a partial unsupported local archive and records exact-once zero-cost receipt without any model or delivery",
+      "impactTags": [
+        "p8-research-runtime",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/research-runtime.test.ts :: P8-RUN-I07 actual existing worker acquires a partial unsupported local archive and records exact-once zero-cost receipt without any model or delivery",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-runtime.008",
+      "name": "P8-RUN-I08 actual terminal foreign-message fatal diagnostic unknown usage and late pause cancel reject publication while preserving actual stop and accounting",
+      "suiteId": "integration-research-runtime",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p8-research-runtime"
+      ],
+      "scenario": "P8-RUN-I08 actual terminal foreign-message fatal diagnostic unknown usage and late pause cancel reject publication while preserving actual stop and accounting",
+      "impactTags": [
+        "p8-research-runtime",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/research-runtime.test.ts :: P8-RUN-I08 actual terminal foreign-message fatal diagnostic unknown usage and late pause cancel reject publication while preserving actual stop and accounting",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-research-planning.001",
+      "name": "P8-RPLAN-U01 host research configuration is separated from verbatim user-only fact sources",
+      "suiteId": "unit-research-planning",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p8-research-runtime"
+      ],
+      "scenario": "P8-RPLAN-U01 host research configuration is separated from verbatim user-only fact sources",
+      "impactTags": [
+        "p8-research-runtime",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/unit/research-planning.test.ts :: P8-RPLAN-U01 host research configuration is separated from verbatim user-only fact sources",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-research-planning.002",
+      "name": "P8-RPLAN-U02 observed paid failure pattern preserves rejection of four host-attributed explicit facts",
+      "suiteId": "unit-research-planning",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p8-research-runtime"
+      ],
+      "scenario": "P8-RPLAN-U02 observed paid failure pattern preserves rejection of four host-attributed explicit facts",
+      "impactTags": [
+        "p8-research-runtime",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/unit/research-planning.test.ts :: P8-RPLAN-U02 observed paid failure pattern preserves rejection of four host-attributed explicit facts",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-research-planning.003",
+      "name": "P8-RPLAN-U03 malformed configuration or invented duplicate message identity cannot gain fact authority",
+      "suiteId": "unit-research-planning",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p8-research-runtime"
+      ],
+      "scenario": "P8-RPLAN-U03 malformed configuration or invented duplicate message identity cannot gain fact authority",
+      "impactTags": [
+        "p8-research-runtime",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/unit/research-planning.test.ts :: P8-RPLAN-U03 malformed configuration or invented duplicate message identity cannot gain fact authority",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-output-rules.001",
+      "name": "P8-RRULE-I01 actual material intake drives full prompt rules ordered scope per-question gaps and literal untrusted positive",
+      "suiteId": "integration-research-output-rules",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-research-runtime"
+      ],
+      "scenario": "P8-RRULE-I01 actual material intake drives full prompt rules ordered scope per-question gaps and literal untrusted positive",
+      "impactTags": [
+        "p8-research-runtime",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/research-output-rules.test.ts :: P8-RRULE-I01 actual material intake drives full prompt rules ordered scope per-question gaps and literal untrusted positive",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-output-rules.002",
+      "name": "P8-RRULE-I02 actual foreign-material and hidden unsupported-answer regressions remain rejected while own citations and partial claims survive",
+      "suiteId": "integration-research-output-rules",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-research-runtime"
+      ],
+      "scenario": "P8-RRULE-I02 actual foreign-material and hidden unsupported-answer regressions remain rejected while own citations and partial claims survive",
+      "impactTags": [
+        "p8-research-runtime",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/research-output-rules.test.ts :: P8-RRULE-I02 actual foreign-material and hidden unsupported-answer regressions remain rejected while own citations and partial claims survive",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-output-rules.003",
+      "name": "P8-RRULE-I03 real schema and reference gates reject all described ID claim question conflict and followup violations",
+      "suiteId": "integration-research-output-rules",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-research-runtime"
+      ],
+      "scenario": "P8-RRULE-I03 real schema and reference gates reject all described ID claim question conflict and followup violations",
+      "impactTags": [
+        "p8-research-runtime",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/research-output-rules.test.ts :: P8-RRULE-I03 real schema and reference gates reject all described ID claim question conflict and followup violations",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-output-rules.004",
+      "name": "P8-RRULE-I04 real material coverage gates reject omission misclassification foreign evidence and unsupported invented summaries",
+      "suiteId": "integration-research-output-rules",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-research-runtime"
+      ],
+      "scenario": "P8-RRULE-I04 real material coverage gates reject omission misclassification foreign evidence and unsupported invented summaries",
+      "impactTags": [
+        "p8-research-runtime",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/research-output-rules.test.ts :: P8-RRULE-I04 real material coverage gates reject omission misclassification foreign evidence and unsupported invented summaries",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-output-rules.005",
+      "name": "P8-RRULE-I05 actual UTF16 snapshot checks and whole prompt capacity keep exact source bytes and refuse truncation",
+      "suiteId": "integration-research-output-rules",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-research-runtime"
+      ],
+      "scenario": "P8-RRULE-I05 actual UTF16 snapshot checks and whole prompt capacity keep exact source bytes and refuse truncation",
+      "impactTags": [
+        "p8-research-runtime",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/integration/research-output-rules.test.ts :: P8-RRULE-I05 actual UTF16 snapshot checks and whole prompt capacity keep exact source bytes and refuse truncation",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-p8-integration-compatibility.001",
+      "name": "P8-INTEGRATION-U01 combined planner schema retains all reviewed kinds and original bounded loop shape",
+      "suiteId": "unit-p8-integration-compatibility",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p8-combined-platform-boundary"
+      ],
+      "scenario": "P8-INTEGRATION-U01 combined planner schema retains all reviewed kinds and original bounded loop shape",
+      "impactTags": [
+        "p8-combined-platform-boundary",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/unit/p8-integration-compatibility.test.ts :: P8-INTEGRATION-U01 combined planner schema retains all reviewed kinds and original bounded loop shape",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-p8-integration-compatibility.002",
+      "name": "P8-INTEGRATION-U02 configured acquisition refuses a model loop without removing ordinary loop admission",
+      "suiteId": "unit-p8-integration-compatibility",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p8-combined-platform-boundary"
+      ],
+      "scenario": "P8-INTEGRATION-U02 configured acquisition refuses a model loop without removing ordinary loop admission",
+      "impactTags": [
+        "p8-combined-platform-boundary",
+        "p8-v32-mechanisms"
+      ],
+      "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
+      "assertions": "tests/unit/p8-integration-compatibility.test.ts :: P8-INTEGRATION-U02 configured acquisition refuses a model loop without removing ordinary loop admission",
+      "cleanup": "Stop owned processes/devices; preserve failures and unresolved accounting; no paid/native work implied by registration",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-mobile-schema-consistency.001",
+      "name": "P8M-MOBILE-SCHEMA-U01 supported Android and iOS action declarations agree with transport including empty Android observations",
+      "suiteId": "unit-mobile-schema-consistency",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p8-mobile-schema"
+      ],
+      "scenario": "P8M-MOBILE-SCHEMA-U01 supported Android and iOS action declarations agree with transport including empty Android observations",
+      "impactTags": [
+        "p8-mobile-schema",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/unit/mobile-schema-consistency.test.ts :: P8M-MOBILE-SCHEMA-U01 supported Android and iOS action declarations agree with transport including empty Android observations",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-mobile-schema-consistency.002",
+      "name": "P8M-MOBILE-SCHEMA-U02 prose observation is rejected before transport and reports exact local field without rewriting input",
+      "suiteId": "unit-mobile-schema-consistency",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p8-mobile-schema"
+      ],
+      "scenario": "P8M-MOBILE-SCHEMA-U02 prose observation is rejected before transport and reports exact local field without rewriting input",
+      "impactTags": [
+        "p8-mobile-schema",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/unit/mobile-schema-consistency.test.ts :: P8M-MOBILE-SCHEMA-U02 prose observation is rejected before transport and reports exact local field without rewriting input",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-mobile-schema-consistency.003",
+      "name": "P8M-MOBILE-SCHEMA-U03 scalar grammar length null and unsupported empty text remain closed at schema and parser",
+      "suiteId": "unit-mobile-schema-consistency",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p8-mobile-schema"
+      ],
+      "scenario": "P8M-MOBILE-SCHEMA-U03 scalar grammar length null and unsupported empty text remain closed at schema and parser",
+      "impactTags": [
+        "p8-mobile-schema",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/unit/mobile-schema-consistency.test.ts :: P8M-MOBILE-SCHEMA-U03 scalar grammar length null and unsupported empty text remain closed at schema and parser",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-mobile-schema-consistency.004",
+      "name": "P8M-MOBILE-SCHEMA-U04 bounded collections exact fields and local cross bindings retain the original supported boundary",
+      "suiteId": "unit-mobile-schema-consistency",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p8-mobile-schema"
+      ],
+      "scenario": "P8M-MOBILE-SCHEMA-U04 bounded collections exact fields and local cross bindings retain the original supported boundary",
+      "impactTags": [
+        "p8-mobile-schema",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/unit/mobile-schema-consistency.test.ts :: P8M-MOBILE-SCHEMA-U04 bounded collections exact fields and local cross bindings retain the original supported boundary",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-mobile-schema-consistency.005",
+      "name": "P8M-MOBILE-SCHEMA-U05 schema safety admits only the exact new fixed observation pattern and rejects arbitrary expressions",
+      "suiteId": "unit-mobile-schema-consistency",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p8-mobile-schema"
+      ],
+      "scenario": "P8M-MOBILE-SCHEMA-U05 schema safety admits only the exact new fixed observation pattern and rejects arbitrary expressions",
+      "impactTags": [
+        "p8-mobile-schema",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/unit/mobile-schema-consistency.test.ts :: P8M-MOBILE-SCHEMA-U05 schema safety admits only the exact new fixed observation pattern and rejects arbitrary expressions",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-mobile-attribution.001",
+      "name": "P8M-ATTR-I01 native failure attribution rejects multiple obligations without deleting declared requirements",
+      "suiteId": "integration-mobile-attribution",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-mobile-attribution"
+      ],
+      "scenario": "P8M-ATTR-I01 native failure attribution rejects multiple obligations without deleting declared requirements",
+      "impactTags": [
+        "p8-mobile-attribution",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/integration/mobile-attribution.test.ts :: P8M-ATTR-I01 native failure attribution rejects multiple obligations without deleting declared requirements",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-mobile-attribution.002",
+      "name": "P8M-ATTR-I02 direct engine malformed instance fails before native intents models or device allocation",
+      "suiteId": "integration-mobile-attribution",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-mobile-attribution"
+      ],
+      "scenario": "P8M-ATTR-I02 direct engine malformed instance fails before native intents models or device allocation",
+      "impactTags": [
+        "p8-mobile-attribution",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/integration/mobile-attribution.test.ts :: P8M-ATTR-I02 direct engine malformed instance fails before native intents models or device allocation",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-material-obligation.001",
+      "name": "P8-MOBL-U01 native material cases require one attributable obligation while split cases preserve all original required questions and controls",
+      "suiteId": "unit-material-obligation",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p8-material-obligation"
+      ],
+      "scenario": "P8-MOBL-U01 native material cases require one attributable obligation while split cases preserve all original required questions and controls",
+      "impactTags": [
+        "p8-material-obligation",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/unit/material-obligation.test.ts :: P8-MOBL-U01 native material cases require one attributable obligation while split cases preserve all original required questions and controls",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-material-obligation.002",
+      "name": "P8-MOBL-U02 actual author schema and validator admit complete split material coverage and reject a global verdict case without deleting any standard",
+      "suiteId": "unit-material-obligation",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p8-material-obligation"
+      ],
+      "scenario": "P8-MOBL-U02 actual author schema and validator admit complete split material coverage and reject a global verdict case without deleting any standard",
+      "impactTags": [
+        "p8-material-obligation",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/unit/material-obligation.test.ts :: P8-MOBL-U02 actual author schema and validator admit complete split material coverage and reject a global verdict case without deleting any standard",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-material-obligation.003",
+      "name": "P8-MOBL-U03 actual engine refuses a bypassed multi-obligation material instance before source acquisition or any model dispatch and emits no expected failure",
+      "suiteId": "unit-material-obligation",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p8-material-obligation"
+      ],
+      "scenario": "P8-MOBL-U03 actual engine refuses a bypassed multi-obligation material instance before source acquisition or any model dispatch and emits no expected failure",
+      "impactTags": [
+        "p8-material-obligation",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/unit/material-obligation.test.ts :: P8-MOBL-U03 actual engine refuses a bypassed multi-obligation material instance before source acquisition or any model dispatch and emits no expected failure",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-verification-versions.001",
+      "name": "P8U-VERSION-U01 unselected retired and historical passing remain separate with exact revision candidate environment binding",
+      "suiteId": "unit-verification-versions",
+      "module": "desktop",
+      "layer": "unit",
+      "covers": [
+        "p8-verification-versions"
+      ],
+      "scenario": "P8U-VERSION-U01 unselected retired and historical passing remain separate with exact revision candidate environment binding",
+      "impactTags": [
+        "p8-verification-versions",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/unit/verification-versions.test.ts :: P8U-VERSION-U01 unselected retired and historical passing remain separate with exact revision candidate environment binding",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-verification-versions.002",
+      "name": "P8U-VERSION-U02 unknown usage or unresolved stop cannot display current pass and retired cases cannot supply required coverage",
+      "suiteId": "unit-verification-versions",
+      "module": "desktop",
+      "layer": "unit",
+      "covers": [
+        "p8-verification-versions"
+      ],
+      "scenario": "P8U-VERSION-U02 unknown usage or unresolved stop cannot display current pass and retired cases cannot supply required coverage",
+      "impactTags": [
+        "p8-verification-versions",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/unit/verification-versions.test.ts :: P8U-VERSION-U02 unknown usage or unresolved stop cannot display current pass and retired cases cannot supply required coverage",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-verification-versions.003",
+      "name": "P8U-VERSION-U03 opening inventory never derives from an unaccepted candidate or unrelated plan",
+      "suiteId": "unit-verification-versions",
+      "module": "desktop",
+      "layer": "unit",
+      "covers": [
+        "p8-verification-versions"
+      ],
+      "scenario": "P8U-VERSION-U03 opening inventory never derives from an unaccepted candidate or unrelated plan",
+      "impactTags": [
+        "p8-verification-versions",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/unit/verification-versions.test.ts :: P8U-VERSION-U03 opening inventory never derives from an unaccepted candidate or unrelated plan",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-verification-versions.004",
+      "name": "P8U-VERSION-U04 current head comes only from backend binding and browser origin accepts only fresh running exact owned delivery",
+      "suiteId": "unit-verification-versions",
+      "module": "desktop",
+      "layer": "unit",
+      "covers": [
+        "p8-verification-versions"
+      ],
+      "scenario": "P8U-VERSION-U04 current head comes only from backend binding and browser origin accepts only fresh running exact owned delivery",
+      "impactTags": [
+        "p8-verification-versions",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/unit/verification-versions.test.ts :: P8U-VERSION-U04 current head comes only from backend binding and browser origin accepts only fresh running exact owned delivery",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-verification-versions.005",
+      "name": "P8U-VERSION-U05 actual React static rendering keeps offline pass records visibly stale and no JSON wall",
+      "suiteId": "unit-verification-versions",
+      "module": "desktop",
+      "layer": "unit",
+      "covers": [
+        "p8-verification-versions"
+      ],
+      "scenario": "P8U-VERSION-U05 actual React static rendering keeps offline pass records visibly stale and no JSON wall",
+      "impactTags": [
+        "p8-verification-versions",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/unit/verification-versions.test.ts :: P8U-VERSION-U05 actual React static rendering keeps offline pass records visibly stale and no JSON wall",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-verification-versions.006",
+      "name": "P8U-VERSION-U06 running verification and review retain live status while unknown fees remain explicit",
+      "suiteId": "unit-verification-versions",
+      "module": "desktop",
+      "layer": "unit",
+      "covers": [
+        "p8-verification-versions"
+      ],
+      "scenario": "P8U-VERSION-U06 running verification and review retain live status while unknown fees remain explicit",
+      "impactTags": [
+        "p8-verification-versions",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/unit/verification-versions.test.ts :: P8U-VERSION-U06 running verification and review retain live status while unknown fees remain explicit",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-verification-versions.007",
+      "name": "P8U-VERSION-U07 actual React keeps owned close action after delivery inventory disappears including unknown stop",
+      "suiteId": "unit-verification-versions",
+      "module": "desktop",
+      "layer": "unit",
+      "covers": [
+        "p8-verification-versions"
+      ],
+      "scenario": "P8U-VERSION-U07 actual React keeps owned close action after delivery inventory disappears including unknown stop",
+      "impactTags": [
+        "p8-verification-versions",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/unit/verification-versions.test.ts :: P8U-VERSION-U07 actual React keeps owned close action after delivery inventory disappears including unknown stop",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-verification-versions.001",
+      "name": "P8U-VERSION-I01 actual SQLite service status projects unreviewed versions and unknown cost without granting delivery open",
+      "suiteId": "integration-verification-versions",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-verification-versions"
+      ],
+      "scenario": "P8U-VERSION-I01 actual SQLite service status projects unreviewed versions and unknown cost without granting delivery open",
+      "impactTags": [
+        "p8-verification-versions",
+        "v33-union",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/integration/verification-versions.test.ts :: P8U-VERSION-I01 actual SQLite service status projects unreviewed versions and unknown cost without granting delivery open",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-verification-versions.002",
+      "name": "P8U-VERSION-I02 actual managed HTTP open-session origin closes physically and cannot be presented as still running",
+      "suiteId": "integration-verification-versions",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-verification-versions"
+      ],
+      "scenario": "P8U-VERSION-I02 actual managed HTTP open-session origin closes physically and cannot be presented as still running",
+      "impactTags": [
+        "p8-verification-versions",
+        "v33-union",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/integration/verification-versions.test.ts :: P8U-VERSION-I02 actual managed HTTP open-session origin closes physically and cannot be presented as still running",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-runtime-cancellation-sync.001",
+      "name": "P6-CANCEL-I01 real cancelled Run synchronizes queued runtime once and remains cancelled after SQLite reopen",
+      "suiteId": "integration-runtime-cancellation-sync",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p6-cancellation-sync"
+      ],
+      "scenario": "P6-CANCEL-I01 real cancelled Run synchronizes queued runtime once and remains cancelled after SQLite reopen",
+      "impactTags": [
+        "p6-cancellation-sync",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/integration/runtime-cancellation-sync.test.ts :: P6-CANCEL-I01 real cancelled Run synchronizes queued runtime once and remains cancelled after SQLite reopen",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-runtime-cancellation-sync.002",
+      "name": "P6-CANCEL-I02 synchronizing cancelled claimed work retains unknown fees effects leases and immutable checkpoints",
+      "suiteId": "integration-runtime-cancellation-sync",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p6-cancellation-sync"
+      ],
+      "scenario": "P6-CANCEL-I02 synchronizing cancelled claimed work retains unknown fees effects leases and immutable checkpoints",
+      "impactTags": [
+        "p6-cancellation-sync",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/integration/runtime-cancellation-sync.test.ts :: P6-CANCEL-I02 synchronizing cancelled claimed work retains unknown fees effects leases and immutable checkpoints",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-runtime-cancellation-sync.003",
+      "name": "P6-CANCEL-I03 real execution manager cancellation before process dispatch reports a cancelled runtime without a new attempt",
+      "suiteId": "integration-runtime-cancellation-sync",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p6-cancellation-sync"
+      ],
+      "scenario": "P6-CANCEL-I03 real execution manager cancellation before process dispatch reports a cancelled runtime without a new attempt",
+      "impactTags": [
+        "p6-cancellation-sync",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/integration/runtime-cancellation-sync.test.ts :: P6-CANCEL-I03 real execution manager cancellation before process dispatch reports a cancelled runtime without a new attempt",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-runtime-cancellation-sync.004",
+      "name": "P6-CANCEL-I04 actual managed worker converges externally cancelled input task and preserves cancellation through restart",
+      "suiteId": "integration-runtime-cancellation-sync",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p6-cancellation-sync"
+      ],
+      "scenario": "P6-CANCEL-I04 actual managed worker converges externally cancelled input task and preserves cancellation through restart",
+      "impactTags": [
+        "p6-cancellation-sync",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/integration/runtime-cancellation-sync.test.ts :: P6-CANCEL-I04 actual managed worker converges externally cancelled input task and preserves cancellation through restart",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-runtime-cancellation-sync.005",
+      "name": "P6-CANCEL-I05 cancelled domain never converts an unconfirmed actual live process stop into terminal execution",
+      "suiteId": "integration-runtime-cancellation-sync",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p6-cancellation-sync"
+      ],
+      "scenario": "P6-CANCEL-I05 cancelled domain never converts an unconfirmed actual live process stop into terminal execution",
+      "impactTags": [
+        "p6-cancellation-sync",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/integration/runtime-cancellation-sync.test.ts :: P6-CANCEL-I05 cancelled domain never converts an unconfirmed actual live process stop into terminal execution",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-failfast.001",
+      "name": "P4-CTRLFAST-I03 negative earlier passing instance cannot prevent later exact mustFail witness",
+      "suiteId": "integration-control-failfast",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-failfast"
+      ],
+      "scenario": "P4-CTRLFAST-I03 negative earlier passing instance cannot prevent later exact mustFail witness",
+      "impactTags": [
+        "p6-control-failfast",
+        "v33-union",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/integration/control-failfast.test.ts :: P4-CTRLFAST-I03 negative earlier passing instance cannot prevent later exact mustFail witness",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-failfast.002",
+      "name": "P4-CTRLFAST-I04 ordinary final execution retains complete evidence instead of enabling positive control early stop",
+      "suiteId": "integration-control-failfast",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-failfast"
+      ],
+      "scenario": "P4-CTRLFAST-I04 ordinary final execution retains complete evidence instead of enabling positive control early stop",
+      "impactTags": [
+        "p6-control-failfast",
+        "v33-union",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/integration/control-failfast.test.ts :: P4-CTRLFAST-I04 ordinary final execution retains complete evidence instead of enabling positive control early stop",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-failfast.003",
+      "name": "P4-CTRLFAST-I05 delayed real protocol notification preserves overrun stops owned process and blocks another paid turn",
+      "suiteId": "integration-control-failfast",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-failfast"
+      ],
+      "scenario": "P4-CTRLFAST-I05 delayed real protocol notification preserves overrun stops owned process and blocks another paid turn",
+      "impactTags": [
+        "p6-control-failfast",
+        "v33-union",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/integration/control-failfast.test.ts :: P4-CTRLFAST-I05 delayed real protocol notification preserves overrun stops owned process and blocks another paid turn",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-failfast.004",
+      "name": "P4-CTRLFAST-I06 actual source positive unknown stops before second semantic turn or negative acquisition",
+      "suiteId": "integration-control-failfast",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-failfast"
+      ],
+      "scenario": "P4-CTRLFAST-I06 actual source positive unknown stops before second semantic turn or negative acquisition",
+      "impactTags": [
+        "p6-control-failfast",
+        "v33-union",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/integration/control-failfast.test.ts :: P4-CTRLFAST-I06 actual source positive unknown stops before second semantic turn or negative acquisition",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-bootstrap.011",
+      "name": "P6-BOOT-I11 unqualified exact bootstrap pair stops later calls while incomplete witness evidence stays unusable",
+      "suiteId": "integration-control-bootstrap",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-bootstrap"
+      ],
+      "scenario": "P6-BOOT-I11 unqualified exact bootstrap pair stops later calls while incomplete witness evidence stays unusable",
+      "impactTags": [
+        "p6-control-bootstrap",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/integration/control-bootstrap.test.ts :: P6-BOOT-I11 unqualified exact bootstrap pair stops later calls while incomplete witness evidence stays unusable",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-scoped-environment.001",
+      "name": "P8-ENV-U01 real TOML equivalent formatting ordering and quoted dotted keys retain semantic digest",
+      "suiteId": "unit-scoped-environment",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p8-scoped-environment"
+      ],
+      "scenario": "P8-ENV-U01 real TOML equivalent formatting ordering and quoted dotted keys retain semantic digest",
+      "impactTags": [
+        "p8-scoped-environment",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/unit/scoped-environment.test.ts :: P8-ENV-U01 real TOML equivalent formatting ordering and quoted dotted keys retain semantic digest",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-scoped-environment.002",
+      "name": "P8-ENV-U02 unrelated supported trust-only registration is excluded but current and ancestor trust retained",
+      "suiteId": "unit-scoped-environment",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p8-scoped-environment"
+      ],
+      "scenario": "P8-ENV-U02 unrelated supported trust-only registration is excluded but current and ancestor trust retained",
+      "impactTags": [
+        "p8-scoped-environment",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/unit/scoped-environment.test.ts :: P8-ENV-U02 unrelated supported trust-only registration is excluded but current and ancestor trust retained",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-scoped-environment.003",
+      "name": "P8-ENV-U03 global unknown and project unknown fields cannot be hidden by project filtering",
+      "suiteId": "unit-scoped-environment",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p8-scoped-environment"
+      ],
+      "scenario": "P8-ENV-U03 global unknown and project unknown fields cannot be hidden by project filtering",
+      "impactTags": [
+        "p8-scoped-environment",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/unit/scoped-environment.test.ts :: P8-ENV-U03 global unknown and project unknown fields cannot be hidden by project filtering",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-scoped-environment.004",
+      "name": "P8-ENV-U04 unresolved relative and symlink project aliases are conservatively retained",
+      "suiteId": "unit-scoped-environment",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p8-scoped-environment"
+      ],
+      "scenario": "P8-ENV-U04 unresolved relative and symlink project aliases are conservatively retained",
+      "impactTags": [
+        "p8-scoped-environment",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/unit/scoped-environment.test.ts :: P8-ENV-U04 unresolved relative and symlink project aliases are conservatively retained",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-scoped-environment.005",
+      "name": "P8-ENV-U05 real TOML multiline lookalike project text remains global content",
+      "suiteId": "unit-scoped-environment",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p8-scoped-environment"
+      ],
+      "scenario": "P8-ENV-U05 real TOML multiline lookalike project text remains global content",
+      "impactTags": [
+        "p8-scoped-environment",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/unit/scoped-environment.test.ts :: P8-ENV-U05 real TOML multiline lookalike project text remains global content",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-scoped-environment.006",
+      "name": "P8-ENV-U06 duplicate malformed and wrongly typed TOML structures never silently erase configuration",
+      "suiteId": "unit-scoped-environment",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p8-scoped-environment"
+      ],
+      "scenario": "P8-ENV-U06 duplicate malformed and wrongly typed TOML structures never silently erase configuration",
+      "impactTags": [
+        "p8-scoped-environment",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/unit/scoped-environment.test.ts :: P8-ENV-U06 duplicate malformed and wrongly typed TOML structures never silently erase configuration",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-scoped-environment.007",
+      "name": "P8-ENV-U07 persisted scope rejects wrong version extra fields cross Run workspace store and root forgery",
+      "suiteId": "unit-scoped-environment",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p8-scoped-environment"
+      ],
+      "scenario": "P8-ENV-U07 persisted scope rejects wrong version extra fields cross Run workspace store and root forgery",
+      "impactTags": [
+        "p8-scoped-environment",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/unit/scoped-environment.test.ts :: P8-ENV-U07 persisted scope rejects wrong version extra fields cross Run workspace store and root forgery",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-scoped-environment.008",
+      "name": "P8-ENV-U08 prototype and quoted keys cannot mutate host objects or imitate trust-only shape",
+      "suiteId": "unit-scoped-environment",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p8-scoped-environment"
+      ],
+      "scenario": "P8-ENV-U08 prototype and quoted keys cannot mutate host objects or imitate trust-only shape",
+      "impactTags": [
+        "p8-scoped-environment",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/unit/scoped-environment.test.ts :: P8-ENV-U08 prototype and quoted keys cannot mutate host objects or imitate trust-only shape",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-scoped-environment.009",
+      "name": "P8-ENV-U09 fractional and local TOML date time values reject rather than collide after parser precision loss",
+      "suiteId": "unit-scoped-environment",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p8-scoped-environment"
+      ],
+      "scenario": "P8-ENV-U09 fractional and local TOML date time values reject rather than collide after parser precision loss",
+      "impactTags": [
+        "p8-scoped-environment",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/unit/scoped-environment.test.ts :: P8-ENV-U09 fractional and local TOML date time values reject rather than collide after parser precision loss",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-scoped-environment.010",
+      "name": "P8-ENV-U10 unrelated trust with unexpected TOML value types cannot be omitted as supported string",
+      "suiteId": "unit-scoped-environment",
+      "module": "verification",
+      "layer": "unit",
+      "covers": [
+        "p8-scoped-environment"
+      ],
+      "scenario": "P8-ENV-U10 unrelated trust with unexpected TOML value types cannot be omitted as supported string",
+      "impactTags": [
+        "p8-scoped-environment",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/unit/scoped-environment.test.ts :: P8-ENV-U10 unrelated trust with unexpected TOML value types cannot be omitted as supported string",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-scoped-environment.001",
+      "name": "P8-ENV-I01 actual unrelated Node registration leaves scope unchanged while current trust and global config invalidate",
+      "suiteId": "integration-scoped-environment",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-scoped-environment"
+      ],
+      "scenario": "P8-ENV-I01 actual unrelated Node registration leaves scope unchanged while current trust and global config invalidate",
+      "impactTags": [
+        "p8-scoped-environment",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/integration/scoped-environment.test.ts :: P8-ENV-I01 actual unrelated Node registration leaves scope unchanged while current trust and global config invalidate",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-scoped-environment.002",
+      "name": "P8-ENV-I02 actual ancestor missing creation and mutation plus new private descendant config reject dispatch",
+      "suiteId": "integration-scoped-environment",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-scoped-environment"
+      ],
+      "scenario": "P8-ENV-I02 actual ancestor missing creation and mutation plus new private descendant config reject dispatch",
+      "impactTags": [
+        "p8-scoped-environment",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/integration/scoped-environment.test.ts :: P8-ENV-I02 actual ancestor missing creation and mutation plus new private descendant config reject dispatch",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-scoped-environment.003",
+      "name": "P8-ENV-I03 actual global and ancestor config aliases fail closed rather than disappear",
+      "suiteId": "integration-scoped-environment",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-scoped-environment"
+      ],
+      "scenario": "P8-ENV-I03 actual global and ancestor config aliases fail closed rather than disappear",
+      "impactTags": [
+        "p8-scoped-environment",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/integration/scoped-environment.test.ts :: P8-ENV-I03 actual global and ancestor config aliases fail closed rather than disappear",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-scoped-environment.004",
+      "name": "P8-ENV-I04 SQLite reopen retains exact new scope and legacy JSON without changing old managed paths",
+      "suiteId": "integration-scoped-environment",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-scoped-environment"
+      ],
+      "scenario": "P8-ENV-I04 SQLite reopen retains exact new scope and legacy JSON without changing old managed paths",
+      "impactTags": [
+        "p8-scoped-environment",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/integration/scoped-environment.test.ts :: P8-ENV-I04 SQLite reopen retains exact new scope and legacy JSON without changing old managed paths",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-scoped-environment.005",
+      "name": "P8-ENV-I05 actual full environment fingerprint keeps legacy whole-file behavior and scoped registration stability",
+      "suiteId": "integration-scoped-environment",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-scoped-environment"
+      ],
+      "scenario": "P8-ENV-I05 actual full environment fingerprint keeps legacy whole-file behavior and scoped registration stability",
+      "impactTags": [
+        "p8-scoped-environment",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/integration/scoped-environment.test.ts :: P8-ENV-I05 actual full environment fingerprint keeps legacy whole-file behavior and scoped registration stability",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-scoped-environment.006",
+      "name": "P8-ENV-I06 real review dispatch rejects cross Run or newly configured private cwd before model start",
+      "suiteId": "integration-scoped-environment",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-scoped-environment"
+      ],
+      "scenario": "P8-ENV-I06 real review dispatch rejects cross Run or newly configured private cwd before model start",
+      "impactTags": [
+        "p8-scoped-environment",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/integration/scoped-environment.test.ts :: P8-ENV-I06 real review dispatch rejects cross Run or newly configured private cwd before model start",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-scoped-environment.007",
+      "name": "P8-ENV-I07 actual synthetic review transport uses stable scoped workspace and preserves legacy cwd and current trust gate",
+      "suiteId": "integration-scoped-environment",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-scoped-environment"
+      ],
+      "scenario": "P8-ENV-I07 actual synthetic review transport uses stable scoped workspace and preserves legacy cwd and current trust gate",
+      "impactTags": [
+        "p8-scoped-environment",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/integration/scoped-environment.test.ts :: P8-ENV-I07 actual synthetic review transport uses stable scoped workspace and preserves legacy cwd and current trust gate",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-control-qualification.011",
+      "name": "P6-CTRL-I11 unqualified current positive stops further rows and missing qualification evidence stays failed",
+      "suiteId": "integration-control-qualification",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-qualification"
+      ],
+      "scenario": "P6-CTRL-I11 unqualified current positive stops further rows and missing qualification evidence stays failed",
+      "impactTags": [
+        "p6-control-qualification",
+        "v33-union"
+      ],
+      "prerequisites": "Pinned Node; real immutable files and actual permission-limited P4 Node command processes, identity/stop and output proofs; no model approval is fabricated.",
+      "assertions": "tests/integration/control-qualification.test.ts :: P6-CTRL-I11 unqualified current positive stops further rows and missing qualification evidence stays failed",
+      "cleanup": "Stop owned processes and close temporary files; retain formal report and failures",
+      "status": "active"
+    },
+    {
+      "id": "p4.integration-control-failfast.001",
+      "name": "P4-CTRLFAST-I01 actual unqualified positive failed persists partial result and stops later instances and controls",
+      "suiteId": "integration-control-failfast",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-failfast"
+      ],
+      "scenario": "P4-CTRLFAST-I01 actual unqualified positive failed persists partial result and stops later instances and controls",
+      "impactTags": [
+        "p6-control-failfast",
+        "v33-union",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/integration/control-failfast.test.ts :: P4-CTRLFAST-I01 actual unqualified positive failed persists partial result and stops later instances and controls",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
+      "status": "active"
+    },
+    {
+      "id": "p4.integration-control-failfast.002",
+      "name": "P4-CTRLFAST-I02 actual unqualified positive unknown persists partial result and stops later instances and controls",
+      "suiteId": "integration-control-failfast",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-control-failfast"
+      ],
+      "scenario": "P4-CTRLFAST-I02 actual unqualified positive unknown persists partial result and stops later instances and controls",
+      "impactTags": [
+        "p6-control-failfast",
+        "v33-union",
+        "v34-legacy-portability-impact",
+        "v35-author-recovery-impact"
+      ],
+      "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
+      "assertions": "tests/integration/control-failfast.test.ts :: P4-CTRLFAST-I02 actual unqualified positive unknown persists partial result and stops later instances and controls",
+      "cleanup": "Stop owned processes; retain original failure and unknown accounting evidence; private temporary data only",
       "status": "active"
     }
   ]

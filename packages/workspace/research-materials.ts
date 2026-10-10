@@ -41,14 +41,14 @@ function groups(index:MaterialIndex):ResearchEvidenceContext['dependencyGroups']
  for(let a=0;a<entries.length;a++)if(find(a)===a){const members=entries.flatMap((entry,i)=>find(i)===a?[entry.id]:[]);if(members.length>1)out.push({materialIds:members,reasons:[...new Set(edges.filter(e=>find(e.a)===a).map(e=>e.reason))]});}
  return out;
 }
-function build(contract:TaskContract,requirements:ResearchRequirement[],limits:ResearchLimits,index:MaterialIndex):ResearchEvidenceContext {
+export function projectResearchEvidence(contract:TaskContract,requirements:ResearchRequirement[],limits:ResearchLimits,index:MaterialIndex):ResearchEvidenceContext {
  validInputs(contract,requirements,limits,index);
  const body={schemaVersion:1 as const,purpose:'untrusted-research-evidence' as const,contract:structuredClone(contract),contractDigest:researchDigest(contract),material:refOf(index),requirements:structuredClone(requirements),index:structuredClone(index),sources:index.entries.filter(citableMaterial).map(entry=>({materialId:entry.id,textPath:join(index.directory,entry.text!.path),rawDigest:entry.raw!.sha256,textDigest:entry.text!.sha256,size:entry.text!.size})),dependencyGroups:groups(index),limits:structuredClone(limits)};
  const result={...body,digest:researchDigest(body)};ensure(canonical(result).length<=limits.maxContextChars,'complete context exceeds capacity; partition without dropping coverage');return result;
 }
 export async function captureResearchEvidence(input:{intake:MaterialIntake;material:MaterialRef;contract:TaskContract;requirements:ResearchRequirement[];limits:ResearchLimits}):Promise<ResearchEvidenceContext> {
  ownRequest(input,['intake','material','contract','requirements','limits']);
- safeResultJSON({material:input.material,contract:input.contract,requirements:input.requirements,limits:input.limits});const frozen=structuredClone({material:input.material,contract:input.contract,requirements:input.requirements,limits:input.limits}),index=await input.intake.inspect(frozen.material.directory);checkRef(frozen.material,index);return build(frozen.contract,frozen.requirements,frozen.limits,index);
+ safeResultJSON({material:input.material,contract:input.contract,requirements:input.requirements,limits:input.limits});const frozen=structuredClone({material:input.material,contract:input.contract,requirements:input.requirements,limits:input.limits}),index=await input.intake.inspect(frozen.material.directory);checkRef(frozen.material,index);return projectResearchEvidence(frozen.contract,frozen.requirements,frozen.limits,index);
 }
 /** Reconstruct from actual snapshots; a self-rehashed context is not sufficient. */
 export async function assertResearchEvidenceSnapshot(intake:MaterialIntake,context:ResearchEvidenceContext):Promise<void> {

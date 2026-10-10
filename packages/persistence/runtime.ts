@@ -1,3 +1,6 @@
+import {assertResearchInput,assertResearchStepInput,assertMaterialsReceipt,assertMaterialsStepReceipt,readBounded} from '../workspace/research-runtime-files.js';
+import {researchDigest} from '../workspace/research-materials.js';
+import type {ResearchInputReceipt,MaterialsReceipt} from '../contracts/p8-research-runtime.js';
 import type {ScheduledRecord,ScheduledClaim,ScheduledOperation} from '../contracts/p7-dispatch.js';
 import {ScheduledIntegrationInputsRepository} from './integration-inputs.js';
 import {integrationExecutionPrompt} from '../contracts/p7-integration-inputs.js';
@@ -51,7 +54,7 @@ function validateBoundary(input:RuntimeRepairBoundary,keys:string[]):void {
 }
 const boundaryKeys=['commandId','runtimeId','expectedContractVersion','expectedRevision','reason'];
 export class RuntimeRepository {
-  constructor(private readonly db: DatabaseSync) {}
+  constructor(private readonly db: DatabaseSync,private readonly dataRoot?:string) {}
   private tx<T>(work:()=>T):T {
     // Conversation acknowledgement and plan replacement share their outer
     // transaction. Never commit an enclosing repository's transaction here.
@@ -71,6 +74,16 @@ export class RuntimeRepository {
     }
     return [...current.values()].sort((a,b)=>a.stepIndex-b.stepIndex);
   }
+  /** Execution budget/transport cancellation can terminate the domain Run
+   * before the worker reports. Persist that authority without clearing unknown
+   * effects, unsettled costs or in-flight operations. */
+  synchronizeCancellation(id:string):RuntimeRecord {return this.tx(()=>{
+    const r=this.get(id),run=this.run(r);
+    if(run.status!=='cancelled'||r.cancelled&&r.phase==='cancelled'&&!r.paused)return r;
+    r.cancelled=true;r.paused=false;r.phase='cancelled';
+    for(const operation of this.operations(id))if(operation.state==='queued'){operation.state='cancelled';this.saveOp(operation);}
+    this.save(r,'run-cancellation-observed',{runId:run.id,revision:run.revision});return r;
+  });}
   private operation(id:string):RuntimeOperation {const row=this.db.prepare('SELECT record FROM runtime_outbox WHERE id=?').get(id);if(!row)throw new Error('Unknown operation');return JSON.parse(String(row.record)) as RuntimeOperation;}
   private run(r:RuntimeRecord):Run {const row=this.db.prepare('SELECT snapshot FROM runs WHERE project_id=? AND id=?').get(r.projectId,r.runId);if(!row)throw new Error('Missing runtime domain Run');return JSON.parse(String(row.snapshot)) as Run;}
   private action(r:RuntimeRecord,action:RunAction) {const value=applyAction(this.run(r),action);this.db.prepare('UPDATE runs SET snapshot=?,revision=? WHERE project_id=? AND id=?').run(runtimeCanonical(value.run),value.run.revision,r.projectId,r.runId);for(const e of value.events)this.db.prepare('INSERT INTO events(command_id,project_id,run_id,type,payload) VALUES (?,?,?,?,?)').run(r.id,r.projectId,r.runId,e.type,runtimeCanonical(e));return value.run;}
@@ -153,7 +166,7 @@ export class RuntimeRepository {
     return this.tx(()=>{
       const request=runtimeCanonical(input),prior=this.db.prepare('SELECT request,result FROM runtime_receipts WHERE command_id=?').get(input.commandId);
       if(prior){ensure(prior.request===request,'Runtime commandId conflicts with prior revision');return this.get(input.runtimeId);}
-      const r=this.get(input.runtimeId);this.compatible(r);const run=this.run(r);
+      const r=this.synchronizeCancellation(input.runtimeId);this.compatible(r);const run=this.run(r);
       ensure(run.contract.version===input.expectedContractVersion,'Contract changed before plan revision');
       ensure(!r.cancelled&&!['succeeded','cancelled'].includes(run.status),'Terminal runtime cannot revise');
       new VerificationRepository(this.db).assertNoVerificationWriter(r.workspace);
@@ -256,7 +269,7 @@ export class RuntimeRepository {
   }
   control(input:RuntimeControl):RuntimeRecord {parseRuntimeAction(input);return this.tx(()=>{
     const receipt=this.db.prepare('SELECT request,result FROM runtime_receipts WHERE command_id=?').get(input.commandId);if(receipt){ensure(receipt.request===runtimeCanonical(input),'Runtime commandId conflicts with prior request');return JSON.parse(String(receipt.result)) as RuntimeRecord;}
-    const r=this.get(input.runtimeId);this.compatible(r);
+    const r=this.synchronizeCancellation(input.runtimeId);this.compatible(r);
     if(input.type==='cancel') {if(!r.cancelled){r.cancelled=true;r.paused=false;r.phase='cancelled';this.action(r,{type:'cancel'});for(const o of this.operations(r.id))if(o.state==='queued'){o.state='cancelled';this.saveOp(o);}}}
     else {ensure(!r.cancelled||input.type==='reconcile','Cancelled runtime cannot resume or accept input');
       if(input.type==='pause'){if(!r.paused){r.paused=true;r.phase='paused';this.action(r,{type:'pause'});}}
@@ -284,12 +297,12 @@ export class RuntimeRepository {
   }
   private integrationFenced(runtimeId:string):boolean {const row=this.db.prepare('SELECT record FROM scheduled_records WHERE runtime_id=?').get(runtimeId);return !!row&&JSON.parse(String(row.record)).fence==='held';}
   claim(id:string,owner:string):RuntimeOperation|null {return this.tx(()=>{
-    const r=this.get(id);this.compatible(r);if(r.paused||r.cancelled||new ConversationRepository(this.db).hasPendingForRun(r.projectId,r.runId))return null;const o=this.currentOperations(id).find(x=>x.stepIndex===r.cursor&&x.state==='queued');if(!o)return null;if(o.step.kind==='input'&&!Object.hasOwn(r.inputs,o.step.id))return null;
+    const r=this.synchronizeCancellation(id);this.compatible(r);if(r.paused||r.cancelled||new ConversationRepository(this.db).hasPendingForRun(r.projectId,r.runId))return null;const o=this.currentOperations(id).find(x=>x.stepIndex===r.cursor&&x.state==='queued');if(!o)return null;if(o.step.kind==='input'&&!Object.hasOwn(r.inputs,o.step.id))return null;
     if(this.integrationFenced(r.id)||this.awaitingInspection(r))return null;
     this.action(r,{type:'startAttempt',attemptId:o.attemptId,nodeId:o.step.id,contractVersion:o.contractVersion,reservation:o.step.kind==='codex'?o.step.reservation:0,purpose:'execution',resources:o.step.kind==='codex'?['workspace:'+r.workspace]:[],...(this.run(r).budget.futureExecution?.nodeId===o.step.id?{futureExecutionAllocationId:this.run(r).budget.futureExecution!.allocationId}:{})});this.action(r,{type:'setOperation',operationId:o.attemptId,attemptId:o.attemptId,status:'pending'});
     o.owner=owner;o.state='claimed';this.saveOp(o);r.phase='running';this.save(r,'claimed',{operationId:o.id,owner});return o;
   });}
-  private qualifyEligible(id:string,owner:string,checkInputs:boolean):void {const o=this.operation(id),r=this.get(o.runtimeId);this.compatible(r);ensure(!this.integrationFenced(r.id),'Scheduled branches have not released final integration');ensure(o.owner===owner,'Stale worker qualification');ensure(!r.paused&&!r.cancelled,'Runtime dispatch is paused or cancelled');ensure(['claimed','started'].includes(o.state),'Operation is not eligible');const run=this.run(r);ensure(run.contract.version===o.contractVersion&&run.attempts.find(a=>a.id===o.attemptId)?.status==='running','Stale attempt qualification');if(checkInputs)new ScheduledIntegrationInputsRepository(this.db).verify(id);}
+  private qualifyEligible(id:string,owner:string,checkInputs:boolean):void {const o=this.operation(id),r=this.get(o.runtimeId);this.compatible(r);ensure(!this.integrationFenced(r.id),'Scheduled branches have not released final integration');ensure(o.owner===owner,'Stale worker qualification');ensure(!r.paused&&!r.cancelled,'Runtime dispatch is paused or cancelled');ensure(['claimed','started'].includes(o.state),'Operation is not eligible');const run=this.run(r);ensure(run.contract.version===o.contractVersion&&run.attempts.find(a=>a.id===o.attemptId)?.status==='running','Stale attempt qualification');if(checkInputs){new ScheduledIntegrationInputsRepository(this.db).verify(id);this.verifyResearchInputs(id);}}
   eligible(id:string,owner:string):void {this.qualifyEligible(id,owner,true);}
   verifyIntegrationInputs(id:string):void {new ScheduledIntegrationInputsRepository(this.db).verify(id);}
   hasScheduledIntegration(id:string):boolean {return new ScheduledIntegrationInputsRepository(this.db).applies(id);}
@@ -298,19 +311,26 @@ export class RuntimeRepository {
   executionInput(id:string,owner:string):ExecutionStart {
     this.eligible(id,owner);const operation=this.operation(id),runtime=this.get(operation.runtimeId),input=codexStart(runtime,operation),checkpoint=this.checkpoint(runtime.id);
     input.prompt += '\n\nSupervisor checkpoint references (task data):\n' + JSON.stringify({ checkpointId: checkpoint?.id ?? null, contractVersion: checkpoint?.contractVersion, priorArtifact: checkpoint?.artifact, frozenPlans: checkpoint?.frozenPlans ?? [] });
+    const research=this.researchInput(id);if(research)input.prompt=research.package.prompt;
     const integration=new ScheduledIntegrationInputsRepository(this.db).verify(id);if(integration)input.prompt=integrationExecutionPrompt(input.prompt,integration);return input;
   }
+  getOperation(id:string):RuntimeOperation {return structuredClone(this.operation(id));}
+  setResearchInput(id:string,owner:string,receipt:ResearchInputReceipt):void {this.tx(()=>{const op=this.operation(id);this.qualifyEligible(id,owner,false);ensure(op.step.kind==='codex'&&!!op.step.research,'Research binding requires typed Codex step');assertResearchInput(receipt,id,op.contractVersion,this.dataRoot);const source=this.currentOperations(op.runtimeId).find(item=>item.id===receipt.package.acquisitionOperationId);ensure(source?.state==='confirmed'&&source.step.kind==='materials'&&source.step.id===(op.step as Extract<RuntimeSubmit['steps'][number],{kind:'codex'}>).research!.acquisitionStepId,'Research source has no current acquisition');const index=(source!.result as {kind:string;receipt:MaterialsReceipt}).receipt;assertMaterialsReceipt(index,source!.id,source!.attemptId,op.contractVersion,this.dataRoot);assertMaterialsStepReceipt(index,source!);ensure(researchDigest(index.material)===researchDigest(receipt.package.context.material),'Research context has another archive');assertResearchStepInput(receipt,op,this.run(this.get(op.runtimeId)).contract,index.index);if(op.result!==null)ensure(researchDigest(op.result)===researchDigest(receipt),'Research input is already frozen differently');else {op.result=structuredClone(receipt);this.saveOp(op);}});}
+  researchInput(id:string):ResearchInputReceipt|null {const op=this.operation(id);if(op.step.kind!=='codex'||!op.step.research)return null;ensure(op.result&&typeof op.result==='object'&&(op.result as {kind?:string}).kind==='research-input','Research input must be prepared before dispatch');const value=op.result as ResearchInputReceipt;assertResearchInput(value,id,op.contractVersion,this.dataRoot);const source=this.currentOperations(op.runtimeId).find(item=>item.id===value.package.acquisitionOperationId);ensure(source?.state==='confirmed'&&source.step.id===op.step.research.acquisitionStepId&&source.step.kind==='materials','Research archive no longer belongs to current operation');const archive=(source!.result as {receipt:MaterialsReceipt}).receipt;assertMaterialsReceipt(archive,source!.id,source!.attemptId,op.contractVersion,this.dataRoot);assertMaterialsStepReceipt(archive,source!);ensure(researchDigest(archive.material)===researchDigest(value.package.context.material),'Research archive changed');assertResearchStepInput(value,op,this.run(this.get(op.runtimeId)).contract,archive.index);return structuredClone(value);}
+  verifyResearchInputs(id:string):void {const op=this.operation(id);if(op.step.kind==='codex'&&op.step.research){const receipt=this.researchInput(id)!;ensure(researchDigest(receipt.package.context.contract)===researchDigest(this.run(this.get(op.runtimeId)).contract),'Research contract changed');}}
+  beginMaterials(id:string,owner:string):RuntimeOperation {return this.tx(()=>{this.eligible(id,owner);const op=this.operation(id);ensure(op.step.kind==='materials','Not a materials operation');op.result={kind:'materials-intent',requestDigest:researchDigest({operationId:op.id,contractVersion:op.contractVersion,step:op.step})};this.saveOp(op);return this.markStarted(id,owner);});}
   markStarted(id:string,owner:string):RuntimeOperation {return this.tx(()=>{this.eligible(id,owner);const o=this.operation(id);if(o.state==='started')return o;o.state='started';this.saveOp(o);const r=this.get(o.runtimeId);this.save(r,'effect-intent',{operationId:id,owner});return o;});}
   binding(id:string,owner:string):RuntimeBinding {this.eligible(id,owner);const o=this.operation(id),r=this.get(o.runtimeId);return {runtimeId:r.id,operationId:id,owner,projectId:r.projectId,runId:r.runId,attemptId:o.attemptId};}
   adopt(id:string,owner:string):RuntimeOperation {return this.tx(()=>{const o=this.operation(id),r=this.get(o.runtimeId);this.compatible(r);ensure(!['confirmed','failed','cancelled'].includes(o.state),'Terminal operation cannot be adopted');o.owner=owner;this.saveOp(o);this.save(r,'recovery-adopted',{operationId:id,owner});return o;});}
   report(id:string,owner:string,report:RuntimeReport):RuntimeRecord {return this.tx(()=>{
     const request=runtimeCanonical({id,owner,report});const prior=this.db.prepare('SELECT request,result FROM runtime_inbox WHERE message_id=?').get(report.messageId);if(prior){ensure(prior.request===request,'Conflicting inbox delivery');return JSON.parse(String(prior.result)) as RuntimeRecord;}
-    const o=this.operation(id),r=this.get(o.runtimeId);ensure(o.owner===owner,'Stale worker report');ensure(!['confirmed','failed','cancelled'].includes(o.state),'Operation already terminal');
+    const o=this.operation(id),r=this.synchronizeCancellation(o.runtimeId);ensure(o.owner===owner,'Stale worker report');ensure(!['confirmed','failed','cancelled'].includes(o.state),'Operation already terminal');
     let run=this.run(r);ensure(o.contractVersion===run.contract.version,'Stale operation cannot advance revised runtime');let attempt=run.attempts.find(a=>a.id===o.attemptId);ensure(attempt,'Operation has no attempt');
+    if(o.step.kind==='materials'&&report.outcome!=='unknown'&&!(o.state==='claimed'&&report.outcome==='cancelled')){const value=report.result as {kind:string;receipt:MaterialsReceipt};ensure(value?.kind==='materials','Materials need actual archived receipt');assertMaterialsReceipt(value.receipt,o.id,o.attemptId,o.contractVersion,this.dataRoot);assertMaterialsStepReceipt(value.receipt,o);ensure(value.receipt.requestDigest===researchDigest({operationId:o.id,contractVersion:o.contractVersion,step:o.step}),'Materials request changed');ensure(report.outcome!=='confirmed'||value.receipt.index.disposition==='completed','Interrupted acquisition cannot advance');}
     if(o.step.kind!=='codex'){
       if(report.outcome!=='unknown'&&attempt!.status==='running')this.action(r,{type:'finishAttempt',attemptId:o.attemptId,outcome:report.outcome==='confirmed'?'succeeded':report.outcome==='cancelled'?'cancelled':'failed'});
       if(report.outcome!=='unknown'&&!attempt!.settled)this.action(r,{type:'settleAttempt',attemptId:o.attemptId,actual:0});
-      this.action(r,{type:'setOperation',operationId:o.attemptId,attemptId:o.attemptId,status:report.outcome==='confirmed'||(o.state==='claimed'&&report.outcome==='cancelled')?'confirmed':'unknown'});
+      this.action(r,{type:'setOperation',operationId:o.attemptId,attemptId:o.attemptId,status:report.outcome==='confirmed'||(o.state==='claimed'&&report.outcome==='cancelled')||o.step.kind==='materials'&&report.outcome!=='unknown'?'confirmed':'unknown'});
     } else {
       const execution=this.db.prepare('SELECT record FROM executions WHERE id=?').get(o.executionId!);
       if(!execution && ['claimed','started'].includes(o.state) && report.outcome==='cancelled') {
@@ -323,7 +343,9 @@ export class RuntimeRepository {
       }
     }
     if(report.outcome==='confirmed'&&o.step.kind==='codex')this.verifyIntegrationInputs(id);
-    o.state=report.outcome;o.result=report.result;o.error=report.error??null;this.saveOp(o);r.error=o.error;
+    if(o.step.kind==='codex'&&o.step.research&&report.outcome==='confirmed')this.verifyResearchInputs(id);
+    if(o.step.kind==='materials'&&report.outcome!=='unknown'){const lease=this.run(r).leases.find(l=>l.attemptId===o.attemptId&&!l.released);if(lease)this.action(r,{type:'releaseLease',attemptId:o.attemptId,resource:lease.resource});}
+    o.state=report.outcome;o.result=o.step.kind==='codex'&&o.step.research?{...(o.result as object),completion:report.result}:report.result;o.error=report.error??null;this.saveOp(o);r.error=o.error;
     if(report.outcome==='confirmed'&&!r.cancelled){r.cursor++;this.enqueue(r);}
     // Read prior checkpoint before saving the changed cursor; it remains the immutable parent.
     this.checkpointWrite(r);r.phase=this.phase(r);this.save(r,'reported',{operationId:id,report});

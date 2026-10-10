@@ -14,6 +14,7 @@ let request;
 let parseOrchestrationAction;
 let parseConversationAction;
 let parseSupervisionAction;
+let deliveryBrowserOrigin;
 
 function assertSender(event) {
   if (!window || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame || event.senderFrame.url !== documentURL) {
@@ -91,6 +92,17 @@ function installBridge() {
     if (typeof text !== 'string' || !text.trim() || text.length > 200000 || text.includes('\0')) throw new Error('Invalid runtime input');
     return runtime({ type: 'input', runtimeId: id(runtimeId), commandId: id(commandId), stepId: id(stepId), text });
   });
+  register('verification-open', async (deliveryId,caseId,commandId,timeoutMs) => {
+    if(!Number.isSafeInteger(timeoutMs)||timeoutMs<1000||timeoutMs>600000)throw new Error('Invalid open deadline');
+    const session=await verification({type:'open',deliveryId:id(deliveryId),caseId:id(caseId),commandId:id(commandId),timeoutMs});
+    let browserError=null;
+    try {const current=await verification({type:'open-session',sessionId:id(session.id)});
+      const origin=deliveryBrowserOrigin(current,deliveryId);
+      await shell.openExternal(origin);return {session:current,browserError};
+    }catch(error){browserError=String(error);return {session,browserError};}
+  });
+  register('verification-open-session',sessionId=>verification({type:'open-session',sessionId:id(sessionId)}));
+  register('verification-close-open',sessionId=>verification({type:'close-open',sessionId:id(sessionId)}));
   register('verification-status', runtimeId => verification({ type: 'status', runtimeId: id(runtimeId) }));
   register('verification-propose', (runtimeId, commandId, specPath) => {
     if (typeof specPath !== 'string' || !specPath.startsWith('/') || specPath.length > 4096 || specPath.includes('\0')) throw new Error('Invalid verification spec path');
@@ -171,6 +183,7 @@ app.whenReady().then(async () => {
   ({ parseOrchestrationAction } = await import(pathToFileURL(join(__dirname, '../../packages/contracts/p5.js')).href));
   ({ parseSupervisionAction } = await import(pathToFileURL(join(__dirname, '../../packages/contracts/p6-supervision-actions.js')).href));
   ({ parseConversationAction } = await import(pathToFileURL(join(__dirname, '../../packages/contracts/p6-actions.js')).href));
+  ({ deliveryBrowserOrigin } = await import(pathToFileURL(join(__dirname, 'verification-versions.js')).href));
   installBridge();
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     { label: 'Supervisor', submenu: [{ role: 'about' }, { type: 'separator' }, { label: '退出界面（后台继续运行）', role: 'quit' }] },

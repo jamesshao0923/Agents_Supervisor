@@ -138,6 +138,10 @@ export async function runModelReview(input: ModelReviewInput): Promise<ModelRevi
         if (result.usage !== null && usage < result.usage) throw new Error('Review token usage regressed');
         if (usage !== result.usage) { result.usage = usage; await input.onUsage?.(usage); }
       }
+      if (event.method === 'item/started' || event.method === 'item/completed') {
+        const item=(event.raw.params as {item?:{type?:unknown}}|undefined)?.item;
+        if (!item || typeof item.type!=='string' || !['userMessage','reasoning','agentMessage','contextCompaction'].includes(item.type)) throw new Error('Independent review rejects tool or unsupported item: '+String(item?.type));
+      }
       if (event.method === 'item/completed' && event.text !== undefined) completedMessages.push(event.text);
       if (event.kind === 'waiting') throw new Error('Independent review cannot wait for approval or user input');
       if (event.kind === 'protocol-error') throw new Error(`Review protocol failed: ${JSON.stringify(event.raw)}`);

@@ -1,3 +1,4 @@
+import {ResearchRuntimeActivity} from './research-activity.js';
 import {ScheduledRuntimeWorker} from './scheduled-worker.js';
 import { createHash } from 'node:crypto';
 import { appendFile, writeFile } from 'node:fs/promises';
@@ -22,6 +23,7 @@ function receipt(value: unknown, operation: RuntimeOperation): EffectReceipt {
 
 export class LocalRuntimeWorker {
   private readonly manager: ExecutionManager;
+  private readonly research:ResearchRuntimeActivity;
   private readonly scheduled:ScheduledRuntimeWorker;
   private stopping = false;
   private readonly reconciled = new Map<string, number>();
@@ -29,6 +31,7 @@ export class LocalRuntimeWorker {
   private readonly blocked = new Map<string, string>();
   private readonly faulted = new Set<string>();
   constructor(private readonly store: SupervisorStore, private readonly dataDir: string, readonly owner: string) {
+    this.research=new ResearchRuntimeActivity(store,dataDir);
     this.scheduled = new ScheduledRuntimeWorker(store,dataDir,owner);
     this.manager = new ExecutionManager(store, dataDir, process.env.SUPERVISOR_CODEX_PATH ?? 'codex', {
       scope: 'runtime',
@@ -77,7 +80,7 @@ export class LocalRuntimeWorker {
   }
 
   private async tick(runtimeId: string): Promise<void> {
-    const runtime = this.store.runtime.get(runtimeId);
+    const runtime = this.store.runtime.synchronizeCancellation(runtimeId);
     const operation = this.store.runtime.currentOperations(runtimeId).find(op => op.stepIndex === runtime.cursor && ['claimed', 'started', 'unknown'].includes(op.state));
     if (operation) {
       if (operation.owner !== this.owner) {
@@ -120,6 +123,7 @@ export class LocalRuntimeWorker {
     const runtime = this.store.runtime.get(operation.runtimeId);
     if (runtime.cancelled) { await this.cancelOperation(operation); return; }
     if (runtime.paused) return;
+    await this.research.prepare(operation.id,this.owner);
     this.store.runtime.prepareIntegrationInputs(operation.id, this.owner);
     this.store.runtime.eligible(operation.id, this.owner);
     await this.fault('after-claim-before-effect', operation);
@@ -136,6 +140,7 @@ export class LocalRuntimeWorker {
       }
       if (this.stopping && !record.stopConfirmed) return;
       await this.reportCodex(operation, record);
+    } else if(operation.step.kind==='materials'){await this.research.acquire(operation,this.owner);
     } else if (operation.step.kind === 'http') {
       await this.postEffect(operation);
     } else {
@@ -164,6 +169,7 @@ export class LocalRuntimeWorker {
       }
       return;
     }
+    if(operation.step.kind==='materials'){await this.research.recover(operation,this.owner);return;}
     if (operation.step.kind === 'input') {
       if (runtime.cancelled) await this.cancelOperation(operation);
       else if (!runtime.paused) await this.execute(operation);

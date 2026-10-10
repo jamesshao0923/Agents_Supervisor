@@ -57,7 +57,7 @@ function completeInput(f:ReturnType<typeof fixture>,goal:GoalInspection):GoalIns
   const operation=f.runtime.claim(runtimeId,'repository-worker');assert.ok(operation);f.runtime.markStarted(operation.id,'repository-worker');
   f.runtime.report(operation.id,'repository-worker',{messageId:'report-'+runtimeId,outcome:'confirmed',result:{input:'persisted actual input'}});return f.goals.inspect(goal.session.id);
 }
-function deliverFixture(f:ReturnType<typeof fixture>,goal:GoalInspection,verificationUsage=0):string {
+async function deliverFixture(f:ReturnType<typeof fixture>,goal:GoalInspection,verificationUsage=0):Promise<string> {
   return acceptedDeliveryFixture(f.db,f.root,goal.run,f.workspace,verificationUsage);
 }
 
@@ -72,9 +72,9 @@ function finishEvolution(f:ReturnType<typeof fixture>,goal:GoalInspection,origin
   return f.goals.finish(goal.session.id,job.id,record=>{record.usage=7;record.stopConfirmed=true;record.proofs=Object.assign({},...calls.map(call=>call.proofs));record.context={input:context,acceptanceReview:review,callReceipts:calls};record.followupResult=enriched;});
 }
 
-test('P6-GOAL-I13 enriched follow-up atomically binds actual active and delivered-child contracts with original proof and costs',()=>{
+test('P6-GOAL-I13 enriched follow-up atomically binds actual active and delivered-child contracts with original proof and costs',async()=>{
   for(const child of [false,true]){const f=fixture();try{
-    let initial=completeInput(f,inputRuntime(f,ready(f)));if(child){deliverFixture(f,initial);initial=f.goals.inspect(initial.session.id);}
+    let initial=completeInput(f,inputRuntime(f,ready(f)));if(child){await deliverFixture(f,initial);initial=f.goals.inspect(initial.session.id);}
     const conversation=f.conversations.forRun(initial.run.projectId,initial.run.id)!,message=receive(f,initial);
     const target=child?f.goals.createContinuation(conversation.id,'new-round'):initial;
     const begun=f.goals.beginFollowup(target.session.id,message.id),finished=finishEvolution(f,begun,initial.run),job=finished.session.jobs.at(-1)!;
@@ -232,9 +232,9 @@ test('P6-GOAL-I07 failed atomic acknowledgement rolls back runtime revision outb
   }finally{f.close();}
 });
 
-test('P6-GOAL-I08 delivered continuation preserves the old round and exact remaining authorization without starting a model',()=>{
+test('P6-GOAL-I08 delivered continuation preserves the old round and exact remaining authorization without starting a model',async()=>{
   const f=fixture();try{
-    const initial=completeInput(f,inputRuntime(f,ready(f))),deliveryId=deliverFixture(f,initial),before=f.goals.inspect(initial.session.id),message=receive(f,initial),conversation=f.conversations.forRun(initial.run.projectId,initial.run.id)!;
+    const initial=completeInput(f,inputRuntime(f,ready(f))),deliveryId=await deliverFixture(f,initial),before=f.goals.inspect(initial.session.id),message=receive(f,initial),conversation=f.conversations.forRun(initial.run.projectId,initial.run.id)!;
     const child=f.goals.createContinuation(conversation.id,'next-round');assert.notEqual(child.run.id,initial.run.id);assert.equal(child.run.admission,'draft');assert.equal(child.run.attempts.length,0);assert.equal(child.session.jobs.length,0);assert.equal(child.session.runtimeId,null);
     assert.equal(child.run.budget.limit,290);assert.equal(child.run.budget.spent,0);assert.equal(child.run.budget.verificationReserve,20);assert.deepEqual(child.session.messages,before.session.messages);assert.deepEqual(child.session.proposal,before.session.proposal);assert.equal(child.session.continuation?.predecessorDeliveryId,deliveryId);
     assert.deepEqual(f.goals.inspect(initial.session.id),before);assert.equal(f.conversations.budget(conversation.id).limit,300);assert.equal(f.conversations.budget(conversation.id).spent,10);assert.deepEqual(f.goals.createContinuation(conversation.id,'next-round'),child);
@@ -243,9 +243,9 @@ test('P6-GOAL-I08 delivered continuation preserves the old round and exact remai
   }finally{f.close();}
 });
 
-test('P6-GOAL-I09 continuation rejection rolls back new runs for exhausted reasoning capacity and forbids unrelated command reuse',()=>{
+test('P6-GOAL-I09 continuation rejection rolls back new runs for exhausted reasoning capacity and forbids unrelated command reuse',async()=>{
   const f=fixture();try{
-    const initial=completeInput(f,inputRuntime(f,ready(f,'low-budget',60))),deliveryId=deliverFixture(f,initial,1),conversation=f.conversations.forRun(initial.run.projectId,initial.run.id)!;
+    const initial=completeInput(f,inputRuntime(f,ready(f,'low-budget',60))),deliveryId=await deliverFixture(f,initial,1),conversation=f.conversations.forRun(initial.run.projectId,initial.run.id)!;
     // First-round reasoning and verification fixture settlement leaves 49; the
     // child needs 30 reasoning plus 20 verification and must atomically reject.
     const before=f.goals.list().length;assert.throws(()=>f.goals.createContinuation(conversation.id,'too-small'),/retain reasoning budget/);assert.equal(f.goals.list().length,before);assert.equal(f.conversations.rounds(conversation.id).length,1);assert.equal(f.conversations.get(conversation.id).activeRunId,initial.run.id);

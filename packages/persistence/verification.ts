@@ -1,3 +1,4 @@
+import {dirname} from 'node:path';
 import { VerificationLineageRepository } from './verification-lineage.js';
 import type { DatabaseSync } from 'node:sqlite';
 import type { Run, RunAction, Artifact } from '../contracts/p1.js';
@@ -7,6 +8,7 @@ function canonical(value: unknown): string { if(value===null||typeof value!=='ob
 type Records = { proposal: Proposal; plan: FrozenPlan; job: VerificationJob; delivery: Delivery };
 export class VerificationRepository {
   constructor(private readonly db: DatabaseSync) {}
+  dataDirectory():string {const row=this.db.prepare('PRAGMA database_list').all().find(r=>r.name==='main');if(!row?.file)throw new Error('Verification needs its actual database directory');return dirname(String(row.file));}
   transaction<T>(body: () => T): T { if(this.db.isTransaction)return body();this.db.exec('BEGIN IMMEDIATE'); try { const value = body(); this.db.exec('COMMIT'); return value; } catch (error) { this.db.exec('ROLLBACK'); throw error; } }
   get<K extends keyof Records>(kind: K, id: string): Records[K] {
     const row = this.db.prepare('SELECT record FROM verification_records WHERE kind=? AND id=?').get(kind, id);

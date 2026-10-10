@@ -1,3 +1,5 @@
+import {assertEnvironmentCwd,parseEnvironmentScope} from '../verification/scoped-environment.js';
+import {environmentFingerprint} from '../verification/candidate.js';
 import { createHash } from 'node:crypto';
 import { lstat, mkdir, readFile, realpath } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
@@ -149,6 +151,7 @@ export class SupervisionReasoningRunner {
       ensure(hash(runtimeCanonical(completion)) === job.completionDigest, 'Supervision completion digest changed');
       this.boundary(job);
       const input = frozenInput(job, this.store.supervision.get(job.loopId).limits.maxContextChars);
+      const acceptance=(input.context as {acceptance?:{environment?:{scope?:unknown;digest?:string}}})?.acceptance;if(acceptance?.environment?.scope){const cwd=await realpath(this.store.runtime.get(job.runtimeId).workspace),scope=parseEnvironmentScope(acceptance.environment.scope,{...job,workspace:cwd,dataDir:this.dataDir});await assertEnvironmentCwd(scope,cwd);ensure(acceptance.environment.digest===(await environmentFingerprint(scope)).digest,'Frozen author environment changed');}
       safeJSON(job.result); parseReasonerOutput(JSON.stringify(job.result), input.outputSchema);
       ensure(job.usage >= job.observedUsage && job.usage <= job.config.reservation, 'Invalid supervision result accounting');
       const actual = await this.proofs(job, Object.keys(job.proofs));
@@ -184,6 +187,7 @@ export class SupervisionReasoningRunner {
       // Persisted process or turn intent belongs to recovery, never a second request.
       ensure(!job.modelStarted && job.intents.length === 0 && job.identities.length === 0, 'Interrupted supervision job needs recovery without replay');
       const input = frozenInput(job, this.store.supervision.get(job.loopId).limits.maxContextChars);
+      const acceptance=(input.context as {acceptance?:{environment?:{scope?:unknown;digest?:string}}})?.acceptance;if(acceptance?.environment?.scope){const cwd=await realpath(this.store.runtime.get(job.runtimeId).workspace),scope=parseEnvironmentScope(acceptance.environment.scope,{...job,workspace:cwd,dataDir:this.dataDir});await assertEnvironmentCwd(scope,cwd);ensure(acceptance.environment.digest===(await environmentFingerprint(scope)).digest,'Frozen author environment changed');}
       await this.writersStopped(job); current();
       const cwd = await realpath(this.store.runtime.get(job.runtimeId).workspace), logDir = await this.prepareDirectory(job.id);
       current();

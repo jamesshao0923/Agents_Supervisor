@@ -94,7 +94,7 @@ export class AuthorRoutingRepository {
  }
  async assess(loopId:string,jobId:string,reviewRebuild=false):Promise<AuthorRejection>{
   ensure(!this.db.isTransaction,'Physical author inspection must precede transaction');const before=this.actual(loopId,jobId,reviewRebuild);
-  if(before.rejection.review)ensure(before.rejection.review.review.environmentDigest===(await environmentFingerprint()).digest,'Rejected review environment changed');
+  if(before.rejection.review)ensure(before.rejection.review.review.environmentDigest===(await environmentFingerprint(before.rejection.review.review.environmentScope)).digest,'Rejected review environment changed');
   const identities=[...before.job.identities];
   for(const execution of before.workspaceBoundary.executions)if(execution.identity)identities.push(execution.identity as ProcessIdentity);
   for(const verification of before.workspaceBoundary.jobs)identities.push(...verification.identities);

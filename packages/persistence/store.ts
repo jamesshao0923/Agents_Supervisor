@@ -79,7 +79,7 @@ export class SupervisorStore {
     if (existsSync(database) && lstatSync(database).isSymbolicLink()) throw new Error('Database cannot be a symbolic link');
     this.db = new DatabaseSync(database);
     try { migrate(this.db); new VerificationLineageRepository(this.db).migrateLegacyBindings({commandId:'schema10-legacy-bindings'}); } catch (error) { this.db.close(); throw error; }
-    this.runtime = new RuntimeRepository(this.db);
+    this.runtime = new RuntimeRepository(this.db,this.root);
     this.scheduler = new TaskSchedulerRepository(this.db,this.root);
     this.scheduledLoops=new ScheduledLoopRepository(this.db,this.root);
     this.authorRouting = new AuthorRoutingRepository(this.db,this.root);

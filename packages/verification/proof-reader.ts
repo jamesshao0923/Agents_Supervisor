@@ -1,3 +1,8 @@
+import {assertLegacyControlReviewEvidence} from './legacy-review-evidence.js';
+import {parseEnvironmentScope,assertEnvironmentCwd} from './scoped-environment.js';
+import {assertMobileJob,assertMobileFinalBinding} from './mobile-proof-reader.js';
+import {assertFullstackJob} from './fullstack-proof.js';
+import {assertMaterialsCurrent} from './material.js';
 import {readFile} from 'node:fs/promises';
 import type {SupervisorStore} from '../persistence/store.js';
 import {inspectProcess,type ProcessIdentity} from '../process-control/index.js';
@@ -19,23 +24,28 @@ export class VerificationProofReader {
     ensure(this.store.executionList().filter(e=>overlap(e.workspace,workspace)).every(e=>e.stopConfirmed),'Workspace has an active writer');
   }
   async assertJob(job:VerificationJob):Promise<void> {
-    ensure(job.environmentDigest===(await environmentFingerprint()).digest,'Verifier review or execution environment changed');
+    if(job.environmentScope){parseEnvironmentScope(job.environmentScope,job);for(const intent of job.intents)if(intent.args.includes('app-server')){ensure(intent.cwd===job.environmentScope.workspace,'Scoped review model cwd differs from admitted workspace');await assertEnvironmentCwd(job.environmentScope,intent.cwd);}}
+    ensure(job.environmentDigest===(await environmentFingerprint(job.environmentScope)).digest,'Verifier review or execution environment changed');
     ensure(job.status==='finished'&&job.stopConfirmed&&!job.usageUnknown&&Object.keys(job.proofs).length>0,'Missing completed verifier evidence');
     ensure(this.repo.run(job.projectId,job.runId).attempts.find(a=>a.id===job.attemptId)?.settled,'Verification usage unsettled');
     for(const [path,hash]of Object.entries(job.proofs))ensure(digest(await readFile(path))===hash,'Verification evidence changed');
+    await assertMobileJob(job);
+    const proposal=this.repo.get('proposal',job.proposalId),candidates=job.kind==='verification'?[this.repo.get('plan',job.planId!).candidate]:proposal.bundle.controls.map(c=>c.candidate);await assertFullstackJob(job,proposal.spec,candidates);
     ensure(job.intents.length===job.identities.length,'Verifier intent has no stop identity');ensure(await allStopped(job.identities),'Old verification process is still active');
   }
   async assertReviewedProposal(proposal:Proposal):Promise<void> {
     ensure(proposal.reviewId&&proposal.reviewEnvironmentDigest,'Published catalog lacks independently reviewed environment');
     const review=this.repo.get('job',proposal.reviewId);
     ensure(review.kind==='review'&&review.proposalId===proposal.id&&review.approved&&!review.error&&review.environmentDigest===proposal.reviewEnvironmentDigest,'Published catalog has no valid independent approval');
-    await this.assertJob(review);await assertSourcesCurrent(review.sources);
+      if(this.store.verificationLineage.bindingForProposal(proposal.id).definitionFormat==='legacy-v1')assertLegacyControlReviewEvidence({dataDir:this.repo.dataDirectory(),proposal,review});
+    ensure(canonical(review.environmentScope??null)===canonical(proposal.environmentScope??null),'Published review scope differs');await this.assertJob(review);await assertSourcesCurrent(review.sources);await assertMaterialsCurrent(review.materials??[]);
     if(this.store.verificationLineage.bindingForProposal(proposal.id).definitionFormat==='qualified-v2')this.store.controlQualification.assertPublicationBinding({proposalId:proposal.id,reviewId:review.id});
   }
   async current(plan:FrozenPlan,job:VerificationJob,refresh=false):Promise<void> {
-    const proposal=this.repo.get('proposal',plan.proposalId);await this.assertReviewedProposal(proposal);this.assertQuietWorkspace(plan.candidate.root);this.repo.assertNoVerificationWriter(plan.candidate.root);ensure(this.repo.headForRun(plan.projectId,plan.runId)?.id===plan.proposalId,'Published verification catalog changed');
-    ensure(plan.contractDigest===proposal.contractDigest,'Plan differs from independently reviewed task contract');ensure(digest(canonical(this.repo.run(plan.projectId,plan.runId).contract))===plan.contractDigest,'Contract changed');ensure((await environmentFingerprint()).digest===plan.environmentDigest,'Verifier environment changed');
-    await assertCandidate(plan.candidate);await assertDefinition(proposal.spec,proposal.bundle);await this.assertJob(job);await assertSourcesCurrent(job.sources,refresh);
+    const proposal=this.repo.get('proposal',plan.proposalId);ensure(canonical(plan.environmentScope??null)===canonical(job.environmentScope??null)&&canonical(plan.environmentScope??null)===canonical(proposal.environmentScope??null),'Verification scopes differ');await this.assertReviewedProposal(proposal);this.assertQuietWorkspace(plan.candidate.root);this.repo.assertNoVerificationWriter(plan.candidate.root);ensure(this.repo.headForRun(plan.projectId,plan.runId)?.id===plan.proposalId,'Published verification catalog changed');
+    ensure(plan.contractDigest===proposal.contractDigest,'Plan differs from independently reviewed task contract');ensure(digest(canonical(this.repo.run(plan.projectId,plan.runId).contract))===plan.contractDigest,'Contract changed');ensure((await environmentFingerprint(plan.environmentScope)).digest===plan.environmentDigest,'Verifier environment changed');
+    await assertCandidate(plan.candidate);await assertDefinition(proposal.spec,proposal.bundle);await this.assertJob(job);await assertSourcesCurrent(job.sources,refresh);await assertMaterialsCurrent(job.materials??[],refresh);
+    assertMobileFinalBinding(plan,job,proposal);
     ensure(evaluateVerification(proposal.spec,plan.selection,job.results).complete,'Current evidence does not satisfy all necessary instances');
   }
 

@@ -2,7 +2,7 @@ const { app, BrowserWindow, session, Menu } = require('electron');
 const { realpath, stat, open } = require('node:fs/promises');
 const { readFileSync, mkdirSync } = require('node:fs');
 const { join, relative, isAbsolute } = require('node:path');
-const { fileURLToPath } = require('node:url');
+const { fileURLToPath, pathToFileURL } = require('node:url');
 const { randomUUID } = require('node:crypto');
 
 // Only this reviewed program supplies JavaScript. Verifier input is declarative data.
@@ -21,6 +21,8 @@ function check() { if (fatal) throw fatal; if (Date.now() - startedAt >= request
 function validate(input) {
   if (!input || typeof input !== 'object' || input.schemaVersion !== 1 || typeof input.id !== 'string' || !/^[A-Za-z0-9._-]{1,160}$/.test(input.id)
     || !isAbsolute(input.candidateTree) || !isAbsolute(input.output)) throw new Error('Invalid UI driver request');
+  if(input.localOrigin!==undefined&&!input.localIdentity)throw new Error('Missing local application identity');
+  if(input.localOrigin!==undefined&&!/^http:\/\/127\.0\.0\.1:[0-9]+$/.test(input.localOrigin))throw new Error('Invalid owned local origin');
   const v = input.verifier;
   if (!v || v.kind !== 'ui' || typeof v.entry !== 'string' || !v.entry.endsWith('.html') || v.entry.includes('\\') || /[?#]/.test(v.entry)
     || v.entry.split('/').some(part => !part || part === '.' || part === '..') || isAbsolute(v.entry)
@@ -33,16 +35,26 @@ function validate(input) {
     if (Object.keys(step).some(key => !keys.includes(key))) throw new Error('UI step cannot contain scripts or unknown fields');
   }
 }
+let ownershipModule;
+async function checkLocalOwnership() {
+ if(!request.localOrigin)return;
+ ownershipModule ??= import(pathToFileURL(join(__dirname,'../../packages/verification/fullstack-host.js')).href);
+ const {assertOwnedApplication}=await ownershipModule;
+ await assertOwnedApplication(request.localOrigin,request.localIdentity);
+ trace.ownershipChecks.push({origin:request.localOrigin,at:new Date().toISOString()});
+}
 async function allowedURL(url, mainFrame = false) {
   try {
     const parsed = new URL(url);
     if (!mainFrame && parsed.protocol === 'data:') return true;
+    if(request.localOrigin)return parsed.origin===request.localOrigin&&parsed.protocol==='http:';
     if (parsed.protocol !== 'file:') return false;
     const path = await realpath(fileURLToPath(parsed));
     return contained(request.candidateTree, path) && (await stat(path)).isFile() && (!mainFrame || path.endsWith('.html'));
   } catch { return false; }
 }
 async function capture(name) {
+  await checkLocalOwnership();
   if (!window || window.isDestroyed()) throw new Error('UI window closed before screenshot');
   const image = await window.webContents.capturePage();
   if (image.isEmpty()) throw new Error('UI screenshot is empty');
@@ -82,6 +94,7 @@ async function ready(step) {
   throw new StepFailure(`Visible text does not include ${JSON.stringify(step.text)}; actual ${JSON.stringify(observed.text)}`);
 }
 async function executeStep(step) {
+  await checkLocalOwnership();
   const observed = await ready(step);
   if (step.kind === 'assertText' || step.kind === 'assertVisible') return observed;
   if (observed.disabled) throw new StepFailure(`Required control is disabled: ${step.selector}`);
@@ -124,15 +137,15 @@ async function run() {
   if (contained(request.candidateTree, request.output)) throw new Error('UI evidence must be outside the candidate tree');
   const entry = await realpath(join(request.candidateTree, request.verifier.entry));
   if (!contained(request.candidateTree, entry) || !(await stat(entry)).isFile()) throw new Error('UI entry escapes the candidate tree');
-  trace = { schemaVersion: 1, id: request.id, driverVersion: 'ui-driver-v2', entry, startedAt: new Date().toISOString(), executionStatus: 'verifier-error', reason: '', steps: [], screenshots: [], blockedRequests: [], errors: [] };
+  trace = { schemaVersion: 1, id: request.id, driverVersion: 'ui-driver-v2', entry, localOrigin:request.localOrigin??null, startedAt: new Date().toISOString(), executionStatus: 'verifier-error', reason: '', steps: [], screenshots: [], blockedRequests: [], errors: [], ownershipChecks: [] };
   await app.whenReady(); Menu.setApplicationMenu(null);
   const isolated = session.fromPartition('supervisor-ui-' + randomUUID(), { cache: false });
   isolated.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
   isolated.setPermissionCheckHandler(() => false);
   isolated.on('will-download', event => { event.preventDefault(); fatal ??= new Error('UI verification rejects downloads'); });
   isolated.webRequest.onBeforeRequest({ urls: ['<all_urls>'] }, (details, callback) => {
-    void allowedURL(details.url, details.resourceType === 'mainFrame' || details.resourceType === 'subFrame').then(allowed => {
-      const reject = !allowed || details.method !== 'GET';
+    void checkLocalOwnership().then(()=>allowedURL(details.url, details.resourceType === 'mainFrame' || details.resourceType === 'subFrame')).then(allowed => {
+      const reject = !allowed || !(request.localOrigin?['GET','HEAD','POST','PUT','PATCH','DELETE','OPTIONS']:['GET']).includes(details.method);
       if (reject) { trace.blockedRequests.push({ url: details.url, method: details.method }); fatal ??= new Error('UI requested an external or unsupported resource'); }
       callback({ cancel: reject });
     }).catch(error => { fatal ??= error; callback({ cancel: true }); });
@@ -146,13 +159,13 @@ async function run() {
     const url = event.url || legacyURL;
     // Navigation validity is checked synchronously first; webRequest performs
     // the subsequent realpath/symlink check before any local bytes are loaded.
-    try { const parsed = new URL(url); if (parsed.protocol !== 'file:' || !contained(request.candidateTree, fileURLToPath(parsed))) throw new Error(); }
+    try { const parsed = new URL(url); if(request.localOrigin){if(parsed.origin!==request.localOrigin||parsed.protocol!=='http:')throw new Error();}else if (parsed.protocol !== 'file:' || !contained(request.candidateTree, fileURLToPath(parsed))) throw new Error(); }
     catch { event.preventDefault(); fatal ??= new Error('UI attempted external navigation'); }
   });
   window.webContents.on('render-process-gone', (_event, detail) => { fatal ??= new Error(`UI renderer exited: ${detail.reason}`); });
   window.webContents.on('console-message', event => { trace.errors.push({ kind: 'console', level: event.level, message: event.message, sourceId: event.sourceId, lineNumber: event.lineNumber }); });
   window.on('closed', () => { if (!finishing) fatal ??= new Error('UI window closed during verification'); });
-  await window.loadFile(entry); check();
+  if(request.localOrigin)await window.loadURL(request.localOrigin+'/'+request.verifier.entry);else await window.loadFile(entry); check();
   trace.initialScreenshot = await capture('initial.png');
   let failed = false;
   for (let index = 0; index < request.verifier.steps.length; index++) {

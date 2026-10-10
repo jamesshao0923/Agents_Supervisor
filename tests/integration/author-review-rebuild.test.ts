@@ -1,4 +1,6 @@
 import test from 'node:test';
+import {createHash} from 'node:crypto';
+import {assertLegacyControlQualification} from '../../packages/verification/control-qualification-gates.js';
 import assert from 'node:assert/strict';
 import {readFileSync,writeFileSync} from 'node:fs';
 import {join} from 'node:path';
@@ -29,12 +31,27 @@ test('P6-AUTHREVIEW-I01 actual P4 command rejection reserves one fresh author at
  const f=await fixture(t,{kind:'valid',calls:5}),oldReview=await review(f),run=f.store.runtime.inspect(f.runtime.id).run;
  f.store.runtime.setFutureVerification({commandId:'protect-p4',runtimeId:f.runtime.id,expectedContractVersion:run.contract.version,expectedRevision:run.revision,allocationId:'final-review-floor',amount:25,reason:'Keep actual final P4 allocation'});
  const input=await request(f),before=f.store.runtime.inspect(f.runtime.id),old=JSON.stringify({author:f.store.supervision.job(f.old.id),proposal:f.store.verification.get('proposal',oldReview.proposal.id),review:f.store.verification.get('job',oldReview.job.id)});
+ assert.equal(oldReview.job.controls.length,1,'actual positive failfast must retain only first failed control');assert.equal(oldReview.job.controls[0]!.id,oldReview.proposal.spec.controls[0]!.id);assert.equal(oldReview.job.controls[0]!.passed,false);assert.equal(oldReview.job.modelStarted,false);assert.equal(oldReview.job.usage,0);assert.throws(()=>assertLegacyControlQualification(oldReview.proposal.spec,oldReview.job.controls),/Complete declared control qualification/);assert.throws(()=>f.store.verification.publish(oldReview.proposal,'incomplete-control-cannot-publish'),/review|approved|qualification/i);
  assert.equal(input.rejection.kind,'review');assert.equal(input.rejection.review!.classification,'control-rejected');assert.throws(()=>f.repo.transaction(()=>{f.repo.begin(input);throw Error('parent rollback')}),/parent rollback/);assert.deepEqual(f.store.runtime.inspect(f.runtime.id),before);assert.equal(f.repo.routes(f.loop.id).length,0);
  const next=f.repo.begin(input);assert.equal(next.job.config.model,'gpt-6-astra');assert.equal(next.job.config.effort,'high');assert.equal(next.job.config.reservation,f.old.config.reservation);assert.equal(futureVerificationFloor(f.store.runtime.inspect(f.runtime.id).run),25);assert.equal(f.store.runtime.inspect(f.runtime.id).run.budget.spent,7);assert.equal(f.store.supervision.get(f.loop.id).repairCount,0);assert.equal(f.store.supervision.get(f.loop.id).references.proposalId,undefined);
  assert.equal(JSON.stringify({author:f.store.supervision.job(f.old.id),proposal:f.store.verification.get('proposal',oldReview.proposal.id),review:f.store.verification.get('job',oldReview.job.id)}),old);f.reopen();assert.deepEqual(f.repo.begin(input),next);assert.throws(()=>f.repo.begin({...input,expectedRevision:input.expectedRevision+1}),/Conflicting/);assert.equal(f.store.supervision.jobs(f.loop.id).length,2);
 });
 test('P6-AUTHREVIEW-I02 changed actual review proof and changed original candidate reject without granting a replacement',async t=>{
  const f=await fixture(t,{kind:'valid'}),r=await review(f),input=await request(f),proof=Object.keys(r.job.proofs).find(p=>p.endsWith('/report.json'))!,bytes=readFileSync(proof);
+ // Recomputed report digests do not make forged observations authoritative.
+ const forged=async (change:(job:VerificationJob)=>void,pattern:RegExp)=>{const job=structuredClone(r.job);change(job);const report=Buffer.from(JSON.stringify({results:job.results,controls:job.controls,evaluation:job.evaluation,error:job.error}));writeFileSync(proof,report);job.proofs[proof]=createHash('sha256').update(report).digest('hex');f.store.verification.update('job',job);try{await assert.rejects(f.repo.assess(f.loop.id,f.old.id,true),pattern);}finally{writeFileSync(proof,bytes);f.store.verification.update('job',r.job);}assert.equal(f.repo.routes(f.loop.id).length,0);};
+ await forged(job=>{job.controls=[];},/control order\/prefix/);
+ await forged(job=>{job.controls[0]!.id=r.proposal.spec.controls[1]!.id;},/control order\/prefix/);
+ await forged(job=>{job.controls.push(structuredClone(job.controls[0]!));},/control order\/prefix/);
+ await forged(job=>{job.controls[0]!.results=[];},/instance inventory/);
+ await forged(job=>{job.controls[0]!.results[0]!.instanceId='forged-instance';},/instance inventory/);
+ await forged(job=>{job.controls[0]!.results.push(structuredClone(job.controls[0]!.results[0]!));},/instance inventory/);
+ await forged(job=>{job.controls[0]!.results[0]!.checks=[{obligationId:'injected-obligation',verdict:'failed',reason:'forged'}];},/check inventory/);
+ await forged(job=>{job.controls[0]!.passed=true;},/every control/);
+ await forged(job=>{job.modelStarted=true;},/hide an additional model/);
+ await forged(job=>{job.controls[0]!.results[0]!.proofFiles=[];},/actually executed/);
+ await forged(job=>{job.controls[0]!.results[0]!.proofFiles=[proof];},/another observation/);
+ await forged(job=>{job.controls[0]!.results[0]!.proofFiles=job.controls[0]!.results[0]!.proofFiles!.filter(path=>!path.endsWith('/stdout.log'));},/proof inventory was omitted/);
  writeFileSync(proof,Buffer.concat([bytes,Buffer.from(' ')]));assert.throws(()=>f.repo.begin(input),/proof changed/);writeFileSync(proof,bytes);writeFileSync(join(f.workspace,'value.mjs'),'changed original candidate');assert.throws(()=>f.repo.begin(input),/candidate changed/);assert.equal(f.repo.routes(f.loop.id).length,0);assert.equal(f.store.supervision.jobs(f.loop.id).length,1);
 });
 test('P6-AUTHREVIEW-I03 second actually rejected rebuilt author remains retained and cannot regenerate again',async t=>{

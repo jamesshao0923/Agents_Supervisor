@@ -1,3 +1,4 @@
+import {ResearchRuntimeActivity} from '../runtime/research-activity.js';
 import {scanCandidate} from '../verification/candidate.js';
 import type { ScheduledBinding } from '../contracts/p7-dispatch.js';
 import type { RuntimeBinding } from '../contracts/p3.js';
@@ -197,7 +198,8 @@ export class ExecutionManager {
     void child.completion.then(result=>this.onProcessExit(id,result)).catch(error=>this.fail(id,error));
     await adapter.initialize();
     if(this.store.executionGet(id).cancelRequested){await this.stop(id);return;}
-    const thread=await adapter.startThread({cwd:record.workspace,model:record.model,approvalPolicy:'never',sandbox:'workspace-write',ephemeral:false,
+    const research=record.runtimeBinding?this.store.runtime.researchInput(record.runtimeBinding.operationId):null;
+    const thread=await adapter.startThread({cwd:record.workspace,model:record.model,approvalPolicy:'never',sandbox:research?'read-only':'workspace-write',ephemeral:false,
       developerInstructions:'Work only on the requested task in the given workspace. Do not spawn subagents, change global configuration, send messages, or access unrelated projects. Report what changed and actual validation; do not claim independent Supervisor acceptance.',
       config:{'features.multi_agent':false,web_search:'disabled'}});
     this.store.executionUpdate(id,{threadId:thread.thread.id},'thread-created',{threadId:thread.thread.id});
@@ -205,8 +207,8 @@ export class ExecutionManager {
     const input:UserInput[]=[{type:'text',text:record.prompt},...record.images.map(path=>({type:'localImage' as const,path}))];
     await this.awaitLaunchEligible(id);
     active.launchedTurn=true;
-    this.store.executionUpdate(id,{turnIntent:true},'turn-intent',{threadId:thread.thread.id,model:record.model,effort:record.effort,input});
-    const result=await adapter.startTurn(thread.thread.id,input,{model:record.model,effort:record.effort,cwd:record.workspace});
+    this.store.executionUpdate(id,{turnIntent:true},'turn-intent',{threadId:thread.thread.id,model:record.model,effort:record.effort,input,...(research?{outputSchema:research.package.outputSchema,researchInputDigest:research.digest}:{})});
+    const result=await adapter.startTurn(thread.thread.id,input,{model:record.model,effort:record.effort,cwd:record.workspace,...(research?{outputSchema:research.package.outputSchema}:{})});
     const latest=this.store.executionGet(id);
     this.store.executionUpdate(id,{turnId:result.turn.id,...(!terminal(latest.state)&&!latest.cancelRequested?{state:'running' as const}:{})},'turn-started',{threadId:thread.thread.id,turn:result.turn});
     if(this.store.executionGet(id).cancelRequested)await this.stop(id);
@@ -290,6 +292,8 @@ export class ExecutionManager {
     let record=this.store.executionGet(id);
     // Stop observation is persisted immediately, but the workspace stays reserved
     // until candidate capture finishes. A later writer cannot contaminate it.
+    let researchError:string|null=null;
+    if(stopped&&authoritativeTerminal&&state==='completed'&&record.runtimeBinding){try{if(this.store.runtime.researchInput(record.runtimeBinding.operationId)){const completion=await new ResearchRuntimeActivity(this.store,this.dataDir).materialize(record);this.store.executionUpdate(id,{},'research-materialized',completion);}}catch(error){researchError='Research completion rejected: '+String(error);state=record.cancelRequested?'cancelled':'failed';}}
     let snapshot:unknown;
     if(stopped) {
       this.store.executionUpdate(id,{},'process-stop-observed',evidence);
@@ -297,12 +301,12 @@ export class ExecutionManager {
       this.store.executionUpdate(id,{},'workspace-captured',snapshot);
     }
     record=this.store.executionGet(id);
-    if(record.cancelRequested && stopped)state='cancelled';
+    if(stopped&&(record.cancelRequested||record.runtimeBinding&&this.store.runtime.get(record.runtimeBinding.runtimeId).cancelled))state='cancelled';
     const run=this.store.query({type:'run',projectId:record.projectId,runId:record.runId}) as Run;
-    if(record.scheduledBinding&&run.status==='cancelled')state='cancelled';
+    if(stopped&&(record.scheduledBinding||record.runtimeBinding)&&run.status==='cancelled')state='cancelled';
     // Launch qualification cannot prove the input copies survived the turn.
     // A mismatch blocks candidate publication, but never discards real stop/usage.
-    let inputError:string|null=null;
+    let inputError:string|null=researchError;
     if(stopped&&record.runtimeBinding){try{this.store.runtime.verifyIntegrationInputs(record.runtimeBinding.operationId);}catch(error){inputError='Integration input verification failed: '+String(error);if(state!=='cancelled')state='failed';}}
     let artifactId:string|null=record.artifactId;
     let candidateSnapshot=record.candidateSnapshot;
@@ -320,7 +324,7 @@ export class ExecutionManager {
     actions.push({type:'setOperation',operationId:id,attemptId:id,status:stopped&&(!launched||authoritativeTerminal)?'confirmed':'unknown'});
     if(stopped&&run.leases.some(l=>!l.released))actions.push({type:'releaseLease',resource:'workspace:'+record.workspace,attemptId:id});
     const resolvedDiagnostic=this.resolvedDiagnostic(id,record,state,stopped,authoritativeTerminal);
-    this.store.executionUpdate(id,{state,stopConfirmed:stopped,artifactId,...(inputError?{error:inputError}:{}),...(candidateSnapshot?{candidateSnapshot}:{}),...(record.scheduledBinding&&!launched&&!record.turnIntent&&!record.turnId?{usageStatus:'reported' as const,usage:{inputTokens:0,cachedInputTokens:0,outputTokens:0,reasoningOutputTokens:0,totalTokens:0}}:{}),...(resolvedDiagnostic?{error:null}:{})},'execution-stopped',{evidence,...(inputError?{inputError}:{}),usageSettled:!!record.usage&&authoritativeTerminal||!launched,...(resolvedDiagnostic?{resolvedDiagnosticEventSeq:resolvedDiagnostic}:{})},actions);
+    this.store.executionUpdate(id,{state,stopConfirmed:stopped,artifactId,...(inputError?{error:state==='cancelled'&&record.error?record.error:inputError}:{}),...(candidateSnapshot?{candidateSnapshot}:{}),...(record.scheduledBinding&&!launched&&!record.turnIntent&&!record.turnId?{usageStatus:'reported' as const,usage:{inputTokens:0,cachedInputTokens:0,outputTokens:0,reasoningOutputTokens:0,totalTokens:0}}:{}),...(resolvedDiagnostic?{error:null}:{})},'execution-stopped',{evidence,...(inputError?{inputError}:{}),usageSettled:!!record.usage&&authoritativeTerminal||!launched,...(resolvedDiagnostic?{resolvedDiagnosticEventSeq:resolvedDiagnostic}:{})},actions);
   }
   /** Clears only a persisted diagnostic superseded by the same authoritative
    * successful turn. Control failures/cancellation/unknown stops remain errors;

@@ -1,3 +1,6 @@
+import {createEnvironmentScope} from '../verification/scoped-environment.js';
+import {captureMaterialBinding,readMaterialBinding} from '../verification/material.js';
+import {readBounded} from '../workspace/research-runtime-files.js';
 import { AcceptanceAuthorRecovery } from './acceptance-authoring-recovery.js';
 import { SupervisionRoutingAdapter } from './supervision-routing.js';
 import { SupervisionConcernAdapter } from './supervision-concern-adapter.js';
@@ -95,7 +98,7 @@ export class SupervisionController {
     for(const identity of job.identities)ensure(job.intents.some(intent=>intent.operationId===identity.operationId&&intent.ownerToken===identity.ownerToken),'Paused verifier process identity is unbound');
     const proposal=this.store.verification.get('proposal',job.proposalId),plan=job.planId?this.store.verification.get('plan',job.planId):null;
     await assertDefinition(proposal.spec,proposal.bundle);await assertCandidate(plan?.candidate??proposal.candidate);
-    ensure(job.environmentDigest===(await environmentFingerprint()).digest,'Paused verifier environment changed');
+    ensure(job.environmentDigest===(await environmentFingerprint(job.environmentScope)).digest,'Paused verifier environment changed');
     const commandId=randomUUID();
     this.repo.transaction(()=>{
       const current=this.repo.get(loop.id);ensure(current.paused&&!current.stopped,'Pause boundary changed');this.store.supervisionInterruptions.assertBoundary(interruption);
@@ -268,7 +271,8 @@ export class SupervisionController {
     }
     await assertCandidate(candidate);
     const previous=this.store.verification.headForRun(run.projectId,run.id);
-    const acceptance:AcceptanceAuthoringContext={contract:run.contract,criteria,candidate:{workspace:runtime.workspace,digest:candidate.digest,files},environment:await environmentFingerprint(),failureContext,previousSpec:previous?.spec??null};return {acceptance,candidate};
+    const materials:NonNullable<AcceptanceAuthoringContext['materials']>=[];for(const criterion of criteria.filter(c=>c.kind==='material')){const op=this.store.runtime.currentOperations(runtime.id).find(o=>o.step.kind==='codex'&&o.step.research&&o.step.research.reportDirectory+'/report.json'===criterion.target);ensure(op,'Material acceptance has no current Run-owned research producer');const binding=await captureMaterialBinding(this.store,this.dataDir,op!.id),actual=await readMaterialBinding(binding);materials.push({target:criterion.target,binding,evidence:{context:actual.input.context,sources:actual.input.context.sources.map(source=>({materialId:source.materialId,text:new TextDecoder('utf-8',{fatal:true,ignoreBOM:true}).decode(readBounded(source.textPath,actual.input.context.index.limits.maxItemBytes))}))}});}
+    const acceptance:AcceptanceAuthoringContext={...(materials.length?{materials}:{}),contract:run.contract,criteria,candidate:{workspace:runtime.workspace,digest:candidate.digest,files},environment:await (async()=>{const scope=await createEnvironmentScope(this.dataDir,runtime);return {...await environmentFingerprint(scope),scope};})(),failureContext,previousSpec:previous?.spec??null};return {acceptance,candidate};
   }
   private allocation(loop:SupervisionRecord,revision:number):RuntimeFutureVerification{return {commandId:randomUUID(),runtimeId:loop.runtimeId,expectedContractVersion:loop.contractVersion,expectedRevision:revision,allocationId:`${loop.id}:final:${loop.repairCount}`,amount:loop.config.reservation,reason:'Protect a complete independent final verification within the original total budget'};}
   private ensureFloor(loop:SupervisionRecord):void {const existing=this.store.runtime.futureVerification(loop.runtimeId);if(existing){ensure(existing.contractVersion===loop.contractVersion&&existing.amount===loop.config.reservation,'Existing final verification floor differs from supervised configuration');return;}const run=this.store.runtime.inspect(loop.runtimeId).run;this.store.runtime.setFutureVerification(this.allocation(loop,run.revision));}

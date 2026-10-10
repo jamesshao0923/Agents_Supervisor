@@ -1,3 +1,4 @@
+import {publishLegacyControlReviewFixture} from '../helpers/legacy-control-review-fixture.js';
 import test,{type TestContext} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,mkdir,writeFile,realpath,rm} from 'node:fs/promises';
@@ -12,8 +13,7 @@ import type {GoalProposal} from '../../packages/contracts/p5.js';
 import type {SupervisionInspection} from '../../packages/contracts/p6-supervision-actions.js';
 import type {VerificationSpec} from '../../packages/contracts/p4.js';
 import type {Proposal,VerificationJob,FrozenPlan} from '../../packages/verification/records.js';
-import {captureCandidate,canonical,digest,environmentFingerprint} from '../../packages/verification/candidate.js';
-import {selectInstances} from '../../packages/verification/rules.js';
+import {captureCandidate,canonical,digest} from '../../packages/verification/candidate.js';
 import {spawnManagedProcess,inspectProcess} from '../../packages/process-control/index.js';
 
 // These are real SQLite/controller boundary tests. The explicitly recorded goal
@@ -120,7 +120,11 @@ async function ownedP4(t:TestContext,kind:'review'|'verification'){
   const f=await fixture(t),attached=await f.attach();f.completeInput();
   const author=join(f.root,'p4-author'),good=join(f.root,'p4-good'),bad=join(f.root,'p4-bad');for(const path of [author,good,bad])await mkdir(path);
   await writeFile(join(good,'result.mjs'),'export const value=2;');await writeFile(join(bad,'result.mjs'),'export const value=1;');
-  await writeFile(join(author,'check.mjs'),'// Actual cancellation fixture; never produces approval.\nsetInterval(()=>{},1000);');
+  // Test-only candidate fault marker delays an otherwise actual value checker.
+  // Real good/bad controls complete normally; no business or model exemption.
+  if(kind==='verification')await writeFile(join(f.workspace,'pause-mechanism.marker'),'Explicit host cancellation fault injection');
+  const checker="import {readFileSync,writeFileSync,existsSync} from 'node:fs';const text=readFileSync(process.argv[2]+'/result.mjs','utf8'),passed=text.includes('value=2');writeFileSync(process.env.SUPERVISOR_VERIFY_REPORT,JSON.stringify({schemaVersion:1,checks:[{obligationId:'value',verdict:passed?'passed':'failed',reason:'Actual frozen exported value equals two'}]}));if(existsSync(process.argv[2]+'/pause-mechanism.marker'))setInterval(()=>{},1000);else process.exitCode=passed?0:1;";
+  await writeFile(join(author,'check.mjs'),kind==='verification'?checker:'// Actual cancellation fixture; no review approval.\nsetInterval(()=>{},1000);');
   const run=f.store.runtime.inspect(f.runtimeId).run;
   const spec:VerificationSpec={schemaVersion:1,contractVersion:run.contract.version,standardsVersion:'pause-mechanism-v1',obligations:[{id:'value',criterionId:'value',expectation:'Actual exported value is exactly two',required:true,applicable:true}],cases:[{id:'value',revision:1,obligationIds:['value'],parameters:[{}],modules:['value'],replaces:[],defectRefs:['wrong-value'],verifier:{kind:'command',version:'real-command-cancellation-fixture',entry:'check.mjs',files:['check.mjs'],timeoutMs:10000}}],controls:[{id:'good',workspace:good,expect:'passed',mustFail:[]},{id:'bad',workspace:bad,expect:'failed',mustFail:['value']}],moduleDependencies:{}};
   const specPath=join(author,'spec.json');await writeFile(specPath,JSON.stringify(spec));
@@ -129,9 +133,10 @@ async function ownedP4(t:TestContext,kind:'review'|'verification'){
   if(kind==='verification'){
     // Stored review metadata passes the real repository scope/proof/accounting gates.
     // Use ONLY for cancellation/floor mechanics, never model approval or delivery.
-    await publishFixtureReview(f.store,proposal,f.root);const candidate=await captureCandidate(f.workspace,join(f.root,'fixture-plan'));
-    plan={id:'stored-review-fixture-plan',runtimeId:f.runtimeId,projectId:run.projectId,runId:run.id,proposalId:proposal.id,catalogVersion:proposal.version!,candidate,contractDigest:proposal.contractDigest,definitionDigest:proposal.bundle.digest,environmentDigest:(await environmentFingerprint()).digest,selection:selectInstances(spec,{mode:'final'}),createdAt:new Date().toISOString()};
-    f.store.verification.insert('plan',plan);const snapshot=f.store.managedSnapshot(canonical(candidate));f.store.verification.artifact(run.projectId,run.id,{id:plan.id,...snapshot,contractVersion:run.contract.version});
+    await publishFixtureReview(f.store,proposal,f.root);
+    // Freeze through the actual controller so proposal/plan share the real
+    // host environment scope; never manufacture a legacy/scoped bypass.
+    plan=await f.verification.dispatch({type:'freeze',commandId:randomUUID(),runtimeId:f.runtimeId,mode:'final'}) as FrozenPlan;
     f.store.runtime.setFutureVerification({commandId:randomUUID(),runtimeId:f.runtimeId,expectedContractVersion:run.contract.version,expectedRevision:f.store.runtime.inspect(f.runtimeId).run.revision,allocationId:'original-final-floor',amount:config.reservation,reason:'Mechanism original final verification allocation'});
   }
   const commandId=randomUUID(),request=plan?{type:'run' as const,commandId,planId:plan.id,...config,timeoutMs:10000,futureVerificationAllocationId:'original-final-floor'}:{type:'review' as const,commandId,proposalId:proposal.id,...config,timeoutMs:10000};
@@ -199,10 +204,6 @@ test('P6-SCTL-I14 pause provenance joins the parent transaction and changed publ
 
 /** Explicit stored review fixture for repository/controller boundaries. Proof bytes
  * and accounting are real, but approval metadata is NOT a live model review. */
-async function publishFixtureReview(store:SupervisorStore,proposal:Proposal,root:string):Promise<void>{
-  const run=store.verification.run(proposal.projectId,proposal.runId),id='fixture-review-'+proposal.id;
-  const proof=join(root,id+'.json'),proofText=JSON.stringify({scope:'non-model repository fixture',proposalId:proposal.id,contractDigest:proposal.contractDigest,definitionDigest:proposal.bundle.digest});await writeFile(proof,proofText);
-  store.verificationLineage.bindProposal({commandId:'fixture-binding-'+proposal.id,proposalId:proposal.id,base:store.verificationLineage.captureBase(proposal.projectId,proposal.runId),definitionFormat:'legacy-v1'});
-  const review:VerificationJob={id,runtimeId:proposal.runtimeId,projectId:proposal.projectId,runId:proposal.runId,workspace:proposal.candidate.root,kind:'review',proposalId:proposal.id,planId:null,request:{scope:'explicit non-model review fixture'},status:'finished',attemptId:id,environmentDigest:(await environmentFingerprint()).digest,config:{model:'repository-fixture-no-model-call',effort:'low',reservation:1,timeoutMs:1000},startedAt:new Date().toISOString(),finishedAt:new Date().toISOString(),intents:[],identities:[],usage:0,modelStarted:false,usageUnknown:false,results:[],controls:[],evaluation:null,approved:true,stopConfirmed:true,error:null,proofs:{[proof]:digest(proofText)},sources:[]};
-  store.verification.transaction(()=>{store.verification.act(run.projectId,run.id,{type:'startAttempt',attemptId:id,nodeId:run.nodes.at(-1)!.id,contractVersion:run.contract.version,purpose:'verification',reservation:1,resources:[]});store.verification.act(run.projectId,run.id,{type:'finishAttempt',attemptId:id,outcome:'succeeded'});store.verification.act(run.projectId,run.id,{type:'settleAttempt',attemptId:id,actual:0});store.verification.insert('job',review);proposal.reviewId=id;store.verification.publish(proposal,'fixture-publication-'+proposal.id);});
+async function publishFixtureReview(store:SupervisorStore,proposal:Proposal,_root:string):Promise<void>{
+ await publishLegacyControlReviewFixture(store,proposal);
 }

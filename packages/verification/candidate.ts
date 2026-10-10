@@ -1,3 +1,4 @@
+import {scopedConfiguration,type VerificationEnvironmentScope} from './scoped-environment.js';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
@@ -58,7 +59,7 @@ export async function relativeFile(root: string, path: string): Promise<string> 
   if (!absolute.startsWith(base + sep) || !(await lstat(absolute)).isFile()) throw new Error('File escapes its declared root');
   return absolute;
 }
-export async function environmentFingerprint(): Promise<{ digest: string; node: string; executableDigest: string; platform: string; arch: string }> {
+export async function environmentFingerprint(scope?:VerificationEnvironmentScope): Promise<{ digest: string; node: string; executableDigest: string; platform: string; arch: string }> {
   const value = { node: process.version, executableDigest: digest(await readFile(process.execPath)), platform: process.platform, arch: process.arch };
   const dependencies:Record<string,string>={};
   async function tree(path:string):Promise<void>{for(const entry of await readdir(path,{withFileTypes:true})){const p=join(path,entry.name);if(entry.isDirectory())await tree(p);else if(entry.isFile()&&/\.(js|cjs|json|ts)$/.test(p))dependencies[p]=digest(await readFile(p));}}
@@ -70,7 +71,7 @@ export async function environmentFingerprint(): Promise<{ digest: string; node: 
   const command=process.env.SUPERVISOR_CODEX_PATH??'codex';let codex:string|undefined;
   for(const path of isAbsolute(command)?[command]:(process.env.PATH??'').split(':').map(p=>join(p,command)))try{codex=await realpath(path);break;}catch{}
   if(codex)dependencies.codex=digest(await readFile(codex));else dependencies.codex='unavailable';
-  const config=join(process.env.CODEX_HOME??join(homedir(),'.codex'),'config.toml');try{dependencies.codexConfig=digest(await readFile(config));}catch{dependencies.codexConfig='absent';}
+  const config=join(process.env.CODEX_HOME??join(homedir(),'.codex'),'config.toml');if(scope){dependencies.codexConfig=digest(canonical(await scopedConfiguration(config,scope)));await tree(dirname(await realpath(require.resolve('smol-toml'))));}else try{dependencies.codexConfig=digest(await readFile(config));}catch{dependencies.codexConfig='absent';}
   // Persist hashes, never environment values or account credentials.
   dependencies.environment=digest(canonical(process.env));
   return { ...value, digest: digest(canonical({value,dependencies})) };

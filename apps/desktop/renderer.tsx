@@ -1,3 +1,4 @@
+import {VerificationVersionsPanel,type DeliveryDesktopAPI} from './verification-versions-panel.js';
 import {AgentWorkbench} from './agent-workbench.js';
 import type {WorkbenchSnapshot} from '../../packages/contracts/p8-workbench.js';
 import {SupervisionPanel,type SupervisionDesktopAPI} from './supervision-panel.js';
@@ -23,9 +24,9 @@ type StartResult = { accepted: true; record: GoalInspection } | { accepted: fals
 type GoalMutation = Exclude<OrchestrationAction, { type: 'start' | 'list' | 'inspect' }>;
 interface RuntimeInspection { runtime: RuntimeRecord; run: Run; operations: RuntimeOperation[]; checkpoints: { checkpoint: RuntimeCheckpoint; digest: string; valid: boolean }[] }
 interface VerificationStatus { proposals: Proposal[]; plans: FrozenPlan[]; jobs: VerificationJob[]; deliveries: Delivery[]; currentDelivery: { current: boolean; reason: string; delivery: Delivery | null; assessment?: DeliveryAssessment | null } }
-type VerificationMutation = Exclude<VerificationAction, { type: 'status' | 'job' }>;
+type VerificationMutation = Exclude<VerificationAction, { type: 'status' | 'job' | 'open' | 'close-open' | 'open-session' }>;
 type ConversationSend = Omit<Extract<ConversationAction, {type: 'send'}>, 'type'>;
-interface DesktopAPI extends SupervisionDesktopAPI {
+interface DesktopAPI extends SupervisionDesktopAPI,DeliveryDesktopAPI {
   conversationList(): Promise<ConversationInspection[]>;
   conversationForSession(sessionId: string): Promise<ConversationInspection>;
   conversationInspect(conversationId: string): Promise<ConversationInspection>;
@@ -717,6 +718,8 @@ function App() {
           </div> : <p className="form-hint">尚无已确认交付；运行结束不会自动完成验收。</p>}
           {verificationTerminal && <div className="notice compact"><p>{hasDelivery ? '此任务已有交付记录；原任务已结束，不能再次派发验收。' : '此任务已结束，不能再派发新的验收。'}可在上方持续跟进中发送新要求。</p><button className="button primary" disabled={busy || Boolean(pending)} onClick={renewTask}>在同项目新建任务</button><p className="form-hint">将预填项目目录和原目标，确认后才会提交执行。</p></div>}
           {verificationData?.runtimeId === selected && <p className="form-hint">{verificationLoading ? '正在核对后台证据…' : `最近核对 ${time(verificationData.checkedAt)} · 选中任务每 15 秒同步`}</p>}
+          <VerificationVersionsPanel key={chosenRuntime.id} api={api} runtimeId={chosenRuntime.id} status={verification??null} online={online} readError={verificationReadError}/>
+          <details className="advanced-verification"><summary>高级：提交定义与逐步验收</summary>
           <label className="field"><span>1 · 项目验收定义 JSON</span><div className="input-action"><input aria-label="验收定义路径" value={specPath} readOnly placeholder="通过系统文件选择器选择定义"/><button type="button" className="button" disabled={!online || busy || Boolean(verificationPending)} onClick={() => { void chooseSpec(); }}>选择 JSON</button></div></label>
           <button className="button" disabled={!verificationReady || !specPath} onClick={() => verificationAction('propose')}>提交验收提案</button>
           <label className="field verification-select"><span>当前提案</span><select aria-label="当前验收提案" value={proposal?.id || ''} onChange={event => setProposalId(event.target.value)} disabled={!verification?.proposals.length || busy || Boolean(verificationPending)}><option value="" disabled>尚无提案</option>{verification && newest(verification.proposals).map(item => <option key={item.id} value={item.id}>{item.status === 'published' ? `已发布 v${item.version}` : '待独立复核'} · {date(item.createdAt)}</option>)}</select></label>
@@ -738,6 +741,7 @@ function App() {
           {jobSummary(verificationJob, '候选验收')}
           {activeVerificationJob && <button className="button danger" disabled={!online || busy || Boolean(verificationPending)} onClick={() => verificationAction('cancel')}>取消正在执行的验收</button>}
           {verificationPending && <div className="notice compact"><p>有待核对的 {verificationPending.action.type} 请求。重试会复用同一请求，避免再次派发。</p><div className="verification-buttons"><button className="button" disabled={!online || busy} onClick={() => { void performVerification(verificationPending.action, verificationPending.runtimeId); }}>重试同一请求</button><button className="button ghost" disabled={busy} onClick={() => { verificationPendingRef.current = null; setVerificationPending(null); }}>清除待核对记录</button></div><p className="form-hint">清除记录不会取消后台作业。</p></div>}
+          </details>
         </section>}
         {chosenRuntime && waitingStep?.kind === 'input' && !Object.hasOwn(chosenRuntime.inputs, waitingStep.id) && <form onSubmit={event => { void sendInput(event); }} className="runtime-input"><label className="field"><span>{waitingStep.prompt}</span><textarea aria-label="等待步骤输入" value={inputText} onChange={event => setInputText(event.target.value)} maxLength={200000} required disabled={!online || busy || chosenRuntime.cancelled}/></label><button className="button primary" disabled={!online || busy || chosenRuntime.cancelled || !inputText.trim()} type="submit">提交输入</button></form>}
         {chosen.message && <><h3 className="section-title">执行器输出</h3><div className="result">{chosen.message}</div></>}

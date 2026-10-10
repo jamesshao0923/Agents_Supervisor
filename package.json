@@ -41,6 +41,7 @@
   },
   "dependencies": {
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "smol-toml": "1.9.1"
   }
 }

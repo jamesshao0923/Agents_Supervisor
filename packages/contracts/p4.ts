@@ -1,3 +1,6 @@
+import {parseMobileVerifier,type MobileVerifier} from './p4-mobile.js';
+import {parseFullstackVerifier, type FullstackVerifier} from './p4-fullstack.js';
+import {parseMaterialVerifier,type MaterialVerifier,type MaterialVerifierBinding} from './p4-material.js';
 import type { TaskContract } from './p1.js';
 
 export type VerificationVerdict = 'passed' | 'failed' | 'unknown' | 'not-applicable';
@@ -10,8 +13,8 @@ export interface CommandVerifier { kind: 'command'; version: string; entry: stri
 export type UiStep = { kind: 'click'; selector: string } | { kind: 'fill'; selector: string; value: string }
   | { kind: 'assertText'; selector: string; text: string } | { kind: 'assertVisible'; selector: string };
 export interface UiVerifier { kind: 'ui'; version: string; entry: string; steps: UiStep[]; expectations: string[]; timeoutMs: number }
-export interface SourceVerifier { kind: 'source'; version: string; claimFile: string; sources: { id: string; url: string; excerpt: string; maxAgeMs: number }[]; timeoutMs: number }
-export type Verifier = CommandVerifier | UiVerifier | SourceVerifier;
+export interface SourceVerifier { binding?:MaterialVerifierBinding; kind: 'source'; version: string; claimFile: string; sources: { id: string; url: string; excerpt: string; maxAgeMs: number }[]; timeoutMs: number }
+export type Verifier = CommandVerifier | UiVerifier | SourceVerifier | MobileVerifier | FullstackVerifier | MaterialVerifier;
 export interface VerificationSpecCase {
   id: string; revision: number; obligationIds: string[]; parameters: Record<string, string>[]; modules: string[];
   replaces: string[]; defectRefs: string[]; status?: 'active' | 'retired'; verifier: Verifier;
@@ -89,8 +92,13 @@ function verifier(value: unknown, path: string) {
       const keys = kind === 'fill' ? ['kind', 'selector', 'value'] : kind === 'assertText' ? ['kind', 'selector', 'text'] : ['kind', 'selector'];
       const step = object(v, p, keys); string(step.selector, `${p}.selector`); if (kind === 'fill') string(step.value, `${p}.value`, true); if (kind === 'assertText') string(step.text, `${p}.text`);
     }, 1);
+  } else if (kind === 'mobile') {
+    parseMobileVerifier(value);
+  } else if (kind === 'fullstack') {
+    parseFullstackVerifier(value, input => { verifier(input, path + '.ui'); if ((input as UiVerifier).kind !== 'ui') fail(path, 'nested UI verifier required'); return input as UiVerifier; });
+  } else if (kind === 'material') { parseMaterialVerifier(value);
   } else if (kind === 'source') {
-    const o = object(value, path, ['kind', 'version', 'claimFile', 'sources', 'timeoutMs']); relative(o.claimFile, `${path}.claimFile`); string(o.version, `${path}.version`); integer(o.timeoutMs, `${path}.timeoutMs`, 1, 3_600_000);
+    const o = object(value, path, ['kind', 'version', 'claimFile', 'sources', 'timeoutMs','binding'],['binding']);if(Object.hasOwn(o,'binding'))parseMaterialVerifier({kind:'material',version:o.version,claimFile:o.claimFile,binding:o.binding,timeoutMs:o.timeoutMs}); relative(o.claimFile, `${path}.claimFile`); string(o.version, `${path}.version`); integer(o.timeoutMs, `${path}.timeoutMs`, 1, 3_600_000);
     array(o.sources, `${path}.sources`, (v, p) => {
       const source = object(v, p, ['id', 'url', 'excerpt', 'maxAgeMs']); string(source.id, `${p}.id`); string(source.url, `${p}.url`); string(source.excerpt, `${p}.excerpt`); integer(source.maxAgeMs, `${p}.maxAgeMs`);
       let url: URL; try { url = new URL(source.url); } catch { fail(p, 'invalid source URL'); }
@@ -113,9 +121,9 @@ export function parseVerificationSpec(value: unknown): VerificationSpec {
   const obligationIds = new Set((o.obligations as VerificationObligation[]).map(v => v.id)); if (obligationIds.size !== (o.obligations as unknown[]).length) fail('spec.obligations', 'duplicate id');
   array(o.cases, 'spec.cases', (v, p) => {
     const c = object(v, p, ['id', 'revision', 'obligationIds', 'parameters', 'modules', 'replaces', 'defectRefs', 'status', 'verifier'], ['status']); string(c.id, `${p}.id`); integer(c.revision, `${p}.revision`);
-    strings(c.obligationIds, `${p}.obligationIds`, 1); for (const id of c.obligationIds as string[]) if (!obligationIds.has(id)) fail(p, 'unknown obligation');
+    strings(c.obligationIds, `${p}.obligationIds`, 1); if((c.verifier as {kind?:unknown})?.kind==='material'&&(c.obligationIds as unknown[]).length!==1)fail(p,'Native material cases require exactly one obligation for independently attributable semantic controls'); for (const id of c.obligationIds as string[]) if (!obligationIds.has(id)) fail(p, 'unknown obligation');
     array(c.parameters, `${p}.parameters`, parameters, 1); for (const key of ['modules', 'replaces', 'defectRefs']) strings(c[key], `${p}.${key}`);
-    if (Object.hasOwn(c, 'status')) choice(c.status, `${p}.status`, ['active', 'retired']); if ((c.replaces as string[]).includes(c.id as string)) fail(p, 'case cannot replace itself'); verifier(c.verifier, `${p}.verifier`);
+    if (Object.hasOwn(c, 'status')) choice(c.status, `${p}.status`, ['active', 'retired']); if ((c.replaces as string[]).includes(c.id as string)) fail(p, 'case cannot replace itself'); verifier(c.verifier, `${p}.verifier`);if((c.verifier as Verifier).kind==='mobile'&&(c.obligationIds as string[]).length!==1)fail(p,'mobile case requires exactly one obligation for sound failure attribution');if((c.verifier as Verifier).kind==='fullstack'&&(c.obligationIds as string[]).length!==1)fail(p,'fullstack case requires exactly one obligation for sound failure attribution');
   }, 1);
   const revisions = (o.cases as VerificationSpecCase[]).map(c => `${c.id}:${c.revision}`); if (new Set(revisions).size !== revisions.length) fail('spec.cases', 'duplicate case revision');
   array(o.controls, 'spec.controls', (v, p) => {

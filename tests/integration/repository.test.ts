@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { readFile, mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { resolve, join } from 'node:path';
 import { checkBoundaries } from '../../tools/p0/boundaries.js';
 
 test('repository production module boundaries pass on actual source files', async () => {
@@ -11,12 +12,24 @@ test('repository production module boundaries pass on actual source files', asyn
 
 test('repository ignores runtime secrets outputs and dependencies but retains sources and lockfile', async () => {
   const ignored = ['node_modules/pkg/file.js', 'dist/a.js', 'coverage/index.html', '.supervisor-dev/verification/run/manifest.json', '.supervisor/memory/project.md', 'local/supervisor.sqlite', 'local/supervisor.sqlite-wal', 'local/supervisor.sqlite-shm', 'local/supervisor.sock', 'local/service.lock', '.env', '.env.local', 'private.key', 'certificate.p12', '.DS_Store'];
-  for (const path of ignored) {
-    const result = spawnSync('git', ['check-ignore', '--no-index', '-q', path], { cwd: process.cwd(), encoding: 'utf8' });
-    assert.equal(result.status, 0, `${path} must be ignored: ${result.stderr}`);
-  }
-  for (const path of ['pnpm-lock.yaml', 'package.json', '.env.example', '.env.local.example', 'tests/acceptance/p0.json', 'tools/p0/runner.ts']) {
-    assert.equal(spawnSync('git', ['check-ignore', '--no-index', '-q', path]).status, 1, `${path} must remain versionable`);
+  // Check the exact repository rules in a real, independent Git repository.
+  // Installed dependency symlinks and an ancestor checkout must not influence
+  // whether a path would be versioned in a normal project checkout.
+  const root = await mkdtemp(join(tmpdir(), 'supervisor-ignore-'));
+  try {
+    const initialized = spawnSync('git', ['init', '--quiet', '--template=', root], { encoding: 'utf8' });
+    assert.equal(initialized.status, 0, initialized.stderr);
+    await writeFile(join(root, '.gitignore'), await readFile('.gitignore'));
+    for (const path of ignored) {
+      const result = spawnSync('git', ['-c', 'core.excludesFile=/dev/null', 'check-ignore', '--no-index', '-q', path], { cwd: root, encoding: 'utf8' });
+      assert.equal(result.status, 0, `${path} must be ignored: ${result.stderr}`);
+    }
+    for (const path of ['pnpm-lock.yaml', 'package.json', '.env.example', '.env.local.example', 'tests/acceptance/p0.json', 'tools/p0/runner.ts']) {
+      const result = spawnSync('git', ['-c', 'core.excludesFile=/dev/null', 'check-ignore', '--no-index', '-q', path], { cwd: root, encoding: 'utf8' });
+      assert.equal(result.status, 1, `${path} must remain versionable: ${result.stderr}`);
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
   }
 });
 

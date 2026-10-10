@@ -1,3 +1,4 @@
+import {verificationDirectory} from '../verification/scoped-environment.js';
 import { lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
@@ -164,7 +165,7 @@ export class ControlQualificationRepository {
     });
   }
   private jobRoot(job: VerificationJob): string {
-    if (this.dataDir) return join(this.dataDir, 'verification', job.id);
+    if (this.dataDir) return verificationDirectory(this.dataDir,job);
     const reports = Object.keys(job.proofs).filter(p => basename(p) === 'report.json' && basename(dirname(p)) === job.id); ensure(reports.length === 1, 'Cannot resolve exact actual verification job root'); return dirname(reports[0]!);
   }
   private verifyModel(job: VerificationJob, evidence: ControlQualificationEvidence, author: SupervisionJob): void {

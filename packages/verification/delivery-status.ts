@@ -1,3 +1,5 @@
+import {verificationDirectory,parseEnvironmentScope} from './scoped-environment.js';
+import {assertFullstackJob} from './fullstack-proof.js';
 import { lstat, readFile, realpath } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import type { Artifact, Run } from '../contracts/p1.js';
@@ -69,6 +71,8 @@ export function invalidateWorkspaceObservation(value: DeliveryAssessment): Deliv
 }
 function binding(s: DeliveryEvidenceSnapshot): void {
   const { delivery: d, run, runtime, plan, proposal: p, verification: job, review, artifact } = s;
+  for(const record of [p,plan,job,review])if(record.environmentScope)parseEnvironmentScope(record.environmentScope,{projectId:run.projectId,runId:run.id,workspace:runtime.workspace});
+  ensure([p,plan,review].every(record=>equal(record.environmentScope??null,job.environmentScope??null)),'history-binding-invalid','Historical environment scopes differ');
   const bad = 'history-binding-invalid';
   ensure(d.projectId === run.projectId && d.runId === run.id && d.runtimeId === runtime.id && runtime.projectId === run.projectId && runtime.runId === run.id, bad, 'Delivery and original Run/runtime identity differ');
   for (const item of [plan, p, job, review]) ensure(item.projectId === d.projectId && item.runId === d.runId && item.runtimeId === d.runtimeId, bad, 'Historical verification chain crosses a Run or runtime');
@@ -134,7 +138,7 @@ function qualifiedHistory(s: DeliveryEvidenceSnapshot, options: DeliveryAssessme
   ensure(model.verdict === 'passed' && model.stopConfirmed && model.modelStarted && model.threadId && model.turnId && Number.isSafeInteger(model.usage) && model.usage! > 0 && model.usage! <= s.review.usage && model.proofFiles.length > 0 && model.proofFiles.every(p => receipt.proofs[p]), 'history-evidence-invalid', 'Historical qualification lacks its completed independent review');
   return structuredClone({ receipt, draft });
 }
-async function qualifiedFiles(history: QualifiedHistory, options: DeliveryAssessmentOptions): Promise<void> {
+async function qualifiedFiles(history: QualifiedHistory, options: DeliveryAssessmentOptions, review:VerificationJob): Promise<void> {
   const read = reader(options.dataDir), { receipt } = history;
   for (const definition of receipt.assembled.definitions) {
     for (const name of Object.keys(definition.bundle.files)) await read(join(definition.bundle.directory, name));
@@ -145,10 +149,10 @@ async function qualifiedFiles(history: QualifiedHistory, options: DeliveryAssess
     for (const name of Object.keys(specimen.candidate.files)) await read(join(specimen.candidate.tree, name)); await assertCandidate(specimen.candidate, false);
     for (const witness of specimen.revision.witnesses) for (const [path, hash] of Object.entries(witness.proofs)) ensure(digest(await read(path)) === hash, 'history-file-changed', 'Historical negative witness proof bytes changed');
   }
-  for (const proof of [receipt.bootstrap.proofs, receipt.execution.proofs]) for (const [path, hash] of Object.entries(proof)) ensure(receipt.proofs[path] === hash && digest(await read(path, join(options.dataDir, 'verification', receipt.reviewJobId))) === hash, 'history-file-changed', 'Historical qualification execution proof differs');
+  for (const proof of [receipt.bootstrap.proofs, receipt.execution.proofs]) for (const [path, hash] of Object.entries(proof)) ensure(receipt.proofs[path] === hash && digest(await read(path, verificationDirectory(options.dataDir,review))) === hash, 'history-file-changed', 'Historical qualification execution proof differs');
   const actualProofs = [...new Set(receipt.execution.pairs.flatMap(p => p.results.flatMap(r => r.proofFiles ?? [])))].sort();
   ensure(equal(Object.keys(receipt.execution.proofs).sort(), actualProofs), 'history-evidence-invalid', 'Historical qualification proof inventory differs from actual pair results');
-  const model = receipt.independentReview, root = join(options.dataDir, 'verification', receipt.reviewJobId), resultPaths = model.proofFiles.filter(p => p.endsWith('/result.json'));
+  const model = receipt.independentReview, root = verificationDirectory(options.dataDir,review), resultPaths = model.proofFiles.filter(p => p.endsWith('/result.json'));
   ensure(resultPaths.length === 1, 'history-evidence-invalid', 'Historical independent review lacks a unique actual result');
   const modelRoot = resultPaths[0]!.slice(0, -'/result.json'.length), output = join(modelRoot, 'output.txt'), eventsPath = join(modelRoot, 'events.jsonl');
   ensure(equal(JSON.parse((await read(resultPaths[0]!, root)).toString()), model), 'history-evidence-invalid', 'Historical independent review differs from its raw persisted result');
@@ -196,16 +200,18 @@ async function files(s: DeliveryEvidenceSnapshot, options: DeliveryAssessmentOpt
   for (const name of Object.keys(proposal.bundle.files)) await read(join(proposal.bundle.directory, name));
   await assertDefinition(proposal.spec, proposal.bundle, false);
   for (const j of [review, job]) {
-    const root = join(options.dataDir, 'verification', j.id);
+    const root = verificationDirectory(options.dataDir,j);
     ensure(Object.keys(j.proofs).length > 0, 'history-evidence-invalid', 'Historical verification proof manifest is empty');
     for (const [path, hash] of Object.entries(j.proofs)) ensure(digest(await read(path, root)) === hash, 'history-file-changed', 'Historical verification proof bytes changed: ' + path);
     for (const result of [...j.results, ...j.controls.flatMap(c => c.results)]) {
       ensure(result.proofFiles?.length && result.proofFiles.every(path => Object.hasOwn(j.proofs, path)), 'history-evidence-invalid', 'Actual result lacks exact proof manifest references');
     }
+    await assertFullstackJob(j,proposal.spec,(j.kind==='verification'?[plan.candidate]:proposal.bundle.controls.map(c=>c.candidate)));
     const reportPath = join(root, 'report.json');
     ensure(Object.hasOwn(j.proofs, reportPath), 'history-evidence-invalid', 'Historical job report is not bound in its proof manifest');
     const report: unknown = JSON.parse((await read(reportPath, root)).toString('utf8'));
     ensure(equal(report, { results: j.results, controls: j.controls, evaluation: j.evaluation, error: j.error }), 'history-evidence-invalid', 'Historical job report differs from its stored result');
+    for(const material of j.materials??[]){ensure(Object.hasOwn(j.proofs,material.proofPath)&&j.proofs[material.proofPath]===material.proofDigest,'history-evidence-invalid','Historical material evidence is not bound in job proofs');const raw=JSON.parse((await read(material.proofPath,root)).toString('utf8')) as {binding:unknown;context:{index:{acquiredAt:string;completeness:string;disposition:string};requirements:{maxSourceAgeMs:number}[]}};ensure(equal(raw.binding,material.binding)&&raw.context.index.acquiredAt===material.sourceAcquiredAt&&Math.min(...raw.context.requirements.map(r=>r.maxSourceAgeMs))===material.maxAgeMs&&equal(material.coverage,{completeness:raw.context.index.completeness,disposition:raw.context.index.disposition}),'history-evidence-invalid','Historical material provenance/timing/coverage differs from actual proof');const acquired=Date.parse(material.sourceAcquiredAt),delivered=Date.parse(delivery.createdAt);ensure(Number.isFinite(acquired)&&Number.isSafeInteger(material.maxAgeMs)&&material.maxAgeMs>0&&acquired<=delivered&&delivered-acquired<=material.maxAgeMs,'history-evidence-invalid','Historical material evidence was not current at delivery');}
     for (const source of j.sources) {
       ensure(Object.hasOwn(j.proofs, source.path) && j.proofs[source.path] === source.digest && digest(await read(source.path, root)) === source.digest, 'history-file-changed', 'Historical source bytes differ from their actual job proof');
       const acquired = Date.parse(source.acquiredAt), delivered = Date.parse(delivery.createdAt);
@@ -215,10 +221,10 @@ async function files(s: DeliveryEvidenceSnapshot, options: DeliveryAssessmentOpt
   ensure(artifact, 'history-binding-invalid', 'Historical artifact is missing');
   const artifactBytes = await read(artifact.path);
   ensure(digest(artifactBytes) === artifact.digest && equal(JSON.parse(artifactBytes.toString('utf8')), plan.candidate), 'history-file-changed', 'Historical artifact snapshot differs from the frozen candidate manifest');
-  ensure(resolve(delivery.path) === resolve(options.dataDir, 'verification', job.id, 'delivery.json'), 'history-file-unsafe', 'Delivery record file has a different managed location');
+  ensure(resolve(delivery.path) === join(verificationDirectory(options.dataDir,job),'delivery.json'), 'history-file-unsafe', 'Delivery record file has a different managed location');
   ensure(equal(JSON.parse((await read(delivery.path)).toString('utf8')), delivery), 'history-file-changed', 'Historical delivery record file differs from SQLite');
 }
-function freshness(sources: SourceObservation[], checkedAt: string): DeliveryAssessment['sourceFreshness'] {
+function freshness(sources: Pick<SourceObservation,'acquiredAt'|'maxAgeMs'>[], checkedAt: string): DeliveryAssessment['sourceFreshness'] {
   if (!sources.length) return { state: 'not-applicable', earliestExpiresAt: null, remoteChecked: false };
   const now = Date.parse(checkedAt), times = sources.map(s => ({ acquired: Date.parse(s.acquiredAt), age: s.maxAgeMs }));
   if (!Number.isFinite(now) || times.some(s => !Number.isFinite(s.acquired) || !Number.isSafeInteger(s.age) || s.age <= 0 || now < s.acquired || !Number.isFinite(s.acquired + s.age) || s.acquired + s.age > 8.64e15)) return { state: 'unknown', earliestExpiresAt: null, remoteChecked: false };
@@ -234,7 +240,7 @@ export async function assessDeliveryEvidence(snapshot: DeliveryEvidenceSnapshot,
     binding(s);
     const qualification = s.definitionFormat === 'qualified-v2' ? qualifiedHistory(s, options) : null;
     await files(s, options);
-    if (qualification) { await qualifiedFiles(qualification, options); ensure(equal(qualification, qualifiedHistory(s, options)), 'history-evidence-invalid', 'Immutable historical qualification changed during the read-only audit'); }
+    if (qualification) { await qualifiedFiles(qualification, options,s.review); ensure(equal(qualification, qualifiedHistory(s, options)), 'history-evidence-invalid', 'Immutable historical qualification changed during the read-only audit'); }
     result.historicalEvidenceIntact = true;
   } catch (error) {
     const errno = (error as NodeJS.ErrnoException).code;
@@ -254,7 +260,7 @@ export async function assessDeliveryEvidence(snapshot: DeliveryEvidenceSnapshot,
   else add('scope-unresolved', 'scope', 'No unambiguous current scoped verification head is available');
   result.environmentMatches = options.currentEnvironmentDigest === null ? null : [s.plan.environmentDigest, s.review.environmentDigest, s.verification.environmentDigest].every(d => d === options.currentEnvironmentDigest);
   if (result.environmentMatches !== true) add(result.environmentMatches === null ? 'environment-unknown' : 'environment-changed', 'environment', 'Current verifier environment is ' + (result.environmentMatches === null ? 'unavailable' : 'different from the historical environment'));
-  result.sourceFreshness = freshness([...s.review.sources, ...s.verification.sources], options.checkedAt);
+  result.sourceFreshness = freshness([...s.review.sources, ...s.verification.sources,...[...(s.review.materials??[]),...(s.verification.materials??[])].map(m=>({acquiredAt:m.sourceAcquiredAt,maxAgeMs:m.maxAgeMs}))], options.checkedAt);
   if (result.sourceFreshness.state === 'expired') add('sources-expired', 'sources', 'Stored source evidence is outside its recorded validity window; remote content was not fetched');
   if (result.sourceFreshness.state === 'unknown') add('sources-time-unknown', 'sources', 'Source timing cannot establish current freshness; remote content was not fetched');
   if (options.workspaceRead !== 'quiet') add(options.workspaceRead === 'busy' ? 'workspace-busy' : 'workspace-unknown', 'workspace', 'Live workspace was not scanned because writer state is ' + options.workspaceRead);

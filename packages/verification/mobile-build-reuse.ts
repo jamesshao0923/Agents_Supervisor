@@ -1,0 +1,8 @@
+import type{MobileArtifact}from'./mobile-evidence.js';import{artifactInventory}from'./mobile-evidence.js';import{canonical,digest}from'./candidate.js';import{mobileEnvironment}from'./mobile-environment.js';
+export interface MobileBuildReuse {scopeId:string;label:string;candidateDigest:string;sourceDigest:string;environmentDigest:string;appIdentifier:string;buildConfigurationDigest:string;artifact:MobileArtifact}
+export function mobileBuildConfiguration(platform:'android'|'ios',appIdentifier:string):string{return digest(canonical({platform,appIdentifier,adapter:platform==='android'?'java36-mainactivity-v1':'swift27-simulator-v1'}));}
+export async function assertReuseBuild(reuse:MobileBuildReuse,expected:{scopeId:string;label:string;candidateDigest:string;sourceDigest:string;platform:'android'|'ios';appIdentifier:string}):Promise<void>{
+ if(reuse.scopeId!==expected.scopeId||reuse.label!==expected.label||reuse.candidateDigest!==expected.candidateDigest||reuse.sourceDigest!==expected.sourceDigest||reuse.appIdentifier!==expected.appIdentifier||reuse.artifact.platform!==expected.platform||reuse.artifact.appIdentifier!==expected.appIdentifier||reuse.buildConfigurationDigest!==mobileBuildConfiguration(expected.platform,expected.appIdentifier))throw Error('Mobile build reuse binding mismatch');
+ if(reuse.environmentDigest!==(await mobileEnvironment(expected.platform)).digest)throw Error('Mobile build reuse environment changed');
+ const files=await artifactInventory(reuse.artifact.path);if(canonical(files)!==canonical(reuse.artifact.files)||digest(canonical(files))!==reuse.artifact.digest)throw Error('Mobile reused artifact changed');
+}

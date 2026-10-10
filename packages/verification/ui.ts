@@ -1,3 +1,4 @@
+import {assertOwnedApplication} from './fullstack-host.js';
 import { mkdir, open, readFile, realpath, stat } from 'node:fs/promises';
 import { isAbsolute, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -6,6 +7,8 @@ import type { UiStep, UiVerifier, VerificationExecutionStatus } from '../contrac
 import { spawnManagedProcess, terminateProcess, type ProcessIdentity, type ProcessIntent } from '../process-control/index.js';
 
 export interface UiVerificationInput {
+  /** Host-only actual local application identity. Never comes from model verifier JSON. */
+  localService?:{origin:string;identity:ProcessIdentity};
   id: string; candidateTree: string; verifier: UiVerifier; output: string; signal?: AbortSignal;
   onIntent?: (value: ProcessIntent) => void | Promise<void>;
   onIdentity?: (value: ProcessIdentity) => void | Promise<void>;
@@ -35,6 +38,7 @@ export async function runUiVerification(input: UiVerificationInput): Promise<UiV
     if (!['darwin', 'linux'].includes(process.platform) || process.platform === 'linux' && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) {
       result.executionStatus = 'environment-blocked'; throw new Error('UI verification requires an available macOS or Linux desktop display');
     }
+    if(input.localService)await assertOwnedApplication(input.localService.origin,input.localService.identity);
     if (!(await stat(candidateTree)).isDirectory()) throw new Error('UI candidate tree is not a directory');
     const name = input.verifier.entry;
     if (isAbsolute(name) || name.includes('\\') || /[?#]/.test(name) || name.split('/').some(part => !part || part === '.' || part === '..') || !name.endsWith('.html')) throw new Error('UI entry must be a normalized relative HTML path');
@@ -44,7 +48,7 @@ export async function runUiVerification(input: UiVerificationInput): Promise<UiV
     const output = await realpath(input.output);
     if (within(candidateTree, output)) throw new Error('UI evidence must be outside candidate tree');
     const request = join(output, 'request.json');
-    await durable(request, JSON.stringify({ schemaVersion: 1, id: input.id, candidateTree, verifier: input.verifier, output }, null, 2)); result.proofFiles.push(request);
+    await durable(request, JSON.stringify({ schemaVersion: 1, id: input.id, candidateTree, verifier: input.verifier, output, ...(input.localService?{localOrigin:input.localService.origin,localIdentity:input.localService.identity}:{}) }, null, 2)); result.proofFiles.push(request);
     if (input.signal?.aborted) throw new Error('UI verification cancelled before dispatch');
     const electron: unknown = require('electron');
     if (typeof electron !== 'string') throw new Error('Installed Electron executable is unavailable');
@@ -65,8 +69,10 @@ export async function runUiVerification(input: UiVerificationInput): Promise<UiV
     if (!stop.stopped || stop.reason !== 'completed' || oversized || input.signal?.aborted) throw new Error('UI driver timed out, was cancelled, exceeded log bound or lacks verified stop');
     const tracePath = join(output, 'trace.json'); const bytes = await readFile(tracePath);
     if (bytes.length > 4 * 1024 * 1024) throw new Error('UI trace exceeds bound');
-    const trace = JSON.parse(bytes.toString()) as { schemaVersion: number; id: string; executionStatus: VerificationExecutionStatus; reason: string; steps: UiStepResult[]; screenshots: string[]; finalScreenshot?: string };
+    const trace = JSON.parse(bytes.toString()) as { localOrigin?:string|null; schemaVersion: number; id: string; executionStatus: VerificationExecutionStatus; reason: string; steps: UiStepResult[]; screenshots: string[]; finalScreenshot?: string };
     result.proofFiles.push(tracePath);
+    if((trace.localOrigin??null)!==(input.localService?.origin??null))throw new Error('UI trace local origin differs from host binding');
+    if(input.localService)await assertOwnedApplication(input.localService.origin,input.localService.identity);
     if (trace.schemaVersion !== 1 || trace.id !== input.id || !['executed', 'verifier-error', 'environment-blocked'].includes(trace.executionStatus) || typeof trace.reason !== 'string'
       || !Array.isArray(trace.steps) || !Array.isArray(trace.screenshots)) throw new Error('UI trace does not match the request');
     if (trace.executionStatus === 'executed' && trace.steps.length !== input.verifier.steps.length) throw new Error('UI trace omits declared steps');
