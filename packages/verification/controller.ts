@@ -1,3 +1,4 @@
+import { VerificationProofReader } from './proof-reader.js';
 import { lstat, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join, isAbsolute, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -255,26 +256,9 @@ export class VerificationController {
       this.repo.update('job',job);
     });
   }
-  private async assertJob(job:VerificationJob):Promise<void> {
-    ensure(job.environmentDigest===(await environmentFingerprint()).digest,'Verifier review or execution environment changed');
-    ensure(job.status==='finished'&&job.stopConfirmed&&!job.usageUnknown&&Object.keys(job.proofs).length>0,'Missing completed verifier evidence');
-    ensure(this.repo.run(job.projectId,job.runId).attempts.find(a=>a.id===job.attemptId)?.settled,'Verification usage unsettled');
-    for(const [path,hash]of Object.entries(job.proofs))ensure(digest(await readFile(path))===hash,'Verification evidence changed');
-    ensure(job.intents.length===job.identities.length,'Verifier intent has no stop identity');ensure(await allStopped(job.identities),'Old verification process is still active');
-  }
-  private async assertReviewedProposal(proposal:Proposal):Promise<void> {
-    ensure(proposal.reviewId&&proposal.reviewEnvironmentDigest,'Published catalog lacks independently reviewed environment');
-    const review=this.repo.get('job',proposal.reviewId);
-    ensure(review.kind==='review'&&review.proposalId===proposal.id&&review.approved&&!review.error&&review.environmentDigest===proposal.reviewEnvironmentDigest,'Published catalog has no valid independent approval');
-    await this.assertJob(review);await assertSourcesCurrent(review.sources);
-    if(this.store.verificationLineage.bindingForProposal(proposal.id).definitionFormat==='qualified-v2')this.store.controlQualification.assertPublicationBinding({proposalId:proposal.id,reviewId:review.id});
-  }
-  private async current(plan:FrozenPlan,job:VerificationJob,refresh=false):Promise<void> {
-    const proposal=this.repo.get('proposal',plan.proposalId);await this.assertReviewedProposal(proposal);this.assertQuietWorkspace(plan.candidate.root);this.repo.assertNoVerificationWriter(plan.candidate.root);ensure(this.repo.headForRun(plan.projectId,plan.runId)?.id===plan.proposalId,'Published verification catalog changed');
-    ensure(plan.contractDigest===proposal.contractDigest,'Plan differs from independently reviewed task contract');ensure(digest(canonical(this.repo.run(plan.projectId,plan.runId).contract))===plan.contractDigest,'Contract changed');ensure((await environmentFingerprint()).digest===plan.environmentDigest,'Verifier environment changed');
-    await assertCandidate(plan.candidate);await assertDefinition(proposal.spec,proposal.bundle);await this.assertJob(job);await assertSourcesCurrent(job.sources,refresh);
-    ensure(evaluateVerification(proposal.spec,plan.selection,job.results).complete,'Current evidence does not satisfy all necessary instances');
-  }
+  private async assertJob(job:VerificationJob):Promise<void>{return new VerificationProofReader(this.store).assertJob(job);}
+  private async assertReviewedProposal(proposal:Proposal):Promise<void>{return new VerificationProofReader(this.store).assertReviewedProposal(proposal);}
+  private async current(plan:FrozenPlan,job:VerificationJob,refresh=false):Promise<void>{return new VerificationProofReader(this.store).current(plan,job,refresh);}
   async status(runtimeId:string):Promise<unknown> {
     this.store.runtime.get(runtimeId);const deliveries=this.repo.list('delivery',runtimeId),latest=deliveries.at(-1);let current=false,reason=latest?'':'No accepted delivery';
     if(latest)try{await this.current(this.repo.get('plan',latest.planId),this.repo.get('job',latest.jobId));current=true;}catch(error){reason=String(error);}
@@ -305,7 +289,7 @@ export class VerificationController {
         const result:DeliveryEvidenceSnapshot={delivery,run,runtime,plan,proposal,verification,review,artifact:this.repo.artifactRecord(run.projectId,run.id,plan.id),conversation,round,head,scopeIssues,...(definitionFormat?{definitionFormat}:{})};return result;
       });
       let currentEnvironmentDigest:string|null=null;try{currentEnvironmentDigest=(await environmentFingerprint()).digest;}catch{}
-      let result=await assessDeliveryEvidence(snapshot,{dataDir:this.dataDir,checkedAt,workspaceRead:before.quiet?'quiet':'busy',currentEnvironmentDigest});
+      let result=await assessDeliveryEvidence(snapshot,{dataDir:this.dataDir,checkedAt,workspaceRead:before.quiet?'quiet':'busy',currentEnvironmentDigest,qualificationReader:this.store.controlQualification});
       if(observation().token!==before.token){result=invalidateWorkspaceObservation(result);result.isActiveRound=null;result.headMatches=null;result.issues.push({code:'scope-unresolved',area:'scope',message:'Task state changed during the read-only evidence observation'});}
       return result;
     }catch(error){return unavailableDeliveryAssessment(delivery,checkedAt,{code:'history-unavailable',area:'history',message:String(error)});}

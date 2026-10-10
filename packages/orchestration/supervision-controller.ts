@@ -1,3 +1,4 @@
+import { SupervisionConcernAdapter } from './supervision-concern-adapter.js';
 import { createHash,randomUUID } from 'node:crypto';
 import { mkdir,readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -38,17 +39,18 @@ const modelInput=(job:SupervisionJob)=>job.input as {prompt:string;outputSchema:
 export class SupervisionController {
   private readonly runner:SupervisionReasoningRunner;
   private readonly monitor:SupervisionMonitorController;
+  private readonly concerns:SupervisionConcernAdapter;
   private queue:Promise<unknown>=Promise.resolve();
   private readonly running=new Map<string,Promise<unknown>>();
   private timer:ReturnType<typeof setInterval>|null=null;
   private readonly deadlines=new Map<string,ReturnType<typeof setTimeout>>();
   private closed=false;
-  constructor(private readonly store:SupervisorStore,private readonly dataDir:string,private readonly runtime:LocalRuntimeAdapter,private readonly verification:VerificationController,runner?:SupervisionReasoningRunner){this.runner=runner??new SupervisionReasoningRunner(store,dataDir);this.monitor=new SupervisionMonitorController(store,dataDir,undefined,()=>{if(!this.closed)void this.scan();});}
+  constructor(private readonly store:SupervisorStore,private readonly dataDir:string,private readonly runtime:LocalRuntimeAdapter,private readonly verification:VerificationController,runner?:SupervisionReasoningRunner){this.runner=runner??new SupervisionReasoningRunner(store,dataDir);this.concerns=new SupervisionConcernAdapter(store.supervisionConcerns);this.monitor=new SupervisionMonitorController(store,dataDir,undefined,()=>{if(!this.closed)void this.scan();});}
   private get repo(){return this.store.supervision;}
   private serial<T>(work:()=>Promise<T>):Promise<T>{const result=this.queue.then(work);this.queue=result.catch(()=>{});return result;}
   async initialize():Promise<void>{ensure(!this.closed,'Supervision controller closed');await this.runner.initialize();await this.monitor.initialize();await this.scan();this.timer??=setInterval(()=>{void this.scan();},15000);this.timer.unref();}
   inspect(loopId:string):SupervisionInspection {
-    const loop=this.repo.get(loopId);return {loop,jobs:this.repo.jobs(loopId),runtime:this.store.runtime.inspect(loop.runtimeId),verification:{proposals:this.store.verification.list('proposal',loop.runtimeId),plans:this.store.verification.list('plan',loop.runtimeId),jobs:this.store.verification.list('job',loop.runtimeId),deliveries:this.store.verification.list('delivery',loop.runtimeId)},monitor:this.monitor.inspect(loopId),capabilities:{scanIntervalMs:15000,modelMonitoring:true,automaticControlEvolution:false}};
+    const loop=this.repo.get(loopId),monitor=this.monitor.inspect(loopId),pending=new Set(this.store.supervisionConcerns.candidates(loopId));return {loop,jobs:this.repo.jobs(loopId),runtime:this.store.runtime.inspect(loop.runtimeId),verification:{proposals:this.store.verification.list('proposal',loop.runtimeId),plans:this.store.verification.list('plan',loop.runtimeId),jobs:this.store.verification.list('job',loop.runtimeId),deliveries:this.store.verification.list('delivery',loop.runtimeId)},monitor:{...monitor,diagnosisRequests:monitor.diagnosisRequests.filter(request=>pending.has(request.jobId)),concerns:this.store.supervisionConcerns.list(loopId),concernDiscards:this.store.supervisionConcerns.discards(loopId)},capabilities:{scanIntervalMs:15000,modelMonitoring:true,automaticControlEvolution:false}};
   }
   async dispatch(value:unknown):Promise<SupervisionInspection|SupervisionInspection[]>{const action=parseSupervisionAction(value);return this.serial(async()=>{
     ensure(!this.closed,'Supervision controller closed');
@@ -186,6 +188,7 @@ export class SupervisionController {
     loop=this.repo.get(loop.id);
     if(loop.phase==='executing'){
       if(runtime.phase==='awaiting-verification'){
+        const concerns=await this.concerns.prepare(loop.id);if(concerns.action==='wait'){this.update(loop.id,{reason:concerns.reason});return;}
         const previous=this.store.verification.headForRun(run.projectId,run.id);
         if(previous&&previous.contractDigest===loop.contractDigest){this.update(loop.id,{phase:'freezing',references:{...loop.references,proposalId:previous.id}});}
         else {await this.startAuthor(loop);return;}
@@ -290,7 +293,7 @@ export class SupervisionController {
   private acknowledge(loopId:string,intent:SupervisionIntent,id:string):void{this.repo.transaction(()=>{
     const current=this.repo.get(loopId);ensure(current.intent?.id===intent.id,'Supervision intent changed');const interruption=this.store.supervisionInterruptions.forCommand(intent.commandId);if(interruption)this.store.supervisionInterruptions.acknowledgeReplacement(interruption.id,id);this.repo.acknowledgeIntent(loopId,intent.id,{id});
     const references={...current.references};let phase:SupervisionRecord['phase'];
-    switch(intent.kind){case 'propose':references.proposalId=id;delete references.reviewId;phase='reviewing';break;case 'review':references.reviewId=id;phase='reviewing';break;case 'publish':phase='freezing';break;case 'freeze':references.planId=id;delete references.verificationJobId;phase='verifying';break;case 'verify':references.verificationJobId=id;phase='verifying';break;case 'deliver':phase='complete';break;case 'repair':case 'retry':delete references.planId;delete references.verificationJobId;delete references.diagnosisJobId;phase='executing';break;}
+    switch(intent.kind){case 'propose':references.proposalId=id;delete references.reviewId;phase='reviewing';break;case 'review':references.reviewId=id;phase='reviewing';break;case 'publish':phase='freezing';break;case 'freeze':references.planId=id;delete references.verificationJobId;phase='verifying';break;case 'verify':this.concerns.bindVerification(loopId,id);references.verificationJobId=id;phase='verifying';break;case 'deliver':phase='complete';break;case 'repair':case 'retry':delete references.planId;delete references.verificationJobId;delete references.diagnosisJobId;phase='executing';break;}
     this.update(loopId,{phase,references,reason:current.paused||current.stopped?current.reason:null});
   });}
   private async performIntent(loop:SupervisionRecord):Promise<void>{

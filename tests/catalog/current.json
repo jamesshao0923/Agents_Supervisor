@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-catalog-v18",
+  "revision": "dev-catalog-v20",
   "modules": [
     {
       "id": "dev-contracts",
@@ -416,7 +416,7 @@
       "id": "live-supervision-loop",
       "layer": "live",
       "file": "dist/tests/live/supervision-loop.test.js",
-      "timeoutMs": 600000
+      "timeoutMs": 1490000
     },
     {
       "id": "unit-inspection-domain",
@@ -446,7 +446,7 @@
       "id": "live-supervision-monitor",
       "layer": "live",
       "file": "dist/tests/live/supervision-monitor.test.js",
-      "timeoutMs": 1400000
+      "timeoutMs": 1490000
     },
     {
       "id": "unit-followup-evolution",
@@ -525,6 +525,42 @@
       "layer": "integration",
       "file": "dist/tests/integration/control-controller.test.js",
       "timeoutMs": 120000
+    },
+    {
+      "id": "integration-delivery-status-v2",
+      "layer": "integration",
+      "file": "dist/tests/integration/delivery-status-v2.test.js",
+      "timeoutMs": 240000
+    },
+    {
+      "id": "integration-task-results-bridge",
+      "layer": "integration",
+      "file": "dist/tests/integration/task-results-bridge.test.js",
+      "timeoutMs": 240000
+    },
+    {
+      "id": "unit-task-scheduler",
+      "layer": "unit",
+      "file": "dist/tests/unit/task-scheduler.test.js",
+      "timeoutMs": 120000
+    },
+    {
+      "id": "unit-execution-warning",
+      "layer": "unit",
+      "file": "dist/tests/unit/execution-warning.test.js",
+      "timeoutMs": 120000
+    },
+    {
+      "id": "integration-execution-warning",
+      "layer": "integration",
+      "file": "dist/tests/integration/execution-warning.test.js",
+      "timeoutMs": 120000
+    },
+    {
+      "id": "integration-supervision-concerns",
+      "layer": "integration",
+      "file": "dist/tests/integration/supervision-concerns.test.js",
+      "timeoutMs": 180000
     }
   ],
   "cases": [
@@ -12059,6 +12095,510 @@
       "prerequisites": "Pinned Node; actual SQLite, controller parsing and real runtime input completion. No model invocation or fabricated author approval.",
       "assertions": "tests/integration/control-controller.test.ts :: P6-CCTL-I02 V2 proposal fences active runtime then rejects missing authoritative author after actual input completion",
       "cleanup": "Close actual store and preserve all formal reports and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-delivery-status-v2.001",
+      "name": "P6-HISTV2-I01 actual SQLite qualification receipt and full final command preserve historical acceptance across reopen",
+      "suiteId": "integration-delivery-status-v2",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-delivery-history-v2"
+      ],
+      "scenario": "P6-HISTV2-I01 actual SQLite qualification receipt and full final command preserve historical acceptance across reopen",
+      "impactTags": [
+        "p6-delivery-history-v2"
+      ],
+      "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
+      "assertions": "tests/integration/delivery-status-v2.test.ts :: P6-HISTV2-I01 actual SQLite qualification receipt and full final command preserve historical acceptance across reopen",
+      "cleanup": "Close actual owned stores and processes; preserve reports and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-delivery-status-v2.002",
+      "name": "P6-HISTV2-I02 changed current environment head child workspace and source TTL do not erase authentic V2 history",
+      "suiteId": "integration-delivery-status-v2",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-delivery-history-v2"
+      ],
+      "scenario": "P6-HISTV2-I02 changed current environment head child workspace and source TTL do not erase authentic V2 history",
+      "impactTags": [
+        "p6-delivery-history-v2"
+      ],
+      "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
+      "assertions": "tests/integration/delivery-status-v2.test.ts :: P6-HISTV2-I02 changed current environment head child workspace and source TTL do not erase authentic V2 history",
+      "cleanup": "Close actual owned stores and processes; preserve reports and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-delivery-status-v2.003",
+      "name": "P6-HISTV2-I03 unavailable reader missing persisted receipt and snapshot substitution cannot claim intact history",
+      "suiteId": "integration-delivery-status-v2",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-delivery-history-v2"
+      ],
+      "scenario": "P6-HISTV2-I03 unavailable reader missing persisted receipt and snapshot substitution cannot claim intact history",
+      "impactTags": [
+        "p6-delivery-history-v2"
+      ],
+      "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
+      "assertions": "tests/integration/delivery-status-v2.test.ts :: P6-HISTV2-I03 unavailable reader missing persisted receipt and snapshot substitution cannot claim intact history",
+      "cleanup": "Close actual owned stores and processes; preserve reports and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-delivery-status-v2.004",
+      "name": "P6-HISTV2-I04 mutated qualification archive and self-rehashed SQLite receipt are rejected as history damage",
+      "suiteId": "integration-delivery-status-v2",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p6-delivery-history-v2"
+      ],
+      "scenario": "P6-HISTV2-I04 mutated qualification archive and self-rehashed SQLite receipt are rejected as history damage",
+      "impactTags": [
+        "p6-delivery-history-v2"
+      ],
+      "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
+      "assertions": "tests/integration/delivery-status-v2.test.ts :: P6-HISTV2-I04 mutated qualification archive and self-rehashed SQLite receipt are rejected as history damage",
+      "cleanup": "Close actual owned stores and processes; preserve reports and failures",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-task-results-bridge.001",
+      "name": "P7-BRIDGE-I01 new sealed packages preserve exact executable bits and reject later mode changes",
+      "suiteId": "integration-task-results-bridge",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p7-result-bridge"
+      ],
+      "scenario": "P7-BRIDGE-I01 new sealed packages preserve exact executable bits and reject later mode changes",
+      "impactTags": [
+        "p7-result-bridge"
+      ],
+      "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
+      "assertions": "tests/integration/task-results-bridge.test.ts :: P7-BRIDGE-I01 new sealed packages preserve exact executable bits and reject later mode changes",
+      "cleanup": "Close actual owned stores and processes; preserve reports and failures",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-task-results-bridge.002",
+      "name": "P7-BRIDGE-I02 submitted result cannot acquire authority from missing P4 job or caller supplied descriptor",
+      "suiteId": "integration-task-results-bridge",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p7-result-bridge"
+      ],
+      "scenario": "P7-BRIDGE-I02 submitted result cannot acquire authority from missing P4 job or caller supplied descriptor",
+      "impactTags": [
+        "p7-result-bridge"
+      ],
+      "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
+      "assertions": "tests/integration/task-results-bridge.test.ts :: P7-BRIDGE-I02 submitted result cannot acquire authority from missing P4 job or caller supplied descriptor",
+      "cleanup": "Close actual owned stores and processes; preserve reports and failures",
+      "status": "active"
+    },
+    {
+      "id": "p7.integration-task-results-bridge.003",
+      "name": "P7-BRIDGE-I03 actual command final binds complete package and verified reads reject changed original proof",
+      "suiteId": "integration-task-results-bridge",
+      "module": "persistence",
+      "layer": "integration",
+      "covers": [
+        "p7-result-bridge"
+      ],
+      "scenario": "P7-BRIDGE-I03 actual command final binds complete package and verified reads reject changed original proof",
+      "impactTags": [
+        "p7-result-bridge"
+      ],
+      "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
+      "assertions": "tests/integration/task-results-bridge.test.ts :: P7-BRIDGE-I03 actual command final binds complete package and verified reads reject changed original proof",
+      "cleanup": "Close actual owned stores and processes; preserve reports and failures",
+      "status": "active"
+    },
+    {
+      "id": "p7.unit-task-scheduler.001",
+      "name": "P7-SCHED-U01 cycles reject while unknown and blocked dependencies preserve unrelated dispatch and necessary gaps",
+      "suiteId": "unit-task-scheduler",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p7-scheduler"
+      ],
+      "scenario": "P7-SCHED-U01 cycles reject while unknown and blocked dependencies preserve unrelated dispatch and necessary gaps",
+      "impactTags": [
+        "p7-scheduler"
+      ],
+      "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
+      "assertions": "tests/unit/task-scheduler.test.ts :: P7-SCHED-U01 cycles reject while unknown and blocked dependencies preserve unrelated dispatch and necessary gaps",
+      "cleanup": "Close actual owned stores and processes; preserve reports and failures",
+      "status": "active"
+    },
+    {
+      "id": "p7.unit-task-scheduler.002",
+      "name": "P7-SCHED-U02 dependencies use exact published heads scope and verification minimum never drafts unknown or stale refs",
+      "suiteId": "unit-task-scheduler",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p7-scheduler"
+      ],
+      "scenario": "P7-SCHED-U02 dependencies use exact published heads scope and verification minimum never drafts unknown or stale refs",
+      "impactTags": [
+        "p7-scheduler"
+      ],
+      "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
+      "assertions": "tests/unit/task-scheduler.test.ts :: P7-SCHED-U02 dependencies use exact published heads scope and verification minimum never drafts unknown or stale refs",
+      "cleanup": "Close actual owned stores and processes; preserve reports and failures",
+      "status": "active"
+    },
+    {
+      "id": "p7.unit-task-scheduler.003",
+      "name": "P7-SCHED-U03 resource readers share while ancestor writers queue and unknown held effects cannot be released by predictions",
+      "suiteId": "unit-task-scheduler",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p7-scheduler"
+      ],
+      "scenario": "P7-SCHED-U03 resource readers share while ancestor writers queue and unknown held effects cannot be released by predictions",
+      "impactTags": [
+        "p7-scheduler"
+      ],
+      "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
+      "assertions": "tests/unit/task-scheduler.test.ts :: P7-SCHED-U03 resource readers share while ancestor writers queue and unknown held effects cannot be released by predictions",
+      "cleanup": "Close actual owned stores and processes; preserve reports and failures",
+      "status": "active"
+    },
+    {
+      "id": "p7.unit-task-scheduler.004",
+      "name": "P7-SCHED-U04 qualitative tier admission is nested independent of agent cap and required work stays necessary",
+      "suiteId": "unit-task-scheduler",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p7-scheduler"
+      ],
+      "scenario": "P7-SCHED-U04 qualitative tier admission is nested independent of agent cap and required work stays necessary",
+      "impactTags": [
+        "p7-scheduler"
+      ],
+      "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
+      "assertions": "tests/unit/task-scheduler.test.ts :: P7-SCHED-U04 qualitative tier admission is nested independent of agent cap and required work stays necessary",
+      "cleanup": "Close actual owned stores and processes; preserve reports and failures",
+      "status": "active"
+    },
+    {
+      "id": "p7.unit-task-scheduler.005",
+      "name": "P7-SCHED-U05 shared budget protects max overlapping verification floor and unknown usage stops every tier without freeing reservations",
+      "suiteId": "unit-task-scheduler",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p7-scheduler"
+      ],
+      "scenario": "P7-SCHED-U05 shared budget protects max overlapping verification floor and unknown usage stops every tier without freeing reservations",
+      "impactTags": [
+        "p7-scheduler"
+      ],
+      "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
+      "assertions": "tests/unit/task-scheduler.test.ts :: P7-SCHED-U05 shared budget protects max overlapping verification floor and unknown usage stops every tier without freeing reservations",
+      "cleanup": "Close actual owned stores and processes; preserve reports and failures",
+      "status": "active"
+    },
+    {
+      "id": "p7.unit-task-scheduler.006",
+      "name": "P7-SCHED-U06 nested allocations constrain every ancestor and expansion respects depth nodes rounds and total budget",
+      "suiteId": "unit-task-scheduler",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p7-scheduler"
+      ],
+      "scenario": "P7-SCHED-U06 nested allocations constrain every ancestor and expansion respects depth nodes rounds and total budget",
+      "impactTags": [
+        "p7-scheduler"
+      ],
+      "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
+      "assertions": "tests/unit/task-scheduler.test.ts :: P7-SCHED-U06 nested allocations constrain every ancestor and expansion respects depth nodes rounds and total budget",
+      "cleanup": "Close actual owned stores and processes; preserve reports and failures",
+      "status": "active"
+    },
+    {
+      "id": "p7.unit-task-scheduler.007",
+      "name": "P7-SCHED-U07 decisions are deterministic immutable input preserving and stop on deadline without claiming final delivery",
+      "suiteId": "unit-task-scheduler",
+      "module": "domain",
+      "layer": "unit",
+      "covers": [
+        "p7-scheduler"
+      ],
+      "scenario": "P7-SCHED-U07 decisions are deterministic immutable input preserving and stop on deadline without claiming final delivery",
+      "impactTags": [
+        "p7-scheduler"
+      ],
+      "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
+      "assertions": "tests/unit/task-scheduler.test.ts :: P7-SCHED-U07 decisions are deterministic immutable input preserving and stop on deadline without claiming final delivery",
+      "cleanup": "Close actual owned stores and processes; preserve reports and failures",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-execution-warning.001",
+      "name": "P6-EXEC-WARN-U01 retry flags remain diagnostic and only authoritative turn status supplies terminal classification",
+      "suiteId": "unit-execution-warning",
+      "module": "execution",
+      "layer": "unit",
+      "covers": [
+        "p6-execution-warning"
+      ],
+      "scenario": "P6-EXEC-WARN-U01 retry flags remain diagnostic and only authoritative turn status supplies terminal classification",
+      "impactTags": [
+        "p6-execution-warning"
+      ],
+      "prerequisites": "Actual Node process, SQLite, protocol adapter and execution manager; explicitly synthetic protocol, not live vendor success.",
+      "assertions": "tests/unit/execution-warning.test.ts :: P6-EXEC-WARN-U01 retry flags remain diagnostic and only authoritative turn status supplies terminal classification",
+      "cleanup": "Stop owned processes, close store; preserve original archived evidence unchanged",
+      "status": "active"
+    },
+    {
+      "id": "p6.unit-execution-warning.002",
+      "name": "P6-EXEC-WARN-U02 frozen paginated evidence denies missing tails nonadvancing cursors and oversized histories",
+      "suiteId": "unit-execution-warning",
+      "module": "execution",
+      "layer": "unit",
+      "covers": [
+        "p6-execution-warning"
+      ],
+      "scenario": "P6-EXEC-WARN-U02 frozen paginated evidence denies missing tails nonadvancing cursors and oversized histories",
+      "impactTags": [
+        "p6-execution-warning"
+      ],
+      "prerequisites": "Actual Node process, SQLite, protocol adapter and execution manager; explicitly synthetic protocol, not live vendor success.",
+      "assertions": "tests/unit/execution-warning.test.ts :: P6-EXEC-WARN-U02 frozen paginated evidence denies missing tails nonadvancing cursors and oversized histories",
+      "cleanup": "Stop owned processes, close store; preserve original archived evidence unchanged",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-execution-warning.001",
+      "name": "P6-EXEC-WARN-I01 synthetic retry diagnostics survive actual events while authoritative completion settles without final error",
+      "suiteId": "integration-execution-warning",
+      "module": "execution",
+      "layer": "integration",
+      "covers": [
+        "p6-execution-warning"
+      ],
+      "scenario": "P6-EXEC-WARN-I01 synthetic retry diagnostics survive actual events while authoritative completion settles without final error",
+      "impactTags": [
+        "p6-execution-warning"
+      ],
+      "prerequisites": "Actual Node process, SQLite, protocol adapter and execution manager; explicitly synthetic protocol, not live vendor success.",
+      "assertions": "tests/integration/execution-warning.test.ts :: P6-EXEC-WARN-I01 synthetic retry diagnostics survive actual events while authoritative completion settles without final error",
+      "cleanup": "Stop owned processes, close store; preserve original archived evidence unchanged",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-execution-warning.002",
+      "name": "P6-EXEC-WARN-I02 synthetic failed terminal and stopped unknown outcome retain failure or unsettled usage rather than becoming success",
+      "suiteId": "integration-execution-warning",
+      "module": "execution",
+      "layer": "integration",
+      "covers": [
+        "p6-execution-warning"
+      ],
+      "scenario": "P6-EXEC-WARN-I02 synthetic failed terminal and stopped unknown outcome retain failure or unsettled usage rather than becoming success",
+      "impactTags": [
+        "p6-execution-warning"
+      ],
+      "prerequisites": "Actual Node process, SQLite, protocol adapter and execution manager; explicitly synthetic protocol, not live vendor success.",
+      "assertions": "tests/integration/execution-warning.test.ts :: P6-EXEC-WARN-I02 synthetic failed terminal and stopped unknown outcome retain failure or unsettled usage rather than becoming success",
+      "cleanup": "Stop owned processes, close store; preserve original archived evidence unchanged",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-execution-warning.003",
+      "name": "P6-EXEC-WARN-I03 matching legacy diagnostic is cleared only by same successful stopped turn and never clears fatal controller evidence",
+      "suiteId": "integration-execution-warning",
+      "module": "execution",
+      "layer": "integration",
+      "covers": [
+        "p6-execution-warning"
+      ],
+      "scenario": "P6-EXEC-WARN-I03 matching legacy diagnostic is cleared only by same successful stopped turn and never clears fatal controller evidence",
+      "impactTags": [
+        "p6-execution-warning"
+      ],
+      "prerequisites": "Actual Node process, SQLite, protocol adapter and execution manager; explicitly synthetic protocol, not live vendor success.",
+      "assertions": "tests/integration/execution-warning.test.ts :: P6-EXEC-WARN-I03 matching legacy diagnostic is cleared only by same successful stopped turn and never clears fatal controller evidence",
+      "cleanup": "Stop owned processes, close store; preserve original archived evidence unchanged",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-execution-warning.004",
+      "name": "P6-EXEC-WARN-I04 legacy resolution reaches actual completion beyond 500 events and preserves the full warning trajectory exactly once",
+      "suiteId": "integration-execution-warning",
+      "module": "execution",
+      "layer": "integration",
+      "covers": [
+        "p6-execution-warning"
+      ],
+      "scenario": "P6-EXEC-WARN-I04 legacy resolution reaches actual completion beyond 500 events and preserves the full warning trajectory exactly once",
+      "impactTags": [
+        "p6-execution-warning"
+      ],
+      "prerequisites": "Actual Node process, SQLite, protocol adapter and execution manager; explicitly synthetic protocol, not live vendor success.",
+      "assertions": "tests/integration/execution-warning.test.ts :: P6-EXEC-WARN-I04 legacy resolution reaches actual completion beyond 500 events and preserves the full warning trajectory exactly once",
+      "cleanup": "Stop owned processes, close store; preserve original archived evidence unchanged",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-concerns.001",
+      "name": "P6-CONC-I01 consumes one applied concern only after actual writer stop and resumes the same durable requirement without a model",
+      "suiteId": "integration-supervision-concerns",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-concern-consumption"
+      ],
+      "scenario": "P6-CONC-I01 consumes one applied concern only after actual writer stop and resumes the same durable requirement without a model",
+      "impactTags": [
+        "p6-concern-consumption"
+      ],
+      "prerequisites": "Actual SQLite, private proof files and owned Node processes; model/P4 metadata fixture explicitly does not certify live model approval.",
+      "assertions": "tests/integration/supervision-concerns.test.ts :: P6-CONC-I01 consumes one applied concern only after actual writer stop and resumes the same durable requirement without a model",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-concerns.002",
+      "name": "P6-CONC-I02 unknown inspection accounting retains its reservation and never becomes a consumable request",
+      "suiteId": "integration-supervision-concerns",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-concern-consumption"
+      ],
+      "scenario": "P6-CONC-I02 unknown inspection accounting retains its reservation and never becomes a consumable request",
+      "impactTags": [
+        "p6-concern-consumption"
+      ],
+      "prerequisites": "Actual SQLite, private proof files and owned Node processes; model/P4 metadata fixture explicitly does not certify live model approval.",
+      "assertions": "tests/integration/supervision-concerns.test.ts :: P6-CONC-I02 unknown inspection accounting retains its reservation and never becomes a consumable request",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-concerns.003",
+      "name": "P6-CONC-I03 original proof bytes and actual event binding are required after disposition was applied",
+      "suiteId": "integration-supervision-concerns",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-concern-consumption"
+      ],
+      "scenario": "P6-CONC-I03 original proof bytes and actual event binding are required after disposition was applied",
+      "impactTags": [
+        "p6-concern-consumption"
+      ],
+      "prerequisites": "Actual SQLite, private proof files and owned Node processes; model/P4 metadata fixture explicitly does not certify live model approval.",
+      "assertions": "tests/integration/supervision-concerns.test.ts :: P6-CONC-I03 original proof bytes and actual event binding are required after disposition was applied",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-concerns.004",
+      "name": "P6-CONC-I04 a forged stopped ledger cannot consume while the original owned Node writer is alive",
+      "suiteId": "integration-supervision-concerns",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-concern-consumption"
+      ],
+      "scenario": "P6-CONC-I04 a forged stopped ledger cannot consume while the original owned Node writer is alive",
+      "impactTags": [
+        "p6-concern-consumption"
+      ],
+      "prerequisites": "Actual SQLite, private proof files and owned Node processes; model/P4 metadata fixture explicitly does not certify live model approval.",
+      "assertions": "tests/integration/supervision-concerns.test.ts :: P6-CONC-I04 a forged stopped ledger cannot consume while the original owned Node writer is alive",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-concerns.005",
+      "name": "P6-CONC-I05 pause cancellation contract replacement and clock rollback never dispatch a new concern effect",
+      "suiteId": "integration-supervision-concerns",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-concern-consumption"
+      ],
+      "scenario": "P6-CONC-I05 pause cancellation contract replacement and clock rollback never dispatch a new concern effect",
+      "impactTags": [
+        "p6-concern-consumption"
+      ],
+      "prerequisites": "Actual SQLite, private proof files and owned Node processes; model/P4 metadata fixture explicitly does not certify live model approval.",
+      "assertions": "tests/integration/supervision-concerns.test.ts :: P6-CONC-I05 pause cancellation contract replacement and clock rollback never dispatch a new concern effect",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-concerns.006",
+      "name": "P6-CONC-I06 exact full-scope P4 request receipt is bound atomically without claiming verification success",
+      "suiteId": "integration-supervision-concerns",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-concern-consumption"
+      ],
+      "scenario": "P6-CONC-I06 exact full-scope P4 request receipt is bound atomically without claiming verification success",
+      "impactTags": [
+        "p6-concern-consumption"
+      ],
+      "prerequisites": "Actual SQLite, private proof files and owned Node processes; model/P4 metadata fixture explicitly does not certify live model approval.",
+      "assertions": "tests/integration/supervision-concerns.test.ts :: P6-CONC-I06 exact full-scope P4 request receipt is bound atomically without claiming verification success",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-concerns.007",
+      "name": "P6-CONC-I07 real conversation fence and persisted clock rollback block consumption without reserving new budget",
+      "suiteId": "integration-supervision-concerns",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-concern-consumption"
+      ],
+      "scenario": "P6-CONC-I07 real conversation fence and persisted clock rollback block consumption without reserving new budget",
+      "impactTags": [
+        "p6-concern-consumption"
+      ],
+      "prerequisites": "Actual SQLite, private proof files and owned Node processes; model/P4 metadata fixture explicitly does not certify live model approval.",
+      "assertions": "tests/integration/supervision-concerns.test.ts :: P6-CONC-I07 real conversation fence and persisted clock rollback block consumption without reserving new budget",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-supervision-concerns.008",
+      "name": "P6-CONC-I08 an applied old-contract concern is durably invalidated without consuming or altering the original inspection",
+      "suiteId": "integration-supervision-concerns",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-concern-consumption"
+      ],
+      "scenario": "P6-CONC-I08 an applied old-contract concern is durably invalidated without consuming or altering the original inspection",
+      "impactTags": [
+        "p6-concern-consumption"
+      ],
+      "prerequisites": "Actual SQLite, private proof files and owned Node processes; model/P4 metadata fixture explicitly does not certify live model approval.",
+      "assertions": "tests/integration/supervision-concerns.test.ts :: P6-CONC-I08 an applied old-contract concern is durably invalidated without consuming or altering the original inspection",
+      "cleanup": "Stop owned processes and close stores; preserve failure evidence",
       "status": "active"
     }
   ]

@@ -3,6 +3,11 @@ import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import type { Artifact, Run } from '../contracts/p1.js';
 import type { RuntimeRecord } from '../contracts/p3.js';
 import type { Conversation, ConversationRound } from '../contracts/p6.js';
+import type { ControlQualificationEvidence, StoredControlDraft } from '../contracts/p4-qualification.js';
+import { safeControlJSON } from '../contracts/p4-controls.js';
+import { reconstructQualification } from './control-bootstrap.js';
+import { specimenDiff } from './control-definition.js';
+import { controlDigest, evaluateControlQualification } from './control-rules.js';
 import type { DeliveryAssessment, DeliveryIssue, DeliveryIssueCode } from '../contracts/p4-delivery-status.js';
 import type { Delivery, FrozenPlan, Proposal, SourceObservation, VerificationJob } from './records.js';
 import { assertCandidate, canonical, digest, scanCandidate } from './candidate.js';
@@ -22,14 +27,21 @@ export interface DeliveryEvidenceSnapshot {
   round: ConversationRound | null;
   head: { proposalId: string } | null;
   scopeIssues: DeliveryIssue[];
-  /** Legacy records without an envelope remain V1. V2 needs a separate receipt reader. */
+  /** Legacy records without an envelope remain V1; V2 is read through the actual immutable receipt repository. */
   definitionFormat?: 'legacy-v1' | 'qualified-v2';
+}
+/** Supply the actual read-only store.controlQualification repository. The assessor
+ * loads by the historical IDs, never accepts a caller-provided validity boolean. */
+export interface DeliveryQualificationReader {
+  qualificationForReview(reviewId: string): ControlQualificationEvidence;
+  draftForProposal(proposalId: string): StoredControlDraft;
 }
 export interface DeliveryAssessmentOptions {
   dataDir: string;
   checkedAt: string;
   workspaceRead: 'quiet' | 'busy' | 'unknown';
   currentEnvironmentDigest: string | null;
+  qualificationReader?: DeliveryQualificationReader;
 }
 const equal = (a: unknown, b: unknown) => canonical(a) === canonical(b);
 class InvalidEvidence extends Error {
@@ -88,11 +100,70 @@ function binding(s: DeliveryEvidenceSnapshot): void {
   ensure(plan.selection.mode === 'final' && plan.selection.completeScope && equal(plan.selection, selection), 'history-selection-invalid', 'Historical plan is not the exact complete final selection');
   const evaluated = evaluateVerification(p.spec, plan.selection, job.results);
   ensure(evaluated.complete && equal(evaluated, job.evaluation), 'history-selection-invalid', 'Historical results do not reproduce the recorded complete evaluation');
+  if (s.definitionFormat === 'qualified-v2') return;
   ensure(review.controls.length === p.spec.controls.length && new Set(review.controls.map(c => c.id)).size === review.controls.length, 'history-evidence-invalid', 'Historical review controls are incomplete');
   for (const control of p.spec.controls) {
     const result = review.controls.find(c => c.id === control.id);
     ensure(result?.passed && (control.expect === 'passed' ? evaluateVerification(p.spec, selection, result.results).complete : result.results.length === selection.instances.length && result.results.every(r => r.executionStatus === 'executed') && control.mustFail.every(id => result.results.some(r => r.checks.some(c => c.obligationId === id && c.verdict === 'failed')))), 'history-evidence-invalid', 'Historical review control outcomes do not satisfy original control expectations');
   }
+}
+interface QualifiedHistory { receipt: ControlQualificationEvidence; draft: StoredControlDraft }
+function qualifiedHistory(s: DeliveryEvidenceSnapshot, options: DeliveryAssessmentOptions): QualifiedHistory {
+  const provider = options.qualificationReader;
+  ensure(provider, 'history-unavailable', 'Qualified V2 immutable qualification repository is unavailable');
+  const receipt = provider.qualificationForReview(s.review.id), draft = provider.draftForProposal(s.proposal.id);
+  safeControlJSON({ receipt, draft });
+  const { digest: receiptDigest, ...receiptBody } = receipt;
+  const { status: _status, version: _version, reviewId: _review, reviewEnvironmentDigest: _environment, ...proposalBody } = s.proposal;
+  ensure(receipt.schemaVersion === 1 && receipt.id === 'qualification:' + s.review.id && receipt.digest === controlDigest(receiptBody) && receipt.reviewJobId === s.review.id && receipt.proposalId === s.proposal.id, 'history-binding-invalid', 'Historical qualification receipt identity or digest differs');
+  ensure(draft.schemaVersion === 1 && draft.proposalId === s.proposal.id && draft.proposalDigest === controlDigest(proposalBody) && receipt.proposalDigest === draft.proposalDigest && receipt.controlDraftDigest === draft.draftDigest && draft.draftDigest === draft.draft.digest && s.proposal.controlDraftDigest === draft.draftDigest, 'history-binding-invalid', 'Historical qualification does not bind the exact immutable proposal and draft');
+  ensure(receipt.environmentDigest === s.review.environmentDigest && equal(receipt.proofs, s.review.proofs) && draft.draft.base.target.projectId === s.run.projectId && draft.draft.base.target.runId === s.run.id && draft.draft.base.target.contractDigest === s.proposal.contractDigest, 'history-binding-invalid', 'Historical qualification differs from the original review or Run');
+  ensure(equal(draft.draft.target.definition.spec, s.proposal.spec) && equal(draft.draft.target.bundle, s.proposal.bundle) && equal(draft.draft.target.definition.contract, s.run.contract), 'history-binding-invalid', 'Historical qualification target differs from the delivered standard');
+  const reconstructed = reconstructQualification({ draft: draft.draft, evidence: receipt.bootstrap, reviewJob: s.review }, 'finished');
+  ensure(equal(reconstructed, receipt.assembled), 'history-evidence-invalid', 'Historical qualification assembly differs from original persisted observations');
+  const execution = receipt.execution, evaluation = evaluateControlQualification(reconstructed.matrix, execution.pairs);
+  ensure(execution.stopConfirmed && execution.matrixDigest === reconstructed.matrix.digest && evaluation.qualified && equal(evaluation, execution.evaluation), 'history-evidence-invalid', 'Historical qualification pairs do not satisfy the complete frozen matrix');
+  const expectedIds = [...draft.draft.bootstrapPlan.map(p => 'bootstrap:' + p.id), ...reconstructed.matrix.rows.map(r => 'qualification:' + r.id)].sort();
+  ensure(equal(s.review.controls.map(c => c.id).sort(), expectedIds), 'history-evidence-invalid', 'Historical V2 review has missing, duplicate or unrelated bootstrap/qualification observations');
+  for (const pair of execution.pairs) { const actual = s.review.controls.find(c => c.id === 'qualification:' + pair.rowId); ensure(actual?.passed && equal(actual.results, pair.results), 'history-evidence-invalid', 'Historical qualification pair differs from its actual stored review result'); }
+  for (const entry of reconstructed.rules.manifest.entries.filter(e => e.disposition === 'current')) {
+    const specimen = reconstructed.specimens.find(s => equal(s.revision.ref, entry.specimen))!;
+    if (specimen.revision.kind === 'positive-full') { const rows = reconstructed.matrix.rows.filter(r => r.role === 'current' && equal(r.specimen, entry.specimen)); const results = rows.flatMap(r => execution.pairs.find(p => p.rowId === r.id)!.results); ensure(evaluateVerification(s.proposal.spec, selectInstances(s.proposal.spec, { mode: 'final' }), results).complete, 'history-evidence-invalid', 'Historical positive did not satisfy the full final standard'); }
+  }
+  const model = receipt.independentReview;
+  ensure(model.verdict === 'passed' && model.stopConfirmed && model.modelStarted && model.threadId && model.turnId && Number.isSafeInteger(model.usage) && model.usage! > 0 && model.usage! <= s.review.usage && model.proofFiles.length > 0 && model.proofFiles.every(p => receipt.proofs[p]), 'history-evidence-invalid', 'Historical qualification lacks its completed independent review');
+  return structuredClone({ receipt, draft });
+}
+async function qualifiedFiles(history: QualifiedHistory, options: DeliveryAssessmentOptions): Promise<void> {
+  const read = reader(options.dataDir), { receipt } = history;
+  for (const definition of receipt.assembled.definitions) {
+    for (const name of Object.keys(definition.bundle.files)) await read(join(definition.bundle.directory, name));
+    for (const control of definition.bundle.controls) { for (const name of Object.keys(control.candidate.files)) await read(join(control.candidate.tree, name)); await assertCandidate(control.candidate, false); }
+    await assertDefinition(definition.definition.spec, definition.bundle, false);
+  }
+  for (const specimen of receipt.assembled.specimens) {
+    for (const name of Object.keys(specimen.candidate.files)) await read(join(specimen.candidate.tree, name)); await assertCandidate(specimen.candidate, false);
+    for (const witness of specimen.revision.witnesses) for (const [path, hash] of Object.entries(witness.proofs)) ensure(digest(await read(path)) === hash, 'history-file-changed', 'Historical negative witness proof bytes changed');
+  }
+  for (const proof of [receipt.bootstrap.proofs, receipt.execution.proofs]) for (const [path, hash] of Object.entries(proof)) ensure(receipt.proofs[path] === hash && digest(await read(path, join(options.dataDir, 'verification', receipt.reviewJobId))) === hash, 'history-file-changed', 'Historical qualification execution proof differs');
+  const actualProofs = [...new Set(receipt.execution.pairs.flatMap(p => p.results.flatMap(r => r.proofFiles ?? [])))].sort();
+  ensure(equal(Object.keys(receipt.execution.proofs).sort(), actualProofs), 'history-evidence-invalid', 'Historical qualification proof inventory differs from actual pair results');
+  const model = receipt.independentReview, root = join(options.dataDir, 'verification', receipt.reviewJobId), resultPaths = model.proofFiles.filter(p => p.endsWith('/result.json'));
+  ensure(resultPaths.length === 1, 'history-evidence-invalid', 'Historical independent review lacks a unique actual result');
+  const modelRoot = resultPaths[0]!.slice(0, -'/result.json'.length), output = join(modelRoot, 'output.txt'), eventsPath = join(modelRoot, 'events.jsonl');
+  ensure(equal(JSON.parse((await read(resultPaths[0]!, root)).toString()), model), 'history-evidence-invalid', 'Historical independent review differs from its raw persisted result');
+  ensure(model.proofFiles.includes(output) && model.proofFiles.includes(eventsPath) && equal(JSON.parse((await read(output, root)).toString()), { verdict: model.verdict, reason: model.reason, observations: model.observations }), 'history-evidence-invalid', 'Historical review raw output differs');
+  const events = (await read(eventsPath, root)).toString().trim().split('\n').map(line => JSON.parse(line) as { kind: string; value: any });
+  const inputs = events.filter(e => e.kind === 'review-input');
+  ensure(inputs.length === 1 && typeof inputs[0]!.value.prompt === 'string' && digest(inputs[0]!.value.prompt) === receipt.reviewPromptDigest, 'history-evidence-invalid', 'Historical review prompt differs from its recorded digest');
+  const prompt = inputs[0]!.value.prompt as string, newline = prompt.indexOf('\n'); ensure(newline > 0, 'history-evidence-invalid', 'Historical review context is absent');
+  const payload = JSON.parse(prompt.slice(newline + 1)), implementationText: Record<string, Record<string, string>> = {}, specimenText: Record<string, Record<string, string>> = {};
+  for (const definition of receipt.assembled.definitions) { const files: Record<string, string> = {}; for (const name of Object.keys(definition.bundle.files)) files[name] = new TextDecoder('utf-8', { fatal: true }).decode(await read(join(definition.bundle.directory, name))); implementationText[definition.definition.definitionDigest] = files; }
+  for (const specimen of receipt.assembled.specimens) { const files: Record<string, string> = {}; for (const name of Object.keys(specimen.candidate.files)) files[name] = new TextDecoder('utf-8', { fatal: true }).decode(await read(join(specimen.candidate.tree, name))); specimenText[specimen.revision.ref.id + ':' + specimen.revision.ref.revision] = files; }
+  const diffs = receipt.assembled.specimens.filter(s => s.revision.predecessor).map(s => { const before = receipt.assembled.specimens.find(p => equal(p.revision.ref, s.revision.predecessor)); ensure(before, 'history-binding-invalid', 'Historical review lacks an original specimen'); return { specimen: s.revision.ref, diff: specimenDiff(before, s) }; });
+  ensure(equal(payload, { rules: receipt.assembled.rules, matrix: receipt.assembled.matrix, pairs: receipt.execution.pairs, deterministicQualification: receipt.execution.evaluation, implementations: implementationText, specimenImplementations: specimenText, diffs }), 'history-evidence-invalid', 'Historical model prompt did not contain the complete frozen qualification');
+  ensure(events.some(e => e.kind === 'codex-event' && e.value?.method === 'turn/completed' && e.value?.raw?.params?.threadId === model.threadId && e.value.raw.params?.turn?.id === model.turnId && e.value.raw.params.turn.status === 'completed'), 'history-evidence-invalid', 'Historical independent review lacks its authoritative completed turn');
+
 }
 /** Confined, bounded file reader. Refuses symlinks at every component, not just the leaf. */
 function reader(dataDir: string) {
@@ -160,8 +231,11 @@ export async function assessDeliveryEvidence(snapshot: DeliveryEvidenceSnapshot,
   result.issues.push(...structuredClone(s.scopeIssues));
   const add = (code: DeliveryIssueCode, area: DeliveryIssue['area'], message: string) => result.issues.push({ code, area, message });
   try {
-    ensure(s.definitionFormat !== 'qualified-v2', 'history-format-unsupported', 'Qualified V2 history requires its immutable qualification receipt adapter');
-    binding(s); await files(s, options); result.historicalEvidenceIntact = true;
+    binding(s);
+    const qualification = s.definitionFormat === 'qualified-v2' ? qualifiedHistory(s, options) : null;
+    await files(s, options);
+    if (qualification) { await qualifiedFiles(qualification, options); ensure(equal(qualification, qualifiedHistory(s, options)), 'history-evidence-invalid', 'Immutable historical qualification changed during the read-only audit'); }
+    result.historicalEvidenceIntact = true;
   } catch (error) {
     const errno = (error as NodeJS.ErrnoException).code;
     const code = error instanceof InvalidEvidence ? error.code : errno === 'ENOENT' ? 'history-file-missing' : errno === 'EACCES' || errno === 'EPERM' ? 'history-unavailable' : /bounded.*capacity|exceeds.*capacity/i.test(String(error)) ? 'history-capacity-exceeded' : 'history-evidence-invalid';

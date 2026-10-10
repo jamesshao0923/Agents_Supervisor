@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "stage": "P7",
-  "revision": "p7-result-persistence-v2",
+  "revision": "p7-scheduler-bridge-v3",
   "caseIds": [
     "p7.unit-task-results.001",
     "p7.unit-task-results.002",
@@ -25,11 +25,23 @@
     "p7.integration-task-results.006",
     "p7.integration-task-results.007",
     "p7.integration-task-results.008",
-    "p7.integration-task-results.009"
+    "p7.integration-task-results.009",
+    "p7.integration-task-results-bridge.001",
+    "p7.integration-task-results-bridge.002",
+    "p7.integration-task-results-bridge.003",
+    "p7.unit-task-scheduler.001",
+    "p7.unit-task-scheduler.002",
+    "p7.unit-task-scheduler.003",
+    "p7.unit-task-scheduler.004",
+    "p7.unit-task-scheduler.005",
+    "p7.unit-task-scheduler.006",
+    "p7.unit-task-scheduler.007"
   ],
   "requiredRisks": [
     "p7-task-results",
-    "p7-result-persistence"
+    "p7-result-persistence",
+    "p7-result-bridge",
+    "p7-scheduler"
   ],
   "coreRegression": [
     "dev.integration-runner.003",

@@ -8,7 +8,7 @@ import { isAbsolute, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { createInterface } from 'node:readline';
 import type { Run, RunAction } from '../contracts/p1.js';
-import { parseExecutionAction, type ExecutionAction, type ExecutionRecord, type ExecutionStart, type ExecutionState, type ExecutorCapabilities, type ModelCapability } from '../contracts/p2.js';
+import { parseExecutionAction, type ExecutionAction, type ExecutionEvent, type ExecutionRecord, type ExecutionStart, type ExecutionState, type ExecutorCapabilities, type ModelCapability } from '../contracts/p2.js';
 import { SupervisorStore } from '../persistence/store.js';
 import { spawnManagedProcess, inspectProcess, terminateProcess, type ManagedProcess, type ProcessIdentity, type ProcessResult } from '../process-control/index.js';
 import { CodexAdapter, inspectProtocol, type LineTransport, type NormalizedEvent, type UserInput } from '../executor-codex/index.js';
@@ -16,6 +16,28 @@ import { CodexAdapter, inspectProtocol, type LineTransport, type NormalizedEvent
 const execute = promisify(execFile);
 const errorText = (e: unknown): string => e instanceof Error ? e.message : String(e);
 const terminal = (s: ExecutionState): boolean => ['completed','cancelled','failed','interrupted','unknown'].includes(s);
+/** Reads a frozen evidence prefix despite repository pagination. Incomplete,
+ * malformed or excessive evidence remains unknown and cannot clear an error. */
+export function readExecutionEventsThrough(id:string,lastEventSeq:number,readPage:(after:number)=>ExecutionEvent[]):ExecutionEvent[]|null {
+  if(!Number.isSafeInteger(lastEventSeq)||lastEventSeq<=0)return null;
+  const events:ExecutionEvent[]=[];let after=0,characters=0;
+  try {
+    while(after<lastEventSeq){
+      const cursor=after;const page=readPage(after);if(!Array.isArray(page)||page.length===0||page.length>500)return null;
+      let previous=after;
+      for(const event of page){
+        if(event.executionId!==id||!Number.isSafeInteger(event.seq)||event.seq<=previous)return null;
+        previous=event.seq;if(event.seq>lastEventSeq)break;
+        characters+=JSON.stringify(event).length;
+        if(events.length>=50000||characters>8*1024*1024)return null;
+        events.push(event);after=event.seq;
+      }
+      if(after===lastEventSeq)return events;
+      if(previous>lastEventSeq||after===cursor)return null;
+    }
+  } catch {return null;}
+  return null;
+}
 function transport(child: ManagedProcess): LineTransport {
   const lines = createInterface({ input: child.stdout });
   return {
@@ -195,7 +217,9 @@ export class ExecutionManager {
     if(!terminal(record.state)&&!record.cancelRequested) {
       if(event.kind==='waiting')patch.state='waiting';
       if(event.kind==='thread-status'&&event.status==='active')patch.state='running';
-      if(event.kind==='error')patch.error=JSON.stringify(event.raw.params);
+      // Retriable provider diagnostics remain in both durable raw/normalized events.
+      // They do not assert that the eventual authoritative turn failed.
+      if(event.kind==='error'&&event.willRetry!==true)patch.error=JSON.stringify(event.raw.params);
       if(event.kind==='protocol-error'||event.kind==='disconnected'&&!(active?.finishing&&active.terminalStatus))patch.error='Codex connection interrupted; outcome requires reconciliation';
     }
     if(event.kind==='turn-status'&&event.terminal)patch.terminalStatus=event.status??'unknown';
@@ -284,7 +308,28 @@ export class ExecutionManager {
     if(!attempt.settled && ((record.usage && authoritativeTerminal) || !launched))actions.push({type:'settleAttempt',attemptId:record.attemptId,actual:record.usage?.totalTokens??0});
     actions.push({type:'setOperation',operationId:id,attemptId:id,status:stopped&&(!launched||authoritativeTerminal)?'confirmed':'unknown'});
     if(stopped&&run.leases.some(l=>!l.released))actions.push({type:'releaseLease',resource:'workspace:'+record.workspace,attemptId:id});
-    this.store.executionUpdate(id,{state,stopConfirmed:stopped,artifactId},'execution-stopped',{evidence,usageSettled:!!record.usage&&authoritativeTerminal||!launched},actions);
+    const resolvedDiagnostic=this.resolvedDiagnostic(id,record,state,stopped,authoritativeTerminal);
+    this.store.executionUpdate(id,{state,stopConfirmed:stopped,artifactId,...(resolvedDiagnostic?{error:null}:{})},'execution-stopped',{evidence,usageSettled:!!record.usage&&authoritativeTerminal||!launched,...(resolvedDiagnostic?{resolvedDiagnosticEventSeq:resolvedDiagnostic}:{})},actions);
+  }
+  /** Clears only a persisted diagnostic superseded by the same authoritative
+   * successful turn. Control failures/cancellation/unknown stops remain errors;
+   * this also supports recovery of older records without deleting history. */
+  private resolvedDiagnostic(id:string,record:ExecutionRecord,state:ExecutionState,stopped:boolean,authoritative:boolean):number|null {
+    if(state!=='completed'||!stopped||!authoritative||record.cancelRequested||record.error===null)return null;
+    const events=readExecutionEventsThrough(id,record.lastEventSeq,after=>this.store.executionEvents(id,after));
+    if(!events)return null;
+    const diagnostic=events.findLast(event=>{
+      const value=event.payload as Partial<NormalizedEvent>|null;
+      return event.kind==='codex-event'&&value?.kind==='error'&&value.willRetry===true&&value.threadId===record.threadId&&value.turnId===record.turnId&&JSON.stringify(value.raw?.params)===record.error;
+    });
+    if(!diagnostic)return null;
+    const success=events.findLast(event=>{
+      const value=event.payload as Partial<NormalizedEvent>|null;
+      const params=value?.raw?.params as {turn?:{error?:unknown}}|undefined;
+      return event.seq>diagnostic.seq&&event.kind==='codex-event'&&value?.kind==='turn-status'&&value.terminal&&value.status==='completed'&&value.threadId===record.threadId&&value.turnId===record.turnId&&params?.turn?.error==null;
+    });
+    if(!success||events.some(event=>['execution-error','deadline-reached','cancel-requested'].includes(event.kind)||event.kind==='codex-event'&&event.seq<success.seq&&['protocol-error','disconnected'].includes((event.payload as Partial<NormalizedEvent>|null)?.kind??'')))return null;
+    return diagnostic.seq;
   }
   private async workspaceSnapshot(workspace:string):Promise<unknown> {
     try {
@@ -326,7 +371,7 @@ export class ExecutionManager {
     return work;
   }
   private async reconcileStopped(id:string):Promise<ExecutionRecord> {
-    const record=this.store.executionGet(id);if(record.stopConfirmed)return record;
+    const record=this.store.executionGet(id);if(record.stopConfirmed)return this.reconcileConfirmedDiagnostic(id);
     if(this.active.has(id))return this.cancel(id);
     let stopped=!record.identity;let evidence:unknown={reason:'No recorded released process identity'};
     if(record.identity) {
@@ -338,6 +383,23 @@ export class ExecutionManager {
     // A lost live connection leaves result and usage uncertain. Do not turn it into a successful run.
     await this.finalize(id,stopped?(record.cancelRequested?'cancelled':record.terminalStatus==='completed'?'completed':record.terminalStatus==='failed'?'failed':'interrupted'):'unknown',stopped,evidence,record.turnIntent===true||record.turnId!==null,!!record.terminalStatus);
     return this.store.executionGet(id);
+  }
+  private async reconcileConfirmedDiagnostic(id:string):Promise<ExecutionRecord> {
+    let record=this.store.executionGet(id);
+    const matching=()=>{
+      if(record.state!=='completed'||record.terminalStatus!=='completed'||record.usageStatus!=='reported'||!record.usage||!record.identity)return null;
+      const run=this.store.query({type:'run',projectId:record.projectId,runId:record.runId}) as Run;
+      const attempt=run.attempts.find(a=>a.id===record.attemptId);
+      if(!attempt||attempt.status!=='succeeded'||!attempt.settled||attempt.actual!==record.usage.totalTokens||!Number.isSafeInteger(attempt.actual)||attempt.actual<0)return null;
+      const operations=run.operations.filter(o=>o.attemptId===record.attemptId);
+      if(!operations.length||operations.some(o=>o.status!=='confirmed')||run.leases.some(l=>l.attemptId===record.attemptId&&!l.released))return null;
+      return this.resolvedDiagnostic(id,record,record.state,record.stopConfirmed,true);
+    };
+    if(!matching()||(await inspectProcess(record.identity as ProcessIdentity)).status!=='stopped')return this.store.executionGet(id);
+    // Re-read after OS inspection. CAS inside BEGIN IMMEDIATE prevents another
+    // controller's late event or concurrent resolution from being overwritten.
+    record=this.store.executionGet(id);const diagnostic=matching();if(!diagnostic)return record;
+    return this.store.executionUpdate(id,{error:null},'execution-diagnostic-resolved',{diagnosticEventSeq:diagnostic,terminalStatus:record.terminalStatus,usage:record.usage,reason:'Exact retriable diagnostic superseded by authoritative successful stopped and settled turn'},[],record.lastEventSeq);
   }
   async close(options:{cancel?:boolean}={}):Promise<void> {
     this.closing=true;

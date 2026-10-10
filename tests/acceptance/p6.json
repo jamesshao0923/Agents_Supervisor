@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "stage": "P6",
-  "revision": "p6-control-qualification-v2",
+  "revision": "p6-concern-reconciliation-v4",
   "caseIds": [
     "dev.unit-contracts.001",
     "dev.unit-contracts.002",
@@ -588,7 +588,25 @@
     "p6.unit-desktop-presentation.001",
     "p6.unit-acceptance-authoring.008",
     "p6.integration-control-controller.001",
-    "p6.integration-control-controller.002"
+    "p6.integration-control-controller.002",
+    "p6.integration-delivery-status-v2.001",
+    "p6.integration-delivery-status-v2.002",
+    "p6.integration-delivery-status-v2.003",
+    "p6.integration-delivery-status-v2.004",
+    "p6.unit-execution-warning.001",
+    "p6.unit-execution-warning.002",
+    "p6.integration-execution-warning.001",
+    "p6.integration-execution-warning.002",
+    "p6.integration-execution-warning.003",
+    "p6.integration-execution-warning.004",
+    "p6.integration-supervision-concerns.001",
+    "p6.integration-supervision-concerns.002",
+    "p6.integration-supervision-concerns.003",
+    "p6.integration-supervision-concerns.004",
+    "p6.integration-supervision-concerns.005",
+    "p6.integration-supervision-concerns.006",
+    "p6.integration-supervision-concerns.007",
+    "p6.integration-supervision-concerns.008"
   ],
   "requiredRisks": [
     "p0.unit-contracts.001",
@@ -871,7 +889,10 @@
     "p6-control-authoring",
     "p6-control-persistence",
     "p6-delivery-history",
-    "p6-control-controller"
+    "p6-control-controller",
+    "p6-delivery-history-v2",
+    "p6-execution-warning",
+    "p6-concern-consumption"
   ],
   "coreRegression": [
     "dev.integration-runner.003",

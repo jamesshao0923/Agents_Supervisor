@@ -35,14 +35,14 @@ const external="import assert from 'node:assert/strict';import {increment,decrem
 // direct DB write, injected state, alternate model adapter or skipped assertion.
 // This checks monitoring during one real long engineering execution; independent
 // P4 delivery is covered by the separate autonomous-loop live case, not by this.
-test('P6-MON-L01 real three five-minute windows inspect skip inspect while one Codex engineering turn remains active',{timeout:1_350_000},async t=>{
+test('P6-MON-L01 real three five-minute windows inspect skip inspect while one Codex engineering turn remains active',{timeout:1_480_000},async t=>{
   const root=await realpath(await mkdtemp(join(tmpdir(),'sv-p6-monitor-live-'))),data=join(root,'data'),workspace=join(root,'project');await mkdir(workspace);
   const evidence=join(process.env.SUPERVISOR_EVIDENCE_DIR??resolve('.supervisor-dev/live'),'artifacts','p6-monitor-'+randomUUID());await mkdir(evidence,{recursive:true});
-  const deadline=Date.now()+1_320_000,planningDeadline=Date.now()+120_000;
+  const deadline=Date.now()+1_440_000,planningDeadline=Date.now()+240_000;
   const selection={model:process.env.SUPERVISOR_LIVE_MODEL??'gpt-5.6-sol',effort:process.env.SUPERVISOR_LIVE_EFFORT??'low'};
   // Admission inherits this config into the execution step. Planning still has
-  // its own 120s observation deadline; a network failure is a failure, not skip.
-  const config={...selection,reservation:150_000,timeoutMs:1_200_000},monitorConfig={...selection,reservation:150_000,timeoutMs:120_000};
+  // its own 240s observation deadline after observed transport fallback at 118s; a network failure is a failure, not skip.
+  const config={...selection,reservation:150_000,timeoutMs:1_200_000},monitorConfig={...selection,reservation:150_000,timeoutMs:180_000};
   const store=new SupervisorStore(data),runtime=new LocalRuntimeAdapter(store,data),orchestration=new OrchestrationController(store,data,runtime),verification=new VerificationController(store,data),supervision=new SupervisionController(store,data,runtime,verification);
   let sessionId:string|undefined,runtimeId:string|undefined,loopId:string|undefined,executionId:string|undefined,epoch:number|undefined,contractBytes:string|undefined,stepBytes:string|undefined;
   const stageFacts=new Map<string,ExecutionEvent>();

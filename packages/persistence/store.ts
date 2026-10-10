@@ -1,3 +1,4 @@
+import { SupervisionConcernRepository } from './supervision-concerns.js';
 import { VerificationLineageRepository } from './verification-lineage.js';
 import { ControlQualificationRepository } from './control-qualification.js';
 import { TaskResultRepository } from './task-results.js';
@@ -46,6 +47,7 @@ export class SupervisorStore {
   readonly supervision: SupervisionRepository;
   readonly supervisionInterruptions: SupervisionInterruptionRepository;
   readonly supervisionMonitor: SupervisionMonitorRepository;
+  readonly supervisionConcerns: SupervisionConcernRepository;
   readonly conversations: ConversationRepository;
   readonly verification: VerificationRepository;
   readonly verificationLineage: VerificationLineageRepository;
@@ -73,6 +75,7 @@ export class SupervisorStore {
     this.supervision = new SupervisionRepository(this.db);
     this.supervisionInterruptions = new SupervisionInterruptionRepository(this.db);
     this.supervisionMonitor = new SupervisionMonitorRepository(this.db);
+    this.supervisionConcerns = new SupervisionConcernRepository(this.db, this.root);
     this.conversations = new ConversationRepository(this.db);
     this.verification = new VerificationRepository(this.db);
     this.verificationLineage = new VerificationLineageRepository(this.db);
@@ -88,8 +91,8 @@ export class SupervisorStore {
   executionGet(id: string) { return executionGet(this.db, id); }
   executionList() { return executionList(this.db); }
   executionEvents(id: string, after: number) { return executionEvents(this.db, id, after); }
-  executionUpdate(id: string, patch: Partial<ExecutionRecord>, kind: string, payload: unknown, actions: RunAction[] = []) {
-    return executionUpdate(this.db, id, patch, kind, payload, actions);
+  executionUpdate(id: string, patch: Partial<ExecutionRecord>, kind: string, payload: unknown, actions: RunAction[] = [], expectedEventSeq?:number) {
+    return executionUpdate(this.db, id, patch, kind, payload, actions,expectedEventSeq);
   }
   isManagedRun(projectId: string, runId: string): boolean {
     return !!this.db.prepare('SELECT id FROM goal_sessions WHERE project_id=? AND run_id=?').get(projectId, runId) || !!this.db.prepare('SELECT id FROM executions WHERE project_id=? AND run_id=?').get(projectId, runId) || !!this.db.prepare('SELECT id FROM runtime_runs WHERE project_id=? AND run_id=?').get(projectId, runId);

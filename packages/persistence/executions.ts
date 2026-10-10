@@ -89,10 +89,11 @@ export function executionCreate(db: DatabaseSync, input: ResolvedExecutionStart,
   } catch (error) { db.exec('ROLLBACK'); throw error; }
 }
 /** Called only by the deterministic execution controller, never by renderer-supplied patches. */
-export function executionUpdate(db: DatabaseSync, id: string, patch: Partial<ExecutionRecord>, kind: string, payload: unknown, actions: RunAction[] = []): ExecutionRecord {
+export function executionUpdate(db: DatabaseSync, id: string, patch: Partial<ExecutionRecord>, kind: string, payload: unknown, actions: RunAction[] = [],expectedEventSeq?:number): ExecutionRecord {
   db.exec('BEGIN IMMEDIATE');
   try {
     const previous = executionGet(db,id);
+    if(expectedEventSeq!==undefined){if(!Number.isSafeInteger(expectedEventSeq)||expectedEventSeq<0)throw new Error('Invalid execution event CAS');if(previous.lastEventSeq!==expectedEventSeq){db.exec('COMMIT');return previous;}}
     if (patch.id !== undefined && patch.id !== id) throw new Error('Execution identity immutable');
     const record = { ...previous, ...patch, updatedAt: new Date().toISOString() };
     if (previous.cancelRequested && record.state === 'completed') throw new Error('Cancelled execution cannot become completed');

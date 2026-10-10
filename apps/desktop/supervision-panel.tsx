@@ -4,7 +4,7 @@ import type { ReasonerConfig } from '../../packages/contracts/p5.js';
 import type { SupervisionRecord } from '../../packages/contracts/p6-supervision.js';
 import type { SupervisionAction,SupervisionInspection } from '../../packages/contracts/p6-supervision-actions.js';
 import { describeTaskError } from './presentation.js';
-export interface SupervisionView {loop:SupervisionRecord;monitor?:SupervisionInspection['monitor'];capabilities?:SupervisionInspection['capabilities']}
+export interface SupervisionView {loop:SupervisionRecord;verification?:SupervisionInspection['verification'];monitor?:SupervisionInspection['monitor'];capabilities?:SupervisionInspection['capabilities']}
 export interface SupervisionDesktopAPI {
   supervisionList():Promise<SupervisionView[]>;
   supervisionAttach(input:Omit<Extract<SupervisionAction,{type:'attach'}>,'type'>):Promise<SupervisionView>;
@@ -54,6 +54,12 @@ export function SupervisionPanel({api,runtime,config,maxContextChars,online,term
       <p role="status"><strong>{loop.stopped?'监督已停止':loop.paused?'监督已暂停':phases[loop.phase]}</strong></p>
       <p className="form-hint">已修复 {loop.repairCount} / {loop.limits.maxRepairs} 次 · 主控分析 {loop.reasoningCount} / {loop.limits.maxReasoningCalls} 次<br/>每 15 秒核对状态；{view?.capabilities?.modelMonitoring?'执行期间每 5 分钟按进展变化巡检，阶段切换时另行分析。':'模型分析在阶段切换时触发。'}</p>
       {view?.capabilities?.modelMonitoring&&<div className="notice compact" aria-label="运行巡检"><p><strong>{monitorStatus}</strong></p>{summary&&<><p>{summary}</p><p className="form-hint">最近有效观察 · {new Date(applied!.record.observedAt).toLocaleString()}。巡检结论不代替独立验收。</p></>}</div>}
+      {!!monitor?.concerns?.length&&<div className="notice compact" aria-label="巡检后续核对">{monitor.concerns.map(item=>{
+        const job=item.binding?view?.verification?.jobs.find(job=>job.id===item.binding!.verificationJobId):null;
+        const state=item.invalidation?(item.invalidation.reason==='contract-changed'?'需求已更新，保留此前观察':item.invalidation.reason==='cancelled'?'任务已停止，保留此前观察':'已交付任务的历史观察'):
+          !item.binding?'已排入完整独立验收':!job?'验收状态待核对':job.status==='running'?'正在进行完整独立验收':job.error?'验收遇到问题，等待处理':job.approved&&job.evaluation?.complete?'完整验收通过；交付状态见任务':'完整验收未通过，仍需处理';
+        return <p key={item.consumption.id}><strong>{state}</strong><br/>{item.consumption.observation.summary}</p>;
+      })}</div>}
       {loop.reason&&<div className="notice compact"><p>{/[\u3400-\u9fff]/.test(loop.reason)?loop.reason:describeTaskError(loop.reason)}</p><details className="technical-details"><summary>查看监督原因</summary><pre>{loop.reason}</pre></details></div>}
       {!loop.stopped&&loop.phase!=='complete'&&<div className="verification-buttons"><button className="button" disabled={!online||!known||busy} onClick={()=>{void act(loop.paused?'resume':'pause');}}>{loop.paused?'恢复监督':'暂停监督'}</button><button className="button danger" disabled={!online||!known||busy} onClick={()=>{void act('stop');}}>停止自动监督</button></div>}
       <p className="form-hint">监督控制只影响主控与验收；停止整个任务请使用下方“取消任务”。</p>
