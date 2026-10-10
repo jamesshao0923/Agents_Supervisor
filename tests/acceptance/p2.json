@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "stage": "P2",
-  "revision": "p2-catalog-v1",
+  "revision": "p2-catalog-v2",
   "caseIds": [
     "dev.unit-contracts.001",
     "dev.unit-contracts.002",
@@ -182,7 +182,11 @@
     "p2.execution.003",
     "p2.execution.004",
     "p2.execution.005",
-    "p2.execution.006"
+    "p2.execution.006",
+    "p2.execution.007",
+    "p2.execution.008",
+    "p2.execution.009",
+    "p2.execution.010"
   ],
   "requiredRisks": [
     "p0.unit-contracts.001",
@@ -373,7 +377,11 @@
     "p2.execution.budget-before-dispatch",
     "p2.execution.actual-writer-reconcile",
     "p2.execution.ipc-controller-authority",
-    "p2.execution.pending-launch-cancel-fence"
+    "p2.execution.pending-launch-cancel-fence",
+    "p2.execution.managed-workspace-durability",
+    "p2.execution.managed-workspace-validation",
+    "p2.execution.canonical-project-grouping",
+    "p2.execution.legacy-workspace-compatibility"
   ],
   "coreRegression": [
     "dev.integration-runner.003",

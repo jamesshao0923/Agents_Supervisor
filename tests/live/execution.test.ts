@@ -71,6 +71,7 @@ test('live Codex repairs an isolated TypeScript project with immutable independe
   const record=await f.until(started.id,r=>r.stopConfirmed);
   const trajectory=await f.stopped(record);
   assert.equal(record.state,'completed',record.error??record.message);
+  assert.equal(record.error,null,'Intentional teardown after a completed turn must not appear as transport failure');
   assert.ok(record.threadId&&record.turnId);assert.equal(record.usageStatus,'reported');assert.ok(record.usage!.totalTokens>0);assert.ok(record.artifactId);
   assert.equal(digest(await readFile(join(f.workspace,'assertions.mjs'))),digest(check),'Executor cannot weaken verifier');
   assert.notEqual(await readFile(join(f.workspace,'src/price.ts'),'utf8'),source);

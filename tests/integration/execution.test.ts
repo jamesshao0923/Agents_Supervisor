@@ -1,16 +1,17 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { mkdtemp, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, realpath, readdir, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { DatabaseSync } from 'node:sqlite';
 import { setTimeout as delay } from 'node:timers/promises';
 import { promisify } from 'node:util';
 import test, { type TestContext } from 'node:test';
 import { request } from '../../apps/cli/client.js';
 import { startService } from '../../apps/supervisor/server.js';
 import type { Run } from '../../packages/contracts/p1.js';
-import type { ExecutionRecord, ExecutionStart } from '../../packages/contracts/p2.js';
+import type { ExecutionRecord, ExecutionStart, ResolvedExecutionStart } from '../../packages/contracts/p2.js';
 import { ExecutionManager } from '../../packages/execution/manager.js';
 import { SupervisorStore } from '../../packages/persistence/store.js';
 import { inspectProcess, spawnManagedProcess } from '../../packages/process-control/index.js';
@@ -32,8 +33,15 @@ async function fixture(t: TestContext) {
     close(store: SupervisorStore) { store.close(); stores.delete(store); },
   };
 }
-function start(workspace: string, commandId = 'integration-command'): ExecutionStart {
+function start(workspace: string, commandId = 'integration-command'): ExecutionStart & { workspace: string } {
   return { type: 'start', commandId, workspace, prompt: 'Bounded integration task; no model invocation', model: 'uninvoked-model', effort: 'low', timeoutMs: 10_000, tokenLimit: 100, reservation: 60, verificationReserve: 20 };
+}
+function resolvedStart(workspace: string, commandId = 'integration-command'): ResolvedExecutionStart {
+  return { ...start(workspace, commandId), workspaceKind: 'project' };
+}
+function automatic(commandId: string): ExecutionStart {
+  const { workspace: _workspace, ...input } = start('/', commandId);
+  return input;
 }
 function run(store: SupervisorStore, record: ExecutionRecord): Run {
   return store.query({ type: 'run', projectId: record.projectId, runId: record.runId }) as Run;
@@ -61,14 +69,14 @@ async function failingExecutable(root: string, source: string): Promise<string> 
 
 test('execution SQLite persists canonical start receipt reservation lease and event cursor across reopen', async t => {
   const f = await fixture(t); let store = f.open();
-  const input = start(f.workspace);
+  const input = resolvedStart(f.workspace);
   const first = store.executionCreate(input); assert.equal(first.created, true);
   const before = run(store, first.record); const events = store.executionEvents(first.record.id, 0);
   assert.equal(before.budget.unit, 'token'); assert.equal(before.budget.spent, 0); assert.equal(before.budget.verificationReserve, 20);
   assert.deepEqual(before.attempts.map(a => ({ reservation: a.reservation, settled: a.settled, actual: a.actual })), [{ reservation: 60, settled: false, actual: null }]);
   assert.deepEqual(before.leases, [{ resource: 'workspace:' + f.workspace, attemptId: first.record.id, released: false }]);
   assert.equal(before.operations[0]?.status, 'pending'); assert.equal(events.length, 1); assert.equal(events[0]?.kind, 'execution-intent');
-  const reordered = Object.fromEntries(Object.entries(input).reverse()) as unknown as ExecutionStart;
+  const reordered = Object.fromEntries(Object.entries(input).reverse()) as unknown as ResolvedExecutionStart;
   assert.deepEqual(store.executionCreate({ ...reordered, images: [] }), { record: first.record, created: false });
   assert.throws(() => store.executionCreate({ ...input, prompt: 'Different authorized task' }), /different execution/);
   assert.equal(store.executionList().length, 1); assert.deepEqual(run(store, first.record), before);
@@ -82,20 +90,20 @@ test('execution SQLite persists canonical start receipt reservation lease and ev
 test('execution store excludes overlapping workspaces and rolls back rejected admission', async t => {
   const f = await fixture(t); const store = f.open();
   const nested = join(f.workspace, 'nested'); const sibling = join(f.root, 'workspace-sibling'); await mkdir(nested); await mkdir(sibling);
-  const first = store.executionCreate(start(f.workspace)).record;
+  const first = store.executionCreate(resolvedStart(f.workspace)).record;
   const before = run(store, first); const events = store.executionEvents(first.id, 0);
   for (const workspace of [f.workspace, nested, await realpath(f.root)]) {
-    assert.throws(() => store.executionCreate(start(workspace, randomUUID())), /active or unverified writer/);
+    assert.throws(() => store.executionCreate(resolvedStart(workspace, randomUUID())), /active or unverified writer/);
   }
   assert.equal(store.executionList().length, 1); assert.deepEqual(run(store, first), before); assert.deepEqual(store.executionEvents(first.id, 0), events);
-  const separate = store.executionCreate(start(sibling, 'nonoverlapping')).record; assert.notEqual(separate.id, first.id);
+  const separate = store.executionCreate(resolvedStart(sibling, 'nonoverlapping')).record; assert.notEqual(separate.id, first.id);
   assert.equal(store.executionList().length, 2);
   // Marking an outcome unknown does not release writer exclusion.
   store.executionUpdate(first.id, { state: 'unknown' }, 'lost-observation', { reason: 'Unknown process outcome' });
-  assert.throws(() => store.executionCreate(start(nested, 'still-excluded')), /active or unverified writer/);
+  assert.throws(() => store.executionCreate(resolvedStart(nested, 'still-excluded')), /active or unverified writer/);
   // Stop observation is the controller's admission prerequisite; the domain lease is released separately.
   store.executionUpdate(first.id, { stopConfirmed: true }, 'no-process-released', { identity: null }, [{ type: 'finishAttempt', attemptId: first.id, outcome: 'failed' }, { type: 'releaseLease', resource: 'workspace:' + f.workspace, attemptId: first.id }]);
-  assert.equal(store.executionCreate(start(nested, 'after-stop')).created, true);
+  assert.equal(store.executionCreate(resolvedStart(nested, 'after-stop')).created, true);
 });
 
 test('execution manager refuses insufficient reserve before invoking a real executable', async t => {
@@ -109,13 +117,120 @@ test('execution manager refuses insufficient reserve before invoking a real exec
   await assert.rejects(readFile(marker), { code: 'ENOENT' });
 });
 
+test('execution automatic workspace persists isolated files and command receipt across close and reopen', async t => {
+  const f = await fixture(t); let store = f.open();
+  const managedRoot = join(f.root, 'managed');
+  const executable = await failingExecutable(f.root, 'process.exit(23);');
+  const manager = new ExecutionManager(store, f.data, executable, { managedWorkspaceRoot: managedRoot });
+  const input = automatic('../../outside/command');
+  const first = await manager.dispatch(input) as ExecutionRecord;
+  assert.equal(first.workspaceKind, 'managed');
+  assert.equal(first.workspace, join(await realpath(managedRoot), createHash('sha256').update(input.commandId).digest('hex')));
+  assert.equal((await stat(first.workspace)).isDirectory(), true);
+  assert.equal((await stat(first.workspace)).mode & 0o777, 0o700);
+  await writeFile(join(first.workspace, 'result.txt'), 'durable task output');
+  const retry = await manager.dispatch({ ...input, workspace: ' \n\t ' }) as ExecutionRecord;
+  assert.equal(retry.id, first.id); assert.equal(retry.workspace, first.workspace);
+  const second = await manager.dispatch(automatic('separate-command')) as ExecutionRecord;
+  assert.notEqual(second.workspace, first.workspace); assert.notEqual(second.projectId, first.projectId);
+  assert.deepEqual((await readdir(managedRoot)).sort(), [first.workspace.split('/').at(-1)!, second.workspace.split('/').at(-1)!].sort());
+  await assert.rejects(manager.dispatch({ ...input, prompt: 'Changed request' }), /different execution/);
+  const explicitRetry = await manager.dispatch({ ...input, workspace: first.workspace }) as ExecutionRecord;
+  assert.equal(explicitRetry.id, first.id); assert.equal(explicitRetry.workspaceKind, 'managed');
+  await waitFor(() => store.executionGet(first.id), record => record.stopConfirmed);
+  const followup = await manager.dispatch(start(first.workspace, 'explicit-managed-followup')) as ExecutionRecord;
+  assert.equal(followup.workspaceKind, 'managed'); assert.equal(followup.projectId, first.projectId);
+  await manager.close();
+  assert.equal(await readFile(join(first.workspace, 'result.txt'), 'utf8'), 'durable task output');
+  const stopped = store.executionGet(first.id); const events = store.executionEvents(first.id, 0);
+  f.close(store); store = f.open();
+  const changedRoot = join(f.root, 'changed-managed-root');
+  const reopened = new ExecutionManager(store, f.data, executable, { managedWorkspaceRoot: changedRoot });
+  f.cleanups.push(() => reopened.close());
+  await reopened.initialize();
+  assert.deepEqual(await reopened.dispatch(input), stopped);
+  assert.deepEqual(store.executionEvents(first.id, 0), events);
+  assert.equal(await readFile(join(first.workspace, 'result.txt'), 'utf8'), 'durable task output');
+  await assert.rejects(stat(changedRoot), { code: 'ENOENT' });
+  // A receipt retry must not silently replace a directory removed by its owner.
+  await rm(first.workspace, { recursive: true });
+  assert.deepEqual(await reopened.dispatch(input), stopped);
+  await assert.rejects(stat(first.workspace), { code: 'ENOENT' });
+});
+
+test('execution automatic workspace validates input before filesystem creation and rejects redirected directories', async t => {
+  const f = await fixture(t); const store = f.open(); const managedRoot = join(f.root, 'managed');
+  const marker = join(f.root, 'invoked');
+  const executable = await failingExecutable(f.root, `require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'unexpected launch'); process.exit(23);`);
+  const manager = new ExecutionManager(store, f.data, executable, { managedWorkspaceRoot: managedRoot });
+  f.cleanups.push(() => manager.close());
+  const input = automatic('invalid-request');
+  await assert.rejects(manager.dispatch({ ...input, tokenLimit: 79 }), /Budget cannot cover/);
+  await assert.rejects(manager.dispatch({ ...input, images: ['relative.png'] }), /Image paths must be absolute/);
+  await assert.rejects(manager.dispatch({ ...input, images: [join(f.root, 'missing.png')] }), { code: 'ENOENT' });
+  await assert.rejects(manager.dispatch({ ...input, workspaceKind: 'managed' }), /Unknown execution field workspaceKind/);
+  await assert.rejects(stat(managedRoot), { code: 'ENOENT' });
+  await mkdir(managedRoot);
+  const target = join(f.workspace, 'preserved.txt'); await writeFile(target, 'existing project content');
+  const commandId = '../redirected';
+  await symlink(f.workspace, join(managedRoot, createHash('sha256').update(commandId).digest('hex')));
+  await assert.rejects(manager.dispatch(automatic(commandId)), /symbolic link/);
+  assert.equal(await readFile(target, 'utf8'), 'existing project content');
+  assert.deepEqual(store.executionList(), []); assert.deepEqual(store.query({ type: 'projects' }), []);
+  await assert.rejects(readFile(marker), { code: 'ENOENT' });
+});
+
+test('execution explicit symlink workspace preserves canonical project grouping and writer exclusion', async t => {
+  const f = await fixture(t); const store = f.open(); const alias = join(f.root, 'workspace-alias');
+  await symlink(f.workspace, alias);
+  const release = join(f.root, 'release');
+  const executable = await failingExecutable(f.root, `const fs = require('node:fs'); const timer = setInterval(() => { if (fs.existsSync(${JSON.stringify(release)})) { clearInterval(timer); process.exit(23); } }, 20);`);
+  const manager = new ExecutionManager(store, f.data, executable, { managedWorkspaceRoot: join(f.root, 'unused') });
+  f.cleanups.push(async () => { await writeFile(release, 'release for cleanup'); await manager.close(); });
+  const first = await manager.dispatch(start(alias, 'explicit-alias')) as ExecutionRecord;
+  assert.equal(first.workspace, f.workspace); assert.equal(first.workspaceKind, 'project');
+  const retry = await manager.dispatch(start(f.workspace, 'explicit-alias')) as ExecutionRecord;
+  assert.equal(retry.id, first.id); assert.equal(retry.projectId, first.projectId);
+  await assert.rejects(manager.dispatch(start(f.workspace, 'overlap-alias')), /active or unverified writer/);
+  await writeFile(release, 'release the real bounded probe');
+  await waitFor(() => store.executionGet(first.id), record => record.stopConfirmed);
+  const next = await manager.dispatch(start(f.workspace, 'next-explicit')) as ExecutionRecord;
+  assert.equal(next.projectId, first.projectId); assert.equal(next.workspaceKind, 'project');
+  assert.equal((store.query({ type: 'projects' }) as unknown[]).length, 1);
+  await assert.rejects(stat(join(f.root, 'unused')), { code: 'ENOENT' });
+});
+
+test('execution legacy workspace receipts default to project without rewriting persisted records', async t => {
+  const f = await fixture(t); let store = f.open(); const input = resolvedStart(f.workspace);
+  const created = store.executionCreate(input).record; f.close(store);
+  const database = join(f.data, 'supervisor.sqlite');
+  const db = new DatabaseSync(database);
+  try {
+    const row = db.prepare('SELECT request,record FROM executions WHERE id=?').get(created.id)!;
+    const request = JSON.parse(String(row.request)) as Record<string, unknown>;
+    const record = JSON.parse(String(row.record)) as Record<string, unknown>;
+    delete request.workspaceKind; delete record.workspaceKind;
+    db.prepare('UPDATE executions SET request=?,record=? WHERE id=?').run(JSON.stringify(request), JSON.stringify(record), created.id);
+  } finally { db.close(); }
+  store = f.open();
+  assert.deepEqual(store.executionGet(created.id), created); assert.deepEqual(store.executionList(), [created]);
+  assert.deepEqual(store.executionCreate(input), { record: created, created: false });
+  f.close(store);
+  const check = new DatabaseSync(database);
+  try {
+    const row = check.prepare('SELECT request,record FROM executions WHERE id=?').get(created.id)!;
+    assert.equal(Object.hasOwn(JSON.parse(String(row.record)), 'workspaceKind'), false);
+    assert.equal(Object.hasOwn(JSON.parse(String(row.request)), 'workspaceKind'), false);
+  } finally { check.close(); }
+});
+
 test('execution startup reconciles actual managed writer without replay or settling unknown usage', { timeout: 20_000 }, async t => {
   const f = await fixture(t); let store = f.open();
   await execute('git', ['init', '-q'], { cwd: f.workspace });
   const writes = join(f.workspace, 'writes.txt'); await writeFile(writes, 'baseline\n');
   await execute('git', ['add', 'writes.txt'], { cwd: f.workspace });
   await execute('git', ['-c', 'user.name=Integration Test', '-c', 'user.email=integration@example.invalid', 'commit', '-qm', 'isolated fixture'], { cwd: f.workspace });
-  const record = store.executionCreate(start(f.workspace)).record;
+  const record = store.executionCreate(resolvedStart(f.workspace)).record;
   const source = `process.on('SIGTERM', () => process.exit(0)); const fs = require('node:fs'); fs.appendFileSync(${JSON.stringify(writes)}, 'writer-start\\n'); setInterval(() => fs.appendFileSync(${JSON.stringify(writes)}, 'write\\n'), 20);`;
   const child = await spawnManagedProcess({ operationId: record.id, command: process.execPath, args: ['-e', source], cwd: f.workspace,
     onBeforeSpawn: intent => { store.executionUpdate(record.id, {}, 'process-intent', intent); },
@@ -146,7 +261,7 @@ test('execution startup reconciles actual managed writer without replay or settl
 });
 
 test('execution IPC rejects direct P1 mutations of managed runs and remains queryable after restart', async t => {
-  const f = await fixture(t); const store = f.open(); const seed = store.executionCreate(start(f.workspace)).record; f.close(store);
+  const f = await fixture(t); const store = f.open(); const seed = store.executionCreate(resolvedStart(f.workspace)).record; f.close(store);
   let service = await startService(f.data); f.cleanups.push(() => service.close());
   const inspected = await request(f.data, { id: 'inspect', method: 'execution', action: { type: 'inspect', executionId: seed.id } });
   assert.equal(inspected.ok, true);

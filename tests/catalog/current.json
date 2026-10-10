@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-catalog-v3",
+  "revision": "dev-catalog-v4",
   "modules": [
     {
       "id": "dev-contracts",
@@ -3748,6 +3748,94 @@
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: actual slow failing version executable keeps lease and launch fenced while cancelled, no target/thread/turn invocation, actual zero settled only after launch resolves",
+      "cleanup": "TestContext closes manager/service/process in reverse order with owned process stop checks; closes SQLite handles and removes isolated temporary root",
+      "status": "active"
+    },
+    {
+      "id": "p2.execution.007",
+      "name": "execution automatic workspace persists isolated files and command receipt across close and reopen",
+      "suiteId": "integration-execution",
+      "module": "execution",
+      "layer": "integration",
+      "covers": [
+        "p2.execution.managed-workspace-durability"
+      ],
+      "scenario": "Omitted and blank paths allocate the same stable command directory; independent requests get distinct directories; real files and durable receipt survive manager/store close and reopen without replay",
+      "impactTags": [
+        "execution",
+        "persistence",
+        "service",
+        "desktop",
+        "workspace"
+      ],
+      "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
+      "assertions": "tests/integration/execution.test.ts: Omitted and blank paths allocate the same stable command directory; independent requests get distinct directories; real files and durable receipt survive manager/store close and reopen without replay",
+      "cleanup": "TestContext closes manager/service/process in reverse order with owned process stop checks; closes SQLite handles and removes isolated temporary root",
+      "status": "active"
+    },
+    {
+      "id": "p2.execution.008",
+      "name": "execution automatic workspace validates input before filesystem creation and rejects redirected directories",
+      "suiteId": "integration-execution",
+      "module": "execution",
+      "layer": "integration",
+      "covers": [
+        "p2.execution.managed-workspace-validation"
+      ],
+      "scenario": "Invalid budgets, ownership injection and images are rejected before directory creation; a generated symlink leaf cannot redirect a task into another project",
+      "impactTags": [
+        "execution",
+        "persistence",
+        "service",
+        "desktop",
+        "workspace"
+      ],
+      "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
+      "assertions": "tests/integration/execution.test.ts: Invalid budgets, ownership injection and images are rejected before directory creation; a generated symlink leaf cannot redirect a task into another project",
+      "cleanup": "TestContext closes manager/service/process in reverse order with owned process stop checks; closes SQLite handles and removes isolated temporary root",
+      "status": "active"
+    },
+    {
+      "id": "p2.execution.009",
+      "name": "execution explicit symlink workspace preserves canonical project grouping and writer exclusion",
+      "suiteId": "integration-execution",
+      "module": "execution",
+      "layer": "integration",
+      "covers": [
+        "p2.execution.canonical-project-grouping"
+      ],
+      "scenario": "A real symlink alias resolves to the same project and command receipt; overlapping writers remain rejected; later tasks reuse project without creating a managed root",
+      "impactTags": [
+        "execution",
+        "persistence",
+        "service",
+        "desktop",
+        "workspace"
+      ],
+      "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
+      "assertions": "tests/integration/execution.test.ts: A real symlink alias resolves to the same project and command receipt; overlapping writers remain rejected; later tasks reuse project without creating a managed root",
+      "cleanup": "TestContext closes manager/service/process in reverse order with owned process stop checks; closes SQLite handles and removes isolated temporary root",
+      "status": "active"
+    },
+    {
+      "id": "p2.execution.010",
+      "name": "execution legacy workspace receipts default to project without rewriting persisted records",
+      "suiteId": "integration-execution",
+      "module": "execution",
+      "layer": "integration",
+      "covers": [
+        "p2.execution.legacy-workspace-compatibility"
+      ],
+      "scenario": "Legacy SQLite records without workspace kind read as project; same command replay remains idempotent without rewriting stored requests or receipts",
+      "impactTags": [
+        "execution",
+        "persistence",
+        "service",
+        "desktop",
+        "workspace"
+      ],
+      "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
+      "assertions": "tests/integration/execution.test.ts: Legacy SQLite records without workspace kind read as project; same command replay remains idempotent without rewriting stored requests or receipts",
       "cleanup": "TestContext closes manager/service/process in reverse order with owned process stop checks; closes SQLite handles and removes isolated temporary root",
       "status": "active"
     }

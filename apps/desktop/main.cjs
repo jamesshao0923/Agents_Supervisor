@@ -1,4 +1,5 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
+const { stat } = require('node:fs/promises');
 const { join, resolve } = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { randomUUID } = require('node:crypto');
@@ -51,6 +52,12 @@ function installBridge() {
   });
   register('cancel', executionId => execution({ type: 'cancel', executionId: id(executionId) }));
   register('reconcile', executionId => execution({ type: 'reconcile', executionId: id(executionId) }));
+  register('open-workspace', async executionId => {
+    const record = await execution({ type: 'inspect', executionId: id(executionId) });
+    if (!(await stat(record.workspace)).isDirectory()) throw new Error('项目目录已不可用');
+    const error = await shell.openPath(record.workspace);
+    if (error) throw new Error(error);
+  });
   register('choose-workspace', async () => {
     const result = await dialog.showOpenDialog(window, { title: '选择任务工作区', properties: ['openDirectory', 'createDirectory'] });
     return result.canceled ? null : result.filePaths[0] || null;

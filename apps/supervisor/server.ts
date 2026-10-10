@@ -98,7 +98,7 @@ export async function startService(directory: string): Promise<{ socket: string;
         const result = request.method === 'command' ? store!.command(parseCommand(request.command))
           : request.method === 'query' ? store!.query(parseQuery(request.query))
           : request.method === 'execution' ? await manager!.dispatch(request.action)
-          : request.method === 'health' ? { status: 'ready', stage: 'P2', modelExecution: true }
+          : request.method === 'health' ? { status: 'ready', stage: 'P2', modelExecution: true, workspaceManagement: 'path-v1' }
           : (() => { throw new Error('Unknown request method'); })();
         response = { id, ok: true, value: result };
       } catch (error) { response = { id, ok: false, error: error instanceof Error ? error.message : String(error) }; }

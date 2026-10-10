@@ -1,9 +1,13 @@
 /** P2 controls one real attempt. Execution completion is not product acceptance. */
 export type ExecutionState = 'queued' | 'starting' | 'running' | 'waiting' | 'cancelling' | 'completed' | 'cancelled' | 'failed' | 'interrupted' | 'unknown';
 export interface ExecutionStart {
-  type: 'start'; commandId: string; workspace: string; prompt: string;
+  type: 'start'; commandId: string; workspace?: string; prompt: string;
   model: string; effort: string; timeoutMs: number;
   tokenLimit: number; reservation: number; verificationReserve: number; images?: string[];
+}
+/** Controller-resolved input; workspace ownership is never accepted from an IPC caller. */
+export interface ResolvedExecutionStart extends ExecutionStart {
+  workspace: string; workspaceKind: 'project' | 'managed';
 }
 export interface TokenUsage {
   inputTokens: number; cachedInputTokens: number; outputTokens: number;
@@ -11,7 +15,7 @@ export interface TokenUsage {
 }
 export interface ExecutionRecord {
   id: string; commandId: string; projectId: string; runId: string; attemptId: string;
-  workspace: string; prompt: string; model: string; effort: string; images: string[];
+  workspace: string; workspaceKind: 'project' | 'managed'; prompt: string; model: string; effort: string; images: string[];
   state: ExecutionState; createdAt: string; updatedAt: string; deadline: string;
   timeoutMs: number; tokenLimit: number; reservation: number; verificationReserve: number;
   identity: unknown; pid: number | null; threadId: string | null; turnId: string | null;
@@ -47,6 +51,7 @@ export function parseExecutionAction(value: unknown): ExecutionAction {
   for (const key of Object.keys(o)) if (!fields[type]!.includes(key)) throw new Error(`Unknown execution field ${key}`);
   for (const key of fields[type]!) {
     if (key === 'images') continue;
+    if (key === 'workspace' && (!Object.hasOwn(o, key) || typeof o[key] === 'string' && !(o[key] as string).trim())) continue;
     if (!Object.hasOwn(o, key)) throw new Error(`Missing execution field ${key}`);
     if (['after', 'timeoutMs', 'tokenLimit', 'reservation', 'verificationReserve'].includes(key)) {
       if (!Number.isSafeInteger(o[key]) || (o[key] as number) < 0) throw new Error(`Invalid ${key}`);
@@ -58,5 +63,7 @@ export function parseExecutionAction(value: unknown): ExecutionAction {
     if ((o.prompt as string).length > 200_000 || (o.commandId as string).length > 200) throw new Error('Execution input too long');
     if (o.images !== undefined && (!Array.isArray(o.images) || o.images.length > 5 || o.images.some(x => typeof x !== 'string' || !x.trim() || x.includes('\0')))) throw new Error('Invalid images');
   }
-  return structuredClone(value) as ExecutionAction;
+  const action = structuredClone(value) as ExecutionAction;
+  if (action.type === 'start' && action.workspace !== undefined && !action.workspace.trim()) delete action.workspace;
+  return action;
 }

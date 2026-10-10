@@ -7,7 +7,7 @@ import { parseCommand, parseQuery } from '../contracts/validation.js';
 import { applyAction, createRun, validateVerificationChange, validateVerificationPlan } from '../domain/index.js';
 import { migrate } from './migrations.js';
 import { executionCreate, executionGet, executionList, executionEvents, executionUpdate } from './executions.js';
-import type { ExecutionRecord, ExecutionStart } from '../contracts/p2.js';
+import type { ExecutionRecord, ResolvedExecutionStart } from '../contracts/p2.js';
 import type { RunAction } from '../contracts/p1.js';
 
 /** Canonical JSON is used for receipts and immutable definitions, never caller object identity. */
@@ -52,7 +52,7 @@ export class SupervisorStore {
 
   close(): void { this.db.close(); }
 
-  executionCreate(input: ExecutionStart) { return executionCreate(this.db, input); }
+  executionCreate(input: ResolvedExecutionStart) { return executionCreate(this.db, input); }
   executionGet(id: string) { return executionGet(this.db, id); }
   executionList() { return executionList(this.db); }
   executionEvents(id: string, after: number) { return executionEvents(this.db, id, after); }

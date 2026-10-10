@@ -10,5 +10,6 @@ contextBridge.exposeInMainWorld('supervisor', Object.freeze({
   cancel: executionId => ipcRenderer.invoke('supervisor:cancel', executionId),
   reconcile: executionId => ipcRenderer.invoke('supervisor:reconcile', executionId),
   chooseWorkspace: () => ipcRenderer.invoke('supervisor:choose-workspace'),
+  openWorkspace: id => ipcRenderer.invoke('supervisor:open-workspace', id),
   chooseImages: () => ipcRenderer.invoke('supervisor:choose-images')
 }));

@@ -3,6 +3,7 @@ import { promisify } from 'node:util';
 import { realpath, stat, lstat, mkdir, writeFile, appendFile, readFile } from 'node:fs/promises';
 import { createHash, randomUUID } from 'node:crypto';
 import { isAbsolute, join, resolve } from 'node:path';
+import { homedir } from 'node:os';
 import { createInterface } from 'node:readline';
 import type { Run, RunAction } from '../contracts/p1.js';
 import { parseExecutionAction, type ExecutionAction, type ExecutionRecord, type ExecutionStart, type ExecutionState, type ExecutorCapabilities, type ModelCapability } from '../contracts/p2.js';
@@ -22,6 +23,7 @@ function transport(child: ManagedProcess): LineTransport {
   };
 }
 interface Active { process: ManagedProcess; adapter: CodexAdapter; finishing?: Promise<void>; terminalStatus?: string; launchedTurn: boolean }
+export interface ExecutionManagerOptions { managedWorkspaceRoot?: string }
 export class ExecutionManager {
   private readonly active = new Map<string, Active>();
   private readonly launches = new Map<string, Promise<void>>();
@@ -30,7 +32,7 @@ export class ExecutionManager {
   private capabilityCache?: Promise<ExecutorCapabilities>;
   private closing = false;
   private argsCache?: Promise<string[]>;
-  constructor(private readonly store: SupervisorStore, private readonly dataDir: string, private readonly codex = process.env.SUPERVISOR_CODEX_PATH ?? 'codex') {}
+  constructor(private readonly store: SupervisorStore, private readonly dataDir: string, private readonly codex = process.env.SUPERVISOR_CODEX_PATH ?? 'codex', private readonly options: ExecutionManagerOptions = {}) {}
 
   async initialize(): Promise<void> {
     // A disconnected observation is never treated as success or blindly replayed.
@@ -102,12 +104,35 @@ export class ExecutionManager {
     return this.capabilityCache;
   }
   private async start(input: ExecutionStart): Promise<ExecutionRecord> {
-    if(!isAbsolute(input.workspace)) throw new Error('Workspace must be an absolute path');
-    const workspace=await realpath(input.workspace);
-    if(workspace==='/' || !(await stat(workspace)).isDirectory())throw new Error('Select an existing project directory');
     const images=[];
     for(const path of input.images??[]) {if(!isAbsolute(path))throw new Error('Image paths must be absolute');const actual=await realpath(path);const metadata=await stat(actual);if(!metadata.isFile()||metadata.size>20*1024*1024)throw new Error('Image must be a local file at most 20 MiB');images.push(actual);}
-    const {record,created}=this.store.executionCreate({...input,workspace,images});
+    let workspaceKind:'managed'|'project'=input.workspace===undefined?'managed':'project';
+    let workspace:string;
+    if(input.workspace!==undefined) {
+      if(!isAbsolute(input.workspace)) throw new Error('Workspace must be an absolute path');
+      workspace=await realpath(input.workspace);
+      if(workspace==='/' || !(await stat(workspace)).isDirectory())throw new Error('Select an existing project directory');
+      // Directory ownership survives an explicit follow-up selected in the UI.
+      if(this.store.executionList().some(record=>record.workspace===workspace&&record.workspaceKind==='managed'))workspaceKind='managed';
+    } else {
+      const previous=this.store.executionList().find(record=>record.commandId===input.commandId);
+      if(previous && previous.workspaceKind!=='managed')throw new Error('commandId already used with a different execution');
+      if(previous) {
+        // A retry reads its durable receipt without recreating missing files or
+        // rebinding ownership when the configured root later changes.
+        return this.store.executionCreate({...input,workspace:previous.workspace,workspaceKind,images}).record;
+      }
+      const root=this.options.managedWorkspaceRoot??join(homedir(),'.supervisor','workspace');
+      if(!isAbsolute(root))throw new Error('Managed workspace root must be an absolute path');
+      await mkdir(root,{recursive:true,mode:0o700});
+      workspace=join(await realpath(root),createHash('sha256').update(input.commandId).digest('hex'));
+      await mkdir(workspace,{recursive:true,mode:0o700});
+      // The generated leaf cannot be redirected to another project's files.
+      const metadata=await lstat(workspace);
+      if(metadata.isSymbolicLink()||!metadata.isDirectory())throw new Error('Managed workspace must be a directory, not a symbolic link');
+      workspace=await realpath(workspace);
+    }
+    const {record,created}=this.store.executionCreate({...input,workspace,workspaceKind,images});
     if(created) {
       const work=Promise.resolve().then(()=>this.launch(record.id)).catch(error=>this.fail(record.id,error)).finally(()=>{this.launches.delete(record.id);});
       this.launches.set(record.id,work);
@@ -162,7 +187,7 @@ export class ExecutionManager {
       if(event.kind==='waiting')patch.state='waiting';
       if(event.kind==='thread-status'&&event.status==='active')patch.state='running';
       if(event.kind==='error')patch.error=JSON.stringify(event.raw.params);
-      if(event.kind==='protocol-error'||event.kind==='disconnected')patch.error='Codex connection interrupted; outcome requires reconciliation';
+      if(event.kind==='protocol-error'||event.kind==='disconnected'&&!(active?.finishing&&active.terminalStatus))patch.error='Codex connection interrupted; outcome requires reconciliation';
     }
     this.store.executionUpdate(id,patch,'codex-event',event);
     if(event.tokenUsage && event.tokenUsage.total.totalTokens>=record.reservation && !record.cancelRequested && !event.terminal) {
