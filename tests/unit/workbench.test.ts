@@ -7,7 +7,7 @@ import type {RuntimeRecord} from '../../packages/contracts/p3.js';
 import type {ExecutionRecord} from '../../packages/contracts/p2.js';
 import {taskViews} from '../../apps/desktop/presentation.js';
 import {AgentWorkbench} from '../../apps/desktop/agent-workbench.js';
-import {agentExecutionStatus,projectAgentCards,workbenchColumns,parentWorkbenchStatus} from '../../apps/desktop/workbench-projection.js';
+import {agentExecutionStatus,projectAgentCards,workbenchColumns,parentWorkbenchStatus,workbenchObservationMessage,workbenchResultState} from '../../apps/desktop/workbench-projection.js';
 const createdAt = '2026-10-10T12:00:00.000Z';
 function goal(id:string, workspace='/project'):GoalSession {
   return {id,projectId:'project',workspace,workspaceKind:'project',revision:1,goal:'Requested result '+id,phase:'ready',messages:[],jobs:[],proposal:null,runtimeId:null,error:null,createdAt,updatedAt:createdAt,config:{model:'model',effort:'high',reservation:20,timeoutMs:1000},maxContextChars:60000};
@@ -25,6 +25,9 @@ test('P8-WBENCH-U02 actual child binding scopes cards and React escapes untruste
  const parent=runtime(goal('parent')),parents=taskViews([parent],[]),e=execution(parent);assert.equal(projectAgentCards('/project',parents,[e],null,'online').length,1);assert.equal(projectAgentCards('/other',parents,[e],null,'online').length,0);
  const foreign=structuredClone(e);foreign.scheduledBinding!.runId='other';assert.equal(projectAgentCards('/project',parents,[foreign],null,'online').length,0);
  const markup=renderToStaticMarkup(React.createElement(AgentWorkbench,{projectPath:'/project',parents,executions:[e],snapshot:null,readError:'真实读取失败',connection:'offline',selected:null,onSelect:()=>{throw Error('SSR must not mutate');}}));assert.ok(markup.includes('&lt;script&gt;'));assert.ok(!markup.includes('<script>'));assert.match(markup,/固定详情/);assert.match(markup,/最后观察/);assert.ok(!markup.includes('取消此Agent'));
+ assert.match(workbenchObservationMessage('Result observation unavailable: TaskResult repository: scope uninitialized'),/尚无共享结果/);
+ assert.match(workbenchObservationMessage('Result observation unavailable: hash mismatch'),/无法核对/);assert.match(workbenchObservationMessage('Scheduler observation unavailable: older contract'),/执行计划需要重新核对/);assert.match(workbenchResultState('submitted'),/待独立验证/);assert.match(workbenchResultState('verified'),/当前资格待核对/);assert.match(workbenchResultState('invalidated'),/已失效/);
+ assert.ok(markup.includes('<details><summary>查看读取问题的技术详情</summary><pre>真实读取失败</pre></details>'),'Technical read error remains in collapsed details');
  assert.equal(workbenchColumns(660),2);assert.equal(workbenchColumns(888),4);assert.equal(workbenchColumns(180),1);
 });
 

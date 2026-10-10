@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-catalog-v24",
+  "revision": "dev-catalog-v25",
   "modules": [
     {
       "id": "dev-contracts",

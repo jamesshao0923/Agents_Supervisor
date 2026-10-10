@@ -12,7 +12,7 @@ Supervisor 的需求理解与计划已由模型驱动，P6 自动监督控制器
 - v24 冻结检查与证据复核：P8 单元 **7/7**、P8 真实集成 **27/27**、研发清单影响单元 **107/107**。其中 4 项边界回归跨批次重叠，不重复计算覆盖。证据摘要 `.supervisor-dev/p6-evolution-root/v24-formal-summary.json`；原始报告分别为 `2026-10-10T18-29-34-968Z-d79d84a7-d5ab-4bf0-bfc1-72ed0f007aa1`、`2026-10-10T18-29-34-979Z-1cbffed2-c3d1-4d41-aee4-14e45374277a`、`2026-10-10T18-29-34-971Z-432ee0f0-6dff-4d1e-92dc-85d89a25cf07`，均在 `.supervisor-dev/verification/`。
 - Android Java / iOS Swift 小项目已实际构建、安装、启动、截图，并只回收自有模拟器/进程。两项取消回归覆盖设备创建后中止、最终捕获后中止；原命令和 APK/.app/截图摘要保留。这是宿主能力，尚未接入完整业务交互、持久化和 P4 交付授权；不能称通用 Gradle/Xcode 项目交付通过。
 - 实际原生 Electron + 真实服务完成项目进入、父任务暂停/恢复/取消、界面断连重连及系统目录选择器挂载空目录；「打开目录」实际在 Finder 打开对应目录。记录 `.supervisor-dev/ui24/native-check.json`。独立工作台审查 `.supervisor-dev/p8-workbench-independent-review/review-final.json`；其中子卡布局/跨项目迟到检查明确使用 UI transport fixture，不能冒充真实多模型验收。
-- 尚需修正实机发现的共享结果未初始化英文提示与取消状态表述；P8E 工程、P8R 研究、P8D 资料场景及完整 P8M/P8U 门禁仍待完成。`pnpm verify:p8` 是 developing profile，只报告已登记范围，不能放行完整 P8。
+- 实机发现的共享结果未初始化英文提示已改为中文正常状态，真正读取失败保留警示，技术原因折叠展示；v25 原 7 项 UI 单元及证据对账通过（`2026-10-10T18-36-37-723Z-857fb947-1658-4bf6-95d6-8bee39944638`），修复后原生界面复验因当前 Mac 锁定待续。取消状态继续保守显示在途停止需核对，因为 runtime cancelled 本身不证明所有执行停止。P8E 工程、P8R 研究、P8D 资料场景及完整 P8M/P8U 门禁仍待完成。`pnpm verify:p8` 是 developing profile，只报告已登记范围，不能放行完整 P8。
 
 ## P6 开发进度（尚未完成）
 
@@ -27,7 +27,7 @@ Supervisor 的需求理解与计划已由模型驱动，P6 自动监督控制器
 
 真实三窗口巡检已通过并完成证据对账：实际 inspect / skip / inspect、15 秒健康扫描与执行结算均成立，耗时约 22.6 分钟。隔离树 `~/.codex/worktrees/p6-followup-verification/Agents_Supervisor/.supervisor-dev/verification/2026-10-10T17-58-17-994Z-b6dd70cb-abc2-4538-9d20-7c57a93d4675/`；绑定的是 v22-monitor-deadline 候选，主线已导入相同成功驱动，不能反称它验证了其后的全部代码。
 
-P7 第一轮真实双分支和最终集成均结束，但测试把 JSON 引用对象键顺序误当差异，停在独立 P4 验收前，原报告保留为失败。独立审查后的测试修复只改变对象键顺序比较，完整引用数组、路径、文件字节和后续 P4 断言不变；新轮正在隔离树复验，不预报通过。原报告 `~/.codex/worktrees/p7-parallel-verification/Agents_Supervisor/.supervisor-dev/verification/2026-10-10T18-16-25-313Z-bcb65912-b4f0-4318-b50e-167d1f6f439f/`，审查 `.supervisor-dev/p7-live-framing-independent-review/review-final.json`。
+P7 第一轮真实双分支和最终集成均结束，但测试把 JSON 引用对象键顺序误当差异，停在独立 P4 验收前，原报告保留为失败。独立审查后的测试修复只改变对象键顺序比较，完整引用数组、路径、文件字节和后续 P4 断言不变；第二轮已修复引用比较并进入独立 P4 评审，但评审指出缺少原契约“无外部依赖”的覆盖，正确拒绝发布，仍未交付。该失败报告为同目录下 `2026-10-10T18-29-24-018Z-9392fedf-a2ee-499f-a744-fc32ab1084f5/`，证据对账通过；正在补强检查器和负向控制，原需求不变。原报告 `~/.codex/worktrees/p7-parallel-verification/Agents_Supervisor/.supervisor-dev/verification/2026-10-10T18-16-25-313Z-bcb65912-b4f0-4318-b50e-167d1f6f439f/`，审查 `.supervisor-dev/p7-live-framing-independent-review/review-final.json`。
 
 P7 的自动任务图提案、有界嵌套 Loop 实际执行、效率比较和完整真实场景尚未通过。组件测试中的受管 Node、SQLite、文件与进程行为是真实的；明确标注的 P2 完成回执/用量 fixture 不能冒充真实模型或 P4 业务验收。
 
@@ -48,7 +48,7 @@ schema10 新增按任务谱系绑定的验收版本。同目录下的独立任�
 
 **当前限制：真实自动闭环、二次独立交付尚未通过。三个真实五分钟巡检窗口已在隔离候选通过。** 巡检控制器已接线，接口能力返回 `modelMonitoring:true`，接口标记本身不代表验收；实际三窗口证据另列下方。其“建议在安全边界诊断”已接入不可变 concern：只约束下一次完整验收，不能直接授权修复；取消、契约变化和旧观察会保留失效原因。模型路由与无进展控制已接入 schema13，但实际模型升级门禁仍未通过；一般新增功能的控制标本演进、运行中改方向、研究方向调整及完整桌面监督交互仍需验收。P7 已实现共享结果领域模块和单步骤结果持久发布：固定输入版本、提交/验证区分、迟到结果拒绝、传递失效、真实执行回执绑定、文件封存与崩溃恢复；单步骤结果已能绑定真实 P4 完整验收，读取时重核证据；资源调度、持久领取与派发、完整输入包和串行集成已接入，真实双模型并行与最终交付仍待验证。P8 工作台与移动宿主首片段已接主线，能力和未完成门禁见上方。
 
-`pnpm verify:p6`、`pnpm verify:p7` 与 `pnpm verify:p8` 运行各自已登记的开发检查；三个 profile 均为 `gateStatus=developing`。全局 v24 共 694 项稳定用例，按影响范围冻结去重，不以数量代表质量或用上层调用删除底层故障检查。长时巡检执行 26 分钟、总任务 28 分钟、测试 33 分钟、套件 34 分钟；清单 live 上限 35 分钟，token 总额度不变。必须实际跨越三个五分钟窗口，不能用逻辑时间的策略检查替代。
+`pnpm verify:p6`、`pnpm verify:p7` 与 `pnpm verify:p8` 运行各自已登记的开发检查；三个 profile 均为 `gateStatus=developing`。全局 v25 共 694 项稳定用例，按影响范围冻结去重，不以数量代表质量或用上层调用删除底层故障检查。长时巡检执行 26 分钟、总任务 28 分钟、测试 33 分钟、套件 34 分钟；清单 live 上限 35 分钟，token 总额度不变。必须实际跨越三个五分钟窗口，不能用逻辑时间的策略检查替代。
 
 schema12 增量（2026-10-11）已通过以下选中检查和证据完整性复验，仍不是完整阶段通过：
 

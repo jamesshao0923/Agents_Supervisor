@@ -44,3 +44,16 @@ export function parentWorkbenchStatus(parent:DesktopTask,connection:WorkbenchCon
  const labels:Record<string,string>={ready:'待派发',running:'执行中','waiting-input':'等待输入',paused:'已暂停新派发',cancelled:'任务已取消',blocked:'任务受阻','awaiting-verification':'执行已结束 · 待独立验收',thinking:'主控分析中',clarifying:'等待补充要求',admitted:'已准入执行',queued:'等待执行',starting:'启动中',waiting:'等待工具结果',completed:'执行已结束 · 尚不表示验收',interrupted:'执行中断 · 待核对',unknown:'状态待核对'};
  return labels[parent.state]??'状态待核对';
 }
+
+/** Keep raw diagnostics available without treating an uninitialized ledger as failure. */
+export function workbenchObservationMessage(issue:string):string {
+ if(issue==='Result observation unavailable: TaskResult repository: scope uninitialized')return '尚无共享结果，子任务提交后将在这里显示。';
+ if(issue.startsWith('Result observation unavailable:'))return '共享结果暂时无法核对，请重新连接后查看；现有任务记录仍保留。';
+ if(issue==='Multiple scheduler records require reconciliation')return '检测到多份调度记录，暂时不能确认当前执行计划。';
+ if(issue.startsWith('Scheduler observation unavailable:'))return '当前执行计划需要重新核对，暂不显示未经确认的节点状态。';
+ return '项目状态暂时无法核对，请查看详情或重新连接后台。';
+}
+export function workbenchResultState(state:string):string {
+ const labels:Record<string,string>={draft:'草稿，尚未提交',submitted:'已提交，待独立验证',verified:'已记录验证，当前资格待核对',invalidated:'已失效，需重新验证'};
+ return labels[state]??'状态待核对';
+}
