@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-catalog-v9",
+  "revision": "dev-catalog-v10",
   "modules": [
     {
       "id": "dev-contracts",
@@ -5856,6 +5856,25 @@
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "P5 restoring persisted requirements never reactivates explicitly invalidated memory",
       "cleanup": "Fixture managed processes are stopped; durable evidence and test failure diagnostics retained",
+      "status": "active"
+    },
+    {
+      "id": "p5.unit-desktop-goals.004",
+      "name": "desktop model policy preserves requested identities and real capabilities without advertising unavailable models",
+      "suiteId": "unit-desktop-goals",
+      "module": "desktop",
+      "layer": "unit",
+      "covers": [
+        "p5-unit-desktop-goals"
+      ],
+      "scenario": "Requested model identifiers and names; partial or absent capability discovery; older Luna identifier must not impersonate 6 Luna",
+      "impactTags": [
+        "desktop",
+        "p5"
+      ],
+      "prerequisites": "Pinned Node; actual presentation module with explicit capability inputs",
+      "assertions": "Four exact IDs; labels ordered; provider reasoning metadata retained; missing preferred model stays unavailable; input immutable",
+      "cleanup": "No side effects",
       "status": "active"
     }
   ]

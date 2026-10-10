@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
-import type { ExecutionRecord } from '../../packages/contracts/p2.js';
+import type { ExecutionRecord, ModelCapability } from '../../packages/contracts/p2.js';
 import type { RuntimeRecord } from '../../packages/contracts/p3.js';
 import type { GoalSession } from '../../packages/contracts/p5.js';
-import { goalPhaseLabels, goalSessionId, mergeGoalSessions, taskViews } from '../../apps/desktop/presentation.js';
+import { goalPhaseLabels, goalSessionId, mergeGoalSessions, taskViews, taskModelOptions, preferredTaskModel, goalCanAnswer, goalCanRestore } from '../../apps/desktop/presentation.js';
+
+import { createDraftRun } from '../../packages/domain/index.js';
 
 const createdAt = '2026-10-10T10:00:00.000Z';
 function session(id: string, workspace = '/project'): GoalSession {
@@ -46,6 +48,15 @@ test('desktop goal revision merge rejects late snapshots and retains admitted ru
   const independent = session('other-goal', '/other');
   assert.equal(mergeGoalSessions(restoring, [independent]).length, 2, 'Another project must not overwrite the session');
   assert.equal(initial.revision, 1);
+  assert.equal(goalCanAnswer(initial), true);
+  assert.equal(goalCanAnswer({ ...initial, phase: 'ready' }), true);
+  assert.equal(goalCanAnswer(admitted), false);
+  const run = createDraftRun({ id: 'goal', projectId: 'project', goal: 'Continue', budget: { unit: 'token', limit: 1000, verificationReserve: 100 } });
+  const quiet = { ...runtime(), phase: 'awaiting-verification' as const };
+  assert.equal(goalCanRestore(admitted, run, quiet), true);
+  for (const status of ['succeeded', 'cancelled'] as const) assert.equal(goalCanRestore(admitted, { ...run, status }, quiet), false, 'Terminal delivery cannot expose a restore action rejected by the backend');
+  assert.equal(goalCanRestore(restored, run, quiet), false);
+  assert.equal(goalCanRestore(admitted, run, { ...quiet, phase: 'running' }), false);
 });
 
 test('desktop pending start identity matches durable command hashing without issuing a second request', async () => {
@@ -54,4 +65,18 @@ test('desktop pending start identity matches durable command hashing without iss
   assert.equal(await goalSessionId(commandId), expected);
   assert.equal(await goalSessionId(commandId), expected);
   assert.notEqual(await goalSessionId(commandId + '-new'), expected);
+});
+
+test('desktop model policy preserves requested identities and real capabilities without advertising unavailable models', () => {
+  const ids = ['gpt-6-astra', 'gpt-6.1-sol', 'gpt-6-luna', 'gpt-5.6-sol'];
+  const available: ModelCapability[] = ['gpt-5.6-luna', ...ids.slice().reverse()].map(id => ({ id, label: 'provider label', inputModalities: ['text'], reasoningEfforts: ['low', 'high'], defaultEffort: 'high' }));
+  const original = structuredClone(available), options = taskModelOptions(available);
+  assert.deepEqual(options.map(item => item.id), ids);
+  assert.deepEqual(options.map(item => item.label), ['6 Astra', '6.1 Sol', '6 Luna', '5.6 Sol']);
+  for (const option of options) assert.equal(option.capability, available.find(item => item.id === option.id));
+  assert.deepEqual(available, original);
+  const partial = taskModelOptions(available.filter(item => ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-luna'].includes(item.id)));
+  assert.equal(partial.find(item => item.id === preferredTaskModel)?.capability, null, 'Missing preferred model must require selection, not silent substitution');
+  assert.equal(partial.find(item => item.id === 'gpt-6-luna')?.capability, null, '5.6 Luna is not 6 Luna');
+  assert.ok(taskModelOptions([]).every(item => item.capability === null));
 });

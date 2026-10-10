@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "stage": "P5",
-  "revision": "p5-v2",
+  "revision": "p5-v3",
   "caseIds": [
     "dev.unit-contracts.001",
     "dev.unit-contracts.002",
@@ -280,7 +280,8 @@
     "p5.unit-orchestration.008",
     "p5.live-orchestration.002",
     "p5.integration-orchestration.005",
-    "p5.integration-orchestration.006"
+    "p5.integration-orchestration.006",
+    "p5.unit-desktop-goals.004"
   ],
   "requiredRisks": [
     "p0.unit-contracts.001",

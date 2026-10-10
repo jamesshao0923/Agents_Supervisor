@@ -1,6 +1,27 @@
-import type { ExecutionEvent, ExecutionRecord, ExecutionState } from '../../packages/contracts/p2.js';
+import type { ExecutionEvent, ExecutionRecord, ExecutionState, ModelCapability } from '../../packages/contracts/p2.js';
+import type { Run } from '../../packages/contracts/p1.js';
 import type { RuntimeEvent, RuntimeOperation, RuntimePhase, RuntimeRecord } from '../../packages/contracts/p3.js';
 import type { GoalSession } from '../../packages/contracts/p5.js';
+
+export const preferredTaskModel = 'gpt-6.1-sol';
+export const taskModelCatalog = [
+  { id: 'gpt-6-astra', label: '6 Astra' },
+  { id: 'gpt-6.1-sol', label: '6.1 Sol' },
+  { id: 'gpt-6-luna', label: '6 Luna' },
+  { id: 'gpt-5.6-sol', label: '5.6 Sol' },
+] as const;
+export function taskModelOptions(models: readonly ModelCapability[]) {
+  return taskModelCatalog.map(entry => ({ ...entry, capability: models.find(model => model.id === entry.id) ?? null }));
+}
+export function goalCanAnswer(session: GoalSession): boolean {
+  return !session.runtimeId && ['clarifying', 'ready'].includes(session.phase);
+}
+export function goalCanRestore(session: GoalSession, run: Run, runtime: RuntimeRecord | undefined): boolean {
+  return Boolean(session.runtimeId && runtime?.id === session.runtimeId && !['thinking', 'cancelled'].includes(session.phase)
+    && !['succeeded', 'cancelled'].includes(run.status)
+    && run.attempts.every(attempt => attempt.status !== 'running' && attempt.settled)
+    && ['paused', 'blocked', 'awaiting-verification'].includes(runtime.phase));
+}
 
 export interface DesktopTask {
   id: string; workspace: string; workspaceKind: 'project' | 'managed'; prompt: string; createdAt: string;
