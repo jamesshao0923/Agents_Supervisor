@@ -983,9 +983,10 @@
         "p6.integration-author-presentation.003"
       ],
       "addedNewCaseIds": [
-        "p6.integration-author-stages.003"
+        "p6.integration-author-stages.003",
+        "p6.integration-author-stages.004"
       ],
-      "addedNewCaseReason": "Independent stage-local recovery chain separated from original I01; all original I01 assertions and 120s bound retained. New I03 has its own 120s bound; suite sums 120+60+120=300s. No product deadline or deferred case changed."
+      "addedNewCaseReason": "I03 separates the independent stage-local recovery chain from original I01; original I01 assertions and 120s bound remain. I04 verifies one correction per frozen stage, accounting for all five calls while a max-four policy still refuses a fifth call. Existing suite limit is 420s (120+60+120+120); this record corrects omitted I04 metadata, not test selection, deadlines or historical evidence."
     },
     "P7": {
       "originalProfile": "tests/acceptance/extended/p7.json",

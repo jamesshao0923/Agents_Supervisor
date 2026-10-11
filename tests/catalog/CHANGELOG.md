@@ -1,3 +1,7 @@
+## 2026-10-12 — Correct deferred-ledger registration count
+
+Record the already-selected author-stages I04 alongside I03 in addedNewCaseIds. P6 accounting is 656 original - 613 deferred + 5 existing additions + 2 new registrations = 50. Correct the descriptive suite total to its existing 420 seconds; no test, profile, timeout or evidence changes.
+
 ## 2026-10-12 — Provider-compatible exact empty arrays
 
 Existing P6-AUTH-U08 now checks the actual historical defectRefs empty-array schema: [] accepted, nonempty and nonarray values rejected; nonempty const and all prior history assertions remain. Sole selected case actually passed (1/1, zero skip); no provider calls. Production replaces redundant empty const with exact zero-length array constraints. Original HTTP400 failure and unknown reservation are retained; live maintenance remains unverified. No new ID or acceptance scope change.
