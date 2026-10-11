@@ -1,5 +1,10 @@
 ## v60 — 分步验收作者及共享剩余预算
 
+## 2026-10-11：个人试用精简门禁（用户授权）
+
+默认 P6/P7/P8 完整 suite 选择从 656/160/947 缩减为 48/47/51；原 profile 逐字存档于 `tests/acceptance/extended/`，每个延后 ID、风险和原 SHA 记录于 `tests/acceptance/deferred-p6-p8.json`。P6 新纳入 5 个已登记的取消同步用例，未新增/删除稳定 ID。原 FAIL/unknown 不改变，profile 继续 developing；产品验收标准不变。分步作者 V2 扩展既有 11 项验证，保留 V1，无新用例 ID。
+
+
 ## 2026-10-11：P6 分步作者真实门禁失败记录
 
 原 `p6.live-running-followup.001` 实际运行失败，未增删稳定 ID 或放宽断言。规划、在途追加、服务重启与两次执行完成；第一步验收定义在原 240 秒期限内未完成，0 次独立 P4、0 次交付。原始失败、未知费用及完整审计保留于 `.supervisor-dev/p6-staged-author-final-work/terminal-audit.json`；组件通过不替代该真实失败。下一次执行须先验证新的步骤职责分配。
