@@ -1,3 +1,4 @@
+import {isCommandOnlyAuthorContext,renderAcceptanceAuthoringPromptV3,renderAcceptanceAuthoringPromptV4} from '../../packages/orchestration/acceptance-authoring-presentation.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHash } from 'node:crypto';
@@ -28,6 +29,25 @@ test('P6-AUTH-U01 strict proposed assets bind complete contract source environme
   const prompt = buildAcceptanceAuthoringPrompt(c);
   for (const text of [c.candidate.files[0]!.content, c.contract.criteria[0]!.description, 'Invalid input accepted', process.version]) assert.ok(prompt.includes(JSON.stringify(text).slice(1, -1)));
   assert.match(prompt, /untrusted project data/); assert.match(prompt, /PROPOSALS/);
+  assert.equal(prompt, renderAcceptanceAuthoringPromptV4(c));
+  assert.match(prompt, /must be an EXACT declared obligation ID, never a case ID/);
+  assert.match(prompt, /exactly its own obligationIds, each once/);
+  assert.match(prompt, /one command case may check several obligations/);
+  assert.ok(!prompt.includes('Each mobile case'));
+  assert.ok(!prompt.includes('For material acceptance'));
+  assert.ok(!prompt.includes('fixed Node builtins createApplication'));
+  const mixed = structuredClone(c);
+  mixed.criteria.push({id:'ui',description:'Visible result',kind:'ui',target:'index.html',checks:['Result visible']});
+  mixed.candidate.files.push({path:'index.html',content:'<p>Result</p>',sha256:hash('<p>Result</p>')});
+  mixed.contract.criteria.push({id:'ui',required:true,description:'Visible result\nAcceptance kind: ui; target: index.html\nResult visible'});
+  assert.equal(isCommandOnlyAuthorContext(mixed),false);
+  assert.equal(buildAcceptanceAuthoringPrompt(mixed),renderAcceptanceAuthoringPromptV3(mixed));
+  assert.throws(()=>renderAcceptanceAuthoringPromptV4(mixed),/command-only/);
+  assert.equal(isCommandOnlyAuthorContext({...c,criteria:[]}),false);
+  assert.throws(()=>renderAcceptanceAuthoringPromptV4({...c,criteria:[]}),/command-only/);
+  const workflow = {...c,workflowMode:'fixture-preserve-all-of' as NonNullable<AcceptanceAuthoringContext['workflowMode']>};
+  assert.ok(renderAcceptanceAuthoringPromptV4(workflow).includes('Keep EVERY original criterion/check unchanged'));
+
   // Generic checker ABI, not a task-specific detector or permission expansion.
   assert.match(prompt, /SUPERVISOR_VERIFY_TYPESCRIPT_MODULE: an absolute path/);
   assert.match(prompt, /TypeScript 6\.0\.3 parser module/);
@@ -68,6 +88,18 @@ test('P6-AUTH-U02 semantic checks reject weakened necessity coverage controls an
     assert.equal(mapped.contract.criteria[0]!.required, required);
   }
   const c = context();
+  const shared=bundle(c);
+  shared.spec.obligations.push({...shared.spec.obligations[0]!,id:'sum.exceptions',expectation:'Invalid operands rejected independently'});
+  shared.spec.cases[0]!.obligationIds.push('sum.exceptions');
+  shared.spec.controls[1]!.mustFail.push('sum.exceptions');
+  assert.deepEqual(validateAcceptanceBundle(shared,c),shared,'Shared command checker may independently report all scoped obligations');
+  for(const field of ['mustFail','obligationIds'] as const){
+    const invalid=structuredClone(shared);
+    if(field==='mustFail')invalid.spec.controls[1]!.mustFail=[invalid.spec.cases[0]!.id];
+    else invalid.spec.cases[0]!.obligationIds=[invalid.spec.cases[0]!.id];
+    assert.doesNotThrow(()=>parseReasonerOutput(JSON.stringify(invalid),acceptanceAuthoringSchema(c)));
+    assert.throws(()=>validateAcceptanceBundle(invalid,c),/unknown (control )?obligation/,'Case IDs are never implicit obligation aliases');
+  }
   const mutations: ((b: AcceptanceBundle) => void)[] = [
     b => { b.spec.obligations[0]!.required = false; }, b => { b.spec.obligations[0]!.applicable = false; },
     b => { b.coverageExplanation.pop(); }, b => { b.coverageExplanation[0]!.caseIds = ['invented']; },

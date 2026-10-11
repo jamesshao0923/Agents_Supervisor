@@ -19,7 +19,7 @@ export function authorWireReceipt(job: Pick<SupervisionJob, 'id' | 'input' | 'in
   const wire = authorWireInput(job.input as PresentedAuthorInput, job.purpose);
   if (!wire.presented) return null;
   const presentation = ((job.input as PresentedAuthorInput).context as {authorPresentation:{schemaVersion:number}}).authorPresentation;
-  const version = presentation.schemaVersion === 3
+  const version = presentation.schemaVersion === 3 || presentation.schemaVersion === 4
     ? {schemaVersion:2,kind:'acceptance-author-wire',presentation}
     : {schemaVersion:1,kind:'control-evolution-author-wire'};
   return {

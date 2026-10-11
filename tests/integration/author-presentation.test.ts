@@ -26,7 +26,7 @@ async function setup(t: TestContext) {
   return { ...f, engineContext: f.context, context, bundle };
 }
 
-import {CONTROL_EVOLUTION_PRESENTATION_PROMPT,CONTROL_EVOLUTION_PRESENTATION_PROMPT_V2,CONTROL_EVOLUTION_PRESENTATION_PROMPT_V3,AUTHOR_RECOVERY_PRESENTATION_PROMPT_V3,renderControlEvolutionPrompt,renderControlEvolutionPromptV2,authorRecoveryInput,authorWireInput,assertAuthorWireCapacity} from '../../packages/orchestration/author-presentation.js';
+import {CONTROL_EVOLUTION_PRESENTATION_PROMPT,CONTROL_EVOLUTION_PRESENTATION_PROMPT_V2,CONTROL_EVOLUTION_PRESENTATION_PROMPT_V3,AUTHOR_RECOVERY_PRESENTATION_PROMPT_V3,AUTHOR_RECOVERY_PRESENTATION_PROMPT_V4,createAuthorRecoveryInput,renderControlEvolutionPrompt,renderControlEvolutionPromptV2,authorRecoveryInput,authorWireInput,assertAuthorWireCapacity} from '../../packages/orchestration/author-presentation.js';
 import {COMMAND_AUTHOR_RUNTIME_CONTEXT,COMMAND_AUTHOR_EXIT_CONTEXT_V3} from '../../packages/orchestration/acceptance-runtime-guidance.js';
 import {controlEvolutionAuthorInput} from '../../packages/orchestration/acceptance-authoring-v2.js';
 import {authorWireReceipt,assertAuthorWireProof} from '../../packages/orchestration/author-presentation-proofs.js';
@@ -35,11 +35,12 @@ import {SupervisionReasoningRunner} from '../../packages/orchestration/supervisi
 import {prepareReasonerTurn} from '../../packages/orchestration/reasoner.js';
 import type {ReasonerInput,ReasonerResult,SupervisorReasoner} from '../../packages/orchestration/reasoner.js';
 import {spawnManagedProcess,inspectProcess} from '../../packages/process-control/index.js';
+import {verificationCanonical} from '../../packages/verification/rules.js';
 import {runtimeCanonical} from '../../packages/persistence/runtime.js';
 
 // Real SQLite, actual managed Node process, complete actual request transcripts.
 // Output and seven tokens are explicit protocol fixtures, not provider approval.
-async function runtimeFixture(t:TestContext,maxContextChars=200000,presentationVersion:1|2|3|'recovery'=3){
+async function runtimeFixture(t:TestContext,maxContextChars=200000,presentationVersion:1|2|3|'recovery'|'recovery-v4'=3){
   const f=await setup(t),workspace=join(f.root,'runtime');await mkdir(workspace);
   const data=join(f.root,'store');let store=new SupervisorStore(data);
   const runtime=store.runtime.submit({type:'submit',commandId:'runtime',workspace,workspaceKind:'project',goal:'Frozen standard',tokenLimit:100,verificationReserve:20,steps:[{id:'input',kind:'input',prompt:'Original input'}]});
@@ -49,8 +50,8 @@ async function runtimeFixture(t:TestContext,maxContextChars=200000,presentationV
   const loop=store.supervision.attach({commandId:'loop',runtimeId:runtime.id,config:{model:'explicit-node-protocol-fixture',effort:'low',reservation:30,timeoutMs:5000},limits:{maxRepairs:1,maxReasoningCalls:4,maxDurationMs:60000,maxContextChars}});
   t.after(()=>store.close());
   const latest=controlEvolutionAuthorInput({acceptance:f.context.current,candidate:{fixture:'complete candidate already in evolution'},evolution:f.context});
-  const input=presentationVersion==='recovery'
-    ? authorRecoveryInput({acceptance:f.context.current,candidate:{fixture:'complete candidate already in acceptance'},authorFeedback:{schemaVersion:1,attempt:1,previousJobId:'prior-explicit-fixture',inputDigest:'a'.repeat(64),rejection:{schemaVersion:1,kind:'review',raw:f.bundle,diagnostics:'Full rejected evidence retained. '.repeat(2000)},references:{missing:[]}}},latest.outputSchema)
+  const input=presentationVersion==='recovery'||presentationVersion==='recovery-v4'
+    ? (presentationVersion==='recovery'?authorRecoveryInput:createAuthorRecoveryInput)({acceptance:f.context.current,candidate:{fixture:'complete candidate already in acceptance'},authorFeedback:{schemaVersion:1,attempt:1,previousJobId:'prior-explicit-fixture',inputDigest:'a'.repeat(64),rejection:{schemaVersion:1,kind:'review',raw:f.bundle,diagnostics:'Full rejected evidence retained. '.repeat(2000)},references:{missing:[]}}},latest.outputSchema)
     : presentationVersion===3?latest:{...latest,prompt:presentationVersion===2?CONTROL_EVOLUTION_PRESENTATION_PROMPT_V2:CONTROL_EVOLUTION_PRESENTATION_PROMPT,context:{...latest.context,authorPresentation:{schemaVersion:presentationVersion,kind:'control-evolution' as const}}};
   return {...f,data,runtime,loop,input,get store(){return store;},reopen(){store.close();store=new SupervisorStore(data);},begin(value:unknown=input,commandId='author'){return store.supervision.beginJob({commandId,loopId:loop.id,expectedRevision:store.supervision.get(loop.id).revision,purpose:'acceptance-authoring',context:value});}};
 }
@@ -88,12 +89,30 @@ test('P6-AUTH-PRESENT-I01 explicit presentation preserves complete context and e
   const recovery=await runtimeFixture(t,200000,'recovery'),recoveryWire=authorWireInput(recovery.input,'acceptance-authoring');
   const feedback=(recovery.input.context as any).authorFeedback;
   assert.equal(recovery.input.prompt,AUTHOR_RECOVERY_PRESENTATION_PROMPT_V3);
+  const v4=await runtimeFixture(t,200000,'recovery-v4'),v4wire=authorWireInput(v4.input,'acceptance-authoring');
+  assert.equal(v4.input.prompt,AUTHOR_RECOVERY_PRESENTATION_PROMPT_V4);
+  const v4feedback=(v4.input.context as any).authorFeedback;
+  assert.equal(v4feedback.rejection.diagnostics,feedback.rejection.diagnostics);
+  assert.ok(v4wire.prompt.includes(verificationCanonical(v4feedback)));
+  assert.equal(v4wire.prompt.split(feedback.rejection.diagnostics).length,2);
+  assert.ok(v4wire.prompt.includes(verificationCanonical((v4.input.context as any).acceptance)));
+  const v4receipt=authorWireReceipt({id:'new-v4',input:v4.input,inputDigest:'complete-input',purpose:'acceptance-authoring'})!;
+  assert.equal(v4receipt.schemaVersion,2);
+  assert.deepEqual((v4receipt as any).presentation,{schemaVersion:4,kind:'acceptance-recovery'});
+  for(const version of [false,0,null,{schemaVersion:5,kind:'acceptance-recovery'},{schemaVersion:4,kind:'control-evolution'},{schemaVersion:4,kind:'acceptance-recovery',extra:true}])assert.throws(()=>authorWireReceipt({id:'bad',input:{...v4.input,context:{...(v4.input.context as object),authorPresentation:version}},inputDigest:'x',purpose:'acceptance-authoring'}),/Unknown/);
+  assert.throws(()=>authorWireInput({...v4.input,prompt:AUTHOR_RECOVERY_PRESENTATION_PROMPT_V3},'acceptance-authoring'),/marker/);
+  assert.throws(()=>authorWireInput({...recovery.input,context:{...(recovery.input.context as object),authorPresentation:{schemaVersion:4,kind:'acceptance-recovery'}}},'acceptance-authoring'),/marker/);
+  assert.throws(()=>authorWireInput({prompt:AUTHOR_RECOVERY_PRESENTATION_PROMPT_V4,context:{},outputSchema:{}},'acceptance-authoring'),/Missing/);
+  const mixed=structuredClone((v4.input.context as any));mixed.acceptance.criteria.push({...mixed.acceptance.criteria[0],id:'native',kind:'ui'});
+  assert.equal(createAuthorRecoveryInput(mixed,{}).prompt,AUTHOR_RECOVERY_PRESENTATION_PROMPT_V3);
+  assert.throws(()=>authorWireInput({...v4.input,context:mixed},'acceptance-authoring'),/command-only/);
+
   assert.ok(recoveryWire.prompt.includes(feedback.rejection.diagnostics));
   assert.equal(recoveryWire.prompt.split(feedback.rejection.diagnostics).length,2,'complete diagnostics occur exactly once');
   assert.match(recoveryWire.prompt,/Exit with code 0 exactly when every verdict is passed or not-applicable/);
   assert.match(recoveryWire.prompt,/process.exitCode=1 when any verdict is failed or unknown/);
   assert.equal((authorWireReceipt({id:'new-recovery',input:recovery.input,inputDigest:'x',purpose:'acceptance-authoring'}) as any).schemaVersion,2);
-  for(const change of [{schemaVersion:3,kind:'acceptance-recovery',extra:true},{schemaVersion:4,kind:'acceptance-recovery'},null,false,0])assert.throws(()=>authorWireInput({...recovery.input,context:{...(recovery.input.context as object),authorPresentation:change}},'acceptance-authoring'),/Unknown/);
+  for(const change of [{schemaVersion:3,kind:'acceptance-recovery',extra:true},{schemaVersion:5,kind:'acceptance-recovery'},null,false,0])assert.throws(()=>authorWireInput({...recovery.input,context:{...(recovery.input.context as object),authorPresentation:change}},'acceptance-authoring'),/Unknown/);
   assert.throws(()=>authorWireInput({...recovery.input,prompt:CONTROL_EVOLUTION_PRESENTATION_PROMPT_V3},'acceptance-authoring'),/marker/);
   assert.throws(()=>authorWireInput({...recovery.input,context:{...(recovery.input.context as object),authorFeedback:{...feedback,rejection:{kind:'review'}}}},'acceptance-authoring'),/typed author recovery/);
   assert.ok(JSON.stringify(f.input).length<JSON.stringify({...f.input,prompt:legacy}).length);
@@ -122,6 +141,12 @@ test('P6-AUTH-PRESENT-I02 both unchanged capacity ceilings reject before reserva
   assert.throws(()=>f.begin(huge),/context exceeds capacity/);
   const hugeV1={...huge,prompt:CONTROL_EVOLUTION_PRESENTATION_PROMPT,context:{...(huge.context as object),authorPresentation:{schemaVersion:1,kind:'control-evolution'}}};
   assert.throws(()=>f.begin(hugeV1),/context exceeds capacity/);
+  const v4=await runtimeFixture(t,200000,'recovery-v4'),v4before=v4.store.runtime.inspect(v4.runtime.id);
+  const v4wire=authorWireInput(v4.input,'acceptance-authoring');
+  assert.throws(()=>assertAuthorWireCapacity(v4.input,'acceptance-authoring',v4wire.prompt.length+JSON.stringify(v4.input.outputSchema).length+5999),/Rendered/);
+  const hugeV4=structuredClone(v4.input);(hugeV4.context as any).authorFeedback.rejection.diagnostics='x'.repeat(200000);
+  assert.throws(()=>v4.begin(hugeV4),/context exceeds capacity/);
+  assert.deepEqual(v4.store.runtime.inspect(v4.runtime.id),v4before);assert.equal(v4.store.supervision.jobs(v4.loop.id).length,0);
   const minimal={prompt:CONTROL_EVOLUTION_PRESENTATION_PROMPT,outputSchema:{},context:{authorPresentation:{schemaVersion:1,kind:'control-evolution'},acceptance:{},evolution:{schemaVersion:1,current:{},history:{},historyText:{},base:{},transitions:[]}}};
   const length=runtimeCanonical(minimal).length+6000;assert.ok(length<8000);
   const small=await runtimeFixture(t,8000),smallBefore=small.store.runtime.inspect(small.runtime.id);
@@ -134,14 +159,14 @@ test('P6-AUTH-PRESENT-I02 both unchanged capacity ceilings reject before reserva
 });
 
 test('P6-AUTH-PRESENT-I03 actual Node dispatch stores wire binding and finished reopen never dispatches again',async t=>{
-  for(const presentationVersion of [1,2,3,'recovery'] as const){
+  for(const presentationVersion of [1,2,3,'recovery','recovery-v4'] as const){
   const f=await runtimeFixture(t,200000,presentationVersion),transport=new NodeWireTransport(f.bundle);let runner=new SupervisionReasoningRunner(f.store,f.data,transport);
   const job=f.begin(),done=await runner.run(job.id),directory=join(f.data,'supervision-reasoning',digest(job.id));
   assert.equal(done.error,null);assert.equal(done.usage,7);assert.equal(done.stopConfirmed,true);assert.equal(done.inputDigest,digest(runtimeCanonical(f.input)));
   assertAuthorWireProof(done,directory);assert.deepEqual(JSON.parse(await readFile(join(directory,'author-wire.json'),'utf8')),authorWireReceipt(done));
   const receipt=authorWireReceipt(done)!;
   assert.equal(receipt.schemaVersion,presentationVersion===1||presentationVersion===2?1:2);
-  if(presentationVersion==='recovery'){
+  if(presentationVersion==='recovery'||presentationVersion==='recovery-v4'){
     const changed=structuredClone(done),input=changed.input as any;
     input.context.authorFeedback.rejection.diagnostics+=' changed frozen evidence';
     changed.inputDigest=digest(runtimeCanonical(input));

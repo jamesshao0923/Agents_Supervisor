@@ -1,6 +1,6 @@
 import {futureVerificationFloor,futureExecutionFloor} from '../domain/index.js';
 import {parseAuthorRouteReceipt,assertAuthorRouteJob,assertAuthorRouteProof} from '../orchestration/author-route-binding.js';
-import {authorRecoveryInput,authorWireInput,type AuthorRecoveryFeedback} from '../orchestration/author-presentation.js';
+import {createAuthorRecoveryInput,authorWireInput,type AuthorRecoveryFeedback} from '../orchestration/author-presentation.js';
 import {assertAuthorWireProof} from '../orchestration/author-presentation-proofs.js';
 import {readAuthorReviewRejection} from './author-review-rejection.js';
 import {createHash} from 'node:crypto';
@@ -142,7 +142,7 @@ export class AuthorRoutingRepository {
   const rejectionFeedback=bound?{schemaVersion:1,kind:'review',message:input.rejection.message,raw:input.rejection.raw,rawOutputDigest:input.rejection.rawOutputDigest,authorProofsDigest:input.rejection.proofsDigest,review:{classification:bound.classification,proposalId:bound.proposalId,proposalDigest:bound.proposalDigest,baseDigest:bound.baseDigest,candidateDigest:bound.candidateDigest,definitionDigest:bound.definitionDigest,reviewId:bound.review.id,reviewDigest:hash(bound.review),proofsDigest:hash(bound.review.proofs),usage:bound.review.usage,stopConfirmed:bound.review.stopConfirmed,controls:bound.review.controls.map(c=>({id:c.id,passed:c.passed,results:c.results.map(({proofFiles:_paths,...result})=>result)})),diagnostics:bound.diagnostics,independentReview:bound.independentReview?{verdict:bound.independentReview.verdict,reason:bound.independentReview.reason,observations:bound.independentReview.observations,usage:bound.independentReview.usage,threadId:bound.independentReview.threadId,turnId:bound.independentReview.turnId}:null}}:input.rejection;
   const feedback={schemaVersion:1,attempt:1,previousJobId:value.job.id,inputDigest:value.job.inputDigest,rejection:rejectionFeedback,references:acceptanceReferenceDiagnostic(input.rejection.raw)};
   const context={...structuredClone(value.input.context),authorFeedback:feedback};
-  const nextInput=authorRecoveryInput({...context,authorFeedback:feedback as AuthorRecoveryFeedback},acceptanceAuthoringSchema(context.acceptance));
+  const nextInput=createAuthorRecoveryInput({...context,authorFeedback:feedback as AuthorRecoveryFeedback},acceptanceAuthoringSchema(context.acceptance));
   ensure(canonical(nextInput).length+6000<=value.loop.limits.maxContextChars,'Author recovery exceeds complete context capacity; no truncation');
   let authorization:AuthorRouteAuthorizationV2|undefined;
   if(v2){

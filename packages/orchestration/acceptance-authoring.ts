@@ -1,4 +1,4 @@
-import {renderAcceptanceAuthoringPromptV3} from './acceptance-authoring-presentation.js';
+import {isCommandOnlyAuthorContext,renderAcceptanceAuthoringPromptV3,renderAcceptanceAuthoringPromptV4} from './acceptance-authoring-presentation.js';
 import { ACCEPTANCE_RUNTIME_GUIDANCE, COMMAND_AUTHOR_RUNTIME_CONTEXT } from './acceptance-runtime-guidance.js';
 export { ACCEPTANCE_RUNTIME_GUIDANCE } from './acceptance-runtime-guidance.js';
 import {researchDeclarationSchema,prepareResearchProofPlan} from '../verification/research-workflow.js';
@@ -201,7 +201,8 @@ function acceptanceAssetSchema(context: AcceptanceAuthoringContext, historicalCa
   }));
 }
 export function buildAcceptanceAuthoringPrompt(context: AcceptanceAuthoringContext): string {
-  return renderAcceptanceAuthoringPromptV3(frozenContext(context));
+  const frozen = frozenContext(context);
+  return isCommandOnlyAuthorContext(frozen) ? renderAcceptanceAuthoringPromptV4(frozen) : renderAcceptanceAuthoringPromptV3(frozen);
 }
 
 export function validateAcceptanceBundle(value: unknown, context: AcceptanceAuthoringContext): AcceptanceBundle {

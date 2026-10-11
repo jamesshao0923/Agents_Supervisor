@@ -1,4 +1,4 @@
-import {authorWireInput,AUTHOR_RECOVERY_PRESENTATION_PROMPT_V3} from '../../packages/orchestration/author-presentation.js';
+import {authorWireInput,authorRecoveryInput,AUTHOR_RECOVERY_PRESENTATION_PROMPT_V3,AUTHOR_RECOVERY_PRESENTATION_PROMPT_V4} from '../../packages/orchestration/author-presentation.js';
 import test from 'node:test';
 import {createHash} from 'node:crypto';
 import {assertLegacyControlQualification} from '../../packages/verification/control-qualification-gates.js';
@@ -36,7 +36,9 @@ test('P6-AUTHREVIEW-I01 actual P4 command rejection reserves one fresh author at
  assert.equal(input.rejection.kind,'review');assert.equal(input.rejection.review!.classification,'control-rejected');assert.throws(()=>f.repo.transaction(()=>{f.repo.begin(input);throw Error('parent rollback')}),/parent rollback/);assert.deepEqual(f.store.runtime.inspect(f.runtime.id),before);assert.equal(f.repo.routes(f.loop.id).length,0);
  const next=f.repo.begin(input);
  const stored=next.job.input as any,wire=authorWireInput(stored,'acceptance-authoring');
- assert.equal(stored.prompt,AUTHOR_RECOVERY_PRESENTATION_PROMPT_V3);
+ assert.equal(stored.prompt,AUTHOR_RECOVERY_PRESENTATION_PROMPT_V4);
+ assert.deepEqual(stored.context.authorPresentation,{schemaVersion:4,kind:'acceptance-recovery'});
+ assert.equal(authorRecoveryInput(stored.context,stored.outputSchema).prompt,AUTHOR_RECOVERY_PRESENTATION_PROMPT_V3,'Explicit legacy creator remains V3');
  assert.deepEqual(stored.context.acceptance,(f.old.input as any).context.acceptance);
  assert.deepEqual(stored.context.candidate,(f.old.input as any).context.candidate);
  assert.deepEqual(stored.context.authorFeedback.rejection.raw,input.rejection.raw);

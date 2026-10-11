@@ -110,6 +110,11 @@ test('schema rejection: actual stopped Node, SQLite rollback, bounded route and 
  assert.throws(()=>v2.repo.transaction(()=>{v2.repo.beginV2(r);throw Error('v2 parent rollback')}),/v2 parent rollback/);
  assert.deepEqual(v2.store.runtime.inspect(v2.runtime.id),beforeV2);assert.equal(v2.repo.routes(v2.loop.id).length,0);
  const routed=v2.repo.beginV2(r);assert.equal(routed.receipt.schemaVersion,2);assert.equal(routed.job.config.effort,'medium');
+ assert.deepEqual((routed.job.input as any).context.authorPresentation,{schemaVersion:4,kind:'acceptance-recovery'});
+ assert.deepEqual((routed.job.input as any).context.authorFeedback.rejection.raw,r.rejection.raw);
+ assert.deepEqual((routed.job.input as any).context.acceptance,v2.context);
+ assert.match(authorWireInput(routed.job.input as any,'acceptance-authoring').prompt,/never a case ID/);
+
  assert.deepEqual(routed.job.config,expectedAuthorRouteConfig(routed.receipt));assert.equal(routed.job.config.reservation,v2.old.config.reservation);
  assert.equal(v2.store.runtime.inspect(v2.runtime.id).run.budget.spent,7);
  for(const version of [null,false,0,3])assert.throws(()=>parseAuthorRouteReceipt({...routed.receipt,schemaVersion:version}),/Unknown/);
