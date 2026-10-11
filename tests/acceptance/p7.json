@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "stage": "P7",
-  "revision": "p7-loop-canonical-live-developing",
+  "revision": "p7-four-tier-main-canonical-developing",
   "caseIds": [
     "p7.unit-task-results.001",
     "p7.unit-task-results.002",
@@ -139,7 +139,8 @@
     "p6.integration-author-presentation.002",
     "p6.integration-author-presentation.003",
     "p7.live-scheduled-loop.001",
-    "p7.live-scheduled-loop-cap.001"
+    "p7.live-scheduled-loop-cap.001",
+    "p7.live-exploration-tier.001"
   ],
   "requiredRisks": [
     "p7-task-results",
@@ -162,7 +163,8 @@
     "p7-live-efficiency-pair",
     "p6-author-presentation",
     "p7-auto-loop-real",
-    "p7-nested-loop-cap-live"
+    "p7-nested-loop-cap-live",
+    "p7-real-exploration-tier"
   ],
   "coreRegression": [
     "dev.integration-runner.003",

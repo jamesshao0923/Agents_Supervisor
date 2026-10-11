@@ -1,3 +1,9 @@
+## v51 four-tier engineering exploration live candidate (not executed)
+
+- Add only `p7.live-exploration-tier.001`; preserve all 968 v50 IDs and metadata (969 total). Real P5 supplies candidates, then same-input public IPC CAS tier changes, actual in-flight lowering, submitted outputs and complete independent P4 delivery.
+- Inherit L01 1.6M/300k, 150k/600s, 200k, maxActive2/maxNodes8 and graph/supervision22min; observer54/test56/suite57min. Missing actual threshold stimuli fail coverage; no host scoring or fabricated model JSON.
+- Source registration, normal build and short input/lifecycle checks are preparation only. No supplier run or native-research exploration support is claimed. P7 remains developing.
+
 ## v50 — 作者完整恢复输入与分组索引消费
 
 - 保留全部 967 个既有稳定 ID、业务要求和已登记真实入口，新增分组索引完整组件 `p8.integration-research-group-execution.008`，全局 968 项。供应商与阶段门禁仍未因此通过。

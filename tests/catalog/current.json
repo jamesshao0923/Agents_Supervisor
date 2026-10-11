@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-v50-author-recovery-indexed-groups",
+  "revision": "dev-v51-four-tier-live-candidate",
   "modules": [
     {
       "id": "dev-contracts",
@@ -1058,6 +1058,12 @@
       "id": "live-running-followup",
       "layer": "live",
       "file": "dist/tests/live/running-followup.test.js",
+      "timeoutMs": 3420000
+    },
+    {
+      "id": "live-exploration-tiers",
+      "layer": "live",
+      "file": "dist/tests/live/exploration-tiers.test.js",
       "timeoutMs": 3420000
     }
   ],
@@ -21319,6 +21325,25 @@
       "prerequisites": "Actual local MaterialIntake/SQLite and owned Node transport; interpretation and usage are explicit synthetic supplier metadata, no public-provider claim.",
       "assertions": "tests/integration/research-group-execution.test.ts :: P8-GROUP-EXEC-I08 actual indexed assigned group readers summarize concurrently then full current analysis independent P4 seals all original sources",
       "cleanup": "Stop exact owned group/current/review processes; retain actual roots/evidence and close SQLite.",
+      "status": "active"
+    },
+    {
+      "id": "p7.live-exploration-tier.001",
+      "name": "P7-EXPLORE-L01 real P5 candidates traverse four tiers retain active work and independently deliver every required criterion",
+      "suiteId": "live-exploration-tiers",
+      "module": "orchestration",
+      "layer": "live",
+      "covers": [
+        "p7-exploration-tier",
+        "p7-real-exploration-tier"
+      ],
+      "scenario": "Real one frozen P5 optional inventory, four tier CAS over same active core window, actual optional turn lowering and whole-contract independent P4 delivery",
+      "impactTags": [
+        "p7-four-tier-live"
+      ],
+      "prerequisites": "Actual installed Codex planning, execution, author and independent review; optional predictions must supply four distinct real threshold stimuli, no host relabeling or synthetic success",
+      "assertions": "tests/live/exploration-tiers.test.ts :: P7-EXPLORE-L01 real P5 candidates traverse four tiers retain active work and independently deliver every required criterion",
+      "cleanup": "Retain original raw outputs, failed attempts and unknown reservations; close actual service and inspect/stop exact owned processes; no automatic paid retry",
       "status": "active"
     }
   ]
