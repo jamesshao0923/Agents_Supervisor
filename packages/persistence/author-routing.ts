@@ -1,3 +1,5 @@
+import {futureVerificationFloor,futureExecutionFloor} from '../domain/index.js';
+import {parseAuthorRouteReceipt,assertAuthorRouteJob,assertAuthorRouteProof} from '../orchestration/author-route-binding.js';
 import {authorRecoveryInput,authorWireInput,type AuthorRecoveryFeedback} from '../orchestration/author-presentation.js';
 import {assertAuthorWireProof} from '../orchestration/author-presentation-proofs.js';
 import {readAuthorReviewRejection} from './author-review-rejection.js';
@@ -5,14 +7,14 @@ import {createHash} from 'node:crypto';
 import {lstatSync,readFileSync,realpathSync,readdirSync} from 'node:fs';
 import {join,relative,isAbsolute,sep} from 'node:path';
 import type {DatabaseSync} from 'node:sqlite';
-import type {AuthorRejection,AuthorRouteReceipt} from '../contracts/p6-author-routing.js';
+import type {AuthorRejection,AuthorRouteReceipt,AuthorRouteAuthorizationV2,AuthorRoutingPolicyV2} from '../contracts/p6-author-routing.js';
 import type {RoutingCapabilities,SupervisionRoutingPolicy} from '../contracts/p6-routing.js';
 import {SUPERVISOR_ROUTING_POLICY_V1} from '../contracts/p6-routing.js';
 import {SupervisionRepository} from './supervision.js';
 import {RuntimeRepository,runtimeCanonical as canonical} from './runtime.js';
 import {VerificationRepository} from './verification.js';
 import {readRoutingCapabilities} from '../orchestration/supervision-routing-capabilities.js';
-import {selectAcceptanceAuthorRoute} from '../orchestration/acceptance-authoring-route.js';
+import {selectAcceptanceAuthorRoute,selectAcceptanceAuthorRouteV2,ACCEPTANCE_AUTHOR_ROUTING_POLICY_V2} from '../orchestration/acceptance-authoring-route.js';
 import {acceptanceReferenceDiagnostic} from '../orchestration/acceptance-authoring-feedback.js';
 import {acceptanceAuthoringSchema,diagnoseAcceptanceAuthoringResult,type AcceptanceAuthoringContext} from '../orchestration/acceptance-authoring.js';
 import {parseReasonerOutput,ReasonerSchemaError} from '../orchestration/reasoner-schema.js';
@@ -32,7 +34,15 @@ export class AuthorRoutingRepository {
  private readonly supervision:SupervisionRepository;private readonly runtime:RuntimeRepository;
  constructor(private readonly db:DatabaseSync,private readonly dataDir:string,private readonly policy:SupervisionRoutingPolicy=SUPERVISOR_ROUTING_POLICY_V1){this.supervision=new SupervisionRepository(db);this.runtime=new RuntimeRepository(db);}
  transaction<T>(body:()=>T):T{return this.supervision.transaction(body);}
- routes(loopId:string):AuthorRouteReceipt[]{return this.db.prepare('SELECT record FROM supervision_author_routes WHERE loop_id=? ORDER BY rowid').all(loopId).map(r=>JSON.parse(String(r.record)) as AuthorRouteReceipt);}
+ routes(loopId:string):AuthorRouteReceipt[]{return this.db.prepare('SELECT record FROM supervision_author_routes WHERE loop_id=? ORDER BY rowid').all(loopId).map(r=>parseAuthorRouteReceipt(JSON.parse(String(r.record))));}
+ /** Actual persisted route only; absence retains legacy non-route behavior. */
+ forJob(jobId:string):AuthorRouteReceipt|null {
+  const job=this.supervision.job(jobId),rows=this.routes(job.loopId).filter(r=>r.nextJobId===jobId);
+  ensure(rows.length<=1,'Ambiguous author route job');
+  if(!rows[0])return null;
+  assertAuthorRouteJob(rows[0],job,this.supervision.get(job.loopId));
+  return rows[0];
+ }
  /** All writers sharing the filesystem boundary matter, even in another Run.
   * The exact set is frozen into assessment, then re-read under begin's lock. */
  private workspaceBoundary(workspace:string){
@@ -61,6 +71,7 @@ export class AuthorRoutingRepository {
   ensure(run.operations.some(o=>o.id===job.id&&o.attemptId===job.attemptId),'Author operation missing');
   ensure(hash({usage:job.reportedUsage??job.usage,stopConfirmed:job.stopConfirmed,error:job.error,proofs:job.proofs,threadId:job.threadId,result:job.result})===job.completionDigest,'Author completion changed');
   ensure(hash(job.input)===job.inputDigest,'Author input digest changed');
+  const route=this.forJob(job.id);if(route)assertAuthorRouteProof(route,job,join(this.dataDir,'supervision-reasoning',sha(job.id)));
   const input=job.input as {prompt:string;outputSchema:Record<string,unknown>;context:{acceptance:AcceptanceAuthoringContext;candidate:Candidate;authorFeedback?:unknown;evolution?:unknown}};
   ensure(input&&Object.keys(input).sort().join(',')==='context,outputSchema,prompt'&&typeof input.prompt==='string'&&input.context?.acceptance&&input.context.candidate,'Author input missing');
   ensure(!Object.hasOwn(input.context,'evolution'),'V2 author recovery is not implemented');
@@ -106,14 +117,24 @@ export class AuthorRoutingRepository {
   await assertCandidate(before.input.context.candidate);
   const after=this.actual(loopId,jobId,reviewRebuild);ensure(same(before.rejection,after.rejection),'Author rejection changed during physical inspection');return after.rejection;
  }
- begin(input:BeginAuthorRoute):{receipt:AuthorRouteReceipt;job:ReturnType<SupervisionRepository['job']>}{return this.transaction(()=>{
+ begin(input:BeginAuthorRoute){return this.reserve(input,null);}
+ beginV2(input:BeginAuthorRoute){return this.reserve(input,ACCEPTANCE_AUTHOR_ROUTING_POLICY_V2);}
+ private reserve(input:BeginAuthorRoute,v2:AuthorRoutingPolicyV2|null):{receipt:AuthorRouteReceipt;job:ReturnType<SupervisionRepository['job']>}{return this.transaction(()=>{
   ensure(typeof input.commandId==='string'&&input.commandId.trim()&&input.commandId.length<=200,'Invalid author command');
-  const request={...input,policyDigest:hash(this.policy)},prior=this.db.prepare('SELECT request,record FROM supervision_author_routes WHERE command_id=?').get(input.commandId);
-  if(prior){ensure(prior.request===canonical(request),'Conflicting author route commandId');const receipt=JSON.parse(String(prior.record)) as AuthorRouteReceipt;return {receipt,job:this.supervision.job(receipt.nextJobId)};}
+  // Replay the original stable request before consulting today's policy or clock.
+  const prior=this.db.prepare('SELECT request,record FROM supervision_author_routes WHERE command_id=?').get(input.commandId);
+  if(prior){
+   const previous=JSON.parse(String(prior.request)),{policyDigest,...stable}=previous;
+   const receipt=parseAuthorRouteReceipt(JSON.parse(String(prior.record)));
+   ensure(same(stable,input)&&policyDigest===receipt.policyDigest,'Conflicting author route commandId');
+   const job=this.supervision.job(receipt.nextJobId);assertAuthorRouteJob(receipt,job,this.supervision.get(receipt.loopId));
+   return {receipt,job};
+  }
+  const policy=v2??this.policy,request={...input,policyDigest:hash(policy)};
   const value=this.actual(input.loopId,input.previousJobId,input.rejection.kind==='review');ensure(value.loop.revision===input.expectedRevision,'Stale author route revision');ensure(same(value.rejection,input.rejection),'Author rejection binding changed');
   ensure(!this.routes(input.loopId).some(r=>r.rejection.previousJobId===input.previousJobId),'Author already has a replacement');
-  const actual=readRoutingCapabilities(this.dataDir,input.capabilities),age=Date.now()-Date.parse(actual.checkedAt);ensure(age>=0&&age<=this.policy.capabilityMaxAgeMs,'Author capabilities stale or from future');
-  const selected=selectAcceptanceAuthorRoute(actual,value.job.config,this.policy);
+  const actual=readRoutingCapabilities(this.dataDir,input.capabilities),age=Date.now()-Date.parse(actual.checkedAt);ensure(age>=0&&age<=policy.capabilityMaxAgeMs,'Author capabilities stale or from future');
+  let selected=v2?selectAcceptanceAuthorRouteV2(actual,value.job.config,v2):selectAcceptanceAuthorRoute(actual,value.job.config,this.policy);
   // Full immutable proof inventories stay in the route receipt. The model gets
   // all authored bytes, actual control checks/reasons/logs and review judgment;
   // protocol-file paths are operational metadata, not additional source context.
@@ -123,9 +144,26 @@ export class AuthorRoutingRepository {
   const context={...structuredClone(value.input.context),authorFeedback:feedback};
   const nextInput=authorRecoveryInput({...context,authorFeedback:feedback as AuthorRecoveryFeedback},acceptanceAuthoringSchema(context.acceptance));
   ensure(canonical(nextInput).length+6000<=value.loop.limits.maxContextChars,'Author recovery exceeds complete context capacity; no truncation');
+  let authorization:AuthorRouteAuthorizationV2|undefined;
+  if(v2){
+   const observedAt=new Date().toISOString(),at=Date.parse(observedAt),created=Date.parse(value.loop.createdAt);
+   const absoluteDeadlineMs=created+value.loop.limits.maxDurationMs;
+   ensure(Number.isFinite(created)&&at>=created,'Author route clock moved backwards');
+   const timeoutMs=Math.min(value.job.config.timeoutMs,absoluteDeadlineMs-at);
+   ensure(Number.isSafeInteger(timeoutMs)&&timeoutMs>=1000,'Insufficient remaining author deadline');
+   selected={...selected,timeoutMs};
+   const run=value.run,wire=authorWireInput(nextInput,'acceptance-authoring');
+   const reserved=run.attempts.filter(a=>!a.settled).reduce((n,a)=>n+a.reservation,0);
+   const legacy=Math.max(0,run.budget.verificationReserve-run.attempts.filter(a=>a.purpose==='verification'&&a.contractVersion===run.contract.version).reduce((n,a)=>n+(a.settled?a.actual!:a.reservation),0));
+   authorization={observedAt,loopCreatedAt:value.loop.createdAt,absoluteDeadlineMs,loopRevision:value.loop.revision,runRevision:run.revision,originalTimeoutMs:value.job.config.timeoutMs,
+    budget:{limit:run.budget.limit,spent:run.budget.spent,reserved,protected:Math.max(legacy,futureVerificationFloor(run))+futureExecutionFloor(run)},
+    maxContextChars:value.loop.limits.maxContextChars,storedChars:canonical(nextInput).length,wireChars:wire.prompt.length+JSON.stringify(wire.outputSchema).length,inputDigest:hash(nextInput),wireDigest:hash({prompt:wire.prompt,outputSchema:wire.outputSchema})};
+  }
   const job=this.supervision.beginJob({commandId:input.commandId+':job',loopId:value.loop.id,expectedRevision:value.loop.revision,purpose:'acceptance-authoring',context:nextInput,config:selected});
   const current=this.supervision.get(value.loop.id),references={...current.references,authorJobId:job.id};if(input.rejection.kind==='review'){delete references.proposalId;delete references.reviewId;}this.supervision.update(current.id,current.revision,{phase:'authoring',reason:null,references});
-  const receipt:AuthorRouteReceipt={schemaVersion:1,id:'author-route-'+sha(input.commandId).slice(0,24),commandId:input.commandId,loopId:input.loopId,contractDigest:value.loop.contractDigest,rejection:structuredClone(input.rejection),policy:structuredClone(this.policy),policyDigest:hash(this.policy),capabilities:structuredClone(input.capabilities),baseline:value.job.config,selected,nextInputDigest:job.inputDigest,nextJobId:job.id,createdAt:new Date().toISOString()};
+  const common={id:'author-route-'+sha(input.commandId).slice(0,24),commandId:input.commandId,loopId:input.loopId,contractDigest:value.loop.contractDigest,rejection:structuredClone(input.rejection),policyDigest:hash(policy),capabilities:structuredClone(input.capabilities),baseline:value.job.config,selected,nextInputDigest:job.inputDigest,nextJobId:job.id,createdAt:authorization?.observedAt??new Date().toISOString()};
+  const receipt:AuthorRouteReceipt=v2?{...common,schemaVersion:2,policy:structuredClone(v2),authorization:authorization!}:{...common,schemaVersion:1,policy:structuredClone(this.policy)};
+  parseAuthorRouteReceipt(receipt);assertAuthorRouteJob(receipt,job,this.supervision.get(job.loopId));
   this.db.prepare('INSERT INTO supervision_author_routes VALUES(?,?,?,?,?,?)').run(receipt.id,input.commandId,input.previousJobId,input.loopId,canonical(request),canonical(receipt));return {receipt,job};
  });}
 }

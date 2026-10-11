@@ -11,6 +11,6 @@ export class AcceptanceAuthorRecovery {
   const capabilities=await captureRoutingCapabilities(this.store,this.dataDir);
   const after=await this.repository.assess(loopId,previousJobId,reviewRebuild);
   if(JSON.stringify(rejection)!==JSON.stringify(after))throw Error('Author rejection changed across capability probe');
-  return this.repository.transaction(()=>{const effect:unknown=beforeReserve?.();if(effect&&typeof (effect as {then?:unknown}).then==='function')throw Error('Author reserve callback must be synchronous');return this.repository.begin({commandId:'author-recover:'+previousJobId,loopId,previousJobId,expectedRevision:this.store.supervision.get(loopId).revision,rejection:after,capabilities});});
+  return this.repository.transaction(()=>{const effect:unknown=beforeReserve?.();if(effect&&typeof (effect as {then?:unknown}).then==='function')throw Error('Author reserve callback must be synchronous');return this.repository.beginV2({commandId:'author-recover:'+previousJobId,loopId,previousJobId,expectedRevision:this.store.supervision.get(loopId).revision,rejection:after,capabilities});});
  }
 }

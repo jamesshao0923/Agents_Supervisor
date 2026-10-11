@@ -161,7 +161,7 @@ test('p5.reasoner.unit.invalid-or-cancelled-request-never-starts-model-and-prese
     const controller = new AbortController(); controller.abort();
     const request: ReasonerInput = { id: 'preflight', cwd: directory, logDir: join(directory, 'invalid'), prompt: 'Propose only', outputSchema: proposalSchema, model: 'must-not-start', effort: 'low', timeoutMs: 1000, onIntent: () => { intents++; } };
     const adapter = new CodexReasonerAdapter();
-    for (const [label, update] of [['invalid', { outputSchema: { type: 'object', $ref: '#/unimplemented' } }], ['cancelled', { signal: controller.signal }], ['oversized', { prompt: 'x'.repeat(2 * 1024 * 1024 + 1) }]] as const) {
+    for (const [label, update] of [['invalid', { outputSchema: { type: 'object', $ref: '#/unimplemented' } }], ['cancelled', { signal: controller.signal }], ['oversized', { prompt: 'x'.repeat(2 * 1024 * 1024 + 1) }], ['expired-author-deadline', { absoluteDeadlineMs: Date.now() - 1 }], ['invalid-author-deadline', { absoluteDeadlineMs: Number.NaN }]] as const) {
       const logDir = join(directory, label); await mkdir(logDir);
       await assert.rejects(adapter.request({ ...request, ...update, logDir }), error => error instanceof ReasonerError && error.result.modelStarted === false && error.result.usage === null && error.result.stopConfirmed === true && error.result.value === null);
     }

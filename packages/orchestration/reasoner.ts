@@ -19,6 +19,8 @@ export interface ReasonerInput {
   indexed?: IndexedResearchConsumer;
   id: string; cwd: string; logDir: string; prompt: string; outputSchema: Record<string, unknown>;
   model: string; effort: string; timeoutMs: number; signal?: AbortSignal;
+  /** Host-frozen author route boundary, additional to the per-request timeout. */
+  absoluteDeadlineMs?: number;
   onIntent?: (intent: ProcessIntent) => void | Promise<void>;
   onIdentity?: (identity: ProcessIdentity) => void | Promise<void>;
   onTurnIntent?: () => void | Promise<void>;
@@ -85,7 +87,7 @@ export async function runReasonerRequest(input: ReasonerInput): Promise<Reasoner
   let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
   let finishEvent!: () => void;
   const eventFinished = new Promise<void>(resolve => { finishEvent = resolve; });
-  const deadline = Date.now() + input.timeoutMs;
+  const deadline = Math.min(Date.now() + input.timeoutMs,input.absoluteDeadlineMs??Infinity);
   const observation = createReasonerEventState();
   let rawBytes = 0;
   let streamsClosed: Promise<void> = Promise.resolve();
@@ -191,7 +193,8 @@ export async function runReasonerRequest(input: ReasonerInput): Promise<Reasoner
     input.signal?.addEventListener('abort', abort, { once: true });
     deadlineTimer = setTimeout(() => fail(new Error('Model reasoner deadline reached')), remaining());
     eligible();
-    await record('reasoner-input', { id: input.id, cwd: input.cwd, model: input.model, effort: input.effort, prompt: input.prompt, instructions, outputSchema });
+    if(input.absoluteDeadlineMs!==undefined&&(!Number.isSafeInteger(input.absoluteDeadlineMs)||input.absoluteDeadlineMs<=Date.now()))throw Error('Invalid or exhausted absolute author deadline');
+    await record('reasoner-input', { ...(input.absoluteDeadlineMs!==undefined?{timeoutMs:input.timeoutMs,absoluteDeadlineMs:input.absoluteDeadlineMs}:{}),id: input.id, cwd: input.cwd, model: input.model, effort: input.effort, prompt: input.prompt, instructions, outputSchema });
     const version = await probe('version', ['--version'], 10_000);
     const schemaDir = join(input.logDir, 'protocol'); await mkdir(schemaDir, { mode: 0o700 });
     await probe('schema', ['app-server', 'generate-json-schema', '--out', schemaDir], 15_000);

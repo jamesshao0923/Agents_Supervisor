@@ -6709,7 +6709,8 @@
         "orchestration",
         "p5",
         "v42-research-group-entry-impact",
-        "v45-indexed-reader-impact"
+        "v45-indexed-reader-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.structured-proposal-parses-and-schema-is-detached",
@@ -6730,7 +6731,8 @@
         "orchestration",
         "p5",
         "v42-research-group-entry-impact",
-        "v45-indexed-reader-impact"
+        "v45-indexed-reader-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.final-json-rejects-extra-fields-missing-constraints-and-prose",
@@ -6751,7 +6753,8 @@
         "orchestration",
         "p5",
         "v42-research-group-entry-impact",
-        "v45-indexed-reader-impact"
+        "v45-indexed-reader-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.schema-rejects-unsupported-and-malformed-constraints-before-inference",
@@ -6772,7 +6775,8 @@
         "orchestration",
         "p5",
         "v42-research-group-entry-impact",
-        "v45-indexed-reader-impact"
+        "v45-indexed-reader-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.nested-schema-unions-numeric-bounds-and-canonical-uniqueness",
@@ -6793,7 +6797,8 @@
         "orchestration",
         "p5",
         "v42-research-group-entry-impact",
-        "v45-indexed-reader-impact"
+        "v45-indexed-reader-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.untrusted-schema-and-output-reject-accessors-prototypes-and-unsafe-keys",
@@ -6814,7 +6819,8 @@
         "orchestration",
         "p5",
         "v42-research-group-entry-impact",
-        "v45-indexed-reader-impact"
+        "v45-indexed-reader-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.context-and-output-capacity-is-bounded-without-truncation",
@@ -6835,7 +6841,8 @@
         "orchestration",
         "p5",
         "v42-research-group-entry-impact",
-        "v45-indexed-reader-impact"
+        "v45-indexed-reader-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.event-identities-are-isolated-and-cannot-cross-threads-or-turns",
@@ -6856,7 +6863,8 @@
         "orchestration",
         "p5",
         "v42-research-group-entry-impact",
-        "v45-indexed-reader-impact"
+        "v45-indexed-reader-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.usage-preserves-unknown-zero-and-monotonic-cumulative-tokens",
@@ -6877,7 +6885,8 @@
         "orchestration",
         "p5",
         "v42-research-group-entry-impact",
-        "v45-indexed-reader-impact"
+        "v45-indexed-reader-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.partial-usage-remains-observed-until-authoritative-terminal-accounting",
@@ -6898,7 +6907,8 @@
         "orchestration",
         "p5",
         "v42-research-group-entry-impact",
-        "v45-indexed-reader-impact"
+        "v45-indexed-reader-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.durable-turn-intent-precedes-send-and-cancellation-remains-conservative",
@@ -6919,7 +6929,8 @@
         "orchestration",
         "p5",
         "v42-research-group-entry-impact",
-        "v45-indexed-reader-impact"
+        "v45-indexed-reader-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.reasoning-role-rejects-tools-approvals-input-and-unknown-actions",
@@ -6940,7 +6951,8 @@
         "orchestration",
         "p5",
         "v42-research-group-entry-impact",
-        "v45-indexed-reader-impact"
+        "v45-indexed-reader-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.only-authoritative-terminal-event-completes-and-deltas-are-not-final-output",
@@ -6961,7 +6973,8 @@
         "orchestration",
         "p5",
         "v42-research-group-entry-impact",
-        "v45-indexed-reader-impact"
+        "v45-indexed-reader-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.invalid-or-cancelled-request-never-starts-model-and-preserves-unknown-usage",
@@ -9910,7 +9923,8 @@
         "v36-authority-impact",
         "v38-combined-impact",
         "v45-indexed-reader-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I01 frozen prompt schema context and one real process settle once without completing the Run",
@@ -9932,7 +9946,8 @@
         "v36-authority-impact",
         "v38-combined-impact",
         "v45-indexed-reader-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I02 tampered frozen input digest is rejected before any process with zero known cost",
@@ -9954,7 +9969,8 @@
         "v36-authority-impact",
         "v38-combined-impact",
         "v45-indexed-reader-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I03 missing context and unsupported output schema fail before model transport",
@@ -9976,7 +9992,8 @@
         "v36-authority-impact",
         "v38-combined-impact",
         "v45-indexed-reader-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I04 finished result rechecks actual proof bytes across reopen without replay",
@@ -9998,7 +10015,8 @@
         "v36-authority-impact",
         "v38-combined-impact",
         "v45-indexed-reader-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I05 pause after actual process stop preserves cost and rejects the late result",
@@ -10020,7 +10038,8 @@
         "v36-authority-impact",
         "v38-combined-impact",
         "v45-indexed-reader-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I06 cancel stops a real child and unknown authoritative usage remains reserved",
@@ -10042,7 +10061,8 @@
         "v36-authority-impact",
         "v38-combined-impact",
         "v45-indexed-reader-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I07 restart terminates persisted real orphan and never replays an interrupted turn",
@@ -10064,7 +10084,8 @@
         "v36-authority-impact",
         "v38-combined-impact",
         "v45-indexed-reader-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I08 restart before process intent settles zero and no transport is requested",
@@ -10086,7 +10107,8 @@
         "v36-authority-impact",
         "v38-combined-impact",
         "v45-indexed-reader-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I09 claimed stopped live process is independently rejected and terminated",
@@ -10108,7 +10130,8 @@
         "v36-authority-impact",
         "v38-combined-impact",
         "v45-indexed-reader-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I10 malformed output or absent actual proof cannot become an applicable result",
@@ -10130,7 +10153,8 @@
         "v36-authority-impact",
         "v38-combined-impact",
         "v45-indexed-reader-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I11 underreported usage retains observed cost unresolved and overrun is charged without result",
@@ -10152,7 +10176,8 @@
         "v36-authority-impact",
         "v38-combined-impact",
         "v45-indexed-reader-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I12 exact reserved usage permits current completion and rejects another turn intent",
@@ -10174,7 +10199,8 @@
         "v36-authority-impact",
         "v38-combined-impact",
         "v45-indexed-reader-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I13 close during result await blocks publication and retains unknown final usage",
@@ -10196,7 +10222,8 @@
         "v36-authority-impact",
         "v38-combined-impact",
         "v45-indexed-reader-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I14 finished proof cannot bypass a newer pause or changed immutable contract",
@@ -10218,7 +10245,8 @@
         "v36-authority-impact",
         "v38-combined-impact",
         "v45-indexed-reader-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I15 finished result mutation is rejected even when proof files remain unchanged",
@@ -10240,7 +10268,8 @@
         "v36-authority-impact",
         "v38-combined-impact",
         "v45-indexed-reader-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I16 saved process intent without matching identity keeps stop unknown across recovery",
@@ -10262,7 +10291,8 @@
         "v36-authority-impact",
         "v38-combined-impact",
         "v45-indexed-reader-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I17 close settles unclaimed prelaunch jobs without a model request",
@@ -10284,7 +10314,8 @@
         "v36-authority-impact",
         "v38-combined-impact",
         "v45-indexed-reader-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I18 contradictory transport start flag cannot turn durable turn intent into known zero cost",
@@ -10306,7 +10337,8 @@
         "v36-authority-impact",
         "v38-combined-impact",
         "v45-indexed-reader-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I19 runtime cancellation after stopped process retains real cost without applying late output",
@@ -15745,7 +15777,8 @@
       ],
       "scenario": "schema rejection: actual stopped Node, SQLite rollback, bounded route and reopen preserve old fees and exact receipt",
       "impactTags": [
-        "p6-author-routing"
+        "p6-author-routing",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Actual SQLite, files, managed Node and protocol parser; synthetic model output/accounting is mechanism coverage only.",
       "assertions": "tests/integration/author-routing.test.ts :: schema rejection: actual stopped Node, SQLite rollback, bounded route and reopen preserve old fees and exact receipt",
@@ -15763,7 +15796,8 @@
       ],
       "scenario": "semantic rejection uses the exact schema-valid raw bundle and never returns approved assets",
       "impactTags": [
-        "p6-author-routing"
+        "p6-author-routing",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Actual SQLite, files, managed Node and protocol parser; synthetic model output/accounting is mechanism coverage only.",
       "assertions": "tests/integration/author-routing.test.ts :: semantic rejection uses the exact schema-valid raw bundle and never returns approved assets",
@@ -15781,7 +15815,8 @@
       ],
       "scenario": "tampered raw proof, changed candidate and forged advertised models cannot reserve replacement",
       "impactTags": [
-        "p6-author-routing"
+        "p6-author-routing",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Actual SQLite, files, managed Node and protocol parser; synthetic model output/accounting is mechanism coverage only.",
       "assertions": "tests/integration/author-routing.test.ts :: tampered raw proof, changed candidate and forged advertised models cannot reserve replacement",
@@ -15799,7 +15834,8 @@
       ],
       "scenario": "transport failure and unknown usage remain blocked rather than typed author recovery",
       "impactTags": [
-        "p6-author-routing"
+        "p6-author-routing",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Actual SQLite, files, managed Node and protocol parser; synthetic model output/accounting is mechanism coverage only.",
       "assertions": "tests/integration/author-routing.test.ts :: transport failure and unknown usage remain blocked rather than typed author recovery",
@@ -15817,7 +15853,8 @@
       ],
       "scenario": "second rejected output is retained and cannot start a third author; pause cannot reserve",
       "impactTags": [
-        "p6-author-routing"
+        "p6-author-routing",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Actual SQLite, files, managed Node and protocol parser; synthetic model output/accounting is mechanism coverage only.",
       "assertions": "tests/integration/author-routing.test.ts :: second rejected output is retained and cannot start a third author; pause cannot reserve",
@@ -15835,7 +15872,8 @@
       ],
       "scenario": "complete JSON schema errors get typed markers; malformed JSON and exhausted calls cannot be reclassified",
       "impactTags": [
-        "p6-author-routing"
+        "p6-author-routing",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Actual SQLite, files, managed Node and protocol parser; synthetic model output/accounting is mechanism coverage only.",
       "assertions": "tests/integration/author-routing.test.ts :: complete JSON schema errors get typed markers; malformed JSON and exhausted calls cannot be reclassified",
@@ -15853,7 +15891,8 @@
       ],
       "scenario": "protected shared balance and full recovery context limits fail without a new reservation",
       "impactTags": [
-        "p6-author-routing"
+        "p6-author-routing",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Actual SQLite, files, managed Node and protocol parser; synthetic model output/accounting is mechanism coverage only.",
       "assertions": "tests/integration/author-routing.test.ts :: protected shared balance and full recovery context limits fail without a new reservation",
@@ -15871,7 +15910,8 @@
       ],
       "scenario": "cross-Run workspace queued or unknown effects block assess and late begin without consuming the one author replacement",
       "impactTags": [
-        "p6-author-routing"
+        "p6-author-routing",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Actual SQLite, files, managed Node and protocol parser; synthetic model output/accounting is mechanism coverage only.",
       "assertions": "tests/integration/author-routing.test.ts :: cross-Run workspace queued or unknown effects block assess and late begin without consuming the one author replacement",
@@ -15889,7 +15929,8 @@
       ],
       "scenario": "overlapping actual live Node is rejected despite terminal accounting and late stopped receipts require fresh physical assessment",
       "impactTags": [
-        "p6-author-routing"
+        "p6-author-routing",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Actual SQLite, files, managed Node and protocol parser; synthetic model output/accounting is mechanism coverage only.",
       "assertions": "tests/integration/author-routing.test.ts :: overlapping actual live Node is rejected despite terminal accounting and late stopped receipts require fresh physical assessment",
@@ -15907,7 +15948,8 @@
       ],
       "scenario": "nonoverlapping queued execution does not consume or block author scope and duplicate route does not allocate again",
       "impactTags": [
-        "p6-author-routing"
+        "p6-author-routing",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Actual SQLite, files, managed Node and protocol parser; synthetic model output/accounting is mechanism coverage only.",
       "assertions": "tests/integration/author-routing.test.ts :: nonoverlapping queued execution does not consume or block author scope and duplicate route does not allocate again",
@@ -17244,7 +17286,8 @@
         "v35-author-recovery-impact",
         "v36-authority-impact",
         "v38-combined-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node; real modules; explicit synthetic planner/P2 accounting where stated",
       "assertions": "tests/integration/author-review-rebuild.test.ts :: P6-AUTHREVIEW-I01 actual P4 command rejection reserves one fresh author atomically and preserves original history across reopen",
@@ -17267,7 +17310,8 @@
         "v35-author-recovery-impact",
         "v36-authority-impact",
         "v38-combined-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node; real modules; explicit synthetic planner/P2 accounting where stated",
       "assertions": "tests/integration/author-review-rebuild.test.ts :: P6-AUTHREVIEW-I02 changed actual review proof and changed original candidate reject without granting a replacement",
@@ -17290,7 +17334,8 @@
         "v35-author-recovery-impact",
         "v36-authority-impact",
         "v38-combined-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node; real modules; explicit synthetic planner/P2 accounting where stated",
       "assertions": "tests/integration/author-review-rebuild.test.ts :: P6-AUTHREVIEW-I03 second actually rejected rebuilt author remains retained and cannot regenerate again",
@@ -17313,7 +17358,8 @@
         "v35-author-recovery-impact",
         "v36-authority-impact",
         "v38-combined-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node; real modules; explicit synthetic planner/P2 accounting where stated",
       "assertions": "tests/integration/author-review-rebuild.test.ts :: P6-AUTHREVIEW-I04 unknown review accounting and queued overlapping Run cannot consume replacement authority",
@@ -17336,7 +17382,8 @@
         "v35-author-recovery-impact",
         "v36-authority-impact",
         "v38-combined-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node; real modules; explicit synthetic planner/P2 accounting where stated",
       "assertions": "tests/integration/author-review-rebuild.test.ts :: P6-AUTHREVIEW-U01 actual advertised Astra high upgrades strictly to xhigh without changing reservation or guessing effort",
@@ -17359,7 +17406,8 @@
         "v35-author-recovery-impact",
         "v36-authority-impact",
         "v38-combined-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "v53-author-route-v2-impact"
       ],
       "prerequisites": "Pinned Node; real modules; explicit synthetic planner/P2 accounting where stated",
       "assertions": "tests/integration/author-review-rebuild.test.ts :: P6-AUTHREVIEW-I05 completed synthetic review transport with real P4 controls binds failed independent judgment and retains its cost",

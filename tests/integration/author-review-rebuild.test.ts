@@ -12,7 +12,7 @@ import {VerificationController} from '../../packages/verification/controller.js'
 import type {Proposal,VerificationJob} from '../../packages/verification/records.js';
 import type {SupervisionJob} from '../../packages/contracts/p6-supervision.js';
 import {futureVerificationFloor} from '../../packages/domain/index.js';
-import {selectAcceptanceAuthorRoute} from '../../packages/orchestration/acceptance-authoring-route.js';
+import {selectAcceptanceAuthorRoute,selectAcceptanceAuthorRouteV2,ACCEPTANCE_AUTHOR_ROUTING_POLICY_V2} from '../../packages/orchestration/acceptance-authoring-route.js';
 // The planner JSON and 7-token author receipt are explicitly synthetic; its Node
 // ownership/stop and the SQLite ledger are real. P4 control commands below use
 // the real controller/engine/permission sandbox and deliberately produce no
@@ -74,6 +74,22 @@ test('P6-AUTHREVIEW-I04 unknown review accounting and queued overlapping Run can
 });
 test('P6-AUTHREVIEW-U01 actual advertised Astra high upgrades strictly to xhigh without changing reservation or guessing effort',()=>{
  const config={model:'gpt-6-astra',effort:'high',reservation:30,timeoutMs:5000},capabilities={version:'fixture',schemaDigest:'fixture',models:[{id:'gpt-6-astra',label:'exact provider ID',inputModalities:['text'],reasoningEfforts:['low','high','xhigh'],defaultEffort:'low'}],imageInput:false,checkedAt:new Date().toISOString()};assert.deepEqual(selectAcceptanceAuthorRoute(capabilities,config),{...config,effort:'xhigh'});capabilities.models[0]!.reasoningEfforts=['low','high'];assert.throws(()=>selectAcceptanceAuthorRoute(capabilities,config),/No advertised/);
+ // V2 is an explicit host preference, not a speed/quality measurement.
+ capabilities.models[0]!.reasoningEfforts=['low','medium','high','xhigh'];
+ assert.equal(selectAcceptanceAuthorRouteV2(capabilities,{...config,effort:'low'}).effort,'medium');
+ assert.equal(selectAcceptanceAuthorRouteV2(capabilities,{...config,effort:'medium'}).effort,'high');
+ assert.equal(selectAcceptanceAuthorRouteV2(capabilities,config).effort,'xhigh');
+ assert.throws(()=>selectAcceptanceAuthorRouteV2(capabilities,{...config,effort:'xhigh'}),/No advertised/);
+ capabilities.models[0]!.reasoningEfforts=['low','high'];
+ assert.equal(selectAcceptanceAuthorRouteV2(capabilities,{...config,effort:'low'}).effort,'high');
+ assert.throws(()=>selectAcceptanceAuthorRouteV2({...capabilities,models:[]},config),/No advertised/);
+ assert.throws(()=>selectAcceptanceAuthorRouteV2({...capabilities,models:[...capabilities.models,...capabilities.models]},config),/Ambiguous/);
+ assert.throws(()=>selectAcceptanceAuthorRouteV2(capabilities,{...config,effort:'invented'}),/explicit/);
+ assert.throws(()=>selectAcceptanceAuthorRouteV2(capabilities,config,{...ACCEPTANCE_AUTHOR_ROUTING_POLICY_V2,schemaVersion:3} as never),/Unsupported/);
+ const lower={...capabilities,models:[{...capabilities.models[0]!,id:'gpt-5.6-sol',reasoningEfforts:['medium','xhigh']}]};
+ assert.throws(()=>selectAcceptanceAuthorRouteV2(lower,{...config,effort:'low'}),/No advertised/);
+ assert.equal(selectAcceptanceAuthorRouteV2({...capabilities,models:[...lower.models,{...capabilities.models[0]!,reasoningEfforts:['medium']}]},{...config,model:'gpt-5.6-sol',effort:'high'}).model,'gpt-6-astra');
+
 });
 
 test('P6-AUTHREVIEW-I05 completed synthetic review transport with real P4 controls binds failed independent judgment and retains its cost',async t=>{
