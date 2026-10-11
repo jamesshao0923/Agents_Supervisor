@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 /** A bounded, explicitly supported JSON Schema subset. Unsupported constraints fail
  * before a model is started, rather than silently weakening the controller's input. */
 export class ReasonerSchemaError extends Error { override name = 'ReasonerSchemaError'; }
@@ -155,4 +156,49 @@ export function parseReasonerOutput(text: string, outputSchema: Record<string, u
   const clone = jsonClone(value, 1024 * 1024);
   assertValue(clone, schema, '$output');
   return clone;
+}
+
+/** Transport compatibility only: the original schema remains the host authority.
+ * Visit schema nodes, never literal object/enum contents or arbitrary JSON data. */
+export function projectProviderReasonerSchema(input: Record<string, unknown>): { schema: Record<string, unknown>; removedArrayConstPaths: string[] } {
+  const schema = validateReasonerSchema(input), removedArrayConstPaths: string[] = [];
+  function visit(node: Record<string, unknown> | boolean, path: string, insideOneOf = false): void {
+    if (typeof node === 'boolean') return;
+    if (Array.isArray(node.const)) {
+      if (insideOneOf) fail(path, 'provider projection does not support array const under oneOf');
+      const literal = node.const;
+      // A const-only array otherwise becomes an invalid empty schema. Infer only
+      // constraints already entailed by that literal; retain existing keywords.
+      node.type ??= 'array'; node.minItems ??= literal.length; node.maxItems ??= literal.length;
+      if (node.items === undefined) {
+        const itemTypes = [...new Set(literal.map(value => value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value))];
+        node.items = { type: itemTypes.length > 1 ? itemTypes : itemTypes[0] ?? 'null' };
+      }
+      delete node.const; removedArrayConstPaths.push(path + '.const');
+    }
+    if (node.properties) for (const [key, child] of Object.entries(node.properties as Record<string, Record<string, unknown> | boolean>)) visit(child, path + '.properties[' + JSON.stringify(key) + ']', insideOneOf);
+    for (const key of ['items', 'additionalProperties']) if (node[key] !== undefined) visit(node[key] as Record<string, unknown> | boolean, path + '.' + key, insideOneOf);
+    for (const key of ['anyOf', 'oneOf', 'allOf']) if (Array.isArray(node[key])) (node[key] as (Record<string, unknown> | boolean)[]).forEach((child, index) => visit(child, path + '.' + key + '[' + index + ']', insideOneOf || key === 'oneOf'));
+  }
+  visit(schema, '$');
+  return { schema: validateReasonerSchema(schema), removedArrayConstPaths };
+}
+
+export function providerReasonerSchemaRecord(schema: Record<string, unknown>): Record<string, unknown> {
+  const projection = projectProviderReasonerSchema(schema);
+  const digest = (value: unknown): string => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+  return { schemaVersion: 1, policy: 'remove-array-const-v1', digestEncoding: 'sha256(JSON.stringify(schema),utf8)', hostSchemaDigest: digest(schema), providerSchemaDigest: digest(projection.schema), removedArrayConstPaths: projection.removedArrayConstPaths, outputSchema: projection.schema, authority: 'Original reasoner-input outputSchema and local final validation remain exact; transport projection is not equivalent.' };
+}
+/** New transport records are exact and bound to the real turn; absent legacy records stay legacy. */
+export function assertProviderReasonerSchemaProof(events: {kind: string; value: any}[]): void {
+  const projections = events.filter(event => event.kind === 'provider-schema'), turns = events.filter(event => event.kind === 'reasoner-turn-intent');
+  if (!projections.length) {
+    if (turns.some(event => Object.hasOwn(event.value, 'providerSchemaDigest'))) fail('$provider-schema', 'projection record missing');
+    return;
+  }
+  const inputs = events.filter(event => event.kind === 'reasoner-input');
+  if (projections.length !== 1 || inputs.length !== 1 || turns.length !== 1) fail('$provider-schema', 'actual projection/request/turn inventory differs');
+  const expected = providerReasonerSchemaRecord(validateReasonerSchema(inputs[0]!.value.outputSchema));
+  if (canonical(projections[0]!.value) !== canonical(expected) || turns[0]!.value.providerSchemaDigest !== expected.providerSchemaDigest) fail('$provider-schema', 'actual projection or turn digest differs');
+  if (!(events.indexOf(inputs[0]!) < events.indexOf(projections[0]!) && events.indexOf(projections[0]!) < events.indexOf(turns[0]!))) fail('$provider-schema', 'projection order differs from actual dispatch');
 }

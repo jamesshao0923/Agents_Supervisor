@@ -1,3 +1,4 @@
+import { assertProviderReasonerSchemaProof } from './reasoner-schema.js';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -99,6 +100,7 @@ export function assertAuthorRouteProof(receipt: AuthorRouteReceipt, job: Supervi
     const dispatch = JSON.parse(read('author-route-dispatch.json')) as AuthorRouteDispatch;
     ensure(same(dispatch, authorRouteDispatch(receipt, job, Date.parse(dispatch.dispatchedAt))), 'Author route dispatch changed');
     const events = read('events.jsonl').trim().split('\n').map(line => JSON.parse(line));
+    assertProviderReasonerSchemaProof(events);
     const requests = events.filter(e => e.kind === 'reasoner-input');
     ensure(requests.length === 1 && requests[0].value.id === job.id && requests[0].value.timeoutMs === dispatch.timeoutMs && requests[0].value.absoluteDeadlineMs === dispatch.absoluteDeadlineMs && requests[0].value.model === job.config.model && requests[0].value.effort === job.config.effort, 'Author actual request deadline/config differs');
 }

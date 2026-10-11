@@ -4,7 +4,7 @@ import { mkdtemp, rm, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CodexReasonerAdapter, prepareReasonerTurn, ReasonerError, type ReasonerInput } from '../../packages/orchestration/reasoner.js';
-import { parseReasonerOutput, validateReasonerSchema, ReasonerSchemaError } from '../../packages/orchestration/reasoner-schema.js';
+import { parseReasonerOutput, validateReasonerSchema, projectProviderReasonerSchema, providerReasonerSchemaRecord, assertProviderReasonerSchemaProof, ReasonerSchemaError } from '../../packages/orchestration/reasoner-schema.js';
 import { createReasonerEventState, finalizeReasonerUsage, reduceReasonerEvent } from '../../packages/orchestration/reasoner-events.js';
 import { normalizeNotification, type JsonObject, type NormalizedEvent } from '../../packages/executor-codex/index.js';
 
@@ -27,11 +27,58 @@ test('p5.reasoner.unit.structured-proposal-parses-and-schema-is-detached', () =>
   (validated.properties as Record<string, unknown>).questions = false;
   assert.deepEqual(parseReasonerOutput(JSON.stringify(proposal), proposalSchema), proposal);
   assert.throws(() => parseReasonerOutput(JSON.stringify(proposal), validated), /prohibited/);
+  const exact = { type: 'object', additionalProperties: false, required: ['ids', 'empty', 'literal'], properties: {
+    ids: { type: 'array', items: { type: 'string' }, minItems: 2, maxItems: 2, const: ['increment.finite', 'increment.cli'] },
+    empty: { type: 'array', items: { type: 'null' }, minItems: 0, maxItems: 0, const: [] },
+    literal: { type: 'object', const: { const: ['literal-data'], items: { const: ['unchanged'] } } },
+  } };
+  const before = JSON.stringify(exact), projected = projectProviderReasonerSchema(exact);
+  assert.equal(JSON.stringify(exact), before, 'Projection must not alter host schema or historical input');
+  assert.deepEqual(projected.removedArrayConstPaths, ['$.properties["ids"].const', '$.properties["empty"].const']);
+  const expected = structuredClone(exact) as Record<string, any>;
+  delete expected.properties.ids.const; delete expected.properties.empty.const;
+  assert.deepEqual(projected.schema, expected, 'Only array const on schema nodes is removed; literal JSON stays exact');
+  const valid = { ids: ['increment.finite', 'increment.cli'], empty: [], literal: exact.properties.literal.const };
+  assert.deepEqual(parseReasonerOutput(JSON.stringify(valid), exact), valid);
+  assert.deepEqual(parseReasonerOutput(JSON.stringify(valid), projected.schema), valid);
+  const different = { ...valid, ids: ['increment.cli', 'increment.finite'] };
+  assert.doesNotThrow(() => parseReasonerOutput(JSON.stringify(different), projected.schema));
+  assert.throws(() => parseReasonerOutput(JSON.stringify(different), exact), ReasonerSchemaError, 'Original host schema rejects reordered output despite transport acceptance');
+  const recorded = providerReasonerSchemaRecord(exact), journal = [{ kind: 'reasoner-input', value: { outputSchema: exact } }, { kind: 'provider-schema', value: recorded }, { kind: 'reasoner-turn-intent', value: { providerSchemaDigest: recorded.providerSchemaDigest } }];
+  assert.doesNotThrow(() => assertProviderReasonerSchemaProof(journal));
+  assert.doesNotThrow(() => assertProviderReasonerSchemaProof([{ kind: 'reasoner-input', value: { outputSchema: exact } }, { kind: 'reasoner-turn-intent', value: {} }]));
+  assert.throws(() => assertProviderReasonerSchemaProof(journal.filter(x => x.kind !== 'provider-schema')), ReasonerSchemaError);
+  const mismatched = structuredClone(journal); mismatched[2]!.value = { providerSchemaDigest: 'different' };
+  assert.throws(() => assertProviderReasonerSchemaProof(mismatched), ReasonerSchemaError);
+
+  assert.throws(() => parseReasonerOutput(JSON.stringify({ ...valid, empty: [null] }), projected.schema));
+  const composed = { allOf: [{ anyOf: [{ type: 'array', items: { type: 'integer', const: 1 }, const: [1] }] }], additionalProperties: { anyOf: [{ const: [] }] } };
+  const composedProjection = projectProviderReasonerSchema(composed);
+  assert.deepEqual(composedProjection.removedArrayConstPaths, ['$.additionalProperties.anyOf[0].const', '$.allOf[0].anyOf[0].const']);
+  assert.equal((((composedProjection.schema.allOf as any[])[0].anyOf as any[])[0].items).const, 1);
+  assert.deepEqual(((composedProjection.schema.additionalProperties as any).anyOf as any[])[0], { type: 'array', minItems: 0, maxItems: 0, items: { type: 'null' } });
+  const constOnly = { const: ['first', 'second'] }, constOnlyProjection = projectProviderReasonerSchema(constOnly);
+  assert.deepEqual(constOnlyProjection.schema, { type: 'array', minItems: 2, maxItems: 2, items: { type: 'string' } });
+  assert.deepEqual(parseReasonerOutput('["first","second"]', constOnlyProjection.schema), ['first', 'second']);
+  assert.throws(() => parseReasonerOutput('[]', constOnlyProjection.schema));
+  assert.throws(() => parseReasonerOutput('[1,2]', constOnlyProjection.schema));
+  assert.throws(() => parseReasonerOutput('["second","first"]', constOnly));
+  const overlapping = { oneOf: [{ const: [1] }, { const: [2] }] };
+  assert.deepEqual(parseReasonerOutput('[1]', overlapping), [1]);
+  assert.throws(() => projectProviderReasonerSchema(overlapping), /does not support array const under oneOf/);
+  assert.throws(() => projectProviderReasonerSchema({ oneOf: [{ type: 'object', properties: { ids: { const: [] } } }] }), /under oneOf/);
+
+
 });
 
 test('p5.reasoner.unit.final-json-rejects-extra-fields-missing-constraints-and-prose', () => {
   for (const value of [{ ...proposal, succeeded: true }, { action: 'clarify', questions: [] }, { ...proposal, action: 'complete' }, { ...proposal, contractVersion: 0 }, { ...proposal, contractVersion: 1.5 }, { ...proposal, questions: [''] }]) assert.throws(() => parseReasonerOutput(JSON.stringify(value), proposalSchema), ReasonerSchemaError);
   for (const text of ['', '```json\n{}\n```', 'Here is the proposal: {}', '{incomplete']) assert.throws(() => parseReasonerOutput(text, proposalSchema), ReasonerSchemaError);
+  const exactArray = { type: 'array', items: { type: 'string' }, minItems: 2, maxItems: 2, const: ['first', 'second'] };
+  const response = '["second","first"]';
+  assert.doesNotThrow(() => parseReasonerOutput(response, projectProviderReasonerSchema(exactArray).schema));
+  assert.throws(() => parseReasonerOutput(response, exactArray), ReasonerSchemaError);
+
 });
 
 test('p5.reasoner.unit.schema-rejects-unsupported-and-malformed-constraints-before-inference', () => {

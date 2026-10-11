@@ -18,7 +18,7 @@ Supervisor 的需求理解与计划已由模型驱动，P6 自动监督控制器
 
 ## 当前开发检查点（2026-10-12，数组约束的接口兼容待修）
 
-8518b26 等价空数组修复后，唯一一次真实修复场景仍 FAIL：初始独立审核、发布与 +2 缺陷拒绝完成，但诊断请求被 HTTP400 `invalid_json_schema` 拒绝，这次是不支持非空数组 `failedObligationIds.const`。尚未进入修复、维护或交付，空数组维护路径未触达。88,883已知token及150,000未知预留分别保留；652份证明一致、43个所属进程停止、源码与编译无漂移。证据 `.supervisor-dev/p6-loop-supplied-8518b26-live-work/final-result.json`、`diagnosis-call-failure.json`。下一步修复统一的供应商 schema 表达，并保持宿主对原完整 schema 的严格校验；不再缩减业务门禁。
+8518b26 等价空数组修复后，唯一一次真实修复场景仍 FAIL：初始独立审核、发布与 +2 缺陷拒绝完成，但诊断请求被 HTTP400 `invalid_json_schema` 拒绝，这次是不支持非空数组 `failedObligationIds.const`。尚未进入修复、维护或交付，空数组维护路径未触达。88,883已知token及150,000未知预留分别保留；652份证明一致、43个所属进程停止、源码与编译无漂移。证据 `.supervisor-dev/p6-loop-supplied-8518b26-live-work/final-result.json`、`diagnosis-call-failure.json`。统一供应商 schema 投影已合入：发送时移除数组const，返回后仍用原schema严格检查；完整原/投影记录绑定实际调用，旧证据不迁移。不支持的oneOf组合在启动前明确拒绝。两个既有单元检查通过、独立审查与构建通过，真实维护交付仍待复验；不再缩减业务门禁。
 
 ## 先前开发检查点（2026-10-12，跟进核心通过，维护请求格式待修）
 

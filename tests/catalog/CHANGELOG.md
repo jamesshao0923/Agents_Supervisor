@@ -1,3 +1,7 @@
+## 2026-10-12 — Provider projection with exact host validation
+
+Extend existing reasoner U001/U002 only: transport removes array const without mutating original schema or literal data; host still rejects wrong order/value. Const-only array structure and explicit unsupported oneOf preflight are covered, alongside versioned projection/turn binding and legacy records. Both actual selected unit cases passed, zero skips; these are supplemental and do not enlarge the 140-ID gate or prove provider dispatch. Original diagnosis/maintenance HTTP400 failures and unknown reservations remain.
+
 ## 2026-10-12 — Correct deferred-ledger registration count
 
 Record the already-selected author-stages I04 alongside I03 in addedNewCaseIds. P6 accounting is 656 original - 613 deferred + 5 existing additions + 2 new registrations = 50. Correct the descriptive suite total to its existing 420 seconds; no test, profile, timeout or evidence changes.

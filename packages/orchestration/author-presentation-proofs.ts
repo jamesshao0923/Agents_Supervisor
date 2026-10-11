@@ -1,3 +1,4 @@
+import { assertProviderReasonerSchemaProof } from './reasoner-schema.js';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -49,6 +50,7 @@ export function assertAuthorWireProof(
   };
   ensure(same(JSON.parse(read('author-wire.json')), receipt), 'Author wire receipt differs from complete frozen input');
   const events = read('events.jsonl').trim().split('\n').map(line => JSON.parse(line) as {kind: string; value: any});
+  assertProviderReasonerSchemaProof(events);
   const inputs = events.filter(event => event.kind === 'reasoner-input');
   ensure(inputs.length === 1
     && inputs[0]!.value.id === job.id
