@@ -12,7 +12,7 @@ Supervisor 的需求理解与计划已由模型驱动，P6 自动监督控制器
 
 已完成独立源码审查、正常构建及 **26 个不同的单元/真实组件检查**，零失败、零跳过。两条真实 Node/文件系统调用链各处理 16,000 条高频消息，reasoner 约 5.5 秒、P4 model 约 6.2 秒，原始和归并消息完整、完成事件各一次；同时验证超时仍失败、未知用量不变为零、材料读取确认与取消后的队列处理。这些是显式合成模型协议的机制检查，不是供应商或业务验收。全局 969 个稳定 ID 不变，仅为 26 个既有用例增加影响标签。证据 `.supervisor-dev/p6-reasoner-journal-work/ready.json`、`actual-node-timings.json`、`root-review.json`，独审 `.supervisor-dev/p6-reasoner-journal-independent-review/review-final.json`。
 
-下一步以此前完整真实候选重新验证作者、P4 独立复核、全部最终检查及交付；P6–P8 仍为 developing。`.gitignore` 持续排除本地运行数据、测试证据、构建产物与凭证。
+修复后的一次真实局部验证仍失败，但作者已在约 84 秒正常完成，已知用量 23,466。失败原因是模型生成的正样本测试使用 `version` 却未导入，P4 真实执行得到 `ReferenceError`，正确拒绝；独立模型复核与交付未执行。42 份新证明、38 份原证明核对一致，5 个所属进程已停止，旧失败与未知费用不变。证据 `.supervisor-dev/p6-author-existing-candidate-batch-work/final-result.json`。下一步运行原完整在途跟进门禁，验证真实跟进、重启、自动验收及必要时的验收方案重建；P6–P8 仍为 developing。`.gitignore` 持续排除本地运行数据、测试证据、构建产物与凭证。
 
 ## 历史开发检查点（v55，2026-10-11，命令验收作者的明确引用协议）
 
