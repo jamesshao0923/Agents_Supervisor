@@ -1,4 +1,4 @@
-import {parseAuthorStageInput,parseAuthorStageOutput} from './acceptance-authoring-stages.js';
+import {parseAuthorStageInput,parseAuthorStageOutput} from './author-stage-protocol.js';
 import {assertAuthorStagePolicy,assertAuthorStagePhysical,authorStageAssemblyRecord,assertAuthorStageAssemblyProof} from './author-stage-proofs.js';
 import {authorExpansionRecord,assertAuthorExpansionProof,assertAuthorPatchBase,patchInput} from './author-result-patch.js';
 import {authorRouteDispatch,assertAuthorRouteProof} from './author-route-binding.js';

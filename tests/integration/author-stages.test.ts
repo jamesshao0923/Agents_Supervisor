@@ -11,7 +11,7 @@ import {captureCandidate} from '../../packages/verification/candidate.js';
 import {VerificationController} from '../../packages/verification/controller.js';
 import type {Proposal,VerificationJob} from '../../packages/verification/records.js';
 import {beginAuthorStages,advanceAuthorStage} from '../../packages/orchestration/author-stage-controller.js';
-import {authorStageDigest,parseAuthorStageInput} from '../../packages/orchestration/acceptance-authoring-stages.js';
+import {authorStageDigest,parseAuthorStageInput} from '../../packages/orchestration/author-stage-protocol.js';
 import {assertStoredAuthorStage,assertAuthorStageAssemblyProof} from '../../packages/orchestration/author-stage-proofs.js';
 import {SupervisionReasoningRunner} from '../../packages/orchestration/supervision-reasoning.js';
 import {prepareReasonerTurn,type SupervisorReasoner,type ReasonerInput,type ReasonerResult} from '../../packages/orchestration/reasoner.js';
@@ -20,7 +20,7 @@ import {assertAuthorWireProof} from '../../packages/orchestration/author-present
 import {acceptanceAuthoringContextDigest,materializeAcceptanceBundle,validateAcceptanceBundle,type AcceptanceAuthoringContext,type AcceptanceBundle} from '../../packages/orchestration/acceptance-authoring.js';
 import {spawnManagedProcess,inspectProcess} from '../../packages/process-control/index.js';
 import type {SupervisionJob} from '../../packages/contracts/p6-supervision.js';
-import {AUTHOR_STAGE_PROTOCOL,type AuthorDefinitionStage,type AuthorPositiveStage,type AuthorNegativeStage} from '../../packages/contracts/p6-author-stages.js';
+import {AUTHOR_STAGE_PROTOCOL,AUTHOR_STAGE_PROTOCOL_V2,type AuthorStageProtocol,type AuthorDefinitionStageV2,type AuthorPositiveStageV2,type AuthorDefinitionStage,type AuthorPositiveStage,type AuthorNegativeStage} from '../../packages/contracts/p6-author-stages.js';
 import {capabilities} from './author-review-fixture.js';
 
 const sha=(value:string|Uint8Array)=>createHash('sha256').update(value).digest('hex');
@@ -28,7 +28,7 @@ const sha=(value:string|Uint8Array)=>createHash('sha256').update(value).digest('
 // This suite exercises actual SQLite/FS, runner dispatch, managed Node ownership,
 // physical stop and P4 command execution. Model JSON and seven tokens per turn
 // are explicit protocol fixtures, never supplier reasoning or semantic approval.
-async function fixture(t:TestContext,options:{calls?:number;limit?:number}={}) {
+async function fixture(t:TestContext,options:{calls?:number;limit?:number;protocol?:AuthorStageProtocol}={}) {
   const root=realpathSync(mkdtempSync('/tmp/sv-author-stages-'));
   const data=join(root,'data'),workspace=join(root,'workspace');mkdirSync(workspace);
   const content='export const value=2;\n';writeFileSync(join(workspace,'value.mjs'),content);
@@ -43,10 +43,13 @@ async function fixture(t:TestContext,options:{calls?:number;limit?:number}={}) {
   const candidate=await captureCandidate(workspace,join(data,'candidate'));
   const acceptance:AcceptanceAuthoringContext={contract,criteria:[item],candidate:{workspace,digest:candidate.digest,files:[{path:'value.mjs',content,sha256:sha(content)}]},environment:{fixture:'synthetic JSON and accounting; actual Node/FS/SQLite'},failureContext:null,previousSpec:null};
   const bundle:AcceptanceBundle={contextDigest:acceptanceAuthoringContextDigest(acceptance),spec:{schemaVersion:1,contractVersion:2,standardsVersion:'stage-component',obligations:[{id:'value-check',criterionId:'value',expectation:'Value equals two',required:true,applicable:true}],cases:[{id:'case',revision:1,status:'active',obligationIds:['value-check'],parameters:[{}],modules:['value'],replaces:[],defectRefs:[],verifier:{kind:'command',version:'fixture',entry:'check.mjs',files:['check.mjs'],timeoutMs:1000}}],controls:[{id:'good',workspace:'good',expect:'passed',mustFail:[]},{id:'bad',workspace:'bad',expect:'failed',mustFail:['value-check']}],moduleDependencies:{value:[]}},verifierFiles:[{path:'check.mjs',content:'// Deliberately missing report: real P4 must reject this checker.\n'}],controls:[{id:'good',files:[{path:'value.mjs',content}]},{id:'bad',files:[{path:'value.mjs',content:'export const value=3;\n'}]}],coverageExplanation:[{criterionId:'value',check:item.checks[0]!,caseIds:['case'],explanation:'Independent command should read and compare the export; P4 decides its effectiveness.'}]};
-  const definition:AuthorDefinitionStage={protocol:AUTHOR_STAGE_PROTOCOL,stage:'definition',contextDigest:bundle.contextDigest,spec:bundle.spec,verifierFiles:bundle.verifierFiles,coverageExplanation:bundle.coverageExplanation,negativeBases:[{controlId:'bad',positiveId:'good'}]};
-  const positive:AuthorPositiveStage={protocol:AUTHOR_STAGE_PROTOCOL,stage:'positive',contextDigest:bundle.contextDigest,definitionDigest:authorStageDigest(definition),controls:[bundle.controls[0]!]};
-  const negative:AuthorNegativeStage={protocol:AUTHOR_STAGE_PROTOCOL,stage:'negative',contextDigest:bundle.contextDigest,definitionDigest:authorStageDigest(definition),positiveDigest:authorStageDigest(positive),controls:[{id:'bad',basePositiveId:'good',basePositiveDigest:authorStageDigest(positive.controls[0]),fileChanges:[{operation:'replace',...bundle.controls[1]!.files[0]!}]}]};
-  const loop=store.supervision.attach({commandId:'loop',runtimeId:runtime.id,authoringProtocol:AUTHOR_STAGE_PROTOCOL,config:{model:'gpt-5.6-sol',effort:'low',reservation:30,timeoutMs:5000},limits:{maxRepairs:1,maxReasoningCalls:options.calls??4,maxDurationMs:120000,maxContextChars:200000}});
+  const originalDefinition:AuthorDefinitionStage={protocol:AUTHOR_STAGE_PROTOCOL,stage:'definition',contextDigest:bundle.contextDigest,spec:bundle.spec,verifierFiles:bundle.verifierFiles,coverageExplanation:bundle.coverageExplanation,negativeBases:[{controlId:'bad',positiveId:'good'}]};
+  const protocol=options.protocol??AUTHOR_STAGE_PROTOCOL;
+  const definition:AuthorDefinitionStage|AuthorDefinitionStageV2=protocol===AUTHOR_STAGE_PROTOCOL?originalDefinition:
+    {protocol,stage:'definition',contextDigest:bundle.contextDigest,spec:bundle.spec,coverageExplanation:bundle.coverageExplanation,negativeBases:originalDefinition.negativeBases,verifierPaths:bundle.verifierFiles.map(file=>file.path)};
+  const positive:AuthorPositiveStage|AuthorPositiveStageV2={protocol,stage:'positive',contextDigest:bundle.contextDigest,definitionDigest:authorStageDigest(definition),controls:[bundle.controls[0]!],...(protocol===AUTHOR_STAGE_PROTOCOL_V2?{verifierFiles:bundle.verifierFiles}:{})} as AuthorPositiveStage|AuthorPositiveStageV2;
+  const negative={protocol,stage:'negative',contextDigest:bundle.contextDigest,definitionDigest:authorStageDigest(definition),positiveDigest:authorStageDigest(positive),controls:[{id:'bad',basePositiveId:'good',basePositiveDigest:authorStageDigest(positive.controls[0]),fileChanges:[{operation:'replace' as const,...bundle.controls[1]!.files[0]!}]}]};
+  const loop=store.supervision.attach({commandId:'loop',runtimeId:runtime.id,authoringProtocol:protocol,config:{model:'gpt-5.6-sol',effort:'low',reservation:30,timeoutMs:5000},limits:{maxRepairs:1,maxReasoningCalls:options.calls??4,maxDurationMs:120000,maxContextChars:200000}});
   const runners:SupervisionReasoningRunner[]=[];
   t.after(async()=>{for(const runner of runners)await runner.close();store.close();rmSync(root,{recursive:true,force:true});});
   return {root,data,workspace,runtime,loop,acceptance,candidate,bundle,fragments:[definition,positive,negative],
@@ -104,13 +107,16 @@ async function assertProofs(f:Awaited<ReturnType<typeof fixture>>,job:Supervisio
 }
 
 test('P6-AUTH-STAGE-I01 actual three-stage author retains raw fragments and shared budget across reopen before one P4-rejected patch recovery',{timeout:120000},async t=>{
-  const f=await fixture(t),transport=new NodeFragments(request=>f.fragments[parseAuthorStageInput(f.store.supervision.job(request.id).input)!.context.authorStage.index]);
+  for(const protocol of [AUTHOR_STAGE_PROTOCOL,AUTHOR_STAGE_PROTOCOL_V2]) {
+  const f=await fixture(t,{protocol}),transport=new NodeFragments(request=>f.fragments[parseAuthorStageInput(f.store.supervision.job(request.id).input)!.context.authorStage.index]);
   let runner=f.runner(transport),job=f.begin();
   const completed:SupervisionJob[]=[];
   for(const index of [0,1,2] as const) {
     assert.equal(job.config.reservation,[30,23,16][index]);
     assert.equal(job.config.timeoutMs,5000);
     const binding=parseAuthorStageInput(job.input)!.context.authorStage;
+    assert.equal(binding.protocol,protocol);
+    assert.equal(parseAuthorStageInput(job.input)!.context.authorPresentation.schemaVersion,protocol===AUTHOR_STAGE_PROTOCOL?6:8);
     assert.equal(binding.sessionTokenCeiling,30);assert.equal(binding.perCallTimeoutMs,5000);
     assert.equal(binding.loopDeadlineMs,Date.parse(f.loop.createdAt)+120000);
     assert.equal(binding.index,index);assert.equal(binding.parents.length,index);
@@ -118,6 +124,10 @@ test('P6-AUTH-STAGE-I01 actual three-stage author retains raw fragments and shar
     assert.equal(done.usage,7);assert.equal(done.modelStarted,true);assert.equal(done.stopConfirmed,true);
     assert.deepEqual(done.result,f.fragments[index]);assertStoredAuthorStage(done,f.data);
     await assertProofs(f,done);
+    if(protocol===AUTHOR_STAGE_PROTOCOL_V2){
+      assert.equal(Object.hasOwn(done.result as object,'verifierFiles'),index===1);
+      if(index===0)assert.deepEqual((done.result as AuthorDefinitionStageV2).verifierPaths,['check.mjs']);
+    }
     if(index===0) {
       await runner.close();f.reopen();runner=f.runner(transport);await runner.initialize();
       assert.deepEqual(await runner.run(done.id),done);assert.equal(transport.calls,1);
@@ -178,17 +188,19 @@ test('P6-AUTH-STAGE-I01 actual three-stage author retains raw fragments and shar
   await runner.close();await recoveryRunner.close();f.reopen();const reopened=f.runner(repair);await reopened.initialize();
   assert.deepEqual(await reopened.run(recovered.id),recovered);assert.equal(repair.calls,1);assert.deepEqual(f.store.authorRouting.beginV2(request),{receipt:route.receipt,job:recovered});
   assert.equal(f.store.supervision.jobs(f.loop.id).length,4);assert.equal(f.store.verification.list('delivery').length,0);
+  }
 });
 
 test('P6-AUTH-STAGE-I02 stage preflight and interrupted accounting reject without extra calls or fabricated progress',{timeout:60000},async t=>{
+  for(const protocol of [AUTHOR_STAGE_PROTOCOL,AUTHOR_STAGE_PROTOCOL_V2]) {
   for(const options of [{calls:2},{limit:49}]) {
-    const f=await fixture(t,options),before=f.store.runtime.inspect(f.runtime.id),loop=f.store.supervision.get(f.loop.id);
+    const f=await fixture(t,{...options,protocol}),before=f.store.runtime.inspect(f.runtime.id),loop=f.store.supervision.get(f.loop.id);
     assert.throws(()=>f.begin(),options.calls?/not enough actual calls/:/budget|token|reservation/i);
     assert.deepEqual(f.store.runtime.inspect(f.runtime.id),before);assert.deepEqual(f.store.supervision.get(f.loop.id),loop);
     assert.equal(f.store.supervision.jobs(f.loop.id).length,0);
   }
   for(const mode of ['unknown','paused-before','paused-after','exhausted'] as const) {
-    const f=await fixture(t),job=f.begin();
+    const f=await fixture(t,{protocol}),job=f.begin();
     const transport=new NodeFragments(()=>f.fragments[0],mode==='unknown'?{unknown:true}:mode==='paused-after'?{afterStop:()=>f.pause()}:mode==='exhausted'?{usage:30}:{});
     let runner=f.runner(transport);
     if(mode==='paused-before')f.pause();
@@ -229,5 +241,6 @@ test('P6-AUTH-STAGE-I02 stage preflight and interrupted accounting reject withou
         assert.deepEqual(f.store.supervision.job(job.id),actual);
       } finally {await controller.close();await verification.close();await runtimeAdapter.close();}
     }
+  }
   }
 });

@@ -18,7 +18,7 @@ export interface SupervisionInspection {
 }
 export type SupervisionAction=
   | {type:'list'}
-  | {type:'attach';commandId:string;runtimeId:string;config:ReasonerConfig;limits:SupervisionLimits;authoringProtocol?:'acceptance-stages-v1'}
+  | {type:'attach';commandId:string;runtimeId:string;config:ReasonerConfig;limits:SupervisionLimits;authoringProtocol?:'acceptance-stages-v1'|'acceptance-stages-v2'}
   | {type:'inspect'|'pause'|'resume'|'stop';loopId:string};
 
 export function parseSupervisionAction(value:unknown):SupervisionAction {
@@ -29,7 +29,7 @@ export function parseSupervisionAction(value:unknown):SupervisionAction {
   const input=plain(value);
   if(input.type==='list')fields(input,['type']);
   else if(input.type==='attach'){
-    fields(input,['type','commandId','runtimeId','config','limits',...(Object.hasOwn(input,'authoringProtocol')?['authoringProtocol']:[])]);if(Object.hasOwn(input,'authoringProtocol')&&input.authoringProtocol!=='acceptance-stages-v1')throw new Error('Unknown authoring protocol');text(input.commandId);text(input.runtimeId);
+    fields(input,['type','commandId','runtimeId','config','limits',...(Object.hasOwn(input,'authoringProtocol')?['authoringProtocol']:[])]);if(Object.hasOwn(input,'authoringProtocol')&&input.authoringProtocol!=='acceptance-stages-v1'&&input.authoringProtocol!=='acceptance-stages-v2')throw new Error('Unknown authoring protocol');text(input.commandId);text(input.runtimeId);
     const config=plain(input.config),limits=plain(input.limits);fields(config,['model','effort','reservation','timeoutMs']);text(config.model);text(config.effort);integer(config.reservation,1);integer(config.timeoutMs,1000,3600000);
     fields(limits,['maxRepairs','maxReasoningCalls','maxDurationMs','maxContextChars']);integer(limits.maxRepairs,0,100);integer(limits.maxReasoningCalls,1,1000);integer(limits.maxDurationMs,1000,30*24*3600000);integer(limits.maxContextChars,8000,200000);
   }else if(['inspect','pause','resume','stop'].includes(String(input.type))){fields(input,['type','loopId']);text(input.loopId);}

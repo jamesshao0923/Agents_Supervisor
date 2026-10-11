@@ -2,11 +2,11 @@ import {createHash} from 'node:crypto';
 import {lstatSync,readFileSync,realpathSync} from 'node:fs';
 import {isAbsolute,join,relative,sep} from 'node:path';
 import type {SupervisionJob,SupervisionRecord} from '../contracts/p6-supervision.js';
-import type {HostAuthorStageBinding} from '../contracts/p6-author-stages.js';
+import type {AnyHostAuthorStageBinding} from '../contracts/p6-author-stages.js';
 import {runtimeCanonical} from '../persistence/runtime.js';
 import {parseReasonerOutput} from './reasoner-schema.js';
 import {assertAuthorWireProof} from './author-presentation-proofs.js';
-import {parseAuthorStageInput,authorStageDigest,expandAuthorStages} from './acceptance-authoring-stages.js';
+import {parseAuthorStageInput,authorStageDigest,expandAuthorStages} from './author-stage-protocol.js';
 import {inspectProcess} from '../process-control/index.js';
 
 type ReadJob=(id:string)=>SupervisionJob;
@@ -56,7 +56,7 @@ export function assertStoredAuthorOutput(job:SupervisionJob,dataDir:string):void
   }
 }
 
-export function authorStageParent(job:SupervisionJob,dataDir:string):HostAuthorStageBinding['parents'][number] {
+export function authorStageParent(job:SupervisionJob,dataDir:string):AnyHostAuthorStageBinding['parents'][number] {
   assertStoredAuthorStage(job,dataDir);const input=parseAuthorStageInput(job.input)!;
   return {stage:input.context.authorStage.stage,jobId:job.id,inputDigest:job.inputDigest,
     resultDigest:authorStageDigest(job.result),rawOutputDigest:sha(readFileSync(join(realpathSync(dataDir),'supervision-reasoning',sha(job.id),'output.txt'))),
@@ -74,7 +74,8 @@ export function assertAuthorStageParents(job:SupervisionJob,readJob:ReadJob,data
     ensure(same(authorStageParent(parent,dataDir),ref),'actual parent binding changed');
     const prior=parseAuthorStageInput(parent.input)!;
     ensure(prior.context.authorStage.index===index,'fragment order changed');
-    ensure(prior.context.authorStage.sessionId===binding.sessionId
+    ensure(prior.context.authorStage.protocol===binding.protocol
+      &&prior.context.authorStage.sessionId===binding.sessionId
       &&prior.context.authorStage.sessionTokenCeiling===binding.sessionTokenCeiling
       &&prior.context.authorStage.perCallTimeoutMs===binding.perCallTimeoutMs
       &&prior.context.authorStage.loopDeadlineMs===binding.loopDeadlineMs,'fragment session changed');
@@ -98,7 +99,7 @@ export function assertAuthorStageParents(job:SupervisionJob,readJob:ReadJob,data
 export function assertAuthorStagePolicy(job:SupervisionJob,loop:SupervisionRecord,readJob:ReadJob):void {
   const input=parseAuthorStageInput(job.input);if(!input)return;
   const b=input.context.authorStage;
-  ensure(loop.authoringProtocol==='acceptance-stages-v1','Loop did not select staged authoring');
+  ensure(loop.authoringProtocol===b.protocol,'Loop did not select staged authoring');
   ensure(b.sessionTokenCeiling===loop.config.reservation&&b.perCallTimeoutMs===loop.config.timeoutMs
     &&b.loopDeadlineMs===Date.parse(loop.createdAt)+loop.limits.maxDurationMs&&job.config.model===loop.config.model&&job.config.effort===loop.config.effort,'stage policy differs from original Loop');
   let spent=0;

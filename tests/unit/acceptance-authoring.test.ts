@@ -1,3 +1,6 @@
+import * as stageProtocols from '../../packages/orchestration/author-stage-protocol.js';
+import * as stageV2 from '../../packages/orchestration/acceptance-authoring-stages-v2.js';
+import {AUTHOR_STAGE_PROTOCOL_V2,type HostAuthorStageBindingV2,type AuthorDefinitionStageV2,type AuthorPositiveStageV2,type AuthorNegativeStageV2} from '../../packages/contracts/p6-author-stages.js';
 import {AUTHOR_STAGE_PROTOCOL, AUTHOR_STAGE_ORDER, AUTHOR_STAGE_POLICY, type HostAuthorStageBinding, type AuthorDefinitionStage, type AuthorPositiveStage, type AuthorNegativeStage} from '../../packages/contracts/p6-author-stages.js';
 import {AUTHOR_STAGE_PROMPT, authorStageDigest, authorStageOutputSchema, parseAuthorStageOutput, renderAuthorStageInput, parseAuthorStageInput, renderAuthorStagePrompt, assembleAuthorStages, expandAuthorStages, applyAuthorControlChanges, validateAuthorStageBinding} from '../../packages/orchestration/acceptance-authoring-stages.js';
 import {applyAuthorReplacements,authorPatchBinding,authorPatchSchema,expandAuthorPatch,patchInput,AUTHOR_PATCH_PROMPT} from '../../packages/orchestration/author-result-patch.js';
@@ -43,6 +46,16 @@ function stages(c = context()) {
   return {b, d, p, n, binding};
 }
 
+function stagesV2(c = context()) {
+  const prior=stages(c),{verifierFiles,...definition}=prior.d;
+  const d:AuthorDefinitionStageV2={...definition,protocol:AUTHOR_STAGE_PROTOCOL_V2,verifierPaths:verifierFiles.map(f=>f.path)};
+  const p:AuthorPositiveStageV2={...prior.p,protocol:AUTHOR_STAGE_PROTOCOL_V2,definitionDigest:authorStageDigest(d),verifierFiles};
+  const n:AuthorNegativeStageV2={...prior.n,protocol:AUTHOR_STAGE_PROTOCOL_V2,definitionDigest:authorStageDigest(d),positiveDigest:authorStageDigest(p)};
+  const binding=(index:0|1|2):HostAuthorStageBindingV2=>({...prior.binding(index),protocol:AUTHOR_STAGE_PROTOCOL_V2,
+    parents:prior.binding(index).parents.map((ref,i)=>({...ref,resultDigest:authorStageDigest([d,p][i])}))});
+  return {b:prior.b,d,p,n,binding};
+}
+
 test('P6-AUTH-U01 strict proposed assets bind complete contract source environment and failure context without granting success', () => {
   const c = context(), b = bundle(c), schema = acceptanceAuthoringSchema(c);
   const staged = stages(c), rawFragments = JSON.stringify([staged.d, staged.p, staged.n]);
@@ -67,6 +80,25 @@ test('P6-AUTH-U01 strict proposed assets bind complete contract source environme
     assert.deepEqual(input.context.authorStageParents, parents); assert.deepEqual(input.context.acceptance, c);
     assert.equal(input.context.authorStage.perCallTimeoutMs, 240000);
     assert.equal(input.context.authorStage.sessionTokenCeiling, 180000);
+  }
+  const v2=stagesV2(c);
+  assert.deepEqual(stageProtocols.assembleAuthorStages(c,v2.d,v2.p,v2.n),b);
+  assert.equal(Object.hasOwn(v2.d,'verifierFiles'),false);
+  for(const index of [0,1,2] as const){
+    const parents=[v2.d,v2.p].slice(0,index),output=[v2.d,v2.p,v2.n][index];
+    const input=stageProtocols.renderAuthorStageInput({acceptance:c,candidate:{complete:'snapshot'},binding:v2.binding(index),parents});
+    assert.equal(input.context.authorPresentation.schemaVersion,8);
+    assert.deepEqual(stageProtocols.parseAuthorStageInput(input),input);
+    assert.deepEqual(stageProtocols.parseAuthorStageOutput(output,c,v2.binding(index),parents),output);
+    assert.deepEqual(input.context.acceptance,c);assert.deepEqual(input.context.authorStageParents,parents);
+    const wire=authorWireInput(input,'acceptance-authoring');
+    assert.equal(wire.prompt,stageV2.renderAuthorStagePrompt(c,v2.binding(index),parents));
+    assert.ok(wire.prompt.includes(JSON.stringify(c.contract.criteria[0]!.description).slice(1,-1)));
+    // The legacy dispatcher path must reproduce the original stored and wire bytes exactly.
+    const oldParents=[staged.d,staged.p].slice(0,index);
+    const oldInput=renderAuthorStageInput({acceptance:c,candidate:{complete:'snapshot'},binding:staged.binding(index),parents:oldParents});
+    assert.equal(JSON.stringify(stageProtocols.renderAuthorStageInput({acceptance:c,candidate:{complete:'snapshot'},binding:staged.binding(index),parents:oldParents})),JSON.stringify(oldInput));
+    assert.equal(stageProtocols.renderAuthorStagePrompt(c,staged.binding(index),oldParents),renderAuthorStagePrompt(c,staged.binding(index),oldParents));
   }
   assert.equal(parseAuthorStageInput({prompt: 'legacy', outputSchema: {}, context: {acceptance: c}}), null);
 
@@ -138,6 +170,30 @@ test('P6-AUTH-U02 semantic checks reject weakened necessity coverage controls an
     {...st.p, definitionDigest:'0'.repeat(64)}, {...st.p, controls: []}, {...st.p, controls:[st.b.controls[1]]},
     {...st.n, positiveDigest:'0'.repeat(64)}, {...st.n, controls: st.n.controls.map(c=>({...c,basePositiveDigest:'0'.repeat(64)}))},
   ]) assert.throws(() => assembleAuthorStages(stagedContext, st.d, 'positive'===value.stage?value:st.p, 'negative'===value.stage?value:st.n));
+  const v2=stagesV2(stagedContext);
+  for(const d of [
+    {...v2.d,verifierPaths:[]},{...v2.d,verifierPaths:['../check.mjs']},
+    {...v2.d,verifierPaths:['check.mjs','CHECK.mjs']},{...v2.d,verifierPaths:['check.mjs','check.mjs/helper.mjs']},
+    {...v2.d,verifierPaths:['manifest.json']},{...v2.d,verifierFiles:st.d.verifierFiles},
+    {...v2.d,coverageExplanation:[]},
+  ])assert.throws(()=>stageProtocols.parseAuthorStageOutput(d,stagedContext,v2.binding(0),[]));
+  for(const p of [
+    {...v2.p,verifierFiles:[]},{...v2.p,verifierFiles:[...v2.p.verifierFiles,{path:'undeclared.mjs',content:'extra'}]},
+    {...v2.p,verifierFiles:[...v2.p.verifierFiles,...v2.p.verifierFiles]},
+    {...v2.p,spec:v2.d.spec},{...v2.p,negativeBases:[]},{...v2.p,definitionDigest:'0'.repeat(64)},
+  ])assert.throws(()=>stageProtocols.parseAuthorStageOutput(p,stagedContext,v2.binding(1),[v2.d]));
+  assert.throws(()=>stageProtocols.assembleAuthorStages(stagedContext,v2.d,v2.p,{...v2.n,verifierFiles:[]}));
+  assert.throws(()=>stageProtocols.assembleAuthorStages(stagedContext,v2.d,{...v2.p,verifierFiles:[{path:'check.mjs',content:'changed'}]},v2.n));
+  assert.throws(()=>stageProtocols.assembleAuthorStages(stagedContext,v2.d,st.p,v2.n));
+  const newInput=stageProtocols.renderAuthorStageInput({acceptance:stagedContext,candidate:{},binding:v2.binding(0),parents:[]});
+  for(const version of [false,null,0,6,7,9])assert.throws(()=>stageProtocols.parseAuthorStageInput({...newInput,context:{...newInput.context,authorPresentation:{schemaVersion:version,kind:'acceptance-stage'}}}));
+  assert.throws(()=>stageProtocols.parseAuthorStageInput({...newInput,context:{...newInput.context,authorStage:st.binding(0)}}));
+  assert.throws(()=>stageProtocols.parseAuthorStageInput({...stageInput,context:{...stageInput.context,authorStage:v2.binding(0)}}));
+  // Candidate execution entries and TypeScript sources retain their original namespace.
+  const candidateOnly=structuredClone(v2.d);
+  const command=candidateOnly.spec.cases[0]!.verifier;
+  if(command.kind==='command')command.candidateEntries=['math.mjs'];
+  assert.deepEqual(stageProtocols.parseAuthorStageOutput(candidateOnly,stagedContext,v2.binding(0),[]),candidateOnly);
   const stageBase = st.p.controls[0]!;
   for (const change of [
     {operation:'replace',path:'absent.mjs',content:'x'}, {operation:'add',path:'math.mjs',content:'x'},

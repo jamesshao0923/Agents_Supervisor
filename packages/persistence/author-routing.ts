@@ -1,4 +1,4 @@
-import {parseAuthorStageInput} from '../orchestration/acceptance-authoring-stages.js';
+import {parseAuthorStageInput} from '../orchestration/author-stage-protocol.js';
 import {assertAuthorStagePhysical,assertAuthorStageAssemblyProof,assertAuthorStageParents,assertStoredAuthorOutput} from '../orchestration/author-stage-proofs.js';
 import {authorPatchBinding,resolveAuthorBundle,patchInput,assertAuthorPatchBase,assertAuthorExpansionProof} from '../orchestration/author-result-patch.js';
 import {isCommandOnlyAuthorContext} from '../orchestration/acceptance-authoring-presentation.js';
@@ -51,7 +51,7 @@ export class AuthorRoutingRepository {
   const input=parseAuthorStageInput(current.input);if(!input)return null;
   ensure(input.context.authorStage.index===2,'Recovery requires a complete stage assembly');
   const loop=this.supervision.get(job.loopId),binding=input.context.authorStage;
-  ensure(loop.authoringProtocol==='acceptance-stages-v1'&&binding.sessionTokenCeiling===loop.config.reservation
+  ensure(loop.authoringProtocol===binding.protocol&&binding.sessionTokenCeiling===loop.config.reservation
    &&binding.loopDeadlineMs===Date.parse(loop.createdAt)+loop.limits.maxDurationMs,'Author session policy changed');
   const jobs=[...assertAuthorStageParents(current,id=>this.supervision.job(id),this.dataDir),current,...patches.reverse()];
   assertAuthorStageAssemblyProof(current,id=>this.supervision.job(id),this.dataDir);

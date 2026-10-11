@@ -1,4 +1,4 @@
-import {parseAuthorStageInput} from './acceptance-authoring-stages.js';
+import {parseAuthorStageInput} from './author-stage-protocol.js';
 import {resolveStagedAuthor,assertAuthorStageAssemblyProof} from './author-stage-proofs.js';
 import {createHash} from 'node:crypto';
 import {lstatSync,readFileSync,realpathSync} from 'node:fs';

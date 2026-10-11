@@ -14,7 +14,7 @@ import {runtimeCanonical} from '../../packages/persistence/runtime.js';
 import {authorWireInput,type PresentedAuthorInput} from '../../packages/orchestration/author-presentation.js';
 import type {SupervisionJob} from '../../packages/contracts/p6-supervision.js';
 import type {Run} from '../../packages/contracts/p1.js';
-import {parseAuthorStageInput,parseAuthorStageOutput,authorStageDigest} from '../../packages/orchestration/acceptance-authoring-stages.js';
+import {parseAuthorStageInput,parseAuthorStageOutput,authorStageDigest} from '../../packages/orchestration/author-stage-protocol.js';
 import {assertStoredAuthorStage,assertAuthorStageParents,assertAuthorStageAssemblyProof} from '../../packages/orchestration/author-stage-proofs.js';
 import {resolveAuthorBundle,assertAuthorExpansionProof} from '../../packages/orchestration/author-result-patch.js';
 import {DatabaseSync} from 'node:sqlite';
@@ -152,14 +152,14 @@ test('P6 running followup survives real service restart applies once and indepen
 
  const executed=await until(()=>rpc<any>('runtime',{type:'inspect',runtimeId}),v=>['awaiting-verification','blocked','cancelled'].includes(v.runtime.phase),'revised execution');assert.equal(executed.runtime.phase,'awaiting-verification',executed.runtime.error??'');
  await exec(process.execPath,['math.test.mjs'],{cwd:workspace,timeout:10_000});await exec(process.execPath,['--input-type=module','-e',`import assert from 'node:assert/strict';import {sum,multiply} from './math.mjs';assert.equal(sum(7,9),16);assert.equal(sum(-1,1),0);assert.equal(multiply(6,7),42);assert.equal(multiply(-2,3),-6);for(const f of [sum,multiply])for(const x of [NaN,Infinity,-Infinity,'2',null,undefined]){assert.throws(()=>f(x,1),TypeError);assert.throws(()=>f(1,x),TypeError);}`],{cwd:workspace,timeout:10_000});
- const beforeDeliveryContract=JSON.stringify(executed.run.contract);const attached=await rpc<SupervisionInspection>('supervision',{type:'attach',commandId:randomUUID(),runtimeId,authoringProtocol:'acceptance-stages-v1',config:{...config,reservation:180_000},limits:{maxRepairs:0,maxReasoningCalls:4,maxDurationMs:1_320_000,maxContextChars:200_000}});loopId=attached.loop.id;
+ const beforeDeliveryContract=JSON.stringify(executed.run.contract);const attached=await rpc<SupervisionInspection>('supervision',{type:'attach',commandId:randomUUID(),runtimeId,authoringProtocol:'acceptance-stages-v2',config:{...config,reservation:180_000},limits:{maxRepairs:0,maxReasoningCalls:4,maxDurationMs:1_320_000,maxContextChars:200_000}});loopId=attached.loop.id;
  const delivered=await until(()=>rpc<SupervisionInspection>('supervision',{type:'inspect',loopId}),v=>['complete','blocked'].includes(v.loop.phase)||v.loop.stopped,'independent delivery');assert.equal(delivered.loop.phase,'complete',delivered.loop.reason??'');assert.equal(JSON.stringify(delivered.runtime.run.contract),beforeDeliveryContract);assert.equal(delivered.runtime.run.status,'succeeded');assert.deepEqual(delivered.loop.config,{...config,reservation:180_000});assert.equal(delivered.verification.deliveries.length,1);
  const delivery=delivered.verification.deliveries[0]!;
  const final=delivered.verification.jobs.find(j=>j.id===delivery.jobId)!;assert.equal(final.kind,'verification');
  const plan=delivered.verification.plans.find(p=>p.id===delivery.planId)!;assert.equal(final.planId,plan.id);assert.equal(plan.selection.mode,'final');assert.equal(plan.selection.completeScope,true);assert.equal(plan.runId,delivered.runtime.run.id);assert.equal(delivery.runtimeId,runtimeId);assert.equal(delivery.candidateDigest,plan.candidate.digest);assert.equal(delivery.definitionDigest,plan.definitionDigest);
  assert.ok(final.evaluation?.obligations.length&&final.evaluation.obligations.every(o=>o.satisfied));
  const authors=delivered.jobs.filter(j=>j.purpose==='acceptance-authoring');assert.ok(authors.length>0);
- assert.equal(delivered.loop.authoringProtocol,'acceptance-stages-v1');
+ assert.equal(delivered.loop.authoringProtocol,'acceptance-stages-v2');
  const readAuthor=(id:string)=>{const job=delivered.jobs.find(j=>j.id===id);assert.ok(job,'Actual completed author ancestry must be present');return job;};
  const stages=authors.filter(job=>parseAuthorStageInput(job.input));
  assert.equal(stages.length,3,'All three actual provider fragments are required');
@@ -172,7 +172,7 @@ test('P6 running followup survives real service restart applies once and indepen
   assertStoredAuthorStage(job,data);assertAuthorStageParents(job,readAuthor,data);assertAuthorStageAssemblyProof(job,readAuthor,data);
   const raw=await modelProof(job.proofs,'/result.json');assert.deepEqual(raw.output,job.result);
   const input=parseAuthorStageInput(job.input)!;const fragment=parseAuthorStageOutput(raw.output,input.context.acceptance,binding,input.context.authorStageParents);
-  assert.equal(fragment.stage,binding.stage);assert.equal(fragment.protocol,'acceptance-stages-v1');
+  assert.equal(fragment.stage,binding.stage);assert.equal(fragment.protocol,'acceptance-stages-v2');
  }
  assert.ok(authors.every(job=>job.usage!==null));
  assert.ok(authors.reduce((sum,job)=>sum+job.usage!,0)<=180_000,'Recovery and all fragments share the original author allowance');

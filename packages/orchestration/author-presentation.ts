@@ -1,4 +1,4 @@
-import {parseAuthorStageInput,renderAuthorStagePrompt} from './acceptance-authoring-stages.js';
+import {parseAuthorStageInput,renderAuthorStagePrompt} from './author-stage-protocol.js';
 import {AUTHOR_PATCH_PROMPT,authorPatchSchema,patchInput,type AuthorPatchContext} from './author-result-patch.js';
 import {isCommandOnlyAuthorContext,renderAcceptanceAuthoringPromptV3,renderAcceptanceAuthoringPromptV4} from './acceptance-authoring-presentation.js';
 import type {AcceptanceAuthoringContext} from './acceptance-authoring.js';

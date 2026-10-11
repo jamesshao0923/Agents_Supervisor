@@ -1,9 +1,9 @@
 import {createHash} from 'node:crypto';
 import type {SupervisorStore} from '../persistence/store.js';
 import type {SupervisionJob} from '../contracts/p6-supervision.js';
-import {AUTHOR_STAGE_ORDER,AUTHOR_STAGE_PROTOCOL,type HostAuthorStageBinding} from '../contracts/p6-author-stages.js';
+import {AUTHOR_STAGE_ORDER,type AnyHostAuthorStageBinding} from '../contracts/p6-author-stages.js';
 import type {AcceptanceAuthoringContext} from './acceptance-authoring.js';
-import {parseAuthorStageInput,renderAuthorStageInput,parseAuthorStageOutput,authorStageDigest} from './acceptance-authoring-stages.js';
+import {isAuthorStageProtocol,parseAuthorStageInput,renderAuthorStageInput,parseAuthorStageOutput,authorStageDigest} from './author-stage-protocol.js';
 import {assertAuthorStageParents,assertStoredAuthorStage,authorStageParent} from './author-stage-proofs.js';
 
 function ensure(value:unknown,message:string):asserts value {if(!value)throw Error('Author stages: '+message);}
@@ -14,12 +14,12 @@ type Snapshot={acceptance:AcceptanceAuthoringContext;candidate:unknown};
 export function beginAuthorStages(store:SupervisorStore,loopId:string,context:Snapshot):SupervisionJob {
   const repo=store.supervision;
   return repo.transaction(()=>{
-    const loop=repo.get(loopId);repo.assertEligible(loopId);ensure(loop.authoringProtocol==='acceptance-stages-v1','Loop did not select staged authoring');
+    const loop=repo.get(loopId);repo.assertEligible(loopId);ensure(isAuthorStageProtocol(loop.authoringProtocol),'Loop did not select staged authoring');
     ensure(loop.reasoningCount+AUTHOR_STAGE_ORDER.length<=loop.limits.maxReasoningCalls,'not enough actual calls for the complete author session');
     const deadline=Date.parse(loop.createdAt)+loop.limits.maxDurationMs;
     ensure(deadline-Date.now()>=1000,'Loop deadline exhausted');
     const sessionId='author-session-'+authorStageDigest({loopId,revision:loop.revision,contractDigest:loop.contractDigest,context});
-    const binding:HostAuthorStageBinding={protocol:AUTHOR_STAGE_PROTOCOL,sessionId,index:0,stage:'definition',
+    const binding:AnyHostAuthorStageBinding={protocol:loop.authoringProtocol,sessionId,index:0,stage:'definition',
       sessionTokenCeiling:loop.config.reservation,perCallTimeoutMs:loop.config.timeoutMs,loopDeadlineMs:deadline,parents:[]};
     const input=renderAuthorStageInput({...context,binding,parents:[]});
     const job=repo.beginJob({commandId:sessionId+':0',loopId,expectedRevision:loop.revision,purpose:'acceptance-authoring',context:input});
@@ -52,7 +52,7 @@ export function advanceAuthorStage(store:SupervisorStore,dataDir:string,job:Supe
     ensure(binding.loopDeadlineMs-Date.now()>=1000,'Loop deadline exhausted');
     const spent=all.reduce((n,parent)=>n+parent.usage!,0),reservation=binding.sessionTokenCeiling-spent;
     ensure(Number.isSafeInteger(spent)&&Number.isSafeInteger(reservation)&&reservation>0,'shared author session budget exhausted');
-    const next:HostAuthorStageBinding={...binding,index,stage:AUTHOR_STAGE_ORDER[index],parents:all.map(parent=>authorStageParent(parent,dataDir))};
+    const next:AnyHostAuthorStageBinding={...binding,index,stage:AUTHOR_STAGE_ORDER[index],parents:all.map(parent=>authorStageParent(parent,dataDir))};
     const nextInput=renderAuthorStageInput({acceptance:input.context.acceptance,candidate:input.context.candidate,binding:next,parents:all.map(parent=>parent.result)});
     const commandId=binding.sessionId+':'+index;
     // A previously published next job would already be the current reference. It must never be silently dispatched twice.

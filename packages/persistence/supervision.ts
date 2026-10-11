@@ -1,4 +1,4 @@
-import {parseAuthorStageInput} from '../orchestration/acceptance-authoring-stages.js';
+import {parseAuthorStageInput} from '../orchestration/author-stage-protocol.js';
 import {assertAuthorWireCapacity,type PresentedAuthorInput} from '../orchestration/author-presentation.js';
 import { acceptanceReferenceDiagnostic } from '../orchestration/acceptance-authoring-feedback.js';
 import { createHash } from 'node:crypto';
@@ -45,12 +45,12 @@ export class SupervisionRepository {
     this.db.prepare('UPDATE runs SET snapshot=?,revision=? WHERE project_id=? AND id=?').run(canonical(result.run),result.run.revision,loop.projectId,loop.runId);
     for(const event of result.events)this.db.prepare('INSERT INTO events(command_id,project_id,run_id,type,payload) VALUES (?,?,?,?,?)').run(loop.id,loop.projectId,loop.runId,event.type,canonical(event));return result.run;
   }
-  attach(input:{commandId:string;runtimeId:string;config:ReasonerConfig;limits:SupervisionLimits;authoringProtocol?:'acceptance-stages-v1'}):SupervisionRecord{return this.transaction(()=>{
+  attach(input:{commandId:string;runtimeId:string;config:ReasonerConfig;limits:SupervisionLimits;authoringProtocol?:'acceptance-stages-v1'|'acceptance-stages-v2'}):SupervisionRecord{return this.transaction(()=>{
     const prior=this.receipt<{id:string}>(input.commandId,input);if(prior)return this.get(prior.id);
     configValid(input.config);integer(input.limits.maxRepairs,'repair limit',0,100);integer(input.limits.maxReasoningCalls,'reasoning limit',1,1000);integer(input.limits.maxDurationMs,'duration',1000,30*24*3600000);integer(input.limits.maxContextChars,'context capacity',8000,200000);
     const inspection=new RuntimeRepository(this.db).inspect(input.runtimeId),run=inspection.run;
     ensure(!this.forRuntime(input.runtimeId),'Runtime already supervised');ensure(run.admission!=='draft'&&!['succeeded','cancelled'].includes(run.status),'Only unfinished admitted runtime may be supervised');
-    ensure(!Object.hasOwn(input,'authoringProtocol')||input.authoringProtocol==='acceptance-stages-v1','Unknown authoring protocol');
+    ensure(!Object.hasOwn(input,'authoringProtocol')||input.authoringProtocol==='acceptance-stages-v1'||input.authoringProtocol==='acceptance-stages-v2','Unknown authoring protocol');
     const time=now(),value:SupervisionRecord={id:'supervision-'+hash(input.runtimeId).slice(0,24),runtimeId:input.runtimeId,projectId:run.projectId,runId:run.id,contractVersion:run.contract.version,contractDigest:hash(canonical(run.contract)),revision:0,phase:'executing',paused:false,stopped:false,reason:null,config:structuredClone(input.config),limits:structuredClone(input.limits),createdAt:time,updatedAt:time,repairCount:0,reasoningCount:0,intent:null,references:{},monitor:null,...(input.authoringProtocol?{authoringProtocol:input.authoringProtocol}:{})};
     this.db.prepare('INSERT INTO supervision_loops(id,runtime_id,record) VALUES (?,?,?)').run(value.id,value.runtimeId,serializable(value));this.record(input.commandId,input,{id:value.id});return value;
   });}

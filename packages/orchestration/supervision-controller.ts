@@ -1,4 +1,4 @@
-import {parseAuthorStageInput} from './acceptance-authoring-stages.js';
+import {isAuthorStageProtocol,parseAuthorStageInput} from './author-stage-protocol.js';
 import {beginAuthorStages,advanceAuthorStage} from './author-stage-controller.js';
 import {isCommandOnlyAuthorContext} from './acceptance-authoring-presentation.js';
 import {resolveAuthorBundle,assertAuthorExpansionProof} from './author-result-patch.js';
@@ -378,7 +378,7 @@ export class SupervisionController {
         }).job;
       else {
         this.ensureFloor(loop);
-        job = current.authoringProtocol==='acceptance-stages-v1'&&!context.evolution&&context.acceptance.previousSpec===null&&isCommandOnlyAuthorContext(context.acceptance)
+        job = isAuthorStageProtocol(current.authoringProtocol)&&!context.evolution&&context.acceptance.previousSpec===null&&isCommandOnlyAuthorContext(context.acceptance)
           ?beginAuthorStages(this.store,loop.id,context):this.repo.beginJob({
           commandId: randomUUID(), loopId: loop.id, expectedRevision: current.revision,
           purpose: 'acceptance-authoring', context: input

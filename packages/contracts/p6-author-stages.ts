@@ -61,3 +61,23 @@ export interface AuthorNegativeStage {
   controls: {id: string; basePositiveId: string; basePositiveDigest: string; fileChanges: AuthorControlFileChange[]}[];
 }
 export type AuthorStageOutput = AuthorDefinitionStage | AuthorPositiveStage | AuthorNegativeStage;
+
+/** V2 relocates verifier content to the positive stage; V1 remains immutable. */
+export const AUTHOR_STAGE_PROTOCOL_V2 = 'acceptance-stages-v2' as const;
+export type AuthorStageProtocol = typeof AUTHOR_STAGE_PROTOCOL | typeof AUTHOR_STAGE_PROTOCOL_V2;
+export interface HostAuthorStageBindingV2 extends Omit<HostAuthorStageBinding, 'protocol'> {
+  protocol: typeof AUTHOR_STAGE_PROTOCOL_V2;
+}
+export interface AuthorDefinitionStageV2 extends Omit<AuthorDefinitionStage, 'protocol' | 'verifierFiles'> {
+  protocol: typeof AUTHOR_STAGE_PROTOCOL_V2;
+  verifierPaths: string[];
+}
+export interface AuthorPositiveStageV2 extends Omit<AuthorPositiveStage, 'protocol'> {
+  protocol: typeof AUTHOR_STAGE_PROTOCOL_V2;
+  verifierFiles: AuthorStageFile[];
+}
+export interface AuthorNegativeStageV2 extends Omit<AuthorNegativeStage, 'protocol'> {
+  protocol: typeof AUTHOR_STAGE_PROTOCOL_V2;
+}
+export type AuthorStageOutputV2 = AuthorDefinitionStageV2 | AuthorPositiveStageV2 | AuthorNegativeStageV2;
+export type AnyHostAuthorStageBinding = HostAuthorStageBinding | HostAuthorStageBindingV2;
