@@ -10,19 +10,20 @@ function ensure(v:unknown,message:string):asserts v{if(!v)throw Error('Decomposi
 function text(v:unknown):asserts v is string{ensure(typeof v==='string'&&v.trim()&&v.length<=12000&&!v.includes('\0'),'invalid text');}
 function exact(v:object,keys:string[]){ensure(canonical(Object.keys(v).sort())===canonical([...keys].sort()),'unknown or missing fields');}
 function list(v:unknown):asserts v is unknown[]{ensure(Array.isArray(v)&&v.length<=128,'invalid bounded list');}
-function paths(values:LogicalPathScope[]):void{
+function paths(values:LogicalPathScope[],allowRootRead=false):void{
  list(values);const seen=new Set<string>();
  for(const value of values){exact(value,['path','kind']);text(value.path);ensure(['file','tree'].includes(value.kind),'invalid scope kind');
-  ensure(!/[?*\[\]]/.test(value.path)&&!value.path.includes('\\')&&!value.path.startsWith('/')&&!/^[A-Za-z]:/.test(value.path)&&value.path.split('/').every(x=>x&&x!=='.'&&x!=='..'&&!exclusions.includes(x)),'unsafe or excluded logical path');
+  const rootRead=allowRootRead&&value.kind==='tree'&&value.path==='.';
+  ensure(rootRead||(!/[?*\[\]]/.test(value.path)&&!value.path.includes('\\')&&!value.path.startsWith('/')&&!/^[A-Za-z]:/.test(value.path)&&value.path.split('/').every(x=>x&&x!=='.'&&x!=='..'&&!exclusions.includes(x))),'unsafe or excluded logical path');
   const id=canonical(value);ensure(!seen.has(id),'duplicate path scope');seen.add(id);
  }
 }
 function declaration(value:TaskDecompositionDeclaration):void{
- exact(value,['taskId','knowledge','reads','writes','resources','reason']);text(value.taskId);text(value.reason);ensure(['declared','unknown'].includes(value.knowledge),'invalid knowledge');paths(value.reads);paths(value.writes);list(value.resources);
+ exact(value,['taskId','knowledge','reads','writes','resources','reason']);text(value.taskId);text(value.reason);ensure(['declared','unknown'].includes(value.knowledge),'invalid knowledge');paths(value.reads,true);paths(value.writes);list(value.resources);
  const seen=new Set<string>();for(const resource of value.resources){schedulerResourcesConflict(resource,resource);const key=resource.kind+':'+resource.key;ensure(!seen.has(key),'duplicate resource');seen.add(key);}
 }
 const folded=(p:string)=>p.normalize('NFC').toLowerCase();
-function overlap(a:LogicalPathScope,b:LogicalPathScope):boolean{const x=folded(a.path),y=folded(b.path);return x===y||a.kind==='tree'&&y.startsWith(x+'/')||b.kind==='tree'&&x.startsWith(y+'/');}
+function overlap(a:LogicalPathScope,b:LogicalPathScope):boolean{const x=folded(a.path),y=folded(b.path);return a.kind==='tree'&&x==='.'||b.kind==='tree'&&y==='.'||x===y||a.kind==='tree'&&y.startsWith(x+'/')||b.kind==='tree'&&x.startsWith(y+'/');}
 /** Original dependencies always win. No declaration can remove an original edge.
  * Outputs remain advisory until compiler/proposal/producer persistence binds them. */
 export function projectDeclaredDependencies(steps:DecompositionStep[],input?:GoalDecomposition):DependencyProjection{

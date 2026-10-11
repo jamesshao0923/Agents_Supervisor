@@ -527,3 +527,7 @@ Registers the three retained indexed-view/history cases without enlarging the pe
 ## 2026-10-12：历史参数库存可表达性修复
 
 既有 P6-AUTH-U08 增加新revision复用完整多参数数组、宿主/传输schema表达、语义拒绝必要实例丢失，以及旧revision不可修改的检查。历史literal精确性检查保留在literal分支，跨版本语义由真实validateSpecChange检查，不把输出schema当作发布授权。未新增/删除ID，默认140项不变。完整unit-acceptance-authoring八项通过，零跳过；首次测试symbolic控制目录未映射absolute导致的失败留存于`.supervisor-dev/p6-parameter-inventory-fix/tests.tap`，修正后结果为`tests-r2.tap`。真实L01尚待新版本运行，旧失败不追认。
+
+## 2026-10-12：项目根目录读取声明
+
+在既有P7-DECOMP-I02/I04/I05加入根树读取双向冲突、只读共享、非法root写/路径拒绝及真实候选写范围不变断言，完整7项集成套件通过、零跳过。无新增ID、默认140项不变；本补充机制证据不替代L01真实模型门禁。首次d668规划FAIL保留，证据分别位于`.supervisor-dev/p7-root-read-scope-fix/`和`p6-loop-supplied-d668231-live-work/`。

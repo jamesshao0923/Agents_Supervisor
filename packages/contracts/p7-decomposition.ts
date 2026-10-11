@@ -1,5 +1,6 @@
 import type {SchedulerResource} from './p7-scheduler.js';
 /** Untrusted model declaration; parsing does not grant resource or P4 authority. */
+/** A tree read of '.' conservatively covers all project paths; never a write scope or external permission. */
 export interface LogicalPathScope {path:string;kind:'file'|'tree'}
 export interface TaskDecompositionDeclaration {
  taskId:string;knowledge:'declared'|'unknown';reads:LogicalPathScope[];writes:LogicalPathScope[];
