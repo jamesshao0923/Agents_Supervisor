@@ -1,3 +1,7 @@
+## 2026-10-12 — Reuse cancellation checks for no-op write-lock regression
+
+Extend existing CANCEL-I01 with a real independently owned SQLite writer: an uncancelled observation must read unchanged without acquiring a write lock, then preserve original cancel/once/reopen assertions. I01 successor passes; unchanged I02 unknown-accounting and I04 actual worker cancellation/reopen results are reused. The initial missing-intent fixture failure is retained; no stable ID, default selection or product timeout changed. The production fastpath rechecks real cancellation inside the original transaction.
+
 ## 2026-10-12 — Clarify current-artifact L01 criterion
 
 Only append goal wording separating implementation actions from current artifact/control qualification; all original goal text, business assertions, fault injection and caps remain. The observed author-added historical obligation was absent from the original criterion. Preserve caf9b5f FAIL and record general obligation-expansion risk; no new stable ID, production policy or claimed live pass.

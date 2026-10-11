@@ -1,6 +1,6 @@
 import test,{type TestContext} from 'node:test';
 import assert from 'node:assert/strict';
-import{mkdtemp,mkdir,realpath,rm}from'node:fs/promises';
+import{mkdtemp,mkdir,realpath,rm,writeFile}from'node:fs/promises';
 import{join}from'node:path';import{tmpdir}from'node:os';import{setTimeout as delay}from'node:timers/promises';
 import{SupervisorStore}from'../../packages/persistence/store.js';
 import{LocalRuntimeAdapter}from'../../packages/runtime/index.js';
@@ -15,7 +15,15 @@ async function fixture(t:TestContext,steps:RuntimeStep[]=[{id:'wait',kind:'input
  return{root,data,workspace,runtime,get store(){return store;},restart(){store.close();store=new SupervisorStore(data);},cancelDomain(){const run=store.runtime.inspect(runtime.id).run;store.command({type:'act',commandId:'external-execution-cancel',projectId:run.projectId,runId:run.id,expectedRevision:run.revision,action:{type:'cancel'}});}};
 }
 test('P6-CANCEL-I01 real cancelled Run synchronizes queued runtime once and remains cancelled after SQLite reopen',async t=>{
- const f=await fixture(t);f.cancelDomain();const original=f.store.runtime.inspect(f.runtime.id);assert.equal(original.runtime.cancelled,false);assert.equal(original.run.status,'cancelled');
+ const f=await fixture(t);
+ // A real independent writer holds the private database's write lock. This
+ // ordinary read-only observation must not acquire BEGIN IMMEDIATE.
+ const before=f.store.runtime.inspect(f.runtime.id),writerSource=`const {DatabaseSync}=require('node:sqlite');const db=new DatabaseSync(process.argv[1]);db.exec('BEGIN IMMEDIATE');process.stdout.write('locked\\n');process.stdin.once('data',()=>{db.exec('ROLLBACK');db.close();process.exit(0);});`;
+ const writer=await spawnManagedProcess({operationId:'cancel-i01-private-writer',command:process.execPath,args:['-e',writerSource,join(f.data,'supervisor.sqlite')],cwd:f.workspace,timeoutMs:10000,onBeforeSpawn:async intent=>{await writeFile(join(f.root,'writer-intent.json'),JSON.stringify(intent));},onIdentity:async identity=>{await writeFile(join(f.root,'writer-identity.json'),JSON.stringify(identity));}});
+ let output='';const locked=new Promise<void>((resolve,reject)=>{writer.stdout.on('data',chunk=>{output+=String(chunk);if(output.includes('locked\n'))resolve();});writer.completion.then(()=>reject(new Error('Private writer exited before lock readiness')),reject);});
+ try{await locked;assert.equal((await inspectProcess(writer.identity)).status,'verified');assert.deepEqual(f.store.runtime.synchronizeCancellation(f.runtime.id),before.runtime);assert.deepEqual(f.store.runtime.inspect(f.runtime.id),before);writer.writeLine('release');const ended=await writer.completion;assert.equal(ended.exitCode,0);assert.equal(ended.stop.stopped,true);assert.equal((await inspectProcess(writer.identity)).status,'stopped');}
+ finally{if((await inspectProcess(writer.identity)).status!=='stopped')assert.equal((await writer.terminate()).stop.stopped,true);}
+ f.cancelDomain();const original=f.store.runtime.inspect(f.runtime.id);assert.equal(original.runtime.cancelled,false);assert.equal(original.run.status,'cancelled');
  assert.equal(f.store.runtime.claim(f.runtime.id,'worker'),null);const current=f.store.runtime.inspect(f.runtime.id);assert.equal(current.runtime.phase,'cancelled');assert.equal(current.runtime.cancelled,true);assert.equal(current.operations[0]!.state,'cancelled');assert.deepEqual(current.run,original.run);const seq=current.runtime.projectionVersion;
  f.restart();assert.equal(f.store.runtime.synchronizeCancellation(f.runtime.id).projectionVersion,seq);assert.equal(f.store.runtime.events(f.runtime.id,0).filter(e=>e.kind==='run-cancellation-observed').length,1);assert.throws(()=>f.store.runtime.control({type:'resume',runtimeId:f.runtime.id,commandId:'illegal-resume'}),/Cancelled/);assert.deepEqual(f.store.runtime.inspect(f.runtime.id).run,original.run);
 });

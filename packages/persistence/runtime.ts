@@ -79,7 +79,12 @@ export class RuntimeRepository {
   /** Execution budget/transport cancellation can terminate the domain Run
    * before the worker reports. Persist that authority without clearing unknown
    * effects, unsettled costs or in-flight operations. */
-  synchronizeCancellation(id:string):RuntimeRecord {return this.tx(()=>{
+  synchronizeCancellation(id:string):RuntimeRecord {
+    // Idle worker observations must not contend for a write lock. A later
+    // cancellation is rechecked by claim/eligibility and the next worker tick.
+    const observed=this.get(id),run=this.run(observed);
+    if(run.status!=='cancelled'||observed.cancelled&&observed.phase==='cancelled'&&!observed.paused)return observed;
+    return this.tx(()=>{
     const r=this.get(id),run=this.run(r);
     if(run.status!=='cancelled'||r.cancelled&&r.phase==='cancelled'&&!r.paused)return r;
     r.cancelled=true;r.paused=false;r.phase='cancelled';
