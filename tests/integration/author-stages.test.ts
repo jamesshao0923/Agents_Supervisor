@@ -206,7 +206,7 @@ test('P6-AUTH-STAGE-I03 rejected fragment is regenerated once with charged ances
   // accepted parent. Original I01 retains its full V1/V2 review-rebuild coverage.
   const f=await fixture(t,{protocol:AUTHOR_STAGE_PROTOCOL_V2});
   const bad=structuredClone(f.fragments[2]!) as AuthorNegativeStage;
-  bad.controls[0]!.fileChanges.push(structuredClone(bad.controls[0]!.fileChanges[0]!));
+  bad.controls[0]!.fileChanges=[{operation:'delete',path:'value.mjs'}];
   const transport=new NodeFragments(request=>{
     const current=f.store.supervision.job(request.id),input=parseAuthorStageInput(current.input)!;
     return input.context.authorStage.index===2&&!parseStageRecoveryInput(current.input)?bad:f.fragments[input.context.authorStage.index];
@@ -215,7 +215,7 @@ test('P6-AUTH-STAGE-I03 rejected fragment is regenerated once with charged ances
   for(const index of [0,1]){const completed=await runner.run(job.id);originals.push(completed);job=advanceAuthorStage(f.store,f.data,completed)!;}
   await assert.rejects(runner.run(job.id),/Supervision job has no applicable result/);
   const failed=f.store.supervision.job(job.id),rejected=readRejectedAuthorStage(failed,f.data);
-  assert.equal(failed.error,'Author stage: overlapping file changes');assert.equal(failed.result,null);assert.equal(failed.usage,7);assert.equal(rejected.ref.classification,'semantic');assert.deepEqual(rejected.raw,bad);
+  assert.equal(failed.error,'$output.controls[1].files: array length outside schema');assert.equal(failed.result,null);assert.equal(failed.usage,7);assert.equal(rejected.ref.classification,'semantic');assert.deepEqual(rejected.raw,bad);
   assert.equal(f.store.runtime.inspect(f.runtime.id).run.budget.spent,21);
   await runner.close();f.reopen();runner=f.runner(transport);await runner.initialize();
   await assert.rejects(runner.run(failed.id),/Supervision job has no applicable result/);assert.equal(transport.calls,3);

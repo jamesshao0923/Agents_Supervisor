@@ -1,5 +1,5 @@
 import {resolveAuthorBundle,assertAuthorExpansionProof} from '../../packages/orchestration/author-result-patch.js';
-import {readAuthorReviewRejection} from '../../packages/persistence/author-review-rejection.js';
+import {readAuthorReviewRejection,authorReviewPromptPayloadMatches} from '../../packages/persistence/author-review-rejection.js';
 import {authorWireInput,authorRecoveryInput,AUTHOR_RECOVERY_PRESENTATION_PROMPT_V3,AUTHOR_RECOVERY_PRESENTATION_PROMPT_V4} from '../../packages/orchestration/author-presentation.js';
 import test from 'node:test';
 import {createHash} from 'node:crypto';
@@ -28,6 +28,12 @@ async function review(f:Awaited<ReturnType<typeof fixture>>,author:SupervisionJo
  if(modelReview){const errors=Object.keys(job.proofs).filter(p=>p.endsWith('/definition-review/error.json'));assert.equal(errors.length,0,job.error+' '+errors.map(p=>readFileSync(p,'utf8')).join('\n'));}assert.equal(job.approved,false);assert.equal(job.modelStarted,modelReview);assert.equal(job.usage,modelReview?4:0);assert.equal(job.stopConfirmed,true);assert.ok(modelReview?job.controls.every(c=>c.passed):job.controls.every(c=>c.results.some(r=>r.executionStatus==='verifier-error')));
  const loop=f.store.supervision.get(f.loop.id);f.store.supervision.update(loop.id,loop.revision,{phase:'reviewing',references:{authorJobId:author.id,proposalId:proposal.id,reviewId:job.id}});return {proposal,job};
  }finally{await controller.close();}
+}
+function installSyntheticReviewBinary(t:import('node:test').TestContext,root:string){
+ const binary=join(root,'review-synthetic.cjs');
+ writeFileSync(binary,`#!${process.execPath}
+const cp=require('node:child_process'),a=process.argv.slice(2);if(a.includes('--version')||a.includes('generate-json-schema')){process.stdout.write(cp.execFileSync('codex',a));process.exit(0)}if(a.includes('mcp')){console.log('[]');process.exit(0)}const send=x=>console.log(JSON.stringify(x));require('node:readline').createInterface({input:process.stdin}).on('line',line=>{const m=JSON.parse(line);if(m.id===undefined)return;if(m.method==='initialize')return send({id:m.id,result:{userAgent:'synthetic',codexHome:'fixture',platformFamily:'unix',platformOs:'test'}});if(m.method==='model/list')return send({id:m.id,result:{data:[{id:'must-not-launch-provider',model:'must-not-launch-provider',inputModalities:['text'],supportedReasoningEfforts:[{reasoningEffort:'low'}],defaultReasoningEffort:'low',isDefault:true}],nextCursor:null}});if(m.method==='thread/start')return send({id:m.id,result:{thread:{id:'actual-synthetic-thread',turns:[]}}});if(m.method==='turn/start'){send({id:m.id,result:{turn:{id:'actual-turn',status:'inProgress',items:[]}}});const usage={inputTokens:2,cachedInputTokens:0,outputTokens:2,reasoningOutputTokens:0,totalTokens:4};send({method:'thread/tokenUsage/updated',params:{threadId:'actual-synthetic-thread',turnId:'actual-turn',tokenUsage:{total:usage,last:usage}}});send({method:'item/completed',params:{threadId:'actual-synthetic-thread',turnId:'actual-turn',item:{id:'message',type:'agentMessage',text:JSON.stringify({verdict:'failed',reason:'Explicit synthetic independent judgment: improve verifier coverage',observations:['Fixture judgment, not actual model reasoning']})}}});send({method:'turn/completed',params:{threadId:'actual-synthetic-thread',turn:{id:'actual-turn',status:'completed',items:[{type:'agentMessage',text:JSON.stringify({verdict:'failed',reason:'Explicit synthetic independent judgment: improve verifier coverage',observations:['Fixture judgment, not actual model reasoning']})}]}}});return;}throw Error('Unexpected request '+m.method);});`,{mode:0o700});
+ const old=process.env.SUPERVISOR_CODEX_PATH;process.env.SUPERVISOR_CODEX_PATH=binary;t.after(()=>{if(old===undefined)delete process.env.SUPERVISOR_CODEX_PATH;else process.env.SUPERVISOR_CODEX_PATH=old;});
 }
 async function request(f:Awaited<ReturnType<typeof fixture>>,job=f.old){return {commandId:'review-rebuild-'+job.id,loopId:f.loop.id,previousJobId:job.id,expectedRevision:f.store.supervision.get(f.loop.id).revision,rejection:await f.repo.assess(f.loop.id,job.id,true),capabilities:await capabilities(f.data)};}
 test('P6-AUTHREVIEW-I01 actual P4 command rejection reserves one fresh author atomically and preserves original history across reopen',async t=>{
@@ -68,6 +74,47 @@ test('P6-AUTHREVIEW-I02 changed actual review proof and changed original candida
  await forged(job=>{job.controls[0]!.results[0]!.proofFiles=[proof];},/another observation/);
  await forged(job=>{job.controls[0]!.results[0]!.proofFiles=job.controls[0]!.results[0]!.proofFiles!.filter(path=>!path.endsWith('/stdout.log'));},/proof inventory was omitted/);
  writeFileSync(proof,Buffer.concat([bytes,Buffer.from(' ')]));assert.throws(()=>f.repo.begin(input),/proof changed/);writeFileSync(proof,bytes);writeFileSync(join(f.workspace,'value.mjs'),'changed original candidate');assert.throws(()=>f.repo.begin(input),/candidate changed/);assert.equal(f.repo.routes(f.loop.id).length,0);assert.equal(f.store.supervision.jobs(f.loop.id).length,1);
+ // Ordinary current-engine review path: actual good/bad commands pass; only the
+ // model protocol judgment is synthetic. Its failed verdict is retained, never
+ // converted into definition approval, publication, or product acceptance.
+ const modelFixture=await fixture(t,{kind:'review-valid',calls:5});installSyntheticReviewBinary(t,modelFixture.root);
+ const modelReview=await review(modelFixture,modelFixture.old,true);
+ const modelRoot=Object.keys(modelReview.job.proofs).find(path=>path.endsWith('/definition-review/events.jsonl'))!;
+ const events=readFileSync(modelRoot,'utf8').trim().split('\n').map(line=>JSON.parse(line)),actualInput=events.filter(event=>event.kind==='review-input');
+ assert.equal(actualInput.length,1);
+ const body=JSON.parse(actualInput[0].value.prompt.slice(actualInput[0].value.prompt.lastIndexOf('\n')+1));
+ // Synthetic plain payload comparisons do not edit any actual event/proof.
+ // Exact historical shape remains readable; malformed new envelopes and extra
+ // fields are refused instead of being deleted or downgraded to legacy.
+ const {controlSourceEvidence:sourceEvidence,...legacyBody}=body;
+ assert.equal(authorReviewPromptPayloadMatches(legacyBody,legacyBody,undefined),true);
+ assert.equal(authorReviewPromptPayloadMatches(body,legacyBody,sourceEvidence),true);
+ assert.equal(authorReviewPromptPayloadMatches({...legacyBody,controlSourceEvidence:null},legacyBody,sourceEvidence),false);
+ assert.equal(authorReviewPromptPayloadMatches({...legacyBody,controlSourceEvidence:{schemaVersion:1}},legacyBody,sourceEvidence),false);
+ assert.equal(authorReviewPromptPayloadMatches({...body,unknownField:true},legacyBody,sourceEvidence),false);
+ assert.equal(body.controlSourceEvidence.schemaVersion,1);
+ assert.deepEqual(body.controlSourceEvidence.controls.map((control:{id:string})=>control.id),modelReview.proposal.bundle.controls.map(control=>control.id));
+ for(const control of body.controlSourceEvidence.controls)for(const [name,entry]of Object.entries(control.files) as [string,{snapshotDigest:string;blob:string;executable:number}][]){
+  const asset=modelReview.proposal.bundle.controls.find(value=>value.id===control.id)!;
+  assert.equal(entry.snapshotDigest,asset.candidate.files[name]);
+  const blob=body.controlSourceEvidence.blobs[entry.blob],raw=Buffer.from(blob.content,blob.encoding==='utf8'?'utf8':'base64');
+  assert.deepEqual(raw,readFileSync(join(asset.candidate.tree,name)));
+  assert.equal(createHash('sha256').update(raw).digest('hex'),entry.blob);
+  assert.equal(createHash('sha256').update(Buffer.concat([raw,Buffer.from('\0executable:'+String(entry.executable))])).digest('hex'),entry.snapshotDigest);
+ }
+ const originals=JSON.stringify({author:modelFixture.store.supervision.job(modelFixture.old.id),proposal:modelFixture.store.verification.get('proposal',modelReview.proposal.id),review:modelFixture.store.verification.get('job',modelReview.job.id)}),modelInput=await request(modelFixture);
+ assert.equal(modelInput.rejection.review!.classification,'definition-rejected');
+ assert.equal(modelInput.rejection.review!.independentReview!.verdict,'failed');
+ assert.equal(modelInput.rejection.review!.independentReview!.usage,4);
+ assert.equal(modelInput.rejection.review!.review.id,modelReview.job.id);
+ assert.equal(modelFixture.repo.routes(modelFixture.loop.id).length,0);
+ modelFixture.reopen();
+ assert.deepEqual((await request(modelFixture)).rejection,modelInput.rejection);
+ const replacement=modelFixture.repo.begin(modelInput);
+ assert.equal(replacement.job.purpose,'acceptance-authoring');
+ assert.equal(modelFixture.store.runtime.inspect(modelFixture.runtime.id).run.budget.spent,11);
+ assert.equal(JSON.stringify({author:modelFixture.store.supervision.job(modelFixture.old.id),proposal:modelFixture.store.verification.get('proposal',modelReview.proposal.id),review:modelFixture.store.verification.get('job',modelReview.job.id)}),originals);
+ assert.equal(modelFixture.store.verification.get('proposal',modelReview.proposal.id).status,'proposed');
 });
 test('P6-AUTHREVIEW-I03 second actually rejected rebuilt author remains retained and cannot regenerate again',async t=>{
  const f=await fixture(t,{kind:'valid',calls:5});await review(f);const next=f.repo.beginV2(await request(f));await f.create('valid',next.job);await review(f,f.store.supervision.job(next.job.id));
@@ -101,9 +148,6 @@ test('P6-AUTHREVIEW-U01 actual advertised Astra high upgrades strictly to xhigh 
 });
 
 test('P6-AUTHREVIEW-I05 completed synthetic review transport with real P4 controls binds failed independent judgment and retains its cost',async t=>{
- const f=await fixture(t,{kind:'review-valid'}),binary=join(f.root,'review-synthetic.cjs');
- writeFileSync(binary,`#!${process.execPath}
-const cp=require('node:child_process'),a=process.argv.slice(2);if(a.includes('--version')||a.includes('generate-json-schema')){process.stdout.write(cp.execFileSync('codex',a));process.exit(0)}if(a.includes('mcp')){console.log('[]');process.exit(0)}const send=x=>console.log(JSON.stringify(x));require('node:readline').createInterface({input:process.stdin}).on('line',line=>{const m=JSON.parse(line);if(m.id===undefined)return;if(m.method==='initialize')return send({id:m.id,result:{userAgent:'synthetic',codexHome:'fixture',platformFamily:'unix',platformOs:'test'}});if(m.method==='model/list')return send({id:m.id,result:{data:[{id:'must-not-launch-provider',model:'must-not-launch-provider',inputModalities:['text'],supportedReasoningEfforts:[{reasoningEffort:'low'}],defaultReasoningEffort:'low',isDefault:true}],nextCursor:null}});if(m.method==='thread/start')return send({id:m.id,result:{thread:{id:'actual-synthetic-thread',turns:[]}}});if(m.method==='turn/start'){send({id:m.id,result:{turn:{id:'actual-turn',status:'inProgress',items:[]}}});const usage={inputTokens:2,cachedInputTokens:0,outputTokens:2,reasoningOutputTokens:0,totalTokens:4};send({method:'thread/tokenUsage/updated',params:{threadId:'actual-synthetic-thread',turnId:'actual-turn',tokenUsage:{total:usage,last:usage}}});send({method:'item/completed',params:{threadId:'actual-synthetic-thread',turnId:'actual-turn',item:{id:'message',type:'agentMessage',text:JSON.stringify({verdict:'failed',reason:'Explicit synthetic independent judgment: improve verifier coverage',observations:['Fixture judgment, not actual model reasoning']})}}});send({method:'turn/completed',params:{threadId:'actual-synthetic-thread',turn:{id:'actual-turn',status:'completed',items:[{type:'agentMessage',text:JSON.stringify({verdict:'failed',reason:'Explicit synthetic independent judgment: improve verifier coverage',observations:['Fixture judgment, not actual model reasoning']})}]}}});return;}throw Error('Unexpected request '+m.method);});`,{mode:0o700});
- const old=process.env.SUPERVISOR_CODEX_PATH;process.env.SUPERVISOR_CODEX_PATH=binary;t.after(()=>{if(old===undefined)delete process.env.SUPERVISOR_CODEX_PATH;else process.env.SUPERVISOR_CODEX_PATH=old;});
+ const f=await fixture(t,{kind:'review-valid'});installSyntheticReviewBinary(t,f.root);
  const r=await review(f,f.old,true),input=await request(f);assert.equal(input.rejection.review!.classification,'definition-rejected');assert.equal(input.rejection.review!.review.id,r.job.id);const next=f.repo.begin(input);assert.equal(f.store.runtime.inspect(f.runtime.id).run.budget.spent,11);assert.equal(next.job.result,null);assert.equal(f.store.supervision.get(f.loop.id).repairCount,0);
 });

@@ -224,8 +224,13 @@ export function authorStageOutputSchema(context: AcceptanceAuthoringContext, val
 }
 export function parseAuthorStageOutput(value: unknown, context: AcceptanceAuthoringContext, binding: HostAuthorStageBinding, values: unknown[]): AuthorStageOutput {
   const b = validateAuthorStageBinding(binding); parents(context, b, values);
-  return b.index === 0 ? parseAuthorDefinition(value, context) : b.index === 1 ? parseAuthorPositive(value, context, values[0])
-    : parseAuthorNegative(value, context, values[0], values[1]);
+  if (b.index === 0) return parseAuthorDefinition(value, context);
+  if (b.index === 1) return parseAuthorPositive(value, context, values[0]);
+  const negative = parseAuthorNegative(value, context, values[0], values[1]);
+  // Finalization must reject the same full schema/asset defects as publication.
+  // Keep the raw fragment unchanged; expand/assemble never re-enter this parser.
+  assembleAuthorStages(context, values[0], values[1], negative);
+  return negative;
 }
 export function renderAuthorStagePrompt(context: AcceptanceAuthoringContext, binding: HostAuthorStageBinding, values: unknown[]): string {
   const b = validateAuthorStageBinding(binding); authorStageOutputSchema(context, b, values);

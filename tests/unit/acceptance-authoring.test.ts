@@ -85,6 +85,20 @@ test('P6-AUTH-U01 strict proposed assets bind complete contract source environme
   }
   const v2=stagesV2(c);
   assert.deepEqual(stageProtocols.assembleAuthorStages(c,v2.d,v2.p,v2.n),b);
+  // A schema-valid diff must also satisfy the original complete-bundle rules
+  // before the final fragment can finish and become an accepted stage.
+  const emptyControl=structuredClone(v2.n);
+  emptyControl.controls[0]!.fileChanges=[{operation:'delete',path:'math.mjs'}];
+  assert.throws(()=>stageProtocols.parseAuthorStageOutput(emptyControl,c,v2.binding(2),[v2.d,v2.p]),
+    /\$output\.controls\[1\]\.files: array length outside schema/);
+  const missingTarget=structuredClone(emptyControl);
+  missingTarget.controls[0]!.fileChanges.push({operation:'add',path:'unrelated.mjs',content:'export const unrelated=true;'});
+  assert.throws(()=>stageProtocols.parseAuthorStageOutput(missingTarget,c,v2.binding(2),[v2.d,v2.p]),
+    /Control project lacks frozen acceptance target/);
+  assert.deepEqual(stageProtocols.parseAuthorStageOutput(v2.n,c,v2.binding(2),[v2.d,v2.p]),v2.n);
+  assert.equal(stageProtocols.expandAuthorStages(c,v2.d,v2.p,emptyControl).controls[1]!.files.length,0,
+    'Pure historical expansion remains diagnosable and grants no acceptance');
+
   assert.equal(Object.hasOwn(v2.d,'verifierFiles'),false);
   for(const index of [0,1,2] as const){
     const parents=[v2.d,v2.p].slice(0,index),output=[v2.d,v2.p,v2.n][index];
