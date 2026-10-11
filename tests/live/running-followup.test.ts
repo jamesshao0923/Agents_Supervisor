@@ -14,6 +14,11 @@ import {runtimeCanonical} from '../../packages/persistence/runtime.js';
 import {authorWireInput,type PresentedAuthorInput} from '../../packages/orchestration/author-presentation.js';
 import type {SupervisionJob} from '../../packages/contracts/p6-supervision.js';
 import type {Run} from '../../packages/contracts/p1.js';
+import {DatabaseSync} from 'node:sqlite';
+import {AuthorRoutingRepository} from '../../packages/persistence/author-routing.js';
+import {expectedAuthorRouteConfig} from '../../packages/orchestration/acceptance-authoring-route.js';
+import {assertAuthorRouteJob,assertAuthorRouteProof} from '../../packages/orchestration/author-route-binding.js';
+import {readRoutingCapabilities} from '../../packages/orchestration/supervision-routing-capabilities.js';
 import type {Request} from '../../packages/contracts/p1.js';
 import type {GoalInspection} from '../../packages/contracts/p5.js';
 import type {ConversationInspection} from '../../packages/contracts/p6-actions.js';
@@ -151,10 +156,34 @@ test('P6 running followup survives real service restart applies once and indepen
  const plan=delivered.verification.plans.find(p=>p.id===delivery.planId)!;assert.equal(final.planId,plan.id);assert.equal(plan.selection.mode,'final');assert.equal(plan.selection.completeScope,true);assert.equal(plan.runId,delivered.runtime.run.id);assert.equal(delivery.runtimeId,runtimeId);assert.equal(delivery.candidateDigest,plan.candidate.digest);assert.equal(delivery.definitionDigest,plan.definitionDigest);
  assert.ok(final.evaluation?.obligations.length&&final.evaluation.obligations.every(o=>o.satisfied));
  const authors=delivered.jobs.filter(j=>j.purpose==='acceptance-authoring');assert.ok(authors.length>0);
- for(const job of delivered.jobs){
-  assert.ok(capabilities.models.some((m:any)=>m.id===job.config.model&&m.reasoningEfforts.includes(job.config.effort)));assert.equal(job.config.timeoutMs,240_000);assert.ok(job.config.reservation<=180_000);
-  await historicalJobEvidence(job,delivered.runtime.run);
- }
+ const routeDb=new DatabaseSync(join(data,'supervisor.sqlite'),{readOnly:true});
+ try {
+  const routes=new AuthorRoutingRepository(routeDb,data);
+  for(const job of delivered.jobs){
+   assert.ok(capabilities.models.some((m:any)=>m.id===job.config.model&&m.reasoningEfforts.includes(job.config.effort)));
+   const route=routes.forJob(job.id);
+   if(!route||route.schemaVersion===1){
+    assert.equal(job.config.timeoutMs,240_000);
+   }else{
+    assert.equal(route.schemaVersion,2);
+    assertAuthorRouteJob(route,job,delivered.loop);
+    const advertised=readRoutingCapabilities(data,route.capabilities);
+    assert.deepEqual(job.config,expectedAuthorRouteConfig({...route,capabilities:{...route.capabilities,capabilities:advertised}}));
+    assert.equal(route.baseline.timeoutMs,240_000);
+    assert.equal(job.config.reservation,route.baseline.reservation);
+    assert.equal(route.authorization.absoluteDeadlineMs,Date.parse(delivered.loop.createdAt)+delivered.loop.limits.maxDurationMs);
+    assert.equal(route.authorization.originalTimeoutMs,240_000);
+    assert.equal(job.config.timeoutMs,Math.min(240_000,route.authorization.absoluteDeadlineMs-Date.parse(route.authorization.observedAt)));
+    assert.ok(job.config.timeoutMs>=1000&&job.config.timeoutMs<=240_000);
+    // A known-zero pre-dispatch failure has no invented request proof. Every
+    // actual V2 model turn must bind its frozen deadline to the actual wire.
+    if(job.modelStarted)assertAuthorRouteProof(route,job,join(data,'supervision-reasoning',sha(Buffer.from(job.id))));
+    assert.equal((await inspectProcess(route.capabilities.identity)).status,'stopped');
+   }
+   assert.ok(job.config.reservation<=180_000);
+   await historicalJobEvidence(job,delivered.runtime.run);
+  }
+ }finally{routeDb.close();}
  const acceptedAuthor=authors.find(job=>job.id===delivered.loop.references.authorJobId)!;
  assert.ok(acceptedAuthor);assert.equal(acceptedAuthor.error,null);assert.ok(acceptedAuthor.result);
  const authored=await modelProof(acceptedAuthor.proofs,'/result.json');assert.equal(authored.result.threadId,acceptedAuthor.threadId);assert.equal(authored.result.usage,acceptedAuthor.usage);assert.deepEqual(authored.result.value,acceptedAuthor.result);assert.deepEqual(authored.output,acceptedAuthor.result);

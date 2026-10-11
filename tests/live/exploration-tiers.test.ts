@@ -21,6 +21,8 @@ import {diagnoseAcceptanceAuthoringResult,type AcceptanceAuthoringContext} from 
 import {assertLegacyControlReviewEvidence} from '../../packages/verification/legacy-review-evidence.js';
 import {integrationExecutionPrompt,type IntegrationInputBinding} from '../../packages/contracts/p7-integration-inputs.js';
 import {assertAuthorRouteChain} from './supervision-loop-route-checker.js';
+import {expectedAuthorRouteConfig} from '../../packages/orchestration/acceptance-authoring-route.js';
+import {assertAuthorRouteJob,assertAuthorRouteProof} from '../../packages/orchestration/author-route-binding.js';
 import {sha,tierCandidateIds,assertFourTierStimulus,actualModelCompletion,actualReviewModelCompletion,historicalAuthor} from '../helpers/exploration-live-evidence.js';
 import type {Request} from '../../packages/contracts/p1.js';
 import type {GoalInspection} from '../../packages/contracts/p5.js';
@@ -181,7 +183,19 @@ test('P7-EXPLORE-L01 real P5 candidates traverse four tiers retain active work a
   const authors=delivered.jobs.filter(j=>j.purpose==='acceptance-authoring'),routes=store.authorRouting.routes(loopId),current=authors.find(j=>j.id===delivered.loop.references.authorJobId)!;assert.ok(current);assert.equal(current.error,null);assertAuthorRouteChain(authors,routes,current.id);
   for(const job of delivered.jobs){assert.equal(job.purpose,'acceptance-authoring');await historicalAuthor(job,delivered.runtime.run);await proofs(job.proofs);}
   const authorInput=current.input as {context:{acceptance:AcceptanceAuthoringContext}};assert.equal(diagnoseAcceptanceAuthoringResult(current.result,authorInput.context.acceptance),null);const authorProof=await actualModelCompletion(current.proofs);assert.deepEqual(authorProof.output,current.result);assert.deepEqual(authorProof.result.value,current.result);assert.equal(authorProof.result.threadId,current.threadId);assert.equal(authorProof.result.usage,current.usage);assertAuthorWireProof(current,join(data,'supervision-reasoning',sha(current.id)));
-  for(const route of routes){const previous=authors.find(j=>j.id===route.rejection.previousJobId)!,next=authors.find(j=>j.id===route.nextJobId)!;assert.ok(previous&&next);assert.equal(route.nextInputDigest,next.inputDigest);assert.equal(route.contractDigest,sha(contractBytes));assert.equal(route.rejection.jobDigest,sha(runtimeCanonical(previous)));assert.equal(route.rejection.inputDigest,previous.inputDigest);assert.equal(sha(await readFile(route.rejection.rawOutputPath)),route.rejection.rawOutputDigest);assert.equal(next.config.reservation,previous.config.reservation);assert.equal(next.config.timeoutMs,previous.config.timeoutMs);}
+  for(const route of routes){const previous=authors.find(j=>j.id===route.rejection.previousJobId)!,next=authors.find(j=>j.id===route.nextJobId)!;assert.ok(previous&&next);assert.equal(route.nextInputDigest,next.inputDigest);assert.equal(route.contractDigest,sha(contractBytes));assert.equal(route.rejection.jobDigest,sha(runtimeCanonical(previous)));assert.equal(route.rejection.inputDigest,previous.inputDigest);assert.equal(sha(await readFile(route.rejection.rawOutputPath)),route.rejection.rawOutputDigest);assert.equal(next.config.reservation,previous.config.reservation);
+    assert.deepEqual(route.baseline,previous.config);assert.deepEqual(route.selected,next.config);
+    assertAuthorRouteJob(route,next,delivered.loop);
+    if(route.schemaVersion===1){
+      assert.equal(next.config.timeoutMs,previous.config.timeoutMs);
+    }else{
+      assert.equal(route.schemaVersion,2);
+      assert.deepEqual(next.config,expectedAuthorRouteConfig(route));
+      assert.ok(next.config.timeoutMs<=previous.config.timeoutMs);
+      assert.equal(route.authorization.absoluteDeadlineMs,Date.parse(delivered.loop.createdAt)+delivered.loop.limits.maxDurationMs);
+      if(next.modelStarted)assertAuthorRouteProof(route,next,join(data,'supervision-reasoning',sha(next.id)));
+    }
+}
   const head=store.verification.headForRun(admitted.run.projectId,admitted.run.id)!;assert.ok(head);await assertCandidate(head.candidate,false);
   const review=delivered.verification.jobs.find(j=>j.kind==='review'&&j.approved)!;assert.ok(review&&review.modelStarted&&!review.error);assert.equal(review.proposalId,head.id);assert.equal(review.stopConfirmed,true);assert.equal(review.usageUnknown,false);
   assert.deepEqual(review.controls.map(c=>c.id).sort(),head.spec.controls.map(c=>c.id).sort());assert.ok(review.controls.length>=2&&review.controls.every(c=>c.passed&&c.results.length&&c.results.every(r=>r.executionStatus==='executed')));assert.ok(head.spec.controls.some(c=>c.expect==='passed')&&head.spec.controls.some(c=>c.expect==='failed'));
