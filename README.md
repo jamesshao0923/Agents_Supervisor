@@ -10,9 +10,21 @@ Supervisor 的需求理解与计划已由模型驱动，P6 自动监督控制器
 
 按用户授权，P6/P7/P8 默认必要测试从实际展开的 656/160/947 项缩减为 **48/47/51 项**，原源码与失败记录保留。范围、未做场景和潜在风险见 [精简验收与实地补验](docs/field-validation.md)，逐项 ID 见 [延后清单](tests/acceptance/deferred-p6-p8.json)。这不表示阶段已通过，也不改变用户项目的业务验收标准。
 
-分步验收 V2 已合入：先冻结完整标准和检查器文件清单，再生成检查器/正例，最后生成负例。旧 V1 保留。11 个不同既有组件用例分轮通过并经独立审查，未新增稳定 ID；新版本真实模型闭环尚未运行。证据 `.supervisor-dev/p6-author-stages-v2-work/ready.json` 与 `p6-author-stages-v2-independent-review/review-final.json`。
+分步验收 V2 已合入：先冻结完整标准和检查器文件清单，再生成检查器/正例，最后生成负例。旧 V1 保留。11 个不同既有组件用例分轮通过并经独立审查，未新增稳定 ID。V2 真实运行已完成三段生成，但独立 P4 拒绝正例后，状态查询发生 30 秒 IPC 超时，完整闭环仍失败；恢复模型尚未启动即被测试清理取消。证据 `.supervisor-dev/p6-author-stages-v2-work/ready.json` 与 `p6-author-stages-v2-independent-review/review-final.json`。
 
-## 最新开发检查点（v60，2026-10-11，分步验收与共享预算）
+本轮精简验证已取得 40 个不同核心单元检查通过、零跳过。P6 V2 实跑已知用量 261,465 token，全部结算，207 份证明哈希匹配、30 个所属进程停止，0 交付。终态证据 `.supervisor-dev/p6-v2-personal-live-work/final-result.json`；状态读取阻塞修复已通过独立审查并合入：只读查询不再等待变更队列；没有提高客户端超时。真实模型闭环尚未复跑，不能将组件结果算作阶段通过。
+
+## 当前开发检查点（2026-10-11，精简组件基线）
+
+P8 已合入按索引读取当前/历史资料、连续刷新来源绑定和上下文无损去重的改动；保留旧协议并与分步验收 V2 共存。第三代真实组件链仍有原期限内审核未结束的问题，完整多代验收按用户授权延期，不宣称通过。
+
+核心组件批次执行 95 项，94 项通过、1 项旧提示词断言失败；修正夹具后只复验该项并通过，原失败报告保留。当前 95 项组件证据由未变的 94 项及这 1 项复验组成，另复用运行时依赖逐项相同的 40 项核心单元证据，没有重复整批。正常构建通过；组件中的模型响应是明确合成协议，不能算实际供应商业务验收。证据 `.supervisor-dev/p6-p8-core-baseline-combined/final-result.json`、`p7-claims-i08-recheck/final-result.json`、`p8-indexed-history-main-compact-work/root-main-compiled-comparison.json`。
+
+状态查询的修复复用既有 P6-SCTL-I08，实际停止 Node 进程期间 inspect/list 可以返回已提交状态，后续 resume 仍按顺序执行；原费用和停止断言保持。单项通过、零跳过；其余未变证据复用，未重跑 14 项或付费门禁。证据 `.supervisor-dev/p6-inspection-responsive-work/ready.json` 与 `p6-inspection-responsive-independent-review/review-final.json`。
+
+P7 另一次真实并行运行已完成两路 Agent 及最终集成，但独立审核拒绝了测试驱动手写的验收器：包含契约外限制，且负例覆盖和断言来源证明不足。已知累计 297,143 token，全部结算；415 份证明一致，16 个所属进程及 worker 已停止，0 交付。证据 `.supervisor-dev/p7-core-parallel-preparation-work/final-audit.json`。这证明并行执行实际发生，不证明效率提升或阶段交付通过；不重复付费运行来碰运气。
+
+## 先前开发检查点（v60，2026-10-11，分步验收与共享预算）
 
 桌面新建监督 Loop 对普通命令项目的初次验收选择三步生成：验收定义与检查代码、正例控制、负例差异。每步各自记录实际模型请求、原始结果、费用、进程停止和父步骤证明；宿主无损组装完整方案，再走原语义检查、独立复核与 P4 执行。旧 Loop、已有验收版本的演进及其他任务类型保留原路径。三步各占一次原有分析次数，共享原作者 token 额度；完整方案被否决后的局部修复只能使用剩余额度，不能重置预算或 Loop 期限。
 

@@ -1,3 +1,6 @@
+import {currentVerificationCases} from './rules.js';
+import {indexedStageScopes,type IndexedStageScope} from './indexed-stage-authority.js';
+import {indexedRefreshViewEntriesSync} from './indexed-refresh-views.js';
 import {join} from 'node:path';
 import {assertIndexedConsumerArchiveSync} from '../runtime/indexed-research-consumer.js';
 import {researchDigest} from '../workspace/research-materials.js';
@@ -19,13 +22,13 @@ export function assertIndexedToolCorrelation(records:ResearchReaderAudit[],event
   const request=events.find(e=>e.kind==='server-request'&&e.raw?.id===record.rpcId&&researchDigest(e.raw)===record.requestDigest);
   const item=events.find(e=>e.sequence===record.eventSequence);
   const started=events.find(e=>e.method==='item/started'&&e.sequence<record.eventSequence!&&e.raw?.params?.item?.id===record.itemId);
-  const same=(e:typeof item)=>e&&e.threadId===threadId&&e.turnId===turnId&&e.raw?.params?.item?.type==='dynamicToolCall'&&e.raw.params.item.id===record.itemId&&e.raw.params.item.namespace==null&&e.raw.params.item.tool===(record.request?.type==='range'?'research_material_range':'research_material_search')&&canonical(e.raw.params.item.arguments)===canonical(Object.fromEntries(Object.entries(record.request!).filter(([key])=>key!=='type')));
+  const same=(e:typeof item)=>e&&e.threadId===threadId&&e.turnId===turnId&&e.raw?.params?.item?.type==='dynamicToolCall'&&e.raw.params.item.id===record.itemId&&e.raw.params.item.namespace==null&&e.raw.params.item.tool===(record.protocol==='indexed-material-views-v1'?(record.request?.type==='range'?'research_view_range':'research_view_search'):(record.request?.type==='range'?'research_material_range':'research_material_search'))&&canonical(e.raw.params.item.arguments)===canonical({...Object.fromEntries(Object.entries(record.request!).filter(([key])=>key!=='type')),...(record.protocol==='indexed-material-views-v1'?{viewId:record.viewId}:{})});
   ensure(written&&request&&request.method==='item/tool/call'&&request.sequence<item?.sequence&&request.threadId===threadId&&request.turnId===turnId&&same(started)&&same(item)&&item.method==='item/completed'&&item.raw.params.item.status==='completed'&&item.raw.params.item.success===true&&canonical(item.raw.params.item.contentItems)===canonical(written.response?.contentItems)&&record.responseDigest===written.responseDigest,'Tool response differs from exact same-turn journal');
   permitted.add(request.sequence);permitted.add(started.sequence);permitted.add(item.sequence);
  }
  return permitted;
 }
-export function assertIndexedCall(job:VerificationJob,proposal:Proposal,root:string){
+export function assertIndexedCall(job:VerificationJob,proposal:Proposal,root:string,stage?:IndexedStageScope){
  const read=(name:string,limit=8*1024*1024)=>{const p=join(root,name);ensure(job.proofs[p]&&digest(readBounded(p,limit))===job.proofs[p],'Required actual call proof missing/changed: '+name);return readBounded(p,limit).toString('utf8');};
  const events=read('events.jsonl').trim().split('\n').map(line=>JSON.parse(line)),result=JSON.parse(read('result.json'));
  const inputs=events.filter(e=>e.kind==='review-input');ensure(inputs.length===1&&typeof inputs[0].value.prompt==='string','Exact actual call prompt missing');
@@ -34,10 +37,21 @@ export function assertIndexedCall(job:VerificationJob,proposal:Proposal,root:str
  for(const [kind,value]of [['process-intent',process.intent],['process-identity',identity],['process-stop',process.result]])ensure(events.some(e=>e.kind===kind&&e.value.kind==='review'&&canonical(e.value[kind==='process-intent'?'intent':kind==='process-identity'?'identity':'result'])===canonical(value)),'Actual call process event differs');
  ensure(input.model===job.config.model&&input.effort===job.config.effort&&input.cwd===(job.environmentScope?.workspace??job.workspace),'Actual call configuration differs');
  const bindingPath=join(root,'indexed-reader','binding.json');read('indexed-reader/binding.json');
- const bindings=proposal.spec.cases.flatMap(c=>c.verifier.kind==='material'?[c.verifier.binding]:[]).filter(b=>readMaterialBindingSync(b).input.indexed);
+ const bindings=currentVerificationCases(proposal.spec).flatMap(c=>c.verifier.kind==='material'?[c.verifier.binding]:[]).filter(b=>readMaterialBindingSync(b).input.indexed);
  ensure(bindings.length>0,'Actual indexed producer missing');
  const actual=assertIndexedConsumerArchiveSync(bindingPath,{jobId:job.id,attemptId:job.attemptId,identities:[identity]});
- ensure(actual.proof.grantVersion===2&&actual.proof.callRoot===root&&bindings.every(binding=>{const indexed=readMaterialBindingSync(binding).input.indexed!;return canonical(indexed)===canonical(actual.proof.reader)&&actual.proof.owner.inputDigest===researchDigest({request:job.request,proposal:proposal.id,definition:proposal.bundle.digest,detectorDigest:digest(input.prompt),binding,reader:indexed.digest,callRoot:root});}),'Actual prompt/producer reader grant differs');
+ if(actual.proof.grantVersion===3){
+  ensure(stage&&stage.root===root&&stage.binding&&stage.contextRole!=='current'&&actual.proof.callRoot===root&&actual.proof.stageAuthorityDigest===researchDigest(stage),'Actual noncurrent stage authority differs');
+  const binding=stage.binding,indexed=readMaterialBindingSync(binding).input.indexed!;
+  if(stage.contextRole==='complete-evolution'){
+   ensure(stage.refreshContext&&actual.proof.viewSet&&canonical(actual.proof.viewSet.views)===canonical(indexedRefreshViewEntriesSync(binding,stage.refreshContext))&&canonical(actual.proof.reader)===canonical(indexed),'Exact frozen complete inventory differs');
+  }else{
+   ensure(stage.historicalEpoch?.indexed&&!actual.proof.viewSet,'Exact original historical epoch required');
+   const {digest:_,...view}=indexed.view;const body={...view,role:'historical'};
+   ensure(canonical(actual.proof.reader.context)===canonical(indexed.context)&&canonical(actual.proof.reader.view)===canonical({...body,digest:researchDigest(body)}),'Historical reader does not preserve original source bytes/role');
+  }
+  ensure(actual.proof.owner.inputDigest===researchDigest({request:job.request,proposal:proposal.id,definition:proposal.bundle.digest,detectorDigest:digest(input.prompt),binding,reader:actual.proof.reader.digest,callRoot:root,stageAuthorityDigest:researchDigest(stage),...(actual.proof.viewSet?{inventoryDigest:actual.proof.viewSet.digest}:{})}),'Actual multi-view prompt grant differs');
+ }else ensure(actual.proof.grantVersion===2&&actual.proof.callRoot===root&&bindings.every(binding=>{const indexed=readMaterialBindingSync(binding).input.indexed!;return canonical(indexed)===canonical(actual.proof.reader)&&actual.proof.owner.inputDigest===researchDigest({request:job.request,proposal:proposal.id,definition:proposal.bundle.digest,detectorDigest:digest(input.prompt),binding,reader:indexed.digest,callRoot:root});}),'Actual prompt/producer reader grant differs');
  for(const[p,sha]of Object.entries(actual.proof.files))ensure(job.proofs[p]===sha&&digest(readBounded(p,6*1024*1024))===sha,'Actual call archive inventory missing/changed');
  ensure(result.modelStarted&&result.stopConfirmed&&result.threadId&&result.turnId&&Number.isSafeInteger(result.usage)&&result.usage>0&&result.usage<=job.usage,'Actual call terminal/accounting incomplete');
  const thread=events.filter(e=>e.kind==='review-thread'),turn=events.filter(e=>e.kind==='review-turn-started'),intents=events.filter(e=>e.kind==='review-turn-intent');
@@ -52,17 +66,17 @@ export function assertIndexedCall(job:VerificationJob,proposal:Proposal,root:str
  return actual;
 }
 /** Mandatory call roots come from frozen instances and actual classifications, never a mutable proof whitelist. */
-export function assertIndexedVerificationCalls(store:Pick<SupervisorStore,'verification'>,job:VerificationJob){
+export function assertIndexedVerificationCalls(store:Pick<SupervisorStore,'verification'|'controlQualification'>,job:VerificationJob){
  const proposal=store.verification.get('proposal',job.proposalId);
  if(!proposal.spec.cases.some(c=>c.verifier.kind==='material'&&readMaterialBindingSync(c.verifier.binding).input.indexed))return;
- const scopes=indexedCallScopes(store.verification.dataDirectory(),job,proposal,job.planId?store.verification.get('plan',job.planId):undefined),roots=new Set<string>();
+ const scopes=indexedStageScopes(store,job.id),roots=new Set<string>();
  if(job.kind==='review')roots.add(scopes.find(s=>s.role==='definition-review')!.root);
- const add=(results:VerificationJob['results'],label:string)=>{for(const result of results){const scope=scopes.find(s=>s.label===label&&s.instance?.id===result.instanceId);if(!scope)continue;const definition=proposal.spec.cases.find(c=>c.id===scope.instance!.caseId&&c.revision===scope.instance!.revision)!;if(result.executionStatus==='executed'&&definition.verifier.kind==='material'){
-  roots.add(scope.root);const actual=assertIndexedCall(job,proposal,scope.root),model=JSON.parse(readBounded(join(scope.root,'result.json')).toString('utf8'));
+ const add=(results:VerificationJob['results'],label:string)=>{for(const result of results){const scope=scopes.find(s=>s.label===label&&s.instance?.id===result.instanceId);if(!scope)continue;if(result.executionStatus==='executed'&&scope.binding){
+  roots.add(scope.root);const actual=assertIndexedCall(job,proposal,scope.root,scope),model=JSON.parse(readBounded(join(scope.root,'result.json')).toString('utf8'));
   const obligations=proposal.spec.obligations.filter(o=>scope.instance!.obligationIds.includes(o.id));
   ensure(canonical(result.checks)===canonical(obligations.map(o=>({obligationId:o.id,verdict:o.applicable?model.verdict:'not-applicable',reason:model.reason})))&&result.reason===model.reason,'Actual instance classification differs from its bound call');
  }}};
- if(job.kind==='verification')add(job.results,'candidate');else for(const control of job.controls)add(control.results,'control-'+digest(control.id));
- for(const root of roots)assertIndexedCall(job,proposal,root);
+ if(job.kind==='verification')add(job.results,'candidate');else for(const control of job.controls)add(control.results,proposal.controlDraftDigest?control.id:'control-'+digest(control.id));
+ for(const root of roots)assertIndexedCall(job,proposal,root,scopes.find(s=>s.root===root));
  for(const path of Object.keys(job.proofs).filter(p=>p.endsWith('/indexed-reader/binding.json')))ensure(roots.has(path.slice(0,-'/indexed-reader/binding.json'.length)),'Unbound indexed call archive');
 }

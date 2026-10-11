@@ -4,6 +4,8 @@ import type {SpecimenRef,FailureWitness} from './p4-controls.js';
 /** Host-frozen provenance, never an author/caller exemption from current checks. */
 export interface HistoricalMaterialEpoch {
  role:'historical';binding:MaterialVerifierBinding;
+ /** Host-captured exact original indexed call; never a current exemption. */
+ indexed?:{schemaVersion:1;request:unknown;attemptId:string;definitionDigest:string;detectorDigest:string;callRoot:string};
  originalJobId:string;originalProposalId:string;originalProofs:Record<string,string>;
  originalObservation:MaterialObservation;modelEventsPath:string;
  observedAt:string;specimen:SpecimenRef;witnessId:string;digest:string;

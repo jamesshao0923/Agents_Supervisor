@@ -1,3 +1,4 @@
+import {scheduledExecutionPrompt} from '../../packages/contracts/p7-inputs.js';
 import test,{type TestContext} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,mkdir,realpath,rm} from 'node:fs/promises';
@@ -64,7 +65,7 @@ test('P7-CLAIM-I07 real downstream constraint failure rolls back cross-repositor
 });
 
 test('P7-CLAIM-I08 persisted synthetic completion cannot release a real live writer and exact known accounting releases only after actual process stop',async t=>{
- const f=await fixture(t);f.install();const result=f.claim();assert.equal(result.kind,'claimed');if(result.kind!=='claimed')return;const c=result.claim,binding=f.repository.binding(c.id,'owner');f.repository.markStarted(binding);assert.equal(f.repository.executionInput(c.id).prompt,f.plan.tasks[0]!.step.prompt);
+ const f=await fixture(t);f.install();const result=f.claim();assert.equal(result.kind,'claimed');if(result.kind!=='claimed')return;const c=result.claim,binding=f.repository.binding(c.id,'owner');f.repository.markStarted(binding);const taskPrompt=f.plan.tasks[0]!.step.prompt,actualPrompt=f.repository.executionInput(c.id).prompt;assert.equal(actualPrompt,scheduledExecutionPrompt(taskPrompt,f.repository.claimGet(c.id)));assert.ok(actualPrompt.startsWith(taskPrompt+'\n\nHost execution brief'),'Original task remains intact before the frozen host brief');
  // Explicit persisted receipt fixture plus real managed Node identity. This
  // tests repository/OS evidence, never a provider or ExecutionManager outcome.
  const child=await spawnManagedProcess({operationId:c.attemptId,command:process.execPath,args:['-e','setInterval(()=>{},1000)'],cwd:c.workspace,timeoutMs:10000,onBeforeSpawn:intent=>{f.db.prepare('INSERT INTO scheduled_events(scheduler_id,kind,record) VALUES(?,?,?)').run(c.schedulerId,'explicit-synthetic-process-intent',JSON.stringify(intent));},onIdentity:identity=>{f.db.prepare('INSERT INTO scheduled_events(scheduler_id,kind,record) VALUES(?,?,?)').run(c.schedulerId,'actual-process-identity',JSON.stringify(identity));}});t.after(async()=>{await child.terminate();});

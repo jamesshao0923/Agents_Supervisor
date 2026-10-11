@@ -1,3 +1,6 @@
+import {expandedAuthorInput} from '../orchestration/indexed-history-presentation.js';
+import {assertIndexedAuthorArchive} from '../runtime/indexed-research-consumer.js';
+import {SupervisionRepository} from './supervision.js';
 import {authorWireReceipt,assertAuthorWireProof} from '../orchestration/author-presentation-proofs.js';
 import {captureSourceRefreshControlContext,sourceRefreshReviewEvidence} from '../verification/source-refresh-controls.js';
 import {ControlMaintenanceRepository} from './control-maintenance.js';
@@ -44,7 +47,7 @@ export function controlQualificationDigest(value: Omit<ControlQualificationEvide
 /** Append-only sidecars; never changes Proposal, Run, model costs, or publication head. */
 export class ControlQualificationRepository {
   constructor(private readonly db: DatabaseSync, private readonly dataDir?: string) {}
-  sourceRefreshContext(base:import('../contracts/p4-lineage.js').ProposalBase,spec:import('../contracts/p4.js').VerificationSpec,history:ControlBootstrapHistory,actualProposalId?:string){if(!base.transitionIds.some(id=>new VerificationLineageRepository(this.db).transition(id).sourceRefresh))return null;const database=this.db.prepare('PRAGMA database_list').all().find(r=>r.name==='main');ensure(this.dataDir||database?.file,'Refresh authority requires real host data root');return captureSourceRefreshControlContext(this.db,this.dataDir??dirname(String(database!.file)),base,spec,history,actualProposalId);}
+  sourceRefreshContext(base:import('../contracts/p4-lineage.js').ProposalBase,spec:import('../contracts/p4.js').VerificationSpec|import('../contracts/p4-material.js').MaterialVerifierBinding,history:ControlBootstrapHistory,actualProposalId?:string){if(!base.transitionIds.some(id=>new VerificationLineageRepository(this.db).transition(id).sourceRefresh))return null;const database=this.db.prepare('PRAGMA database_list').all().find(r=>r.name==='main');ensure(this.dataDir||database?.file,'Refresh authority requires real host data root');return captureSourceRefreshControlContext(this.db,this.dataDir??dirname(String(database!.file)),base,spec,history,actualProposalId);}
   transaction<T>(body: () => T): T { const own = !this.db.isTransaction; if (own) this.db.exec('BEGIN IMMEDIATE'); try { const result = body(); ensure(!result
       || typeof (result as { then?: unknown }).then !== 'function', 'Asynchronous control transaction prohibited'); if (own) this.db.exec('COMMIT'); return result; } catch (error) { if (own) this.db.exec('ROLLBACK'); throw error; } }
   private command<T>(commandId: string, request: unknown, body: () => T): T { return this.transaction(() => { text(commandId); const row = this.db.prepare('SELECT request,result FROM verification_control_receipts WHERE command_id=?').get(commandId); if (row) { ensure(row.request === encoded(request), 'Conflicting control qualification commandId'); return JSON.parse(String(row.result)) as T; } const result = body(); this.db.prepare('INSERT INTO verification_control_receipts(command_id,request,result) VALUES (?,?,?)').run(commandId, encoded(request), encoded(result)); return result; }); }
@@ -120,7 +123,7 @@ export class ControlQualificationRepository {
         && attempt.settled
         && attempt.actual === job.usage, 'Control author is not the actual settled model author');
     ensure(job.inputDigest === draft.authorBinding.inputDigest && controlDigest(job.result) === draft.authorBinding.resultDigest, 'Control author input or result digest differs');
-    const input = job.input as { context?: { acceptance?: unknown; evolution?: { current?: unknown; base?: unknown; history?: unknown; transitions?: unknown } } }, result = job.result as { plan?: unknown; assets?: AcceptanceBundle };
+    const input = expandedAuthorInput(job.input) as { context?: { acceptance?: unknown; evolution?: { current?: unknown; base?: unknown; history?: unknown; transitions?: unknown } } }, result = job.result as { plan?: unknown; assets?: AcceptanceBundle };
     ensure(input.context?.evolution
         && same(input.context.evolution.current, input.context.acceptance)
         && same(input.context.evolution.base, draft.base)
@@ -134,6 +137,17 @@ export class ControlQualificationRepository {
       const database = this.db.prepare('PRAGMA database_list').all().find(row => row.name === 'main');
       ensure(this.dataDir || database?.file, 'Presented author requires its actual host data root');
       assertAuthorWireProof(job, join(this.dataDir ?? dirname(String(database!.file)), 'supervision-reasoning', digest(job.id)));
+    }
+    const authorRefresh=(input.context?.evolution as {sourceRefresh?:import('../contracts/p4-source-refresh.js').SourceRefreshControlContext})?.sourceRefresh;
+    const indexedHistory=wireReceipt?.kind==='indexed-history-author-wire';
+    ensure(indexedHistory||authorRefresh===undefined,'Historical view inventory requires explicit indexed-history presentation');
+    if(indexedHistory)ensure((authorRefresh!==undefined)===(draft.sourceRefresh!==undefined)&&same(authorRefresh??null,draft.sourceRefresh??null),'Author frozen refresh inventory differs from actual draft');
+    const indexedMaterials=(input.context?.acceptance as {materials?:{evidence?:{indexed?:unknown}}[]})?.materials;
+    if(indexedMaterials?.some(m=>m.evidence?.indexed)){
+      const database=this.db.prepare('PRAGMA database_list').all().find(row=>row.name==='main'),root=this.dataDir??dirname(String(database!.file));
+      const bindingPath=join(root,'supervision-reasoning',digest(job.id),'indexed-reader','binding.json');
+      ensure(job.proofs[bindingPath],'Actual indexed control author archive missing');
+      assertIndexedAuthorArchive({supervision:new SupervisionRepository(this.db),verificationLineage:new VerificationLineageRepository(this.db)},job.id,bindingPath);
     }
     ensure((input.context?.acceptance as { previousSpec?: unknown })?.previousSpec === null, 'V2 author must use separate exact historical context');
     const assets = result.assets; ensure(assets && Array.isArray(assets.verifierFiles) && Array.isArray(assets.controls), 'Actual author assets missing');

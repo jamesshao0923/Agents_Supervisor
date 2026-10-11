@@ -1,3 +1,4 @@
+import {expandedAuthorInput} from '../orchestration/indexed-history-presentation.js';
 import {prepareResearchProofPlan} from './research-workflow.js';
 import {readBounded} from '../workspace/research-runtime-files.js';
 import {assertLegacyControlReviewEvidence} from './legacy-review-evidence.js';
@@ -113,7 +114,7 @@ export class VerificationController {
       if(this.store.researchWorkflow.requires(runtime.id)) {
         ensure(action.researchAuthorJobId,'Native research proposal requires its actual frozen author/mapping');
         const author=await new SupervisionReasoningRunner(this.store,this.dataDir).run(action.researchAuthorJobId);
-        const context=(author.input as {context:{acceptance:import('../orchestration/acceptance-authoring.js').AcceptanceAuthoringContext}}).context.acceptance;
+        const context=(expandedAuthorInput(author.input) as {context:{acceptance:import('../orchestration/acceptance-authoring.js').AcceptanceAuthoringContext}}).context.acceptance;
         ensure(context.workflowMode==='native-host-v1'&&author.runtimeId===runtime.id,
           'Native mapping author belongs to another Run/role');
         nativePlan=prepareResearchProofPlan(context.criteria,run.contract,spec,
@@ -244,7 +245,7 @@ export class VerificationController {
     // Finished-only revalidation checks proof bytes, actual process stop and settled
     // accounting. It cannot start a fresh model call for an imported declaration.
     const author=await new SupervisionReasoningRunner(this.store,this.dataDir).run(initial.id);
-    const input=author.input as {context:{acceptance:unknown;candidate:Candidate;evolution?:ControlEvolutionAuthoringContext}};
+    const input=expandedAuthorInput(author.input) as {context:{acceptance:unknown;candidate:Candidate;evolution?:ControlEvolutionAuthoringContext}};
     const evolution=input.context.evolution;ensure(evolution,'Author did not generate control evolution');
     ensure(canonical(input.context.acceptance)===canonical(evolution.current),'Author acceptance context differs');
     const privateRoot=resolve(this.dataDir,'supervision','authoring'),declarationPath=join(privateRoot,'.evolution-declarations',author.id+'.json');
@@ -258,7 +259,11 @@ export class VerificationController {
     ensure(session?.proposal?.decision==='ready'&&canonical(session.proposal.criteria)===canonical(evolution.current.criteria),'Control author criteria differ from the admitted goal');
     ensure(evolution.current.criteria.length===run.contract.criteria.length&&run.contract.criteria.every(item=>{const criterion=evolution.current.criteria.find(c=>c.id===item.id);return criterion&&item.required&&item.description===[criterion.description,`Acceptance kind: ${criterion.kind}; target: ${criterion.target}`,...criterion.checks].join('\n');}),'Control criteria do not cover the exact admitted contract');
     const history=base.baseProposalId?this.store.controlQualification.loadHistory(base.baseProposalId):{definitions:[],specimens:[],manifest:null,transitions:[]};
-    const current=await captureControlEvolutionContext({current:evolution.current,base,transitions:base.transitionIds.map(id=>this.store.verificationLineage.transition(id)),history,...(evolution.maintenance?{maintenance:evolution.maintenance}:{}),...(evolution.regression?{regression:evolution.regression}:{})});
+    const indexedHistory=canonical((input.context as {authorPresentation?:unknown}).authorPresentation??null)===canonical({schemaVersion:4,kind:'indexed-history-evolution'})||canonical((input.context as {authorPresentation?:unknown}).authorPresentation??null)===canonical({schemaVersion:7,kind:'indexed-history-references'});
+    ensure(indexedHistory||!Object.hasOwn(evolution,'sourceRefresh'),'Historical view inventory requires explicit indexed-history presentation');
+    const authorRefresh=indexedHistory&&evolution.current.materials?.[0]?.binding?this.store.controlQualification.sourceRefreshContext(base,evolution.current.materials[0].binding,history):null;
+    if(indexedHistory)ensure(Object.hasOwn(evolution,'sourceRefresh')===!!authorRefresh&&canonical(authorRefresh??null)===canonical(evolution.sourceRefresh??null),'Author historical/current refresh inventory differs from actual lineage');
+    const current=await captureControlEvolutionContext({current:evolution.current,base,transitions:base.transitionIds.map(id=>this.store.verificationLineage.transition(id)),history,...(authorRefresh?{sourceRefresh:authorRefresh}:{}),...(evolution.maintenance?{maintenance:evolution.maintenance}:{}),...(evolution.regression?{regression:evolution.regression}:{})});
     ensure(canonical(current)===canonical(evolution),'Frozen control author history changed');
     ensure(evolution.current.environment.digest===(await environmentFingerprint(evolution.current.environment.scope===undefined?undefined:parseEnvironmentScope(evolution.current.environment.scope,{...runtime,dataDir:this.dataDir}))).digest,'Control author environment changed');
     ensure(input.context.candidate.root===runtime.workspace&&input.context.candidate.digest===evolution.current.candidate.digest&&evolution.current.candidate.workspace===runtime.workspace,'Control candidate belongs to another workspace');

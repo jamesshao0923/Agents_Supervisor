@@ -89,11 +89,32 @@ test('P6-SCTL-I08 pause stops an actual pre-turn process and explicit resume res
   assert.notEqual(job.inputDigest,digest(canonical(job.input)),'This candidate must exercise repository/P4 canonical key-order differences');
   const child=await spawnManagedProcess({operationId:job.id+'-pre-turn',command:process.execPath,args:['-e','setInterval(()=>{},1000)'],cwd:f.workspace,timeoutMs:10000,onBeforeSpawn:intent=>{f.store.supervision.observeJob(job.id,{intents:[intent]});},onIdentity:identity=>{f.store.supervision.observeJob(job.id,{identities:[identity]});}});t.after(async()=>{await child.terminate();});
   const started=f.store.supervision.get(loop.id);f.store.supervision.update(loop.id,started.revision,{phase:'diagnosing',references:{diagnosisJobId:job.id}});
-  const paused=await f.controller.dispatch({type:'pause',loopId:loop.id}) as SupervisionInspection;assert.equal(paused.loop.phase,'diagnosing');const old=paused.jobs[0]!;assert.equal(old.status,'finished');assert.equal(old.stopConfirmed,true);assert.equal(old.modelStarted,false);assert.equal(old.usage,0);assert.equal((await inspectProcess(old.identities[0]!)).status,'stopped');await child.completion;
-  const resumed=await f.controller.dispatch({type:'resume',loopId:loop.id}) as SupervisionInspection;assert.equal(resumed.loop.paused,false);assert.equal(resumed.loop.phase,'diagnosing');assert.equal(resumed.jobs.length,2);assert.equal(resumed.loop.reasoningCount,2);const replacement=resumed.jobs[1]!;assert.notEqual(replacement.id,old.id);assert.deepEqual(replacement.input,old.input);assert.deepEqual(resumed.jobs[0],old);assert.equal(replacement.status,'running');assert.equal(replacement.modelStarted,false);assert.equal(resumed.runtime.run.attempts.find(attempt=>attempt.id===replacement.id)!.reservation,config.reservation);
+  // Real physical shutdown keeps pause pending. Reads observe its committed
+  // state while the next mutation remains queued; no model or mocked barrier.
+  let pauseFinished=false,resumeFinished=false;
+  const pausing=f.controller.dispatch({type:'pause',loopId:loop.id}).then(value=>{pauseFinished=true;return value as SupervisionInspection;});
+  await Promise.resolve();
+  assert.equal(f.store.supervision.get(loop.id).paused,true);
+  assert.equal(pauseFinished,false);
+  const resuming=f.controller.dispatch({type:'resume',loopId:loop.id}).then(value=>{resumeFinished=true;return value as SupervisionInspection;});
+  const [visible,listed]=await Promise.all([
+    f.controller.dispatch({type:'inspect',loopId:loop.id}) as Promise<SupervisionInspection>,
+    f.controller.dispatch({type:'list'}) as Promise<SupervisionInspection[]>
+  ]);
+  assert.equal(visible.loop.paused,true);
+  assert.equal(listed.find(value=>value.loop.id===loop.id)!.loop.paused,true);
+  assert.equal(pauseFinished,false,'Status reads must finish while actual shutdown is pending');
+  assert.equal(resumeFinished,false,'Reads must not advance the queued resume');
+  assert.equal(f.store.supervision.jobs(loop.id).length,1);
+  await assert.rejects(f.controller.dispatch({type:'inspect'}),/^Error: Unknown or missing supervision field$/);
+  const paused=await pausing;assert.equal(paused.loop.phase,'diagnosing');const old=paused.jobs[0]!;assert.equal(old.status,'finished');assert.equal(old.stopConfirmed,true);assert.equal(old.modelStarted,false);assert.equal(old.usage,0);assert.equal((await inspectProcess(old.identities[0]!)).status,'stopped');await child.completion;
+  const resumed=await resuming;assert.equal(resumed.loop.paused,false);assert.equal(resumed.loop.phase,'diagnosing');assert.equal(resumed.jobs.length,2);assert.equal(resumed.loop.reasoningCount,2);const replacement=resumed.jobs[1]!;assert.notEqual(replacement.id,old.id);assert.deepEqual(replacement.input,old.input);assert.deepEqual(resumed.jobs[0],old);assert.equal(replacement.status,'running');assert.equal(replacement.modelStarted,false);assert.equal(resumed.runtime.run.attempts.find(attempt=>attempt.id===replacement.id)!.reservation,config.reservation);
   // No scan is invoked: prove the new reservation, then pause before any real
   // Codex dispatch. This is a mechanism check, never model or product acceptance.
   await f.controller.dispatch({type:'pause',loopId:loop.id});assert.equal(f.store.supervision.job(replacement.id).usage,0);assert.equal(f.store.supervision.job(replacement.id).modelStarted,false);
+  await f.controller.close();
+  await assert.rejects(f.controller.dispatch({type:'inspect',loopId:loop.id}),/controller closed/);
+  await assert.rejects(f.controller.dispatch({type:'list'}),/controller closed/);
 });
 
 

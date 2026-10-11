@@ -1,3 +1,7 @@
+import {dirname,join as indexedJoin} from 'node:path';
+import {assertIndexedCall,assertIndexedToolCorrelation} from './indexed-call-proof.js';
+import {assertIndexedConsumerArchiveSync} from '../workspace/indexed-consumer-proof.js';
+import {digest as promptDigest} from './candidate.js';
 import type {DatabaseSync} from 'node:sqlite';
 import type {SourceRefreshControlContext,HistoricalMaterialEpoch} from '../contracts/p4-source-refresh.js';
 import type {ControlBootstrapHistory} from '../contracts/p4-control-draft.js';
@@ -36,13 +40,36 @@ export function assertHistoricalMaterialEpoch(epoch:HistoricalMaterialEpoch):voi
  const completed=events.filter(e=>e.kind==='codex-event'&&e.value?.method==='turn/completed'&&e.value?.raw?.params?.turn?.status==='completed');
  assertTrue(completed.length===1&&completed[0].at===epoch.observedAt&&Number.isFinite(Date.parse(epoch.observedAt)),'Historical epoch is not fixed by the original completed model turn');
  assertTrue(events.some(e=>{if(e.kind!=='review-input'||typeof e.value?.prompt!=='string')return false;try{const reviewed=JSON.parse(e.value.prompt.slice(e.value.prompt.indexOf('\n')+1));return Object.keys(payload).every(k=>eq(reviewed[k],payload[k]));}catch{return false;}}),'Historical model did not inspect the complete original source payload');
+ if(actual.input.indexed){
+  assertTrue(epoch.indexed?.schemaVersion===1&&epoch.indexed.callRoot===dirname(epoch.modelEventsPath), 'Indexed original epoch needs exact host-captured call');
+  const indexed=epoch.indexed,root=indexed.callRoot,archivePath=indexedJoin(root,'indexed-reader','binding.json');
+  assertTrue(epoch.originalProofs[archivePath], 'Indexed epoch lacks original complete reader binding');
+  const process=JSON.parse(readBounded(indexedJoin(root,'review.process.json')).toString('utf8'));
+  assertTrue(epoch.originalProofs[indexedJoin(root,'review.process.json')]&&process.result?.stopped===true&&process.identity,
+   'Indexed epoch has no original physical-stop proof');
+  const archive=assertIndexedConsumerArchiveSync(archivePath,{jobId:epoch.originalJobId,attemptId:indexed.attemptId,identities:[process.identity]});
+  assertTrue(eq(archive.proof.reader,actual.input.indexed)&&archive.proof.callRoot===root&&archive.proof.grantVersion===2,
+   'Original indexed epoch differs from original producer/call');
+  const prompts=events.filter(e=>e.kind==='review-input');
+  assertTrue(prompts.length===1&&promptDigest(prompts[0].value.prompt)===indexed.detectorDigest&&
+   archive.proof.owner.inputDigest===researchDigest({request:indexed.request,proposal:epoch.originalProposalId,
+    definition:indexed.definitionDigest,detectorDigest:indexed.detectorDigest,binding:epoch.binding,
+    reader:actual.input.indexed.digest,callRoot:root}), 'Original indexed epoch prompt grant changed');
+  const result=JSON.parse(readBounded(indexedJoin(root,'result.json')).toString('utf8'));
+  assertTrue(epoch.originalProofs[indexedJoin(root,'result.json')]&&result.stopConfirmed&&result.usage>0,
+   'Original indexed epoch terminal/accounting missing');
+  const normalized=events.filter(e=>e.kind==='codex-event').map(e=>e.value);
+  assertIndexedToolCorrelation(archive.records,normalized,result.threadId,result.turnId);
+  for(const [path,hash]of Object.entries(archive.proof.files))assertTrue(epoch.originalProofs[path]===hash,
+   'Original indexed epoch inventory differs from actual witness');
+ }else assertTrue(!epoch.indexed,'Inline original epoch cannot receive an indexed grant');
  const acquired=Date.parse(actual.input.context.index.acquiredAt),observed=Date.parse(epoch.observedAt);
  assertTrue(epoch.originalObservation.sourceAcquiredAt===actual.input.context.index.acquiredAt&&observed>=acquired&&actual.input.context.requirements.every(r=>observed-acquired<=r.maxSourceAgeMs),'Historical original freshness basis cannot be proven');
  assertTrue(epoch.originalObservation.maxAgeMs===Math.min(...actual.input.context.requirements.map(r=>r.maxSourceAgeMs)),'Historical original material age policy changed');
 }
 /** Actual DB/FS derivation; neither the author nor renderer provides this data.
  * Repositories must derive this same value again at insert/publication/reopen. */
-export function captureSourceRefreshControlContext(db:DatabaseSync,dataRoot:string,base:ProposalBase,currentSpec:VerificationSpec,history:ControlBootstrapHistory,actualProposalId?:string):SourceRefreshControlContext|null {
+export function captureSourceRefreshControlContext(db:DatabaseSync,dataRoot:string,base:ProposalBase,currentSpec:VerificationSpec|MaterialVerifierBinding,history:ControlBootstrapHistory,actualProposalId?:string):SourceRefreshControlContext|null {
  const lineage=new VerificationLineageRepository(db),transitions=base.transitionIds.map(id=>lineage.transition(id));
  const refresh=transitions.filter(t=>t.sourceRefresh);if(!refresh.length)return null;
  assertTrue(refresh.length===1&&transitions.length===1&&refresh[0]!.changes.length===0&&base.baseProposalId,'Refresh qualification requires one explicit unchanged-scope delivered continuation');
@@ -51,7 +78,8 @@ export function captureSourceRefreshControlContext(db:DatabaseSync,dataRoot:stri
  // Must originate from a genuine sealed delivery, not just an unsealed plan.
  const deliveries=db.prepare("SELECT record FROM verification_records WHERE kind='delivery'").all().map(r=>JSON.parse(String(r.record)) as {id:string;jobId:string;projectId:string;runId:string;researchProofPlanDigest?:string});
  assertTrue(deliveries.some(d=>d.projectId===previous.projectId&&d.runId===previous.runId&&d.researchProofPlanDigest&&record<VerificationJob>(db,'job',d.jobId).proposalId===previous.id),'Refresh requires the exact already-delivered native predecessor');
- const previousBinding=materialBinding(previous.spec),currentBinding=materialBinding(currentSpec);
+ const previousBinding=materialBinding(previous.spec),currentBinding='operationId' in currentSpec?structuredClone(currentSpec):materialBinding(currentSpec);
+ readMaterialBindingSync(currentBinding);
  const store={verificationLineage:lineage,runtime:new RuntimeRepository(db,dataRoot),goals:new GoalRepository(db,dataRoot)};
  const args={transitionId:t.id,previousOperationId:materialsOperation(db,previousBinding),currentOperationId:materialsOperation(db,currentBinding)},currentRun=new RuntimeRepository(db,dataRoot).inspect(new RuntimeRepository(db,dataRoot).getOperation(currentBinding.operationId).runtimeId).run;const sealed=deliveries.find(d=>d.projectId===base.target.projectId&&d.runId===base.target.runId);const generation=currentRun.status==='succeeded'?(assertTrue(sealed,'Archived refresh has no actual delivery'),readArchivedSourceRefreshGeneration(db,dataRoot,args,(sealed as {id:string}).id)):actualProposalId?readQualificationSourceRefreshGeneration(db,dataRoot,args,actualProposalId):readSourceRefreshGeneration(store as Parameters<typeof readSourceRefreshGeneration>[0],dataRoot,args);
  assertTrue((generation.state==='current'||generation.state==='changed')
@@ -70,7 +98,15 @@ export function captureSourceRefreshControlContext(db:DatabaseSync,dataRoot:stri
   assertTrue(eventPaths.length===1&&proofPaths.every(path=>witness.proofs[path]===job.proofs[path]),'Historical witness/model inventory differs from actual review');
   const events=readBounded(eventPaths[0]!).toString('utf8').trim().split('\n').map(l=>JSON.parse(l)),completed=events.filter(e=>e.kind==='codex-event'&&e.value?.method==='turn/completed'&&e.value?.raw?.params?.turn?.status==='completed');
   assertTrue(completed.length===1&&typeof completed[0].at==='string'&&Number.isFinite(Date.parse(completed[0].at)),'Historical original completed turn time missing; old formats cannot authorize refresh');
-  const body={role:'historical' as const,binding:c.verifier.binding,originalJobId:job.id,originalProposalId:p.id,originalProofs:Object.fromEntries(proofPaths.map(path=>[path,job.proofs[path]!])),originalObservation:observation,modelEventsPath:eventPaths[0]!,observedAt:completed[0].at as string,specimen:specimen.revision.ref,witnessId:witness.id};const epoch={...body,digest:researchDigest(body)};assertHistoricalMaterialEpoch(epoch);historicalEpochs.push(epoch);
+  const originalInput=readMaterialBindingSync(c.verifier.binding).input;
+  let indexed:HistoricalMaterialEpoch['indexed'];
+  if(originalInput.indexed){
+   const root=dirname(eventPaths[0]!); assertIndexedCall(job,p,root);
+   const prompts=events.filter(e=>e.kind==='review-input');assertTrue(prompts.length===1,'Indexed epoch exact prompt missing');
+   indexed={schemaVersion:1,request:structuredClone(job.request),attemptId:job.attemptId,
+    definitionDigest:p.bundle.digest,detectorDigest:promptDigest(prompts[0].value.prompt),callRoot:root};
+  }
+  const body={...(indexed?{indexed}:{}),role:'historical' as const,binding:c.verifier.binding,originalJobId:job.id,originalProposalId:p.id,originalProofs:Object.fromEntries(proofPaths.map(path=>[path,job.proofs[path]!])),originalObservation:observation,modelEventsPath:eventPaths[0]!,observedAt:completed[0].at as string,specimen:specimen.revision.ref,witnessId:witness.id};const epoch={...body,digest:researchDigest(body)};assertHistoricalMaterialEpoch(epoch);historicalEpochs.push(epoch);
  }
  assertTrue(historicalEpochs.length>0,'Refresh missing immutable historical material witnesses');
  const body={rule:'same-input-refresh-v1' as const,generation,previousBinding,currentBinding,historicalEpochs};return {...body,digest:researchDigest(body)};

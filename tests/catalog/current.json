@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-v51-four-tier-live-candidate",
+  "revision": "dev-v51-indexed-history-deferred-candidate",
   "modules": [
     {
       "id": "dev-contracts",
@@ -1071,6 +1071,24 @@
       "layer": "integration",
       "file": "dist/tests/integration/author-stages.test.js",
       "timeoutMs": 180000
+    },
+    {
+      "id": "unit-research-reader-views",
+      "layer": "unit",
+      "file": "dist/tests/unit/research-reader-views.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "integration-material-reader-views",
+      "layer": "integration",
+      "file": "dist/tests/integration/material-reader-views.test.js",
+      "timeoutMs": 120000
+    },
+    {
+      "id": "integration-indexed-refresh-delivery",
+      "layer": "integration",
+      "file": "dist/tests/integration/indexed-refresh-delivery.test.js",
+      "timeoutMs": 720000
     }
   ],
   "cases": [
@@ -11233,20 +11251,20 @@
     },
     {
       "id": "p6.integration-supervision-monitor-controller.007",
-      "name": "P6-MCTL-I07 one real wake timer records four consecutive 10–15-second health intervals and pause/resume without model allocation",
+      "name": "P6-MCTL-I07 one real wake timer records four consecutive 10\u201315-second health intervals and pause/resume without model allocation",
       "suiteId": "integration-supervision-monitor-controller",
       "module": "orchestration",
       "layer": "integration",
       "covers": [
         "p6-monitor-controller"
       ],
-      "scenario": "P6-MCTL-I07 one real wake timer records four consecutive 10–15-second health intervals and pause/resume without model allocation",
+      "scenario": "P6-MCTL-I07 one real wake timer records four consecutive 10\u201315-second health intervals and pause/resume without model allocation",
       "impactTags": [
         "p6-monitor-foundation",
         "v38-combined-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
-      "assertions": "tests/integration/supervision-monitor-controller.test.ts :: P6-MCTL-I07 one real wake timer records four consecutive 10–15-second health intervals and pause/resume without model allocation",
+      "assertions": "tests/integration/supervision-monitor-controller.test.ts :: P6-MCTL-I07 one real wake timer records four consecutive 10\u201315-second health intervals and pause/resume without model allocation",
       "cleanup": "Stop owned processes and preserve formal evidence including failures",
       "status": "active"
     },
@@ -21462,6 +21480,63 @@
       "prerequisites": "Actual SQLite/FS/managed Node; explicit synthetic model JSON and usage, no provider approval.",
       "assertions": "tests/integration/author-stages.test.ts :: P6-AUTH-STAGE-I02 stage preflight and interrupted accounting reject without extra calls or fabricated progress",
       "cleanup": "Close actual runners/controllers/stores, confirm owned Node stop, remove isolated fixture; retain run reports and prior failures.",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-research-reader-views.001",
+      "name": "P8-READER-VIEWS-U01 immutable current and historical view inventory preserves complete original bytes and partial entries",
+      "suiteId": "unit-research-reader-views",
+      "module": "execution",
+      "layer": "unit",
+      "covers": [
+        "p8-indexed-history-views"
+      ],
+      "scenario": "Versioned indexed current/historical inventory ordinary component; complete GROUP predecessor and two authorized refreshes only in delivery case. Explicit synthetic protocol, not provider or P8 stage evidence.",
+      "impactTags": [
+        "p8-indexed-history-views",
+        "indexed-history-integration-impact"
+      ],
+      "prerequisites": "Pinned Node and local actual FS/SQLite/owned managed Node where applicable; no provider or native platform.",
+      "assertions": "tests/unit/research-reader-views.test.ts :: P8-READER-VIEWS-U01 immutable current and historical view inventory preserves complete original bytes and partial entries",
+      "cleanup": "Stop all owned processes and retain original immutable evidence/fees; no global changes.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-material-reader-views.001",
+      "name": "P8-READER-VIEWS-I01 owned Node reads both frozen views with distinct actual calls and closes exact journal",
+      "suiteId": "integration-material-reader-views",
+      "module": "execution",
+      "layer": "integration",
+      "covers": [
+        "p8-indexed-history-views"
+      ],
+      "scenario": "Versioned indexed current/historical inventory ordinary component; complete GROUP predecessor and two authorized refreshes only in delivery case. Explicit synthetic protocol, not provider or P8 stage evidence.",
+      "impactTags": [
+        "p8-indexed-history-views",
+        "indexed-history-integration-impact"
+      ],
+      "prerequisites": "Pinned Node and local actual FS/SQLite/owned managed Node where applicable; no provider or native platform.",
+      "assertions": "tests/integration/material-reader-views.test.ts :: P8-READER-VIEWS-I01 owned Node reads both frozen views with distinct actual calls and closes exact journal",
+      "cleanup": "Stop all owned processes and retain original immutable evidence/fees; no global changes.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-indexed-refresh-delivery.001",
+      "name": "P8-INDEXED-REFRESH-I01 sealed grouped predecessor indexed original epochs survive two same-input refreshes through full independent P4 and reopened third seal",
+      "suiteId": "integration-indexed-refresh-delivery",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-indexed-history-refresh-delivery"
+      ],
+      "scenario": "Versioned indexed current/historical inventory ordinary component; complete GROUP predecessor and two authorized refreshes only in delivery case. Explicit synthetic protocol, not provider or P8 stage evidence.",
+      "impactTags": [
+        "p8-indexed-history-refresh-delivery",
+        "indexed-history-integration-impact"
+      ],
+      "prerequisites": "Pinned Node and local actual FS/SQLite/owned managed Node where applicable; no provider or native platform.",
+      "assertions": "tests/integration/indexed-refresh-delivery.test.ts :: P8-INDEXED-REFRESH-I01 sealed grouped predecessor indexed original epochs survive two same-input refreshes through full independent P4 and reopened third seal",
+      "cleanup": "Stop all owned processes and retain original immutable evidence/fees; no global changes.",
       "status": "active"
     }
   ]

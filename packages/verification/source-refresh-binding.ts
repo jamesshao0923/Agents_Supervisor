@@ -1,6 +1,7 @@
+import {expandedAuthorInput} from '../orchestration/indexed-history-presentation.js';
 import {inspectProcess,type ProcessIdentity} from '../process-control/index.js';
 import type {DatabaseSync} from 'node:sqlite';
-import {RuntimeRepository} from '../persistence/runtime.js';
+import {RuntimeRepository,runtimeCanonical} from '../persistence/runtime.js';
 import {GoalRepository} from '../persistence/goals.js';
 import {VerificationLineageRepository} from '../persistence/verification-lineage.js';
 import {join} from 'node:path';
@@ -66,6 +67,24 @@ export function readQualificationSourceRefreshGeneration(db:DatabaseSync,dataRoo
  return readGeneration({runtime,goals:new GoalRepository(db,dataRoot),verificationLineage:new VerificationLineageRepository(db)} as SupervisorStore,dataRoot,input,false,attempt.id);
 }
 
+/** Read-only integrity for this sole actual frozen author reservation. The
+ * ordinary getter remains quiet-only; this cannot publish, settle or clear an
+ * unrelated account. All generations are still derived from actual receipts. */
+export function readAuthorSourceRefreshGeneration(store:SupervisorStore,dataRoot:string,jobId:string):SourceRefreshGenerationProof {
+ const job=store.supervision.job(jobId),frozen=expandedAuthorInput(job.input) as {context?:{evolution?:{sourceRefresh?:import('../contracts/p4-source-refresh.js').SourceRefreshControlContext}}};
+ const refresh=frozen.context?.evolution?.sourceRefresh;
+ assertTrue(refresh&&job.purpose==='acceptance-authoring'&&job.status==='running'&&bytesDigest(runtimeCanonical(job.input))===job.inputDigest,'Refresh author is not the actual frozen input');
+ const runtime=store.runtime.get(job.runtimeId),run=store.runtime.inspect(runtime.id).run,loop=store.supervision.get(job.loopId);
+ assertTrue(job.projectId===run.projectId&&job.runId===run.id&&job.contractVersion===run.contract.version&&job.contractDigest===bytesDigest(runtimeCanonical(run.contract))&&!runtime.paused&&!runtime.cancelled&&!loop.stopped,'Refresh author boundary expired');
+ const active=run.attempts.filter(a=>a.status==='running'||!a.settled),attempt=active[0];
+ assertTrue(active.length===1&&attempt?.id===job.attemptId&&attempt.status==='running'&&!attempt.settled&&attempt.purpose==='reasoning'&&attempt.contractVersion===job.contractVersion&&attempt.reservation===job.config.reservation&&job.observedUsage<=attempt.reservation,'Refresh author is not the sole actual bounded reservation');
+ assertTrue(run.leases.filter(l=>!l.released&&l.attemptId===attempt.id).length===0&&run.operations.filter(o=>o.attemptId===attempt.id).length===1&&run.operations.find(o=>o.attemptId===attempt.id)?.status==='pending','Refresh author effects changed');
+ const generation=refresh.generation;
+ const actual=readGeneration(store,dataRoot,{transitionId:generation.authorization.transitionId,previousOperationId:generation.previousOperationId,currentOperationId:generation.currentOperationId},false,attempt.id);
+ assertTrue(researchDigest(actual)===researchDigest(generation),'Refresh author inventory is not the actual acquisition generation');
+ return actual;
+}
+
 /** Exact archived-delivery IDs only; never relaxes the ordinary current getter.
  * This read proves integrity on reopen, not current semantic or delivery authority. */
 export function readArchivedSourceRefreshGeneration(db:DatabaseSync,dataRoot:string,input:{transitionId:string;previousOperationId:string;currentOperationId:string},deliveryId:string):SourceRefreshGenerationProof {
@@ -128,12 +147,17 @@ export function readArchivedSourceRefreshGeneration(db:DatabaseSync,dataRoot:str
    // this exact receipt's raw archive may prove those historical source bytes.
    const local=acquisition.index.entries.filter(e=>e.input.kind==='local'&&e.input.path===path);
    if(local.length){
-     assertTrue(local.every(e=>e.raw?.complete&&e.raw.sha256===hash&&readBounded(join(acquisition.index.directory,e.raw.path)).length===e.raw.size&&bytesDigest(readBounded(join(acquisition.index.directory,e.raw.path)))===hash),
-       'Archived refresh local source differs from its exact original raw archive');
-   }else assertTrue(bytesDigest(readBounded(path))===hash,'Archived refresh actual sealed proof bytes changed');
+     assertTrue(local.every(e=>{
+       if(!e.raw?.complete||e.raw.sha256!==hash||e.raw.size>acquisition.index.limits.maxItemBytes)return false;
+       const bytes=readBounded(join(acquisition.index.directory,e.raw.path),acquisition.index.limits.maxItemBytes);
+       return bytes.length===e.raw.size&&bytesDigest(bytes)===hash;
+     }),'Archived refresh local source differs from its exact original raw archive');
+   // Same bounded original-file capacity used by captureArtifact and its
+   // committed/reopen checks; this does not enlarge a producer's write limits.
+   }else assertTrue(bytesDigest(readBounded(path,256*1024*1024))===hash,'Archived refresh actual sealed proof bytes changed');
  }
  for(const [path,hash]of Object.entries(job.proofs))
-   assertTrue(bytesDigest(readBounded(path))===hash,'Archived refresh original job proof bytes changed');
+   assertTrue(bytesDigest(readBounded(path,256*1024*1024))===hash,'Archived refresh original job proof bytes changed');
  assertTrue(run.contract.criteria.filter(c=>c.required).every(c=>run.evidence.some(e=>e.id===delivery.id+':'+c.id
    &&e.criterionId===c.id&&e.contractVersion===run.contract.version&&e.artifactDigest===run.artifact?.digest
    &&e.verdict==='passed'&&e.verifierVersion==='p4:'+plan.definitionDigest)),

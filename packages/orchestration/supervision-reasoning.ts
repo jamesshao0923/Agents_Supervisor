@@ -2,7 +2,7 @@ import {parseAuthorStageInput,parseAuthorStageOutput} from './author-stage-proto
 import {assertAuthorStagePolicy,assertAuthorStagePhysical,authorStageAssemblyRecord,assertAuthorStageAssemblyProof} from './author-stage-proofs.js';
 import {authorExpansionRecord,assertAuthorExpansionProof,assertAuthorPatchBase,patchInput} from './author-result-patch.js';
 import {authorRouteDispatch,assertAuthorRouteProof} from './author-route-binding.js';
-import {IndexedResearchConsumer,assertIndexedConsumerArchive} from '../runtime/indexed-research-consumer.js';
+import {IndexedResearchConsumer,assertIndexedConsumerArchive,assertIndexedAuthorArchive} from '../runtime/indexed-research-consumer.js';
 import {assertAuthorWireCapacity} from './author-presentation.js';
 import {authorWireReceipt,assertAuthorWireProof} from './author-presentation-proofs.js';
 import {assertEnvironmentCwd,parseEnvironmentScope} from '../verification/scoped-environment.js';
@@ -164,7 +164,9 @@ export class SupervisionReasoningRunner {
       const acceptance=(input.context as {acceptance?:{environment?:{scope?:unknown;digest?:string}}})?.acceptance;if(acceptance?.environment?.scope){const cwd=await realpath(this.store.runtime.get(job.runtimeId).workspace),scope=parseEnvironmentScope(acceptance.environment.scope,{...job,workspace:cwd,dataDir:this.dataDir});await assertEnvironmentCwd(scope,cwd);ensure(acceptance.environment.digest===(await environmentFingerprint(scope)).digest,'Frozen author environment changed');}
       safeJSON(job.result); parseReasonerOutput(JSON.stringify(job.result), input.outputSchema);
       ensure(job.usage >= job.observedUsage && job.usage <= job.config.reservation, 'Invalid supervision result accounting');
-      for(const path of Object.keys(job.proofs))if(path.endsWith('/indexed-reader/binding.json'))await assertIndexedConsumerArchive(path,{jobId:job.id,attemptId:job.attemptId,identities:job.identities});
+      const indexedMaterials=(input.context as {acceptance?:{materials?:{evidence?:{indexed?:unknown}}[]}})?.acceptance?.materials;
+      if(indexedMaterials?.some(m=>m.evidence?.indexed)){const required=join(this.directory(job.id),'indexed-reader','binding.json');ensure(job.proofs[required],'Actual indexed author archive missing');}
+      for(const path of Object.keys(job.proofs))if(path.endsWith('/indexed-reader/binding.json')){await assertIndexedConsumerArchive(path,{jobId:job.id,attemptId:job.attemptId,identities:job.identities});assertIndexedAuthorArchive(this.store,job.id,path);}
       const actual = await this.proofs(job, Object.keys(job.proofs));
       ensure(runtimeCanonical(actual) === runtimeCanonical(job.proofs), 'Supervision proof digest changed');
       assertAuthorWireProof(job,this.directory(job.id));

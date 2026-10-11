@@ -3,7 +3,7 @@
   "date": "2026-10-11",
   "authorization": "User explicitly requested reduced P6-P8 acceptance tests with a record of omissions and potential risks for later field validation.",
   "scope": "Personal field-trial gate; source tests and original failures retained. Exclusion is not a pass or a claim of duplicate coverage.",
-  "catalogRevision": "dev-v51-four-tier-live-candidate",
+  "catalogRevision": "dev-v51-indexed-history-deferred-candidate",
   "reason": "Deferred from default stage gate to shorten personal-trial delivery. Run when affected by changes, field failures, or before broader release.",
   "stages": {
     "P6": {
@@ -1229,7 +1229,7 @@
         "p8.unit-workbench.003"
       ],
       "addedExistingCaseIds": [],
-      "deferredCount": 896,
+      "deferredCount": 899,
       "deferredRequiredRisks": [
         "p0.unit-contracts.001",
         "p0.dev-contracts",
@@ -2454,8 +2454,76 @@
         "p8.integration-source-refresh-nochange-delivery.001",
         "p8.integration-indexed-research-consumer.001",
         "p8.integration-indexed-schema-lifecycle.001",
-        "p8.integration-research-group-execution.008"
-      ]
+        "p8.integration-research-group-execution.008",
+        "p8.unit-research-reader-views.001",
+        "p8.integration-material-reader-views.001",
+        "p8.integration-indexed-refresh-delivery.001"
+      ],
+      "additionalDeferredRisk": "New indexed history/current view and three-generation refresh cases are registered but excluded from the 51-case personal trial gate. r3 ordinary chain failed at shared660s third review deadline; earlier proof/current capacity checks and two seals do not establish full thirdseal/reopen or supplier/public research acceptance.",
+      "postBaselineRegistrations": {
+        "count": 3,
+        "catalogSHA256": "bd2331c21a5ef2e3c2a3b3e1890ebdc309c8f3e3a73379ac412b6df6fa1e0c1b",
+        "caseDetails": [
+          {
+            "id": "p8.unit-research-reader-views.001",
+            "name": "P8-READER-VIEWS-U01 immutable current and historical view inventory preserves complete original bytes and partial entries",
+            "suiteId": "unit-research-reader-views",
+            "module": "execution",
+            "layer": "unit",
+            "covers": [
+              "p8-indexed-history-views"
+            ],
+            "scenario": "Versioned indexed current/historical inventory ordinary component; complete GROUP predecessor and two authorized refreshes only in delivery case. Explicit synthetic protocol, not provider or P8 stage evidence.",
+            "impactTags": [
+              "p8-indexed-history-views",
+              "indexed-history-integration-impact"
+            ],
+            "prerequisites": "Pinned Node and local actual FS/SQLite/owned managed Node where applicable; no provider or native platform.",
+            "assertions": "tests/unit/research-reader-views.test.ts :: P8-READER-VIEWS-U01 immutable current and historical view inventory preserves complete original bytes and partial entries",
+            "cleanup": "Stop all owned processes and retain original immutable evidence/fees; no global changes.",
+            "status": "active"
+          },
+          {
+            "id": "p8.integration-material-reader-views.001",
+            "name": "P8-READER-VIEWS-I01 owned Node reads both frozen views with distinct actual calls and closes exact journal",
+            "suiteId": "integration-material-reader-views",
+            "module": "execution",
+            "layer": "integration",
+            "covers": [
+              "p8-indexed-history-views"
+            ],
+            "scenario": "Versioned indexed current/historical inventory ordinary component; complete GROUP predecessor and two authorized refreshes only in delivery case. Explicit synthetic protocol, not provider or P8 stage evidence.",
+            "impactTags": [
+              "p8-indexed-history-views",
+              "indexed-history-integration-impact"
+            ],
+            "prerequisites": "Pinned Node and local actual FS/SQLite/owned managed Node where applicable; no provider or native platform.",
+            "assertions": "tests/integration/material-reader-views.test.ts :: P8-READER-VIEWS-I01 owned Node reads both frozen views with distinct actual calls and closes exact journal",
+            "cleanup": "Stop all owned processes and retain original immutable evidence/fees; no global changes.",
+            "status": "active"
+          },
+          {
+            "id": "p8.integration-indexed-refresh-delivery.001",
+            "name": "P8-INDEXED-REFRESH-I01 sealed grouped predecessor indexed original epochs survive two same-input refreshes through full independent P4 and reopened third seal",
+            "suiteId": "integration-indexed-refresh-delivery",
+            "module": "verification",
+            "layer": "integration",
+            "covers": [
+              "p8-indexed-history-refresh-delivery"
+            ],
+            "scenario": "Versioned indexed current/historical inventory ordinary component; complete GROUP predecessor and two authorized refreshes only in delivery case. Explicit synthetic protocol, not provider or P8 stage evidence.",
+            "impactTags": [
+              "p8-indexed-history-refresh-delivery",
+              "indexed-history-integration-impact"
+            ],
+            "prerequisites": "Pinned Node and local actual FS/SQLite/owned managed Node where applicable; no provider or native platform.",
+            "assertions": "tests/integration/indexed-refresh-delivery.test.ts :: P8-INDEXED-REFRESH-I01 sealed grouped predecessor indexed original epochs survive two same-input refreshes through full independent P4 and reopened third seal",
+            "cleanup": "Stop all owned processes and retain original immutable evidence/fees; no global changes.",
+            "status": "active"
+          }
+        ],
+        "reason": "Registered after archived baseline. Explicitly deferred, not added to default gate; complete metadata retained here because original catalogSnapshot contains only971 IDs."
+      }
     }
   },
   "catalogSnapshot": {

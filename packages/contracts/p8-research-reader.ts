@@ -37,11 +37,30 @@ export interface ResearchReaderOwner {
 }
 export interface ResearchToolResponse {contentItems: {type: 'inputText'; text: string}[]; success: boolean}
 export interface ResearchReaderAudit {
-  schemaVersion: 1; protocol: 'indexed-material-v1'; authority: 'material-integrity-only';
+  schemaVersion: 1; protocol: 'indexed-material-v1' | 'indexed-material-views-v1'; authority: 'material-integrity-only';
+  inventoryDigest?: string; viewId?: string | null;
   owner: ResearchReaderOwner; viewDigest: string; sequence: number;
   stage: 'prepared' | 'write-attempt' | 'written' | 'observed' | 'aborted' | 'closed';
   rpcId: string | number | null; callId: string | null; itemId: string | null;
   threadId: string | null; turnId: string | null; eventSequence: number | null; requestDigest: string | null;
   request: ResearchReadRequest | null; response: ResearchToolResponse | null;
   responseDigest: string | null; detail: string; digest: string;
+}
+
+/** Explicit opt-in inventory. Integrity metadata is not a sourceRefresh or P4
+ * authorization: consumers must derive each reference from their actual stage. */
+export type IndexedResearchContextReference =
+  | {role: 'current'; bindingDigest: string}
+  | {role: 'historical'; epochDigest: string};
+export interface IndexedResearchViewEntry {
+  viewId: string; reader: PreparedResearchReader; reference: IndexedResearchContextReference;
+}
+export interface PreparedResearchViewSet {
+  schemaVersion: 1; protocol: 'indexed-material-views-v1'; authority: 'material-integrity-only';
+  path: string; views: IndexedResearchViewEntry[]; digest: string;
+}
+export interface ResearchViewReadRequest {viewId: string; request: ResearchReadRequest}
+export interface ResearchViewReadResult {
+  schemaVersion: 1; authority: 'material-integrity-only'; inventoryDigest: string;
+  viewId: string; result: ResearchReadResult; digest: string;
 }

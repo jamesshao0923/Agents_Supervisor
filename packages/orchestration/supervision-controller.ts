@@ -1,6 +1,7 @@
 import {isAuthorStageProtocol,parseAuthorStageInput} from './author-stage-protocol.js';
 import {beginAuthorStages,advanceAuthorStage} from './author-stage-controller.js';
 import {isCommandOnlyAuthorContext} from './acceptance-authoring-presentation.js';
+import {expandedAuthorInput} from '../orchestration/indexed-history-presentation.js';
 import {resolveAuthorBundle,assertAuthorExpansionProof} from './author-result-patch.js';
 import type {MaintenanceBasis} from '../contracts/p6-control-maintenance.js';
 import {captureMaintenanceContext,captureRegressionContext} from '../verification/control-maintenance-replay.js';
@@ -29,7 +30,7 @@ import { assertCandidate,captureCandidate,canonical,digest,environmentFingerprin
 import { evaluateVerification } from '../verification/rules.js';
 import { inspectProcess,type ProcessIdentity } from '../process-control/index.js';
 import { acceptanceAuthoringSchema,buildAcceptanceAuthoringPrompt,diagnoseAcceptanceAuthoringResult,materializeAcceptanceBundle,type AcceptanceAuthoringContext } from './acceptance-authoring.js';
-import { captureControlEvolutionContext, controlEvolutionAuthoringSchema, buildControlEvolutionAuthoringPrompt, controlEvolutionAuthorInput, materializeControlEvolutionBundle, type ControlEvolutionAuthoringContext } from './acceptance-authoring-v2.js';
+import { captureControlEvolutionContext, controlEvolutionAuthoringSchema, buildControlEvolutionAuthoringPrompt, controlEvolutionAuthorInput,referencedIndexedHistoryEvolutionAuthorInput, materializeControlEvolutionBundle, type ControlEvolutionAuthoringContext } from './acceptance-authoring-v2.js';
 import { parseReasonerOutput,validateReasonerSchema } from './reasoner-schema.js';
 import { SupervisionReasoningRunner } from './supervision-reasoning.js';
 import { SupervisionMonitorController } from './supervision-monitor-controller.js';
@@ -44,7 +45,7 @@ interface DiagnosisContext extends SnapshotContext {
 interface Diagnosis {decision:'repair'|'block';reason:string;repairPrompt:string;failedObligationIds:string[]}
 interface ScanPass {promise:Promise<void>;resolve:()=>void;reject:(error:unknown)=>void;started:boolean}
 interface RepairIntent {type:'supervision-repair';allocation:RuntimeFutureVerification;append:RuntimeAppendRepair|null;retry:RuntimeRetryFailure|null}
-const modelInput=(job:SupervisionJob)=>job.input as {prompt:string;outputSchema:Record<string,unknown>;context:SnapshotContext|DiagnosisContext};
+const modelInput=(job:SupervisionJob)=>expandedAuthorInput(job.input) as {prompt:string;outputSchema:Record<string,unknown>;context:SnapshotContext|DiagnosisContext};
 
 /** Durable engineering supervision. The single short wake timer reads
  * records and composes the separate five-minute private-context model monitor. */
@@ -68,10 +69,15 @@ export class SupervisionController {
   inspect(loopId:string):SupervisionInspection {
     const loop=this.repo.get(loopId),monitor=this.monitor.inspect(loopId),pending=new Set(this.store.supervisionConcerns.candidates(loopId));return {loop,controlMaintenance:this.store.controlMaintenance.forLoop(loopId),jobs:this.repo.jobs(loopId),routing:{rounds:this.store.supervisionRouting.rounds(loopId),routes:this.store.supervisionRouting.routes(loopId)},runtime:this.store.runtime.inspect(loop.runtimeId),verification:{proposals:this.store.verification.list('proposal',loop.runtimeId),plans:this.store.verification.list('plan',loop.runtimeId),jobs:this.store.verification.list('job',loop.runtimeId),deliveries:this.store.verification.list('delivery',loop.runtimeId)},monitor:{...monitor,diagnosisRequests:monitor.diagnosisRequests.filter(request=>pending.has(request.jobId)),concerns:this.store.supervisionConcerns.list(loopId),concernDiscards:this.store.supervisionConcerns.discards(loopId)},capabilities:{scanIntervalMs:2000,healthIntervalMs:10000,modelMonitoring:true,automaticControlEvolution:false}};
   }
-  async dispatch(value:unknown):Promise<SupervisionInspection|SupervisionInspection[]>{const action=parseSupervisionAction(value);return this.serial(async()=>{
+  async dispatch(value:unknown):Promise<SupervisionInspection|SupervisionInspection[]>{
+    const action=parseSupervisionAction(value);
     ensure(!this.closed,'Supervision controller closed');
+    // These synchronous getters read committed records without advancing work.
+    // A mutation awaiting process/proof checks must not hold status requests.
     if(action.type==='list')return this.repo.list().map(loop=>this.inspect(loop.id));
     if(action.type==='inspect')return this.inspect(action.loopId);
+    return this.serial(async()=>{
+    ensure(!this.closed,'Supervision controller closed');
     if(action.type==='attach'){
       const {type,...input}=action;const loop=this.repo.attach(input);await this.tickSafely(loop.id);return this.inspect(loop.id);
     }
@@ -347,18 +353,25 @@ export class SupervisionController {
       context.acceptance = { ...context.acceptance, previousSpec: null };
       const inherited = maintenance ? [] : this.store.controlMaintenance.sourcesForTarget(
         base.baseProposalId, context.acceptance.contract, base.transitionIds);
+      const history=this.store.controlQualification.loadHistory(base.baseProposalId!);
+      const indexedMaterials=context.acceptance.materials?.length&&context.acceptance.materials.every(m=>m.evidence!==null&&typeof m.evidence==='object'&&'indexed' in m.evidence&&m.evidence.indexed);
+      const currentBinding=indexedMaterials?context.acceptance.materials?.[0]?.binding:undefined;
+      const sourceRefresh=currentBinding?this.store.controlQualification.sourceRefreshContext(base,currentBinding,history):null;
       context.evolution = await captureControlEvolutionContext({
+        ...(sourceRefresh?{sourceRefresh}:{}),
         current: context.acceptance,
         base,
         transitions: base.transitionIds.map(id => this.store.verificationLineage.transition(id)),
-        history: this.store.controlQualification.loadHistory(base.baseProposalId!),
+        history,
         ...(maintenance ? { maintenance: await captureMaintenanceContext(maintenance) } : {}),
         ...(!maintenance && this.store.controlMaintenance.hasRegressionHistory(base.baseProposalId)
           ? { regression: await captureRegressionContext({ sources: inherited, passingCandidate: context.candidate }) } : {})
       });
     }
     const input = context.evolution
-      ? controlEvolutionAuthorInput({...context, evolution:context.evolution})
+      ? (context.evolution.sourceRefresh && context.evolution.current.materials?.length && context.evolution.current.materials.every(m=>m.evidence!==null&&typeof m.evidence==='object'&&'indexed' in m.evidence&&m.evidence.indexed)
+          ? referencedIndexedHistoryEvolutionAuthorInput({...context,evolution:context.evolution})
+          : controlEvolutionAuthorInput({...context, evolution:context.evolution}))
       : {prompt:buildAcceptanceAuthoringPrompt(context.acceptance),outputSchema:acceptanceAuthoringSchema(context.acceptance),context};
     await assertCandidate(context.candidate);
     if (maintenance)

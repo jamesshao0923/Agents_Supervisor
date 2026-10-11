@@ -1,3 +1,4 @@
+import {expandedAuthorInput} from '../orchestration/indexed-history-presentation.js';
 import {prepareResearchWorkflowEvolution} from '../verification/research-evolution.js';
 import { assertResearchMappingApproval } from '../verification/research-mapping-proof.js';
 import type { DatabaseSync } from 'node:sqlite';
@@ -83,7 +84,7 @@ export class ResearchWorkflowRepository {
         const attempt = run.attempts.find(a => a.id === author.attemptId);
         ensure(attempt?.settled
             && attempt.actual === author.usage, 'author accounting differs');
-        const frozen = author.input as {
+        const frozen = expandedAuthorInput(author.input) as {
             context: {
                 acceptance: {
                     criteria: import('../contracts/p5.js').AcceptanceItem[];

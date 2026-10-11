@@ -1,4 +1,7 @@
-import { renderControlEvolutionPrompt, CONTROL_EVOLUTION_PRESENTATION_PROMPT_V3 } from './author-presentation.js';
+import {compactIndexedHistoryContext,INDEXED_COMPACT_PROMPT} from './indexed-history-presentation.js';
+import type {SourceRefreshControlContext} from '../contracts/p4-source-refresh.js';
+import {assertHistoricalMaterialEpoch} from '../verification/source-refresh-controls.js';
+import { renderControlEvolutionPrompt, CONTROL_EVOLUTION_PRESENTATION_PROMPT_V3, INDEXED_HISTORY_PRESENTATION_PROMPT_V4 } from './author-presentation.js';
 import type {MaintenanceContext,MaintenancePlan,RegressionContext} from '../contracts/p6-control-maintenance.js';
 import {assertMaintenanceContext,assertRegressionContext} from '../verification/control-maintenance-replay.js';
 import {assertMaintenancePlan,maintenanceInstance} from '../verification/control-maintenance-rules.js';
@@ -18,6 +21,7 @@ import type { AcceptanceAuthoringContext, AcceptanceBundle, MaterializedAcceptan
 
 export interface ControlEvolutionAuthoringContext {
   schemaVersion: 1;
+  sourceRefresh?: SourceRefreshControlContext;
   maintenance?:MaintenanceContext;
   regression?:RegressionContext;
   current: AcceptanceAuthoringContext;
@@ -72,6 +76,16 @@ function frozen(context: ControlEvolutionAuthoringContext): ControlEvolutionAuth
       const mode = modes[name]!; ensure(Number.isInteger(mode) && (mode & 0o111) === mode, 'Invalid specimen executable mode');
       ensure(digest(Buffer.concat([Buffer.from(value), Buffer.from('\0executable:' + String(mode))])) === specimen.candidate.files[name], 'Historical specimen source or mode changed');
     }
+  }
+  if(Object.hasOwn(context,'sourceRefresh')){
+    ensure(context.sourceRefresh&&typeof context.sourceRefresh==='object','Explicit refresh inventory required');
+    const {digest:refreshDigest,...refreshBody}=context.sourceRefresh;
+    ensure(controlDigest(refreshBody)===refreshDigest&&context.transitions.length===1&&
+      context.transitions[0]!.sourceRefresh&&context.sourceRefresh.generation.authorization.transitionId===context.transitions[0]!.id,
+      'Author refresh inventory differs from actual frozen transition');
+    ensure(context.current.materials?.length&&context.current.materials.every(m=>canonical(m.binding)===canonical(context.sourceRefresh!.currentBinding)),
+      'Author refresh current material producer differs');
+    context.sourceRefresh.historicalEpochs.forEach(assertHistoricalMaterialEpoch);
   }
   if(context.regression){assertRegressionContext(context.regression);ensure(context.regression.passingCandidate.digest===context.current.candidate.digest,'Inherited regression positive differs');}
   if(context.maintenance){assertMaintenanceContext(context.maintenance);ensure(canonical(context.maintenance.basis.base)===canonical(context.base)&&context.maintenance.basis.contractDigest===controlDigest(context.current.contract)&&context.maintenance.basis.passingCandidate.digest===context.current.candidate.digest,'Maintenance author target differs');}
@@ -176,3 +190,14 @@ export async function materializeControlEvolutionBundle(options: { privateRoot: 
   const info = await lstat(declarationPath); ensure(info.isFile() && !info.isSymbolicLink() && info.nlink === 1 && digest(await readFile(declarationPath)) === declarationDigest, 'Conflicting or tampered evolution declaration');
   return { assets, declarationPath, declarationDigest };
 }
+
+/** Host chooses a new explicit presentation only for a newly frozen indexed
+ * refresh. Old versioned author input/replay never selects this by field truthiness. */
+export function indexedHistoryEvolutionAuthorInput<T extends {acceptance:AcceptanceAuthoringContext;candidate:unknown;evolution:ControlEvolutionAuthoringContext}>(context:T){
+  const actual=frozen(context.evolution);
+  ensure(actual.sourceRefresh&&actual.current.materials?.length&&actual.current.materials.every(m=>m.evidence!==null&&typeof m.evidence==='object'&&'indexed' in m.evidence&&m.evidence.indexed),'Complete explicit indexed-history input required');
+  return {prompt:INDEXED_HISTORY_PRESENTATION_PROMPT_V4,outputSchema:controlEvolutionAuthoringSchema(actual),context:{...structuredClone(context),authorPresentation:{schemaVersion:4 as const,kind:'indexed-history-evolution' as const}}};
+}
+
+/** New reservations only; original indexed V4 builder remains replayable. */
+export function referencedIndexedHistoryEvolutionAuthorInput<T extends {acceptance:AcceptanceAuthoringContext;candidate:unknown;evolution:ControlEvolutionAuthoringContext}>(context:T){const old=indexedHistoryEvolutionAuthorInput(context);return {...old,prompt:INDEXED_COMPACT_PROMPT,context:compactIndexedHistoryContext(old.context)};}

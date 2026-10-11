@@ -1,3 +1,21 @@
+## 2026-10-11：复用既有用例验证查询响应
+
+扩展原 P6-SCTL-I08：真实进程停止期间并发 inspect/list 返回已提交状态，resume 仍排队，保留原停止/记账/替代执行断言，并检查非法请求与关闭状态。首轮新增错误文案断言失败保留，仅修断言后单项通过；独审认可复用其余未变用例，不新增稳定 ID、不扩大默认门禁、未重复供应商运行。
+
+## 2026-10-11：精简基线实际结果
+
+95 项完整组件选择执行 94 PASS / 1 FAIL / 0 skip。原 CLAIM-I08 夹具修正经独审后仅该 1 项复验 PASS，真实 writer/记账/释放断言全部执行；其他 94 项复用，原失败保留。40 项核心单元运行时依赖未变，复用原结果。P6 V2 与 P7 并行真实门禁均 FAIL，完整交付未通过，分别保留 IPC 超时和独立验收拒绝的证据；不因精简更改为通过。精简默认清单未扩张。
+
+## 2026-10-11：P7 认领组件夹具与宿主说明对齐
+
+原 P7-CLAIM-I08 在真实 writer 检查前因旧的“完整 prompt 等于用户原文”断言失败。改为核对原任务前缀及持久 claim 的完整宿主说明，保留全部真实进程未停止不能释放、实际停止后记账/释放等断言。原 95 项批次失败保留；只复验受影响的原用例，不重跑整批。
+
+
+## 2026-10-11：核心修复 live 驱动巡检能力对齐
+
+保留 `p6.live-supervision-loop.001` 的原缺陷、修复、回归维护与独立交付要求；把过期的 15 秒扫描能力断言改为现有 2 秒唤醒 / 10 秒健康检查两字段，不改变运行时或测试时限。该能力声明核对不代表实际长时间间隔已通过。
+
+
 ## v60 — 分步验收作者及共享剩余预算
 
 ## 2026-10-11：个人试用精简门禁（用户授权）
@@ -395,3 +413,8 @@ Add two distinct indexed consumer/lifecycle cases; retain all prior stable IDs. 
 保留全部稳定用例 ID，扩展现有 authoring/routing/review 用例覆盖原始 patch、真实基底约束、完整展开、不可修改基底与二次拒绝上限。15 个不同用例分批通过，原三项开发失败及复用映射保留；组件中的模型输出显式为合成输入，尚无真实供应商闭环通过。独立审查绑定 450 源文件及 835 编译文件。旧自主修复 live 驱动改为版本化读取原始 patch 与完整方案，独立审查确认旧断言保留；未运行新真实 gate，未以组件检查替代阶段门禁。
 
 V5 原在途跟进真实运行失败：missing good control→实际patch240秒超时；没有P4或交付，未知费用保留。原driver及标准未变；后继只提升实际可用初始模型为Astra/low，单独冻结和记录，不覆写失败、不增加稳定用例。
+
+
+## Indexed history deferred merge candidate
+
+Registers the three retained indexed-view/history cases without enlarging the personal-trial gate. Existing MAIN IDs and profiles stay intact. Original three-generation failures remain; the latest r3 chain reached third author but expired during third review, so full thirdseal/reopen and public supplier gates are deferred, not passed.

@@ -110,7 +110,7 @@ export async function acquireMaterialEvidence(
  }
  // All source bytes and the unchanged entire current report remain available.
  // A deterministic projection never supplies a semantic verdict.
- if(input.indexed){assertTrue(!historical&&!basisProjection,'Indexed historical/projection review requires separate multi-view protocol');await assertResearchReader(input.indexed);}
+ if(input.indexed){assertTrue(!basisProjection,'Indexed projection requires separate reviewed protocol');if(historical)assertTrue(!!historical.indexed,'Historical indexed review requires exact original epoch');await assertResearchReader(input.indexed);}
  const sources=input.indexed?undefined:input.context.sources.map(source=>({materialId:source.materialId,
   rawDigest:source.rawDigest,textDigest:source.textDigest,
   text:new TextDecoder('utf-8',{fatal:true,ignoreBOM:true}).decode(readBounded(source.textPath,input.context.index.limits.maxItemBytes))}));

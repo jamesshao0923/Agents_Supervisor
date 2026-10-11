@@ -1,3 +1,4 @@
+import {expandedAuthorInput} from '../orchestration/indexed-history-presentation.js';
 import {assertMaintenanceCommandEvidence} from '../verification/maintenance-command-evidence.js';
 import { lstatSync } from 'node:fs';
 import { sep, join, basename, dirname } from 'node:path';
@@ -395,7 +396,7 @@ export class ControlMaintenanceRepository {
         const row = this.db.prepare('SELECT record FROM supervision_jobs WHERE id=?').get(draft.authorBinding.jobId);
         ensure(row, 'Actual regression author missing');
         const job = JSON.parse(String(row.record)) as SupervisionJob;
-        const evolution = (job.input as {
+        const evolution = (expandedAuthorInput(job.input) as {
             context: {
                 evolution: {
                     maintenance?: {
@@ -529,7 +530,7 @@ export class ControlMaintenanceRepository {
         const draft = JSON.parse(String(this.db.prepare('SELECT record FROM verification_control_drafts WHERE proposal_id=?').get(proposal.id)!.record)).draft;
         const row = this.db.prepare('SELECT record FROM supervision_jobs WHERE id=?').get(draft.authorBinding.jobId)!;
         const author = JSON.parse(String(row.record)) as SupervisionJob;
-        const evolution = (author.input as {
+        const evolution = (expandedAuthorInput(author.input) as {
             context: {
                 evolution: {
                     maintenance?: unknown;

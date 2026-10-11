@@ -1,6 +1,7 @@
+import {indexedStageScopes,exactIndexedStage} from './indexed-stage-authority.js';
 import {IndexedResearchConsumer} from '../runtime/indexed-research-consumer.js';
 import type {SupervisorStore} from '../persistence/store.js';
-import {readMaterialBinding} from './material.js';
+import {readMaterialBinding,readMaterialBindingSync} from './material.js';
 import type {HistoricalMaterialEpoch} from '../contracts/p4-source-refresh.js';
 import {assertEnvironmentCwd,parseEnvironmentScope,reviewEnvironmentCwd} from './scoped-environment.js';
 import {mobileReviewObservations} from './mobile-review-context.js';
@@ -33,7 +34,10 @@ export async function reviewModel(context:EngineContext,prompt:string,cwd:string
   try {
     const proposal=context.store?.verification.get('proposal',job.proposalId),bindings=proposal?.spec.cases.flatMap(c=>c.verifier.kind==='material'?[c.verifier.binding]:[])??[];
     let indexed:IndexedResearchConsumer|undefined;
-    for(const binding of bindings){const actual=await readMaterialBinding(binding);if(actual.input.indexed){if(indexed&&indexed.reader.digest!==actual.input.indexed.digest)throw Error('Indexed review multi-view unsupported');indexed=await IndexedResearchConsumer.verification(context.store!,job.id,binding,actual.input.indexed,digest(prompt),output);}}
+    if(context.store&&bindings.some(binding=>readMaterialBindingSync(binding).input.indexed)){const scopes=indexedStageScopes(context.store,job.id),stage=scopes.find(s=>s.root===output);
+      if(stage?.binding&&(await readMaterialBinding(stage.binding)).input.indexed){exactIndexedStage(context.store,job.id,output);indexed=await IndexedResearchConsumer.verificationStage(context.store,job.id,digest(prompt),output);}
+      else if(bindings.some(binding=>readMaterialBindingSync(binding).input.indexed))throw Error('Actual indexed review stage is not bound to frozen producer');
+    }
     const result=await runModelReview({...(indexed?{indexed}:{}),id:job.id+'-'+job.intents.length,cwd,logDir:output,prompt,...(images?.length?{images}:{}),model:job.config.model,effort:job.config.effort,timeoutMs:job.config.timeoutMs,signal:context.signal,assertEligible:context.eligible,...processHooks(context),onUsage:tokens=>{job.usage=base+tokens;context.save();if(job.usage>job.config.reservation)throw new Error('Verification token reservation exhausted');}});
     accept(result);if(job.environmentScope)await assertEnvironmentCwd(job.environmentScope,cwd);if(!result.stopConfirmed||job.usage>job.config.reservation)throw new Error('Model stop or accounting gate failed');return result;
   }catch(error){if(error instanceof ModelReviewError)accept(error.result);throw error;}
