@@ -1,3 +1,5 @@
+import {buildSupervisionRepairPrompt} from '../../packages/orchestration/supervision-controller.js';
+import {unpackQualificationReview} from '../../packages/verification/qualification-review-wire.js';
 import {publishLegacyControlReviewFixture} from '../helpers/legacy-control-review-fixture.js';
 import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
@@ -58,7 +60,16 @@ async function failedCandidate(t:TestContext){
 
 test('P6-REPAIR-I01 real verifier failure appends once preserving contract failed evidence and checkpoint ancestry',async t=>{
   const f=await failedCandidate(t);f.store.runtime.setFutureVerification({...f.boundary(),commandId:'allocate',allocationId:'final',amount:50,reason:'Mandatory re-verification'});
-  const old=f.store.runtime.inspect(f.runtime.id),input=f.append(),next=f.store.runtime.appendRepair(input);
+  const old=f.store.runtime.inspect(f.runtime.id),input=f.append();
+  const context={contract:old.run.contract,criteria:[{id:'correct',kind:'command' as const,target:'result.json',description:'Value equals two',checks:['result.json value must equal 2']}],failure:{kind:'verification' as const,jobId:f.job.id,planId:f.plan.id,failedObligationIds:['correct'],results:f.job.results,proofs:f.job.proofs}};
+  const original=canonical(context),prompt=buildSupervisionRepairPrompt(context,repairStep.prompt);
+  assert.equal(canonical(context),original,'Presentation cannot change original failure evidence or standards');
+  const blocks=prompt.split('\n\n'),table=JSON.parse(blocks[2]!);
+  assert.equal(canonical(unpackQualificationReview(table)),original,'Every real failure result/path/hash and original requirement survives presentation');
+  assert.ok(Buffer.byteLength(canonical(table))<Buffer.byteLength(original),'Repeated actual proof bindings are shared without dropping evidence');
+  assert.equal(blocks.at(-1),repairStep.prompt);assert.match(prompt,/not authority to change or approve verification/);
+  input.steps=[{...repairStep,prompt}];
+  const next=f.store.runtime.appendRepair(input);
   assert.deepEqual(f.store.runtime.inspect(next.id).run.contract,old.run.contract);assert.deepEqual(f.store.runtime.inspect(next.id).run.attempts,old.run.attempts);
   assert.equal(next.cursor,1);assert.equal(next.definition.steps.length,2);assert.deepEqual(next.inputs,old.runtime.inputs);assert.equal(next.phase,'ready');
   assert.equal(f.store.runtime.inspect(next.id).run.artifact,null);assert.deepEqual(f.store.verification.get('job',f.job.id),f.job);
@@ -66,6 +77,8 @@ test('P6-REPAIR-I01 real verifier failure appends once preserving contract faile
   assert.deepEqual(checkpoint.frozenPlans.find(p=>(p as {id:string}).id===f.plan.id),JSON.parse(JSON.stringify(f.plan)),'All P4 product frozen plan JSON fields survive repair checkpoints; JSON dictionaries have plain prototypes');
   assert.equal(f.store.runtime.appendRepair(input).id,next.id);assert.equal(f.store.runtime.operations(next.id).length,2);
   f.restart();assert.equal(f.store.runtime.appendRepair(input).id,next.id);assert.equal(f.store.runtime.operations(next.id).length,2);assert.ok(f.store.runtime.inspect(next.id).checkpoints.every(c=>c.valid));
+  assert.equal(f.store.runtime.inspect(next.id).runtime.definition.steps.at(-1)!.kind,'codex');
+  assert.equal((f.store.runtime.inspect(next.id).runtime.definition.steps.at(-1)! as typeof repairStep).prompt,prompt,'Exact repair input survives restart without regeneration');
   assert.throws(()=>f.store.runtime.appendRepair({...input,reason:'Conflicting retry of same command'}),/conflicts/);
 });
 test('P6-REPAIR-I02 failed commit rolls back domain repair artifact checkpoint outbox events and receipt',async t=>{
