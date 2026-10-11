@@ -1,3 +1,4 @@
+import {RESEARCH_GROUPS_MIGRATION_SQL} from './schema19.js';
 import {EXPLORATION_POLICY_MIGRATION_SQL} from './schema18.js';
 import {RESEARCH_WORKFLOW_MIGRATION_SQL} from './schema-research-workflow.js';
 import {CONTROL_MAINTENANCE_MIGRATION_SQL} from './schema16.js';
@@ -14,7 +15,7 @@ import { SUPERVISION_INTERRUPTION_MIGRATION_SQL } from './supervision-interrupti
 import { SUPERVISION_MONITOR_MIGRATION_SQL } from './supervision-monitor.js';
 import { CONVERSATION_MIGRATION_SQL, ASSESSMENT_MIGRATION_SQL } from './conversations.js';
 
-export const SCHEMA_VERSION = 18;
+export const SCHEMA_VERSION = 19;
 
 const migrations = [
   `CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
@@ -88,6 +89,7 @@ const migrations = [
   CONTROL_MAINTENANCE_MIGRATION_SQL,
   RESEARCH_WORKFLOW_MIGRATION_SQL,
   EXPLORATION_POLICY_MIGRATION_SQL,
+  RESEARCH_GROUPS_MIGRATION_SQL,
 ];
 
 export function migrate(db: DatabaseSync): void {

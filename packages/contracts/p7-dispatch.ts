@@ -3,6 +3,7 @@ import type {RuntimeStep} from './p3.js';
 import type {DependencyBinding,ResultLedger} from './p7-results.js';
 import type {SchedulerNode,SchedulerLoop,SchedulerResource,ExplorationTier,SchedulerDecision} from './p7-scheduler.js';
 export interface ScheduledTask {
+ researchGroup?: import('./p8-research-groups.js').ResearchGroupTaskBinding;
  /** Compiler-bound original baseline and declaration. Absence preserves legacy plans. */
  scopeBinding?:{schemaVersion:1;sourceDigest:string;seed:import('./p7-graph.js').GraphSeedSnapshot;declaration:import('./p7-decomposition.js').TaskDecompositionDeclaration};
  node:Omit<SchedulerNode,'status'|'inputs'>;

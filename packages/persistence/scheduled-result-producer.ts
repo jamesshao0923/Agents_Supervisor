@@ -1,3 +1,4 @@
+import {ResearchGroupsRepository} from './research-groups.js';
 import {assertScheduledProjection,assertScheduledClaimOrigin,stoppedLoopTask} from './scheduled-plan-history.js';
 import {HostScheduledInputs} from '../workspace/scheduled-inputs.js';
 import {scheduledExecutionPrompt} from '../contracts/p7-inputs.js';
@@ -59,6 +60,12 @@ export function scheduledCandidate(db:DatabaseSync,dataRoot:string,execution:Exe
  ensure(artifacts.length>0&&artifacts.length<=256&&artifacts.reduce((sum,a)=>sum+a.size,0)<=16*1024*1024,'complete candidate exceeds package capacity');
  // Reuse strict artifact path/digest/size parsing before any source path access.
  parseTaskResultManifest({schemaVersion:1,projectId:execution.projectId,runId:execution.runId,taskId:'candidate',attemptId:execution.attemptId,contractVersion:1,contractDigest:'0'.repeat(64),planRevision:1,generation:1,inputs:[],artifacts,conclusion:'Host snapshot validation',sources:[],checks:[],limitations:[],unresolved:[]});
+ const completion = new ResearchGroupsRepository(db, dataRoot).assertCompletion(execution);
+ if (completion) {
+  ensure(artifacts.length === 1 && artifacts[0]!.relativePath === 'extraction.json' &&
+   artifacts[0]!.digest === completion.files['extraction.json'] && executables['extraction.json'] === 0,
+   'structured group snapshot differs from exact host completion');
+ }
  return {...snapshot,artifacts,executables};
 }
 /** Must use the same non-deliverable exclusions as scanCandidate. All actual

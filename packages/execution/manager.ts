@@ -1,3 +1,4 @@
+import {ResearchGroupActivity} from '../runtime/research-group-activity.js';
 import {ResearchRuntimeActivity} from '../runtime/research-activity.js';
 import {scanCandidate} from '../verification/candidate.js';
 import type { ScheduledBinding } from '../contracts/p7-dispatch.js';
@@ -199,7 +200,9 @@ export class ExecutionManager {
     await adapter.initialize();
     if(this.store.executionGet(id).cancelRequested){await this.stop(id);return;}
     const research=record.runtimeBinding?this.store.runtime.researchInput(record.runtimeBinding.operationId):null;
-    const thread=await adapter.startThread({cwd:record.workspace,model:record.model,approvalPolicy:'never',sandbox:research?'read-only':'workspace-write',ephemeral:false,
+    const group=new ResearchGroupActivity(this.store,this.dataDir).inputForExecution(record);
+    const outputSchema=research?.package.outputSchema??group?.outputSchema;
+    const thread=await adapter.startThread({cwd:record.workspace,model:record.model,approvalPolicy:'never',sandbox:research||group?'read-only':'workspace-write',ephemeral:false,
       developerInstructions:'Work only on the requested task in the given workspace. Do not spawn subagents, change global configuration, send messages, or access unrelated projects. Report what changed and actual validation; do not claim independent Supervisor acceptance.',
       config:{'features.multi_agent':false,web_search:'disabled'}});
     this.store.executionUpdate(id,{threadId:thread.thread.id},'thread-created',{threadId:thread.thread.id});
@@ -207,8 +210,8 @@ export class ExecutionManager {
     const input:UserInput[]=[{type:'text',text:record.prompt},...record.images.map(path=>({type:'localImage' as const,path}))];
     await this.awaitLaunchEligible(id);
     active.launchedTurn=true;
-    this.store.executionUpdate(id,{turnIntent:true},'turn-intent',{threadId:thread.thread.id,model:record.model,effort:record.effort,input,...(research?{outputSchema:research.package.outputSchema,researchInputDigest:research.digest}:{})});
-    const result=await adapter.startTurn(thread.thread.id,input,{model:record.model,effort:record.effort,cwd:record.workspace,...(research?{outputSchema:research.package.outputSchema}:{})});
+    this.store.executionUpdate(id,{turnIntent:true},'turn-intent',{threadId:thread.thread.id,model:record.model,effort:record.effort,input,...(outputSchema?{outputSchema,...(research?{researchInputDigest:research.digest}:{}),...(group?{researchGroupInputDigest:group.digest}:{})}:{})});
+    const result=await adapter.startTurn(thread.thread.id,input,{model:record.model,effort:record.effort,cwd:record.workspace,...(outputSchema?{outputSchema}:{})});
     const latest=this.store.executionGet(id);
     this.store.executionUpdate(id,{turnId:result.turn.id,...(!terminal(latest.state)&&!latest.cancelRequested?{state:'running' as const}:{})},'turn-started',{threadId:thread.thread.id,turn:result.turn});
     if(this.store.executionGet(id).cancelRequested)await this.stop(id);
@@ -293,6 +296,16 @@ export class ExecutionManager {
     // Stop observation is persisted immediately, but the workspace stays reserved
     // until candidate capture finishes. A later writer cannot contaminate it.
     let researchError:string|null=null;
+    if(stopped&&authoritativeTerminal&&state==='completed'&&record.scheduledBinding){
+      try{
+        const activity=new ResearchGroupActivity(this.store,this.dataDir);
+        if(activity.inputForExecution(record)){
+          this.store.executionUpdate(id,{},'research-group-physical-stop-observed',evidence);
+          const completion=await activity.materialize(id);
+          this.store.executionUpdate(id,{},'research-group-materialized',completion);
+        }
+      }catch(error){researchError='Research group completion rejected: '+String(error);state=record.cancelRequested?'cancelled':'failed';}
+    }
     if(stopped&&authoritativeTerminal&&state==='completed'&&record.runtimeBinding){try{if(this.store.runtime.researchInput(record.runtimeBinding.operationId)){const completion=await new ResearchRuntimeActivity(this.store,this.dataDir).materialize(record);this.store.executionUpdate(id,{},'research-materialized',completion);}}catch(error){researchError='Research completion rejected: '+String(error);state=record.cancelRequested?'cancelled':'failed';}}
     let snapshot:unknown;
     if(stopped) {

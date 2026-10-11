@@ -1,3 +1,5 @@
+import type {ResearchGroupsAggregate} from '../contracts/p8-research-group-output.js';
+import {researchGroupsPromptSuffix} from '../orchestration/research-group-output.js';
 import type {ExecutionRecord,ExecutionEvent} from '../contracts/p2.js';
 import type {NormalizedEvent} from '../executor-codex/index.js';
 import {constants,openSync,closeSync,fstatSync,readSync,lstatSync,realpathSync} from 'node:fs';
@@ -50,11 +52,15 @@ export function researchExecutionPrompt(prompt:string,context:ResearchExecutionP
 }
 
 /** Recompute every caller-independent field from actual original step/Run/archive. */
-export function assertResearchStepInput(receipt:ResearchInputReceipt,op:RuntimeOperation,contract:TaskContract,index:MaterialIndex):void {
+export function assertResearchStepInput(receipt:ResearchInputReceipt,op:RuntimeOperation,contract:TaskContract,index:MaterialIndex,groups:ResearchGroupsAggregate|null=null):void {
  assertTrue(op.step.kind==='codex'&&op.step.research,'Typed research step required');const binding=op.step.research;
  const context=projectResearchEvidence(contract,binding.requirements,binding.limits,index);
- const pkg=receipt.package;assertTrue(researchDigest(pkg.context)===researchDigest(context),'Research context was not derived from the original step');
- assertTrue(pkg.reportDirectory===binding.reportDirectory&&researchDigest(pkg.outputSchema)===researchDigest(researchProposalSchema(context))&&pkg.prompt===researchExecutionPrompt(op.step.prompt,context),'Research prompt/schema/target was not derived from the original step');
+ const pkg=receipt.package;
+ assertTrue(researchDigest(pkg.groups??null)===researchDigest(groups),'Research group references were not derived from actual publications');
+ const prompt=researchExecutionPrompt(op.step.prompt,context)+(groups?researchGroupsPromptSuffix(groups):'');
+ assertTrue(prompt.length<=context.limits.maxContextChars&&prompt.length<=200000,'Complete research group prompt exceeds capacity');
+ assertTrue(researchDigest(pkg.context)===researchDigest(context),'Research context was not derived from the original step');
+ assertTrue(pkg.reportDirectory===binding.reportDirectory&&researchDigest(pkg.outputSchema)===researchDigest(researchProposalSchema(context))&&pkg.prompt===prompt,'Research prompt/schema/target was not derived from the original step');
 }
 
 export function researchCompletionEvents(record:ExecutionRecord,readPage:(after:number)=>ExecutionEvent[]):{messageSeq:number;terminalSeq:number;evidenceDigest:string} {

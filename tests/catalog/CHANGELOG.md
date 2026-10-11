@@ -1,3 +1,10 @@
+## v40 — 研究分组宿主纵向机制（开发中）
+
+- 保留原 916 项，新增 14 项稳定用例：分组注册/冻结安装 7 项、结构化 P2 分支/真实回执/原 TaskResult 发布/完整分析汇总 7 项；全局 930 项。P8 仍 developing，原阶段标准与必需风险不删除。
+- 同一原 Run/契约和预算，材料工具回执不伪装 TaskResult，分组结果仅 submitted untrusted extraction；最终分析仍读取全部原文、问题、失败和缺口，完整 P4/宿主 ALL-OF 门禁不改变。
+- v40-research-groups-impact 按新组及迁移、普通 execution/runtime、P7 producer/publication/inputs/terminal、单路研究和必要 runner 去重选取完整套件。仅登记、构建和清单预检；尚未启动本版正式或付费测试。
+- 私有首片与纵向组件结果、独立 crash→cancel→restart 检查分别保存；原 74/75 失败及已审 I04 5/5 修订不追改。真实 Node 协议夹具的 capability/输出/费用为 synthetic，不能证明供应商语义、只读沙箱、公开五来源或产品自动分组通过。
+
 ## v39 — 可选探索、真实终态与同来源研究追加
 
 - 在原 896 项上新增 20 个稳定 ID：探索准入/持久策略 5 项、终态与预算收束 8 项、研究 V2 投影及跟进 7 项；全局 916 项。旧 ID、必要风险和阶段 developing 状态保留。

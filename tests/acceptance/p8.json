@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "stage": "P8",
-  "revision": "p8-v39-completion-developing",
+  "revision": "p8-v40-research-groups-developing",
   "caseIds": [
     "dev.unit-contracts.001",
     "dev.unit-contracts.002",
@@ -897,7 +897,21 @@
     "p8.integration-research-projection.005",
     "p8.integration-research-projection.006",
     "p8.integration-research-followup.001",
-    "p7.integration-scheduled-terminal.008"
+    "p7.integration-scheduled-terminal.008",
+    "p8.integration-research-groups.001",
+    "p8.integration-research-groups.002",
+    "p8.integration-research-groups.003",
+    "p8.integration-research-groups.004",
+    "p8.integration-research-groups.005",
+    "p8.integration-research-groups.006",
+    "p8.integration-research-groups.007",
+    "p8.integration-research-group-execution.001",
+    "p8.integration-research-group-execution.002",
+    "p8.integration-research-group-execution.003",
+    "p8.integration-research-group-execution.004",
+    "p8.integration-research-group-execution.005",
+    "p8.integration-research-group-execution.006",
+    "p8.integration-research-group-execution.007"
   ],
   "requiredRisks": [
     "p0.unit-contracts.001",
@@ -1235,7 +1249,9 @@
     "p8-hostauth-i07",
     "p8-hostauth-i08",
     "p8-hostauth-i09",
-    "p6-maint-i09"
+    "p6-maint-i09",
+    "p8-research-groups-foundation",
+    "p8-research-groups-execution"
   ],
   "coreRegression": [
     "dev.integration-runner.003",

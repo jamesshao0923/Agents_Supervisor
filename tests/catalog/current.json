@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-v39-completion-impact",
+  "revision": "dev-v40-research-groups-integration",
   "modules": [
     {
       "id": "dev-contracts",
@@ -951,6 +951,18 @@
       "layer": "integration",
       "file": "dist/tests/integration/research-followup.test.js",
       "timeoutMs": 300000
+    },
+    {
+      "id": "integration-research-groups",
+      "layer": "integration",
+      "file": "dist/tests/integration/research-groups.test.js",
+      "timeoutMs": 180000
+    },
+    {
+      "id": "integration-research-group-execution",
+      "layer": "integration",
+      "file": "dist/tests/integration/research-group-execution.test.js",
+      "timeoutMs": 180000
     }
   ],
   "cases": [
@@ -2504,7 +2516,8 @@
         "catalog",
         "profiles",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: catalog registers stable IDs and validates execution metadata without sharing product code",
@@ -2527,7 +2540,8 @@
         "catalog",
         "profiles",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: catalog rejects missing malformed empty and conflicting stable registrations",
@@ -2550,7 +2564,8 @@
         "catalog",
         "profiles",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: catalog rejects unsafe suite files duplicate files and conflicting layers or modules",
@@ -2573,7 +2588,8 @@
         "catalog",
         "profiles",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: catalog rejects duplicate active names but permits equal names in separate suites",
@@ -2596,7 +2612,8 @@
         "catalog",
         "profiles",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: catalog rejects retirement without reason and assertion fault coverage review",
@@ -2619,7 +2636,8 @@
         "catalog",
         "profiles",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: catalog resolves reviewed replacement chains and preserves every necessary risk",
@@ -2642,7 +2660,8 @@
         "catalog",
         "profiles",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: catalog rejects dangling replacement references and replacement cycles",
@@ -2665,7 +2684,8 @@
         "catalog",
         "profiles",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: catalog permits explained removed scope but refuses loss of necessary profile coverage",
@@ -2688,7 +2708,8 @@
         "catalog",
         "profiles",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: profiles reject unknown stages stale references empty selection and uncovered necessary risks",
@@ -2711,7 +2732,8 @@
         "catalog",
         "profiles",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: profiles deduplicate repeated stable IDs across stage requirements and core regressions",
@@ -2734,7 +2756,8 @@
         "catalog",
         "profiles",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: impact selection expands transitive modules and conservatively deduplicates full suites",
@@ -2757,7 +2780,8 @@
         "catalog",
         "profiles",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: impact selection broadens unknown impact and retains necessary core regressions",
@@ -2780,7 +2804,8 @@
         "catalog",
         "profiles",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: layer and impact selections never claim stage completion even when all suites expand",
@@ -2803,7 +2828,8 @@
         "catalog",
         "profiles",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: catalog validates actual registered source declarations without reconstructing expected lists",
@@ -2826,7 +2852,8 @@
         "catalog",
         "profiles",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: catalog rejects missing registered sources and unregistered real suite files before freeze",
@@ -2849,7 +2876,8 @@
         "catalog",
         "profiles",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: catalog rejects real source symlinks and wrong profile stage bindings",
@@ -2872,7 +2900,8 @@
         "catalog",
         "profiles",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: catalog preserves immutable legacy manifest parsing alongside current profiles",
@@ -2895,7 +2924,8 @@
         "catalog",
         "profiles",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: catalog recheck resolves current frozen profile and rejects changed standards without overwriting evidence",
@@ -2918,7 +2948,8 @@
         "catalog",
         "profiles",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: catalog recheck rejects forged final stage scope and missing current registry",
@@ -3541,7 +3572,8 @@
         "persistence-migrations",
         "schema13-startup",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence migrates real disk database and reopens state events budgets and receipts",
@@ -3564,7 +3596,8 @@
         "persistence-migrations",
         "schema13-startup",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence refuses future schema without overwriting existing database data",
@@ -3587,7 +3620,8 @@
         "persistence-migrations",
         "schema13-startup",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence rolls back staged state event reservation and command receipt together",
@@ -3610,7 +3644,8 @@
         "persistence-migrations",
         "schema13-startup",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence canonical command receipts reject changed payloads and isolate project cursors",
@@ -3633,7 +3668,8 @@
         "persistence-migrations",
         "schema13-startup",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence simultaneous real writers cannot oversubscribe budget reservations",
@@ -3656,7 +3692,8 @@
         "persistence-migrations",
         "schema13-startup",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence global resource keys reject cross run leases until terminal owner releases",
@@ -3679,7 +3716,8 @@
         "persistence-migrations",
         "schema13-startup",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence SIGKILL before commit preserves no partial state event budget or receipt",
@@ -3702,7 +3740,8 @@
         "persistence-migrations",
         "schema13-startup",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence SIGKILL after commit retains state event budget and idempotent receipt",
@@ -3725,7 +3764,8 @@
         "persistence-migrations",
         "schema13-startup",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence durable artifact orphan remains invisible after real process termination",
@@ -3748,7 +3788,8 @@
         "persistence-migrations",
         "schema13-startup",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence published artifact digest checks reject tampering missing bytes and arbitrary paths",
@@ -3771,7 +3812,8 @@
         "persistence-migrations",
         "schema13-startup",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence rejects symlink object directories and records actual permission failure without publication",
@@ -3794,7 +3836,8 @@
         "persistence-migrations",
         "schema13-startup",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence unwritable real database refuses writes and preserves previous committed data",
@@ -3817,7 +3860,8 @@
         "persistence-migrations",
         "schema13-startup",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence project verification catalogs retain immutable revisions coverage and defect inheritance",
@@ -3840,7 +3884,8 @@
         "persistence-migrations",
         "schema13-startup",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence stale verification proposal cannot publish over a newer catalog pointer",
@@ -3863,7 +3908,8 @@
         "persistence-migrations",
         "schema13-startup",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence killed catalog snapshot publishes neither pointer coverage nor proposal status",
@@ -3886,7 +3932,8 @@
         "persistence-migrations",
         "schema13-startup",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence frozen plans retain original catalog and reject changed revisions candidates and projects",
@@ -3909,7 +3956,8 @@
         "persistence-migrations",
         "schema13-startup",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence catalog file edits invalidate reads plans and subsequent publication",
@@ -4198,7 +4246,8 @@
         "persistence-migrations",
         "schema13-startup",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence damaged artifacts block verification while stopping accounting and reconciliation remain writable",
@@ -4221,7 +4270,8 @@
         "persistence-migrations",
         "schema13-startup",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real production modules; isolated disk database and child processes",
       "assertions": "tests/integration/persistence.test.ts: persistence verification evidence references roundtrip and reject foreign missing or altered artifacts",
@@ -4244,7 +4294,8 @@
         "catalog",
         "profiles",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime and isolated writable temporary root; this fixture exercises metadata, not a Codex provider",
       "assertions": "tests/unit/catalog.test.ts: full P2 includes live; live-only runs preserve selection/digests and stagePassed=false; missing or unregistered live source cannot freeze",
@@ -4424,7 +4475,8 @@
       "impactTags": [
         "executor-codex",
         "execution",
-        "protocol"
+        "protocol",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
       "assertions": "tests/unit/executor-codex.test.ts: exact version/schema baseline accepts supported protocol and rejects drift",
@@ -4444,7 +4496,8 @@
       "impactTags": [
         "executor-codex",
         "execution",
-        "protocol"
+        "protocol",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
       "assertions": "tests/unit/executor-codex.test.ts: handshake required; correlated out-of-order RPC replies; model text/image capabilities and unknown fields retained",
@@ -4464,7 +4517,8 @@
       "impactTags": [
         "executor-codex",
         "execution",
-        "protocol"
+        "protocol",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
       "assertions": "tests/unit/executor-codex.test.ts: fresh independent thread, read/resume, text/image turn and interrupt serialization; invalid inputs refused",
@@ -4484,7 +4538,8 @@
       "impactTags": [
         "executor-codex",
         "execution",
-        "protocol"
+        "protocol",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
       "assertions": "tests/unit/executor-codex.test.ts: waiting/error/willRetry classification and terminal status without inventing provider live coverage",
@@ -4504,7 +4559,8 @@
       "impactTags": [
         "executor-codex",
         "execution",
-        "protocol"
+        "protocol",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
       "assertions": "tests/unit/executor-codex.test.ts: usage, diffs, messages and unknown fields retained; invalid token counts refused",
@@ -4524,7 +4580,8 @@
       "impactTags": [
         "executor-codex",
         "execution",
-        "protocol"
+        "protocol",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
       "assertions": "tests/unit/executor-codex.test.ts: raw event persistence precedes ordered reduction; legitimate repeated deltas retained",
@@ -4544,7 +4601,8 @@
       "impactTags": [
         "executor-codex",
         "execution",
-        "protocol"
+        "protocol",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
       "assertions": "tests/unit/executor-codex.test.ts: server approvals/user-input requests require explicit response or unsupported rejection; deferred reply does not block interrupt",
@@ -4564,7 +4622,8 @@
       "impactTags": [
         "executor-codex",
         "execution",
-        "protocol"
+        "protocol",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
       "assertions": "tests/unit/executor-codex.test.ts: timeout/disconnect return unknown outcomes; late replies retained with no automatic resend",
@@ -4584,7 +4643,8 @@
       "impactTags": [
         "executor-codex",
         "execution",
-        "protocol"
+        "protocol",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
       "assertions": "tests/unit/executor-codex.test.ts: RPC errors, malformed JSON and persistence failure fail closed and retain raw evidence",
@@ -4695,7 +4755,8 @@
         "service",
         "process-control",
         "schema13-startup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: canonical and reordered execution receipt replay once; durable reservation, lease, operation and event cursor match after SQLite reopen",
@@ -4718,7 +4779,8 @@
         "service",
         "process-control",
         "schema13-startup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: parent, child and exact workspace overlaps rejected without state/events change; sibling allowed; unknown writer retains exclusion until confirmed stop",
@@ -4741,7 +4803,8 @@
         "service",
         "process-control",
         "schema13-startup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: insufficient reserve rejected before actual executable marker writes and before SQLite project or execution creation",
@@ -4764,7 +4827,8 @@
         "service",
         "process-control",
         "schema13-startup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: durable real managed writer stops after reopen and manager initialize, no replay executable invoked, lost usage remains unsettled, real Git diff/artifact captured and repeated reconcile unchanged",
@@ -4787,7 +4851,8 @@
         "service",
         "process-control",
         "schema13-startup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: actual Unix socket rejects P1 complete/settle/cancel and artifact mutation of managed run; run and events remain queryable after service restart",
@@ -4810,7 +4875,8 @@
         "service",
         "process-control",
         "schema13-startup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: actual slow failing version executable keeps lease and launch fenced while cancelled, no target/thread/turn invocation, actual zero settled only after launch resolves",
@@ -4834,7 +4900,8 @@
         "desktop",
         "workspace",
         "schema13-startup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: Omitted and blank paths allocate the same stable command directory; independent requests get distinct directories; real files and durable receipt survive manager/store close and reopen without replay",
@@ -4858,7 +4925,8 @@
         "desktop",
         "workspace",
         "schema13-startup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: Invalid budgets, ownership injection and images are rejected before directory creation; a generated symlink leaf cannot redirect a task into another project",
@@ -4882,7 +4950,8 @@
         "desktop",
         "workspace",
         "schema13-startup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: A real symlink alias resolves to the same project and command receipt; overlapping writers remain rejected; later tasks reuse project without creating a managed root",
@@ -4906,7 +4975,8 @@
         "desktop",
         "workspace",
         "schema13-startup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: Legacy SQLite records without workspace kind read as project; same command replay remains idempotent without rewriting stored requests or receipts",
@@ -4928,7 +4998,8 @@
         "recovery",
         "persistence",
         "execution",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/unit/runtime.test.ts: runtime contract rejects unbounded undeclared malformed and unsafe requests",
@@ -4950,7 +5021,8 @@
         "recovery",
         "persistence",
         "execution",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/unit/runtime.test.ts: runtime submission canonical receipt prevents duplicate runs effects and changed commands",
@@ -4972,7 +5044,8 @@
         "recovery",
         "persistence",
         "execution",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/unit/runtime.test.ts: runtime input receipt accepts only the declared current wait and never overwrites data",
@@ -4994,7 +5067,8 @@
         "recovery",
         "persistence",
         "execution",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/unit/runtime.test.ts: runtime inbox deduplicates exact reports and rejects conflicting deliveries while unknown stays blocked",
@@ -5016,7 +5090,8 @@
         "recovery",
         "persistence",
         "execution",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/unit/runtime.test.ts: runtime pause prevents claims and dispatch while completed current work preserves the pause",
@@ -5038,7 +5113,8 @@
         "recovery",
         "persistence",
         "execution",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/unit/runtime.test.ts: runtime owner transfer fences stale qualification start binding and reports",
@@ -5060,7 +5136,8 @@
         "recovery",
         "persistence",
         "execution",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/unit/runtime.test.ts: runtime cancellation rejects recovery dispatch and late confirmation cannot advance workflow",
@@ -5082,7 +5159,8 @@
         "recovery",
         "persistence",
         "execution",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/unit/runtime.test.ts: runtime workflow checkpoint digest schema and contract mismatch fail closed before dispatch",
@@ -5104,7 +5182,8 @@
         "recovery",
         "persistence",
         "execution",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/unit/runtime.test.ts: runtime cumulative domain spending survives checkpoints and rejects a step exceeding the remaining budget",
@@ -5126,7 +5205,8 @@
         "recovery",
         "persistence",
         "execution",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/unit/runtime.test.ts: runtime in-flight reservation survives owner recovery without settlement or duplicate attempt",
@@ -5149,7 +5229,8 @@
         "persistence",
         "execution",
         "schema13-startup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/integration/runtime.test.ts: runtime HTTP commit before response survives Worker SIGKILL with stable key and one SQLite effect",
@@ -5172,7 +5253,8 @@
         "persistence",
         "execution",
         "schema13-startup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/integration/runtime.test.ts: runtime idempotent HTTP recovery resends the same key after lost response and has one actual effect",
@@ -5195,7 +5277,8 @@
         "persistence",
         "execution",
         "schema13-startup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/integration/runtime.test.ts: runtime unknown nonidempotent HTTP effect without query is preserved and never automatically retried",
@@ -5218,7 +5301,8 @@
         "persistence",
         "execution",
         "schema13-startup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/integration/runtime.test.ts: runtime service restart retains an alive old Worker and original declared wait history",
@@ -5241,7 +5325,8 @@
         "persistence",
         "execution",
         "schema13-startup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/integration/runtime.test.ts: runtime Worker startup stops an actual orphan workspace writer and preserves unknown effects without model replay",
@@ -5264,7 +5349,8 @@
         "persistence",
         "execution",
         "schema13-startup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/integration/runtime.test.ts: runtime SIGSTOP SIGCONT process suspension preserves pause input and resumes one declared effect",
@@ -5287,7 +5373,8 @@
         "persistence",
         "execution",
         "schema13-startup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/integration/runtime.test.ts: runtime cancellation reaches an in-flight real HTTP request and prevents the later declared step",
@@ -5310,7 +5397,8 @@
         "persistence",
         "execution",
         "schema13-startup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/integration/runtime.test.ts: runtime recovery keeps original frozen plan budget failure history and product catalog publication atomic",
@@ -5375,7 +5463,8 @@
         "persistence",
         "execution",
         "schema13-startup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/integration/runtime.test.ts: runtime startup ownership recovery stops the released process scope before receipt takeover and fences stale publishers",
@@ -6904,7 +6993,8 @@
       "impactTags": [
         "contracts",
         "p6-foundation",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
       "assertions": "tests/unit/runtime.test.ts :: P6 runtime revision atomically replaces queued plan and retains immutable checkpoint ancestry",
@@ -6924,7 +7014,8 @@
       "impactTags": [
         "contracts",
         "p6-foundation",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
       "assertions": "tests/unit/runtime.test.ts :: P6 runtime revision refuses active unknown and unsettled effects without rewriting old state",
@@ -6944,7 +7035,8 @@
       "impactTags": [
         "contracts",
         "p6-foundation",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
       "assertions": "tests/unit/runtime.test.ts :: P6 domain plan revision invalidates old evidence but preserves cost and refuses unresolved owners",
@@ -6965,7 +7057,8 @@
         "contracts",
         "p6-foundation",
         "schema13-startup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
       "assertions": "tests/integration/runtime.test.ts :: P6 revised workflow runs a new real HTTP effect once and preserves prior checkpoint across service restart",
@@ -13447,7 +13540,8 @@
       "impactTags": [
         "p7-scheduler",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
       "assertions": "tests/unit/task-scheduler.test.ts :: P7-SCHED-U01 cycles reject while unknown and blocked dependencies preserve unrelated dispatch and necessary gaps",
@@ -13467,7 +13561,8 @@
       "impactTags": [
         "p7-scheduler",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
       "assertions": "tests/unit/task-scheduler.test.ts :: P7-SCHED-U02 dependencies use exact published heads scope and verification minimum never drafts unknown or stale refs",
@@ -13487,7 +13582,8 @@
       "impactTags": [
         "p7-scheduler",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
       "assertions": "tests/unit/task-scheduler.test.ts :: P7-SCHED-U03 resource readers share while ancestor writers queue and unknown held effects cannot be released by predictions",
@@ -13507,7 +13603,8 @@
       "impactTags": [
         "p7-scheduler",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
       "assertions": "tests/unit/task-scheduler.test.ts :: P7-SCHED-U04 qualitative tier admission is nested independent of agent cap and required work stays necessary",
@@ -13527,7 +13624,8 @@
       "impactTags": [
         "p7-scheduler",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
       "assertions": "tests/unit/task-scheduler.test.ts :: P7-SCHED-U05 shared budget protects max overlapping verification floor and unknown usage stops every tier without freeing reservations",
@@ -13547,7 +13645,8 @@
       "impactTags": [
         "p7-scheduler",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
       "assertions": "tests/unit/task-scheduler.test.ts :: P7-SCHED-U06 nested allocations constrain every ancestor and expansion respects depth nodes rounds and total budget",
@@ -13567,7 +13666,8 @@
       "impactTags": [
         "p7-scheduler",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
       "assertions": "tests/unit/task-scheduler.test.ts :: P7-SCHED-U07 decisions are deterministic immutable input preserving and stop on deadline without claiming final delivery",
@@ -14139,7 +14239,8 @@
       "impactTags": [
         "p7-scheduled-execution",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Actual ExecutionManager, SQLite and local executable failures; no seeded model completion or actual provider claim.",
       "assertions": "tests/integration/scheduled-execution.test.ts :: P7-EXEC-I01 bound execution persists exact frozen task in original Run and retry cannot duplicate reservation",
@@ -14159,7 +14260,8 @@
       "impactTags": [
         "p7-scheduled-execution",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Actual ExecutionManager, SQLite and local executable failures; no seeded model completion or actual provider claim.",
       "assertions": "tests/integration/scheduled-execution.test.ts :: P7-EXEC-I02 altered task authority and foreign binding rollback before executable receipt or second budget charge",
@@ -14179,7 +14281,8 @@
       "impactTags": [
         "p7-scheduled-execution",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Actual ExecutionManager, SQLite and local executable failures; no seeded model completion or actual provider claim.",
       "assertions": "tests/integration/scheduled-execution.test.ts :: P7-EXEC-I03 concurrent actual executable failures settle each original attempt once without changing global candidate or releasing sibling",
@@ -14199,7 +14302,8 @@
       "impactTags": [
         "p7-scheduled-execution",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Actual ExecutionManager, SQLite and local executable failures; no seeded model completion or actual provider claim.",
       "assertions": "tests/integration/scheduled-execution.test.ts :: P7-EXEC-I04 worker launches independent branches before either finishes and actual failures leave final integration fenced",
@@ -14219,7 +14323,8 @@
       "impactTags": [
         "p7-scheduled-execution",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Actual ExecutionManager, SQLite and local executable failures; no seeded model completion or actual provider claim.",
       "assertions": "tests/integration/scheduled-execution.test.ts :: P7-EXEC-I05 actual branch cancellation preserves sibling work while global cancel classifies late stopped receipts consistently",
@@ -14311,7 +14416,8 @@
       "impactTags": [
         "p7-scheduled-producer",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Real SQLite/domain/managed Node output and physical stop; synthetic P2 accounting, no model/provider or independent P4 claim.",
       "assertions": "tests/integration/scheduled-producer.test.ts :: P7-PRODUCER-I01 actual scheduled outputs and executable modes publish once with exact frozen inputs while Run artifact stays untouched",
@@ -14331,7 +14437,8 @@
       "impactTags": [
         "p7-scheduled-producer",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Real SQLite/domain/managed Node output and physical stop; synthetic P2 accounting, no model/provider or independent P4 claim.",
       "assertions": "tests/integration/scheduled-producer.test.ts :: P7-PRODUCER-I02 candidate snapshot tampering and partial outputs reject while stopped settled evidence can seal after the execution deadline",
@@ -14351,7 +14458,8 @@
       "impactTags": [
         "p7-scheduled-producer",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Real SQLite/domain/managed Node output and physical stop; synthetic P2 accounting, no model/provider or independent P4 claim.",
       "assertions": "tests/integration/scheduled-producer.test.ts :: P7-PRODUCER-I03 unknown accounting foreign bindings and physically live writer retain publication fence",
@@ -14371,7 +14479,8 @@
       "impactTags": [
         "p7-scheduled-producer",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Real SQLite/domain/managed Node output and physical stop; synthetic P2 accounting, no model/provider or independent P4 claim.",
       "assertions": "tests/integration/scheduled-producer.test.ts :: P7-PRODUCER-I04 upstream invalidation and stopped scheduler reject late branch publication without deleting sealed history",
@@ -14391,7 +14500,8 @@
       "impactTags": [
         "p7-scheduled-producer",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Real SQLite/domain/managed Node output and physical stop; synthetic P2 accounting, no model/provider or independent P4 claim.",
       "assertions": "tests/integration/scheduled-producer.test.ts :: P7-PRODUCER-I05 actual SQLite publication rollback and sealed executable tampering preserve original claim ledger and cost",
@@ -14484,7 +14594,8 @@
         "p7-auto-publication",
         "v34-legacy-portability-impact",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Real modules SQLite FS managed Node output and stop; synthetic P2 completion/usage explicitly is not provider or final delivery evidence.",
       "assertions": "tests/integration/scheduled-publication.test.ts :: P7-PUBLISH-I01 real publisher unlocks frozen dependent claim and worker auto publishes all confirmed branches before integration release",
@@ -14505,7 +14616,8 @@
         "p7-auto-publication",
         "v34-legacy-portability-impact",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Real modules SQLite FS managed Node output and stop; synthetic P2 completion/usage explicitly is not provider or final delivery evidence.",
       "assertions": "tests/integration/scheduled-publication.test.ts :: P7-PUBLISH-I02 committed draft intent and sealed package recover across actual SQLite failure and store reopen without duplicate receipts",
@@ -14526,7 +14638,8 @@
         "p7-auto-publication",
         "v34-legacy-portability-impact",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Real modules SQLite FS managed Node output and stop; synthetic P2 completion/usage explicitly is not provider or final delivery evidence.",
       "assertions": "tests/integration/scheduled-publication.test.ts :: P7-PUBLISH-I03 one blocked partial publication preserves staging while unrelated confirmed output still auto submits",
@@ -14546,7 +14659,8 @@
       "impactTags": [
         "p7-branch-inputs",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Real modules SQLite FS managed Node output and stop; synthetic P2 completion/usage explicitly is not provider or final delivery evidence.",
       "assertions": "tests/integration/scheduled-inputs.test.ts :: P7-INPUT-I01 exact complete dependency files and executable modes are copied before launch and prompt binds their index",
@@ -14566,7 +14680,8 @@
       "impactTags": [
         "p7-branch-inputs",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Real modules SQLite FS managed Node output and stop; synthetic P2 completion/usage explicitly is not provider or final delivery evidence.",
       "assertions": "tests/integration/scheduled-inputs.test.ts :: P7-INPUT-I02 tampered copied bytes index modes and upstream prevent actual dispatch qualification without new spending",
@@ -14586,7 +14701,8 @@
       "impactTags": [
         "p7-branch-inputs",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Real modules SQLite FS managed Node output and stop; synthetic P2 completion/usage explicitly is not provider or final delivery evidence.",
       "assertions": "tests/integration/scheduled-inputs.test.ts :: P7-INPUT-I03 foreign workspace index and incomplete copy are never silently adopted or overwritten",
@@ -14669,7 +14785,8 @@
       "impactTags": [
         "p7-branch-inputs",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Real modules SQLite FS managed Node output and stop; synthetic P2 completion/usage explicitly is not provider or final delivery evidence.",
       "assertions": "tests/integration/scheduled-inputs.test.ts :: P7-INPUT-I04 actual downstream process changing frozen input copies cannot publish a result while known accounting remains settled",
@@ -15897,7 +16014,8 @@
       "impactTags": [
         "p8-research-binding",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
       "assertions": "tests/integration/research-binding.test.ts :: P8-RBIND-I01 real five-material snapshots schema projection span digests and dependent sources remain proposed with explicit partial coverage",
@@ -15917,7 +16035,8 @@
       "impactTags": [
         "p8-research-binding",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
       "assertions": "tests/integration/research-binding.test.ts :: P8-RBIND-I02 wrong literal outside span split surrogate unknown source and invented authority are rejected by actual schema and byte binding",
@@ -15937,7 +16056,8 @@
       "impactTags": [
         "p8-research-binding",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
       "assertions": "tests/integration/research-binding.test.ts :: P8-RBIND-I03 actual snapshot corruption and self-rehashed metadata cannot authorize a citation or redirect its material scope",
@@ -15957,7 +16077,8 @@
       "impactTags": [
         "p8-research-binding",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
       "assertions": "tests/integration/research-binding.test.ts :: P8-RBIND-I04 context request and model objects freeze before async material reads and never inherit late caller metadata",
@@ -15977,7 +16098,8 @@
       "impactTags": [
         "p8-research-binding",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
       "assertions": "tests/integration/research-binding.test.ts :: P8-RBIND-I05 typed schema bounds and safe JSON reject executable accessors sparse arrays duplicate references and empty answers",
@@ -15997,7 +16119,8 @@
       "impactTags": [
         "p8-research-binding",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
       "assertions": "tests/integration/research-binding.test.ts :: P8-RBIND-I06 missing unsupported and cancelled material coverage cannot become a complete answer or erase required criteria",
@@ -16017,7 +16140,8 @@
       "impactTags": [
         "p8-research-binding",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
       "assertions": "tests/integration/research-binding.test.ts :: P8-RBIND-I07 actual refresh changed and unknown preserve immutable historical research evidence without granting revalidation",
@@ -17142,7 +17266,8 @@
         "p8-research-runtime",
         "p8-v32-mechanisms",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
       "assertions": "tests/integration/research-runtime.test.ts :: P8-RUN-I01 actual materials operation same Run structured input and stopped process materialization charge only real activity types without claiming semantic delivery",
@@ -17163,7 +17288,8 @@
         "p8-research-runtime",
         "p8-v32-mechanisms",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
       "assertions": "tests/integration/research-runtime.test.ts :: P8-RUN-I02 actual input tamper blocks dispatch and terminal artifact while stopped known fixture usage settles and original material archive stays unchanged",
@@ -17184,7 +17310,8 @@
         "p8-research-runtime",
         "p8-v32-mechanisms",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
       "assertions": "tests/integration/research-runtime.test.ts :: P8-RUN-I03 actual incomplete archive is retained unknown on recovery and cannot invent a receipt or free a pending operation",
@@ -17205,7 +17332,8 @@
         "p8-research-runtime",
         "p8-v32-mechanisms",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
       "assertions": "tests/integration/research-runtime.test.ts :: P8-RUN-I04 actual frozen input self-rehash cannot change original prompt schema requirements or report target and failed binding rolls back unchanged Run",
@@ -17226,7 +17354,8 @@
         "p8-research-runtime",
         "p8-v32-mechanisms",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
       "assertions": "tests/integration/research-runtime.test.ts :: P8-RUN-I05 actual native P4 proposal freezes same-Run material receipts literal evidence and real refresh rejects changed original without granting semantic delivery",
@@ -17247,7 +17376,8 @@
         "p8-research-runtime",
         "p8-v32-mechanisms",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
       "assertions": "tests/integration/research-runtime.test.ts :: P8-RUN-I06 actual P5 research admission preserves original material criteria and budget while host appends only acquisition dependency",
@@ -17268,7 +17398,8 @@
         "p8-research-runtime",
         "p8-v32-mechanisms",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
       "assertions": "tests/integration/research-runtime.test.ts :: P8-RUN-I07 actual existing worker acquires a partial unsupported local archive and records exact-once zero-cost receipt without any model or delivery",
@@ -17289,7 +17420,8 @@
         "p8-research-runtime",
         "p8-v32-mechanisms",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
       "assertions": "tests/integration/research-runtime.test.ts :: P8-RUN-I08 actual terminal foreign-message fatal diagnostic unknown usage and late pause cancel reject publication while preserving actual stop and accounting",
@@ -17367,7 +17499,8 @@
         "p8-research-runtime",
         "p8-v32-mechanisms",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
       "assertions": "tests/integration/research-output-rules.test.ts :: P8-RRULE-I01 actual material intake drives full prompt rules ordered scope per-question gaps and literal untrusted positive",
@@ -17388,7 +17521,8 @@
         "p8-research-runtime",
         "p8-v32-mechanisms",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
       "assertions": "tests/integration/research-output-rules.test.ts :: P8-RRULE-I02 actual foreign-material and hidden unsupported-answer regressions remain rejected while own citations and partial claims survive",
@@ -17409,7 +17543,8 @@
         "p8-research-runtime",
         "p8-v32-mechanisms",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
       "assertions": "tests/integration/research-output-rules.test.ts :: P8-RRULE-I03 real schema and reference gates reject all described ID claim question conflict and followup violations",
@@ -17430,7 +17565,8 @@
         "p8-research-runtime",
         "p8-v32-mechanisms",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
       "assertions": "tests/integration/research-output-rules.test.ts :: P8-RRULE-I04 real material coverage gates reject omission misclassification foreign evidence and unsupported invented summaries",
@@ -17451,7 +17587,8 @@
         "p8-research-runtime",
         "p8-v32-mechanisms",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
       "assertions": "tests/integration/research-output-rules.test.ts :: P8-RRULE-I05 actual UTF16 snapshot checks and whole prompt capacity keep exact source bytes and refuse truncation",
@@ -18997,7 +19134,8 @@
       "impactTags": [
         "p7-exploration-tier",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Actual SQLite FS Node and service/worker where stated. Planner/provider outputs and token receipts are explicit synthetic mechanism fixtures, not model acceptance.",
       "assertions": "tests/integration/scheduled-publication.test.ts :: P7-EXPLORE-I03 durable four tier control preserves plan and claims with full command CAS rollback reopen and unknown accounting",
@@ -19017,7 +19155,8 @@
       "impactTags": [
         "p7-exploration-tier",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Actual SQLite FS Node and service/worker where stated. Planner/provider outputs and token receipts are explicit synthetic mechanism fixtures, not model acceptance.",
       "assertions": "tests/integration/scheduled-publication.test.ts :: P7-EXPLORE-I04 actual stopped optional output survives lowering and every attempted package precedes final integration",
@@ -19057,7 +19196,8 @@
       "impactTags": [
         "p7-scheduled-terminal",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Real files/SQLite/managed Node where applicable; synthetic protocol data is not supplier success.",
       "assertions": "tests/integration/scheduled-terminal.test.ts :: P7-TERM-I01 actual stopped failed required branch propagates blocked once through worker without fee reset or delivery",
@@ -19077,7 +19217,8 @@
       "impactTags": [
         "p7-scheduled-terminal",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Real files/SQLite/managed Node where applicable; synthetic protocol data is not supplier success.",
       "assertions": "tests/integration/scheduled-terminal.test.ts :: P7-TERM-I02 failed sibling leaves unrelated legal frontier available until all required branches cannot continue",
@@ -19097,7 +19238,8 @@
       "impactTags": [
         "p7-scheduled-terminal",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Real files/SQLite/managed Node where applicable; synthetic protocol data is not supplier success.",
       "assertions": "tests/integration/scheduled-terminal.test.ts :: P7-TERM-I03 active actual writer and unknown stop or usage cannot become known terminal failure",
@@ -19117,7 +19259,8 @@
       "impactTags": [
         "p7-scheduled-terminal",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Real files/SQLite/managed Node where applicable; synthetic protocol data is not supplier success.",
       "assertions": "tests/integration/scheduled-terminal.test.ts :: P7-TERM-I04 parent rollback stale CAS and stale immutable generation cannot partially block runtime or spend budget",
@@ -19137,7 +19280,8 @@
       "impactTags": [
         "p7-scheduled-terminal",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Real files/SQLite/managed Node where applicable; synthetic protocol data is not supplier success.",
       "assertions": "tests/integration/scheduled-terminal.test.ts :: P7-TERM-I05 absolute scheduler deadline blocks without silently clearing unknown accounting or held integration fence",
@@ -19157,7 +19301,8 @@
       "impactTags": [
         "p7-scheduled-terminal",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Real files/SQLite/managed Node where applicable; synthetic protocol data is not supplier success.",
       "assertions": "tests/integration/scheduled-terminal.test.ts :: P7-TERM-I06 actual installed continuing Loop stays eligible and genuine root exhaustion propagates blocked",
@@ -19177,7 +19322,8 @@
       "impactTags": [
         "p7-scheduled-terminal",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Real files/SQLite/managed Node where applicable; synthetic protocol data is not supplier success.",
       "assertions": "tests/integration/scheduled-terminal.test.ts :: P7-TERM-I07 complete exact published graph survives late observation while missing corrupt packages or drain SQL faults cannot release",
@@ -19330,11 +19476,278 @@
       "impactTags": [
         "p7-scheduled-terminal",
         "p7-optional-budget-completion",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "v40-research-groups-impact"
       ],
       "prerequisites": "Real files/SQLite/managed Node where applicable; synthetic protocol data is not supplier success.",
       "assertions": "tests/integration/scheduled-terminal.test.ts :: P7-TERM-I08 never-attempted budget-exhausted optional closure can remain unperformed only after exact quiet required publication",
       "cleanup": "Stop owned processes and retain original failed evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-groups.001",
+      "name": "P8-GRP-I01 actual five-material receipt freezes full mandatory coverage and installs same-Run graph final floor and real claims",
+      "suiteId": "integration-research-groups",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p8-research-groups-foundation"
+      ],
+      "scenario": "P8-GRP-I01 actual five-material receipt freezes full mandatory coverage and installs same-Run graph final floor and real claims",
+      "impactTags": [
+        "p8-research-groups-foundation",
+        "v40-research-groups-impact"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
+      "assertions": "tests/integration/research-groups.test.ts :: P8-GRP-I01 actual five-material receipt freezes full mandatory coverage and installs same-Run graph final floor and real claims",
+      "cleanup": "Stop only owned processes and preserve raw outputs, exclusive receipts, unknown accounting and prior failures; no paid call or native device.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-groups.002",
+      "name": "P8-GRP-I02 parent SQLite rollback and stale CAS pause cancel reject group authority without partial graph floor or receipts",
+      "suiteId": "integration-research-groups",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p8-research-groups-foundation"
+      ],
+      "scenario": "P8-GRP-I02 parent SQLite rollback and stale CAS pause cancel reject group authority without partial graph floor or receipts",
+      "impactTags": [
+        "p8-research-groups-foundation",
+        "v40-research-groups-impact"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
+      "assertions": "tests/integration/research-groups.test.ts :: P8-GRP-I02 parent SQLite rollback and stale CAS pause cancel reject group authority without partial graph floor or receipts",
+      "cleanup": "Stop only owned processes and preserve raw outputs, exclusive receipts, unknown accounting and prior failures; no paid call or native device.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-groups.003",
+      "name": "P8-GRP-I03 unknown acquisition and unknown shared claim accounting preserve reservations effects and block new dispatch",
+      "suiteId": "integration-research-groups",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p8-research-groups-foundation"
+      ],
+      "scenario": "P8-GRP-I03 unknown acquisition and unknown shared claim accounting preserve reservations effects and block new dispatch",
+      "impactTags": [
+        "p8-research-groups-foundation",
+        "v40-research-groups-impact"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
+      "assertions": "tests/integration/research-groups.test.ts :: P8-GRP-I03 unknown acquisition and unknown shared claim accounting preserve reservations effects and block new dispatch",
+      "cleanup": "Stop only owned processes and preserve raw outputs, exclusive receipts, unknown accounting and prior failures; no paid call or native device.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-groups.004",
+      "name": "P8-GRP-I04 missing coverage expanded requests tampered host plan partial input and changed archive cannot grant installation",
+      "suiteId": "integration-research-groups",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p8-research-groups-foundation"
+      ],
+      "scenario": "P8-GRP-I04 missing coverage expanded requests tampered host plan partial input and changed archive cannot grant installation",
+      "impactTags": [
+        "p8-research-groups-foundation",
+        "v40-research-groups-impact"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
+      "assertions": "tests/integration/research-groups.test.ts :: P8-GRP-I04 missing coverage expanded requests tampered host plan partial input and changed archive cannot grant installation",
+      "cleanup": "Stop only owned processes and preserve raw outputs, exclusive receipts, unknown accounting and prior failures; no paid call or native device.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-groups.005",
+      "name": "P8-GRP-I05 two actual Node processes use SQLite CAS for one exact same-Run claim and never double-reserve",
+      "suiteId": "integration-research-groups",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p8-research-groups-foundation"
+      ],
+      "scenario": "P8-GRP-I05 two actual Node processes use SQLite CAS for one exact same-Run claim and never double-reserve",
+      "impactTags": [
+        "p8-research-groups-foundation",
+        "v40-research-groups-impact"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
+      "assertions": "tests/integration/research-groups.test.ts :: P8-GRP-I05 two actual Node processes use SQLite CAS for one exact same-Run claim and never double-reserve",
+      "cleanup": "Stop only owned processes and preserve raw outputs, exclusive receipts, unknown accounting and prior failures; no paid call or native device.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-groups.006",
+      "name": "P8-GRP-I06 actual process exit inside install transaction rolls back graph floor and scheduler and restart reuses exact owned preparation",
+      "suiteId": "integration-research-groups",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p8-research-groups-foundation"
+      ],
+      "scenario": "P8-GRP-I06 actual process exit inside install transaction rolls back graph floor and scheduler and restart reuses exact owned preparation",
+      "impactTags": [
+        "p8-research-groups-foundation",
+        "v40-research-groups-impact"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
+      "assertions": "tests/integration/research-groups.test.ts :: P8-GRP-I06 actual process exit inside install transaction rolls back graph floor and scheduler and restart reuses exact owned preparation",
+      "cleanup": "Stop only owned processes and preserve raw outputs, exclusive receipts, unknown accounting and prior failures; no paid call or native device.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-groups.007",
+      "name": "P8-GRP-I07 ordinary runtime and ordinary engineering install guards remain exact while registered native material acquisition stays runnable",
+      "suiteId": "integration-research-groups",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p8-research-groups-foundation"
+      ],
+      "scenario": "P8-GRP-I07 ordinary runtime and ordinary engineering install guards remain exact while registered native material acquisition stays runnable",
+      "impactTags": [
+        "p8-research-groups-foundation",
+        "v40-research-groups-impact"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
+      "assertions": "tests/integration/research-groups.test.ts :: P8-GRP-I07 ordinary runtime and ordinary engineering install guards remain exact while registered native material acquisition stays runnable",
+      "cleanup": "Stop only owned processes and preserve raw outputs, exclusive receipts, unknown accounting and prior failures; no paid call or native device.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-group-execution.001",
+      "name": "P8-GROUP-EXEC-I01 actual material spans schema and complete unavailable coverage reject fabricated quotations cross-material summaries and omitted gaps",
+      "suiteId": "integration-research-group-execution",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p8-research-groups-execution"
+      ],
+      "scenario": "P8-GROUP-EXEC-I01 actual material spans schema and complete unavailable coverage reject fabricated quotations cross-material summaries and omitted gaps",
+      "impactTags": [
+        "p8-research-groups-execution",
+        "v40-research-groups-impact"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
+      "assertions": "tests/integration/research-group-execution.test.ts :: P8-GROUP-EXEC-I01 actual material spans schema and complete unavailable coverage reject fabricated quotations cross-material summaries and omitted gaps",
+      "cleanup": "Stop only owned processes and preserve raw outputs, exclusive receipts, unknown accounting and prior failures; no paid call or native device.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-group-execution.002",
+      "name": "P8-GROUP-EXEC-I02 actual stopped branches publish submitted host extractions and full original analysis freezes exact refs through native P4 binding",
+      "suiteId": "integration-research-group-execution",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p8-research-groups-execution"
+      ],
+      "scenario": "P8-GROUP-EXEC-I02 actual stopped branches publish submitted host extractions and full original analysis freezes exact refs through native P4 binding",
+      "impactTags": [
+        "p8-research-groups-execution",
+        "v40-research-groups-impact"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
+      "assertions": "tests/integration/research-group-execution.test.ts :: P8-GROUP-EXEC-I02 actual stopped branches publish submitted host extractions and full original analysis freezes exact refs through native P4 binding",
+      "cleanup": "Stop only owned processes and preserve raw outputs, exclusive receipts, unknown accounting and prior failures; no paid call or native device.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-group-execution.003",
+      "name": "P8-GROUP-EXEC-I03 actual structured refusal late pause cancel and unknown accounting retain raw output stop and original budget without TaskResult",
+      "suiteId": "integration-research-group-execution",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p8-research-groups-execution"
+      ],
+      "scenario": "P8-GROUP-EXEC-I03 actual structured refusal late pause cancel and unknown accounting retain raw output stop and original budget without TaskResult",
+      "impactTags": [
+        "p8-research-groups-execution",
+        "v40-research-groups-impact"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
+      "assertions": "tests/integration/research-group-execution.test.ts :: P8-GROUP-EXEC-I03 actual structured refusal late pause cancel and unknown accounting retain raw output stop and original budget without TaskResult",
+      "cleanup": "Stop only owned processes and preserve raw outputs, exclusive receipts, unknown accounting and prior failures; no paid call or native device.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-group-execution.004",
+      "name": "P8-GROUP-EXEC-I04 actually running writer and rehashed host receipt cannot forge publication or free shared reservations",
+      "suiteId": "integration-research-group-execution",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p8-research-groups-execution"
+      ],
+      "scenario": "P8-GROUP-EXEC-I04 actually running writer and rehashed host receipt cannot forge publication or free shared reservations",
+      "impactTags": [
+        "p8-research-groups-execution",
+        "v40-research-groups-impact"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
+      "assertions": "tests/integration/research-group-execution.test.ts :: P8-GROUP-EXEC-I04 actually running writer and rehashed host receipt cannot forge publication or free shared reservations",
+      "cleanup": "Stop only owned processes and preserve raw outputs, exclusive receipts, unknown accounting and prior failures; no paid call or native device.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-group-execution.005",
+      "name": "P8-GROUP-EXEC-I05 actual Manager JSON line transport requests read-only and exact structured schema then persists raw stopped extraction",
+      "suiteId": "integration-research-group-execution",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p8-research-groups-execution"
+      ],
+      "scenario": "P8-GROUP-EXEC-I05 actual Manager JSON line transport requests read-only and exact structured schema then persists raw stopped extraction",
+      "impactTags": [
+        "p8-research-groups-execution",
+        "v40-research-groups-impact"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
+      "assertions": "tests/integration/research-group-execution.test.ts :: P8-GROUP-EXEC-I05 actual Manager JSON line transport requests read-only and exact structured schema then persists raw stopped extraction",
+      "cleanup": "Stop only owned processes and preserve raw outputs, exclusive receipts, unknown accounting and prior failures; no paid call or native device.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-group-execution.006",
+      "name": "P8-GROUP-EXEC-I06 actual worker tick automatically installs once and records immutable input failure as readable blocked state across restart",
+      "suiteId": "integration-research-group-execution",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p8-research-groups-execution"
+      ],
+      "scenario": "P8-GROUP-EXEC-I06 actual worker tick automatically installs once and records immutable input failure as readable blocked state across restart",
+      "impactTags": [
+        "p8-research-groups-execution",
+        "v40-research-groups-impact"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
+      "assertions": "tests/integration/research-group-execution.test.ts :: P8-GROUP-EXEC-I06 actual worker tick automatically installs once and records immutable input failure as readable blocked state across restart",
+      "cleanup": "Stop only owned processes and preserve raw outputs, exclusive receipts, unknown accounting and prior failures; no paid call or native device.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-group-execution.007",
+      "name": "P8-GROUP-EXEC-I07 actual process exit after exclusive host receipt recovers original evidence once without replay or duplicate fee",
+      "suiteId": "integration-research-group-execution",
+      "module": "runtime",
+      "layer": "integration",
+      "covers": [
+        "p8-research-groups-execution"
+      ],
+      "scenario": "P8-GROUP-EXEC-I07 actual process exit after exclusive host receipt recovers original evidence once without replay or duplicate fee",
+      "impactTags": [
+        "p8-research-groups-execution",
+        "v40-research-groups-impact"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
+      "assertions": "tests/integration/research-group-execution.test.ts :: P8-GROUP-EXEC-I07 actual process exit after exclusive host receipt recovers original evidence once without replay or duplicate fee",
+      "cleanup": "Stop only owned processes and preserve raw outputs, exclusive receipts, unknown accounting and prior failures; no paid call or native device.",
       "status": "active"
     }
   ]

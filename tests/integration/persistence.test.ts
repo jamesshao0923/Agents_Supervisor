@@ -73,9 +73,10 @@ const schema12Tables = ['supervision_concern_bindings','supervision_concern_inva
 const schema14Tables = ['supervision_author_routes'];
 const schema15Tables = ['scheduled_loop_events','scheduled_loop_receipts','scheduled_loop_decisions','scheduled_loop_iterations','scheduled_loop_states','scheduled_loop_programs','scheduled_task_origins','scheduled_plan_revisions'];
 const schema16Tables = ['control_maintenance_events','control_maintenance_receipts','control_maintenance_replays','supervision_control_maintenance'];
+const schema19Tables = ['research_group_events', 'research_group_receipts', 'research_group_registrations'];
 const schema18Tables = ['scheduled_exploration_policy'];
 const schema17Tables = ['research_workflow_plans','research_artifact_evidence','research_delivery_seals'];
-const dropSchema11 = [...schema18Tables,...schema17Tables,...schema16Tables,...schema15Tables,...schema14Tables,...schema13Tables,...schema12Tables,...schema11Tables].map(table => `DROP TABLE ${table};`).join(' ');
+const dropSchema11 = [...schema19Tables,...schema18Tables,...schema17Tables,...schema16Tables,...schema15Tables,...schema14Tables,...schema13Tables,...schema12Tables,...schema11Tables].map(table => `DROP TABLE ${table};`).join(' ');
 
 test('persistence migrates real disk database and reopens state events budgets and receipts', (t) => {
   const f = fixture(t); let store = f.open(); seed(store);
@@ -100,8 +101,8 @@ test('persistence migrates real disk database and reopens state events budgets a
   assert.equal(getRun(store).budget.spent, 3); assert.equal(getRun(store).attempts[0]?.settled, true);
   assert.deepEqual(store.query({ type: 'catalog', projectId: 'project' }), null);
   const raw = new DatabaseSync(join(f.root, 'supervisor.sqlite'));
-  assert.equal(raw.prepare('PRAGMA user_version').get()?.['user_version'], 18);
-  assert.equal(raw.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get()?.['n'], 18);
+  assert.equal(raw.prepare('PRAGMA user_version').get()?.['user_version'], 19);
+  assert.equal(raw.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get()?.['n'], 19);
   assert.equal(raw.prepare('PRAGMA journal_mode').get()?.['journal_mode'], 'wal'); raw.close();
   const repeated = store.command({ type: 'act', commandId: 'settle', projectId: 'project', runId: 'run', expectedRevision: 2, action: { type: 'settleAttempt', attemptId: 'attempt', actual: 3 } });
   assert.deepEqual(repeated.value, before);
@@ -112,8 +113,8 @@ test('persistence migrates real disk database and reopens state events budgets a
   v4.exec(`PRAGMA foreign_keys=OFF; ${dropSchema11} DROP TABLE verification_lineage_receipts; DROP TABLE verification_binding_issues; DROP TABLE verification_lineage_heads; DROP TABLE verification_proposal_bindings; DROP TABLE verification_contract_transitions; DROP TABLE verification_run_bindings; DROP TABLE verification_lineages; DROP TABLE supervision_monitor_events; DROP TABLE supervision_interruptions; DROP TABLE supervision_receipts; DROP TABLE supervision_jobs; DROP TABLE supervision_loops; DROP TABLE conversation_assessments; DROP TABLE conversation_messages; DROP TABLE conversation_rounds; DROP TABLE conversations; DROP TABLE goal_receipts; DROP TABLE goal_sessions; DROP TABLE verification_product_receipts; DROP TABLE verification_product_heads; DROP TABLE verification_records; DELETE FROM schema_migrations WHERE version>4; PRAGMA user_version=4;`); v4.close();
   store = f.open(); assert.deepEqual(getRun(store), before); assert.deepEqual(store.query({ type: 'events', projectId: 'project', after: 0 }), events); assert.deepEqual(store.runtime.inspect(runtime.id), runtimeBefore); assert.deepEqual(store.runtime.events(runtime.id, 0), runtimeEvents);
   const upgraded = new DatabaseSync(join(f.root, 'supervisor.sqlite'));
-  assert.equal(upgraded.prepare('PRAGMA user_version').get()?.['user_version'], 18); assert.equal(upgraded.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get()?.['n'], 18);
-  for (const table of ['verification_records', 'verification_product_heads', 'verification_product_receipts','conversations','conversation_rounds','conversation_messages','conversation_assessments','supervision_loops','supervision_jobs','supervision_receipts','supervision_interruptions','supervision_monitor_events',...schema11Tables,...schema12Tables,...schema13Tables,...schema14Tables,...schema15Tables,...schema16Tables,...schema17Tables,...schema18Tables]) assert.equal(upgraded.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()?.['n'], table==='scheduled_meta'?1:0, table);
+  assert.equal(upgraded.prepare('PRAGMA user_version').get()?.['user_version'], 19); assert.equal(upgraded.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get()?.['n'], 19);
+  for (const table of ['verification_records', 'verification_product_heads', 'verification_product_receipts','conversations','conversation_rounds','conversation_messages','conversation_assessments','supervision_loops','supervision_jobs','supervision_receipts','supervision_interruptions','supervision_monitor_events',...schema11Tables,...schema12Tables,...schema13Tables,...schema14Tables,...schema15Tables,...schema16Tables,...schema17Tables,...schema18Tables,...schema19Tables]) assert.equal(upgraded.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()?.['n'], table==='scheduled_meta'?1:0, table);
   upgraded.close(); assert.deepEqual(store.command({ type: 'act', commandId: 'settle', projectId: 'project', runId: 'run', expectedRevision: 2, action: { type: 'settleAttempt', attemptId: 'attempt', actual: 3 } }).value, before);
   // Upgrade an actual v8 supervision ledger with unresolved usage. The additive
   // monitor tables must not release its reservation or fabricate recovery.
@@ -125,9 +126,9 @@ test('persistence migrates real disk database and reopens state events budgets a
   v8.exec(`PRAGMA foreign_keys=OFF; ${dropSchema11} DROP TABLE verification_lineage_receipts; DROP TABLE verification_binding_issues; DROP TABLE verification_lineage_heads; DROP TABLE verification_proposal_bindings; DROP TABLE verification_contract_transitions; DROP TABLE verification_run_bindings; DROP TABLE verification_lineages; DROP TABLE supervision_monitor_events; DROP TABLE supervision_interruptions; DELETE FROM schema_migrations WHERE version>=9; PRAGMA user_version=8;`);v8.close();
   store=f.open();assert.deepEqual(store.supervision.get(loop.id),supervisionBefore);assert.deepEqual(store.supervision.jobs(loop.id),jobsBefore);assert.deepEqual(store.runtime.inspect(runtime.id),ledgerBefore);
   const latest = new DatabaseSync(join(f.root, 'supervisor.sqlite'));
-  assert.equal(latest.prepare('PRAGMA user_version').get()?.['user_version'], 18);
-  assert.equal(latest.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get()?.['n'], 18);
-  for (const table of [...schema11Tables,...schema12Tables,...schema13Tables,...schema14Tables,...schema15Tables,...schema16Tables,...schema17Tables,...schema18Tables]) assert.equal(latest.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()?.['n'], table==='scheduled_meta'?1:0, table);
+  assert.equal(latest.prepare('PRAGMA user_version').get()?.['user_version'], 19);
+  assert.equal(latest.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get()?.['n'], 19);
+  for (const table of [...schema11Tables,...schema12Tables,...schema13Tables,...schema14Tables,...schema15Tables,...schema16Tables,...schema17Tables,...schema18Tables,...schema19Tables]) assert.equal(latest.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()?.['n'], table==='scheduled_meta'?1:0, table);
   latest.close();
   assert.equal(store.supervisionMonitor.envelope(loop.id),null);assert.deepEqual(store.supervisionMonitor.events(loop.id),[]);assert.deepEqual(store.supervisionInterruptions.list(loop.id),[]);
   assert.throws(()=>store.supervision.beginJob({commandId:'post-migration',loopId:loop.id,expectedRevision:supervisionBefore.revision,purpose:'diagnosis',context:{}}),/Unresolved/);

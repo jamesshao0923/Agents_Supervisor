@@ -1,3 +1,4 @@
+import {researchGroupsPromptSuffix} from '../orchestration/research-group-output.js';
 import {publishResearchRoundReports,researchReportContents,type ResearchRoundPublicationHooks} from './research-round-publication.js';
 import {inspectProcess,type ProcessIdentity} from '../process-control/index.js';
 import {mkdir,readFile,writeFile,lstat,realpath,readdir} from 'node:fs/promises';
@@ -40,7 +41,10 @@ export class ResearchRuntimeActivity {
   const binding=op.step.research,runtime=this.store.runtime.get(op.runtimeId),source=this.store.runtime.currentOperations(runtime.id).find(item=>item.step.id===binding.acquisitionStepId);
   assertTrue(source?.state==='confirmed'&&source.step.kind==='materials','Research needs actual completed materials step');const receipt=(source.result as {kind:string;receipt:MaterialsReceipt}).receipt;
   const context=await captureResearchEvidence({intake:this.intake,material:receipt.material,contract:this.store.runtime.inspect(runtime.id).run.contract,requirements:binding.requirements,limits:binding.limits});
-  const outputSchema=researchProposalSchema(context),prompt=researchExecutionPrompt(op.step.prompt,context),body={schemaVersion:1 as const,operationId:op.id,acquisitionOperationId:source.id,contractVersion:op.contractVersion,context,outputSchema,prompt,reportDirectory:binding.reportDirectory};const input:ResearchExecutionPackage={...body,digest:researchDigest(body)};
+  const groups=this.store.researchGroups.aggregate(runtime.id);
+  const outputSchema=researchProposalSchema(context),prompt=researchExecutionPrompt(op.step.prompt,context)+(groups?researchGroupsPromptSuffix(groups):'');
+  assertTrue(prompt.length<=context.limits.maxContextChars&&prompt.length<=200000,'Complete research prompt with actual groups exceeds capacity; no input was truncated');
+  const body={schemaVersion:1 as const,operationId:op.id,acquisitionOperationId:source.id,contractVersion:op.contractVersion,context,...(groups?{groups}:{}),outputSchema,prompt,reportDirectory:binding.reportDirectory};const input:ResearchExecutionPackage={...body,digest:researchDigest(body)};
   const directory=await privateDirectory(this.dataRoot,'research-inputs',op.id),path=join(directory,'input.json');await exclusiveJSON(path,input);this.store.runtime.setResearchInput(op.id,owner,{kind:'research-input',path,digest:input.digest,package:input});
  }
  async materialize(record:ExecutionRecord):Promise<ResearchCompletionReceipt> {

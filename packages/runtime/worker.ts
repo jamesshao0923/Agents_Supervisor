@@ -1,3 +1,4 @@
+import {ResearchGroupActivity} from './research-group-activity.js';
 import {ResearchRuntimeActivity} from './research-activity.js';
 import {ScheduledRuntimeWorker} from './scheduled-worker.js';
 import { createHash } from 'node:crypto';
@@ -104,6 +105,7 @@ export class LocalRuntimeWorker {
       return;
     }
     if (runtime.cancelled || runtime.paused || runtime.cursor >= runtime.definition.steps.length) return;
+    new ResearchGroupActivity(this.store,this.dataDir).advance(runtimeId);
     const claimed = this.store.runtime.claim(runtimeId, this.owner);
     if (claimed) await this.execute(claimed);
   }

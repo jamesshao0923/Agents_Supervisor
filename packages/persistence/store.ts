@@ -1,3 +1,4 @@
+import {ResearchGroupsRepository} from './research-groups.js';
 import {ControlMaintenanceRepository} from './control-maintenance.js';
 import {ResearchWorkflowRepository} from './research-workflow.js';
 import {ScheduledLoopRepository} from './scheduled-loops.js';
@@ -50,6 +51,7 @@ function digest(content: string | Uint8Array): string {
 export class SupervisorStore {
   private readonly db: DatabaseSync;
   readonly runtime: RuntimeRepository;
+  readonly researchGroups: ResearchGroupsRepository;
   readonly scheduler: TaskSchedulerRepository;
   readonly scheduledLoops:ScheduledLoopRepository;
   readonly authorRouting: AuthorRoutingRepository;
@@ -84,6 +86,7 @@ export class SupervisorStore {
     this.db = new DatabaseSync(database);
     try { migrate(this.db); new VerificationLineageRepository(this.db).migrateLegacyBindings({commandId:'schema10-legacy-bindings'}); } catch (error) { this.db.close(); throw error; }
     this.runtime = new RuntimeRepository(this.db,this.root);
+    this.researchGroups = new ResearchGroupsRepository(this.db,this.root,Date.now,options.fault);
     this.scheduler = new TaskSchedulerRepository(this.db,this.root);
     this.scheduledLoops=new ScheduledLoopRepository(this.db,this.root);
     this.authorRouting = new AuthorRoutingRepository(this.db,this.root);
@@ -106,7 +109,7 @@ export class SupervisorStore {
   isManagedProject(projectId: string): boolean { return !!this.db.prepare('SELECT id FROM runtime_runs WHERE project_id=? UNION ALL SELECT id FROM executions WHERE project_id=? UNION ALL SELECT id FROM goal_sessions WHERE project_id=? LIMIT 1').get(projectId,projectId,projectId); }
   close(): void { this.db.close(); }
 
-  executionCreate(input: ResolvedExecutionStart, binding?: import('../contracts/p3.js').RuntimeBinding | import('../contracts/p7-dispatch.js').ScheduledBinding) { return executionCreate(this.db, input, binding, this.scheduler); }
+  executionCreate(input: ResolvedExecutionStart, binding?: import('../contracts/p3.js').RuntimeBinding | import('../contracts/p7-dispatch.js').ScheduledBinding) { return executionCreate(this.db, input, binding, this.scheduler, this.runtime); }
   executionGet(id: string) { return executionGet(this.db, id); }
   executionList() { return executionList(this.db); }
   executionEvents(id: string, after: number) { return executionEvents(this.db, id, after); }
