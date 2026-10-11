@@ -6,7 +6,7 @@
 
 ## 当前执行范围：个人实地试用
 
-2026-10-11 用户明确授权缩减 P6–P8 审核，同时记录未验范围和风险。当前执行以 [精简验收与实地补验](field-validation.md) 及 `tests/acceptance/p6.json`、`p7.json`、`p8.json` 为准：默认完整 suite 展开分别为 **48 / 47 / 51** 项，跨阶段去重为 **138** 项。旧清单存档于 `tests/acceptance/extended/`，逐项延期及原始版本记录于 `tests/acceptance/deferred-p6-p8.json`。
+2026-10-11 用户明确授权缩减 P6–P8 审核，同时记录未验范围和风险。当前执行以 [精简验收与实地补验](field-validation.md) 及 `tests/acceptance/p6.json`、`p7.json`、`p8.json` 为准：默认完整 suite 展开分别为 **49 / 47 / 51** 项，跨阶段去重为 **139** 项。旧清单存档于 `tests/acceptance/extended/`，逐项延期及原始版本记录于 `tests/acceptance/deferred-p6-p8.json`。
 
 下文原完整门禁和历史检查点保留为长期设计与证据，不再自动作为当前个人试用的全部前置条件。保留的 P6 真实在途跟进/恢复/交付、自主修复，以及 P7 真实并行集成交付仍需实际通过；组件测试不能替代它们。移动双平台完整样板、原生 UI 全矩阵、多代研究和效率对照等延期项在实地触发时按风险补验。旧失败仍是失败，阶段目前仍为 developing；范围调整不降低 Supervisor 对用户项目的业务验收要求。
 

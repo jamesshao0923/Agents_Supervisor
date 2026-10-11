@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-v51-indexed-history-deferred-candidate",
+  "revision": "dev-p6-stage-recovery-separated-20261012",
   "modules": [
     {
       "id": "dev-contracts",
@@ -1070,7 +1070,7 @@
       "id": "integration-author-stages",
       "layer": "integration",
       "file": "dist/tests/integration/author-stages.test.js",
-      "timeoutMs": 180000
+      "timeoutMs": 300000
     },
     {
       "id": "unit-research-reader-views",
@@ -11251,20 +11251,20 @@
     },
     {
       "id": "p6.integration-supervision-monitor-controller.007",
-      "name": "P6-MCTL-I07 one real wake timer records four consecutive 10\u201315-second health intervals and pause/resume without model allocation",
+      "name": "P6-MCTL-I07 one real wake timer records four consecutive 10–15-second health intervals and pause/resume without model allocation",
       "suiteId": "integration-supervision-monitor-controller",
       "module": "orchestration",
       "layer": "integration",
       "covers": [
         "p6-monitor-controller"
       ],
-      "scenario": "P6-MCTL-I07 one real wake timer records four consecutive 10\u201315-second health intervals and pause/resume without model allocation",
+      "scenario": "P6-MCTL-I07 one real wake timer records four consecutive 10–15-second health intervals and pause/resume without model allocation",
       "impactTags": [
         "p6-monitor-foundation",
         "v38-combined-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
-      "assertions": "tests/integration/supervision-monitor-controller.test.ts :: P6-MCTL-I07 one real wake timer records four consecutive 10\u201315-second health intervals and pause/resume without model allocation",
+      "assertions": "tests/integration/supervision-monitor-controller.test.ts :: P6-MCTL-I07 one real wake timer records four consecutive 10–15-second health intervals and pause/resume without model allocation",
       "cleanup": "Stop owned processes and preserve formal evidence including failures",
       "status": "active"
     },
@@ -21479,6 +21479,26 @@
       ],
       "prerequisites": "Actual SQLite/FS/managed Node; explicit synthetic model JSON and usage, no provider approval.",
       "assertions": "tests/integration/author-stages.test.ts :: P6-AUTH-STAGE-I02 stage preflight and interrupted accounting reject without extra calls or fabricated progress",
+      "cleanup": "Close actual runners/controllers/stores, confirm owned Node stop, remove isolated fixture; retain run reports and prior failures.",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-author-stages.003",
+      "name": "P6-AUTH-STAGE-I03 rejected fragment is regenerated once with charged ancestry and no fifth-call allowance",
+      "suiteId": "integration-author-stages",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-author-stage-recovery"
+      ],
+      "scenario": "Actual complete rejected V2 negative fragment, charged same-session replacement, immutable parents and raw failure, reopen/no replay, ordinary P4 rejection, max4 rejects a fifth author call.",
+      "impactTags": [
+        "p6-author-stages",
+        "p6-author-stage-recovery",
+        "p6-author-routing"
+      ],
+      "prerequisites": "Actual SQLite/FS/managed Node; explicit synthetic model JSON and usage, no provider approval.",
+      "assertions": "tests/integration/author-stages.test.ts :: P6-AUTH-STAGE-I03 rejected fragment is regenerated once with charged ancestry and no fifth-call allowance",
       "cleanup": "Close actual runners/controllers/stores, confirm owned Node stop, remove isolated fixture; retain run reports and prior failures.",
       "status": "active"
     },

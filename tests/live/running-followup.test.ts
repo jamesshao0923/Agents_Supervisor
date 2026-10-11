@@ -1,3 +1,4 @@
+import {parseStageRecoveryInput} from '../../packages/orchestration/author-stage-recovery-presentation.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,mkdir,realpath,writeFile,readFile,cp,appendFile} from 'node:fs/promises';
@@ -15,8 +16,8 @@ import {authorWireInput,type PresentedAuthorInput} from '../../packages/orchestr
 import type {SupervisionJob} from '../../packages/contracts/p6-supervision.js';
 import type {Run} from '../../packages/contracts/p1.js';
 import {parseAuthorStageInput,parseAuthorStageOutput,authorStageDigest} from '../../packages/orchestration/author-stage-protocol.js';
-import {assertStoredAuthorStage,assertAuthorStageParents,assertAuthorStageAssemblyProof} from '../../packages/orchestration/author-stage-proofs.js';
-import {resolveAuthorBundle,assertAuthorExpansionProof} from '../../packages/orchestration/author-result-patch.js';
+import {assertStoredAuthorStage,assertAuthorStageParents,assertAuthorStageAssemblyProof,authorStageChargePrefix,assertAuthorStagePolicy,readRejectedAuthorStage} from '../../packages/orchestration/author-stage-proofs.js';
+import {resolveAuthorBundle,assertAuthorExpansionProof,patchInput} from '../../packages/orchestration/author-result-patch.js';
 import {DatabaseSync} from 'node:sqlite';
 import {AuthorRoutingRepository} from '../../packages/persistence/author-routing.js';
 import {expectedAuthorRouteConfig} from '../../packages/orchestration/acceptance-authoring-route.js';
@@ -164,10 +165,30 @@ test('P6 running followup survives real service restart applies once and indepen
  const authors=delivered.jobs.filter(j=>j.purpose==='acceptance-authoring');assert.ok(authors.length>0);
  assert.equal(delivered.loop.authoringProtocol,'acceptance-stages-v2');
  const readAuthor=(id:string)=>{const job=delivered.jobs.find(j=>j.id===id);assert.ok(job,'Actual completed author ancestry must be present');return job;};
- const stages=authors.filter(job=>parseAuthorStageInput(job.input));
- assert.equal(stages.length,3,'All three actual provider fragments are required');
- assert.equal(new Set(stages.map(job=>parseAuthorStageInput(job.input)!.context.authorStage.sessionId)).size,1);
- assert.deepEqual(stages.map(job=>parseAuthorStageInput(job.input)!.context.authorStage.index).sort(),[0,1,2]);
+ const stageAttempts=authors.filter(job=>parseAuthorStageInput(job.input));
+ const acceptedAuthor=authors.find(job=>job.id===delivered.loop.references.authorJobId)!;
+ assert.ok(acceptedAuthor);assert.equal(acceptedAuthor.error,null);assert.ok(acceptedAuthor.result);
+ let finalStage=acceptedAuthor;const patchAncestors=new Set<string>();
+ while(patchInput(finalStage.input)){
+  assert.ok(!patchAncestors.has(finalStage.id)&&patchAncestors.size<3);
+  patchAncestors.add(finalStage.id);finalStage=readAuthor(patchInput(finalStage.input)!.context.authorPatch!.base.jobId);
+ }
+ const finalInput=parseAuthorStageInput(finalStage.input)!;assert.ok(finalInput);assert.equal(finalInput.context.authorStage.index,2);
+ const stages=[...finalInput.context.authorStage.parents.map(parent=>readAuthor(parent.jobId)),finalStage];
+ assert.equal(stages.length,3,'All three accepted actual provider fragments are required');
+ assert.equal(new Set(stageAttempts.map(job=>parseAuthorStageInput(job.input)!.context.authorStage.sessionId)).size,1);
+ assert.deepEqual(stages.map(job=>parseAuthorStageInput(job.input)!.context.authorStage.index),[0,1,2]);
+ const charged=[...authorStageChargePrefix(finalStage,readAuthor,data),finalStage];
+ assert.deepEqual(charged.map(job=>job.id).sort(),stageAttempts.map(job=>job.id).sort(),'Every failed/resumed fragment stays in the actual charged ancestry');
+ const rejectedFragments=charged.filter(job=>job.error&&job.modelStarted);
+ assert.ok(rejectedFragments.length<=1,'Only one failed fragment may be regenerated');
+ for(const job of charged){
+  assertAuthorStagePolicy(job,delivered.loop,readAuthor);
+  if(job.error&&job.modelStarted){const rejected=readRejectedAuthorStage(job,data);const raw=await modelProof(job.proofs,'/result.json');assert.deepEqual(raw.output,rejected.raw);assert.equal(job.result,null);}
+  if(job.error&&!job.modelStarted){assert.ok(parseStageRecoveryInput(job.input));assert.equal(job.usage,0);assert.equal(job.result,null);}
+  const replacement=parseStageRecoveryInput(job.input);
+  if(replacement){assert.ok(rejectedFragments.some(failed=>failed.id===replacement.context.stageRecovery.rejection.jobId));assertAuthorStageParents(job,readAuthor,data);}
+ }
  for(const job of stages){
   const binding=parseAuthorStageInput(job.input)!.context.authorStage;
   assert.equal(binding.sessionTokenCeiling,180_000);assert.equal(binding.perCallTimeoutMs,authorConfig.timeoutMs);
@@ -187,7 +208,8 @@ test('P6 running followup survives real service restart applies once and indepen
    assert.ok(capabilities.models.some((m:any)=>m.id===job.config.model&&m.reasoningEfforts.includes(job.config.effort)));
    const route=routes.forJob(job.id);
    if(!route||route.schemaVersion===1){
-    assert.equal(job.config.timeoutMs,authorConfig.timeoutMs);
+    if(parseStageRecoveryInput(job.input)){assertAuthorStagePolicy(job,delivered.loop,readAuthor);assert.ok(job.config.timeoutMs>=1000&&job.config.timeoutMs<=authorConfig.timeoutMs);}
+    else assert.equal(job.config.timeoutMs,authorConfig.timeoutMs);
    }else{
     assert.equal(route.schemaVersion,2);
     assertAuthorRouteJob(route,job,delivered.loop);
@@ -212,8 +234,6 @@ test('P6 running followup survives real service restart applies once and indepen
    await historicalJobEvidence(job,delivered.runtime.run);
   }
  }finally{routeDb.close();}
- const acceptedAuthor=authors.find(job=>job.id===delivered.loop.references.authorJobId)!;
- assert.ok(acceptedAuthor);assert.equal(acceptedAuthor.error,null);assert.ok(acceptedAuthor.result);
  const authored=await modelProof(acceptedAuthor.proofs,'/result.json');assert.equal(authored.result.threadId,acceptedAuthor.threadId);assert.equal(authored.result.usage,acceptedAuthor.usage);assert.deepEqual(authored.result.value,acceptedAuthor.result);assert.deepEqual(authored.output,acceptedAuthor.result);
 
  const resolvedAuthor=resolveAuthorBundle(acceptedAuthor,readAuthor,data);assert.ok(resolvedAuthor.receipt);

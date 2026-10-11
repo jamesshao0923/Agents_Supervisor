@@ -1,3 +1,4 @@
+import {renderStageRecoveryInput,parseStageRecoveryInput,AUTHOR_STAGE_RECOVERY_PROMPT} from '../../packages/orchestration/author-stage-recovery-presentation.js';
 import {authorWireReceipt} from '../../packages/orchestration/author-presentation-proofs.js';
 import * as stageProtocols from '../../packages/orchestration/author-stage-protocol.js';
 import * as stageV2 from '../../packages/orchestration/acceptance-authoring-stages-v2.js';
@@ -118,6 +119,22 @@ test('P6-AUTH-U01 strict proposed assets bind complete contract source environme
 
     assert.ok(wire.prompt.includes(JSON.stringify(c.contract.criteria[0]!.description).slice(1,-1)));
     // The legacy dispatcher path must reproduce the original stored and wire bytes exactly.
+    const rejectedRaw={...output,invalidFixture:'complete rejected fragment'};
+    const recovery={schemaVersion:1 as const,rejection:{jobId:'pure-rejected-stage',inputDigest:'d'.repeat(64),completionDigest:'e'.repeat(64),proofsDigest:'f'.repeat(64),rawOutputDigest:hash(JSON.stringify(rejectedRaw)),classification:'schema' as const,message:'pure schema rejection'},raw:rejectedRaw,previousAttempt:null};
+    const replacement=renderStageRecoveryInput({acceptance:c,candidate:{complete:'snapshot'},binding:v2.binding(index),parents},recovery);
+    assert.equal(replacement.prompt,AUTHOR_STAGE_RECOVERY_PROMPT);
+    assert.deepEqual(stageProtocols.parseAuthorStageInput(replacement),replacement);
+    assert.deepEqual(replacement.outputSchema,fresh.outputSchema);
+    assert.deepEqual(replacement.context.acceptance,c);assert.deepEqual(replacement.context.authorStageParents,parents);
+    assert.deepEqual(replacement.context.stageRecovery.raw,rejectedRaw);
+    const replacementWire=authorWireInput(replacement,'acceptance-authoring');
+    assert.ok(replacementWire.prompt.includes(freshWire.prompt));
+    assert.ok(replacementWire.prompt.includes(JSON.stringify(recovery)));
+    assert.deepEqual(authorWireReceipt({id:'pure-recovery',input:replacement,inputDigest:'pure',purpose:'acceptance-authoring'})?.presentation,{schemaVersion:10,kind:'acceptance-stage-recovery'});
+    for(const version of [false,null,0,9,11])assert.throws(()=>parseStageRecoveryInput({...replacement,context:{...replacement.context,authorPresentation:{schemaVersion:version,kind:'acceptance-stage-recovery'}}}));
+    assert.throws(()=>parseStageRecoveryInput({...replacement,context:{...replacement.context,stageRecovery:{...recovery,rejection:{...recovery.rejection,classification:['schema']}}}}));
+    assert.throws(()=>parseStageRecoveryInput({...replacement,outputSchema:{type:'object'}}));
+    assert.throws(()=>renderStageRecoveryInput({acceptance:c,candidate:{},binding:staged.binding(index) as unknown as HostAuthorStageBindingV2,parents},recovery));
     const oldParents=[staged.d,staged.p].slice(0,index);
     const oldInput=renderAuthorStageInput({acceptance:c,candidate:{complete:'snapshot'},binding:staged.binding(index),parents:oldParents});
     assert.equal(JSON.stringify(stageProtocols.renderAuthorStageInput({acceptance:c,candidate:{complete:'snapshot'},binding:staged.binding(index),parents:oldParents})),JSON.stringify(oldInput));

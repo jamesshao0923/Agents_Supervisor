@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "stage": "P6",
-  "revision": "p6-personal-trial-v1-developing",
+  "revision": "p6-personal-trial-stage-recovery-developing",
   "caseIds": [
     "p6.unit-loop-policy.001",
     "p6.unit-loop-policy.002",
@@ -46,7 +46,8 @@
     "p6.integration-runtime-cancellation-sync.005",
     "p6.live-running-followup.001",
     "p6.integration-author-stages.001",
-    "p6.integration-author-stages.002"
+    "p6.integration-author-stages.002",
+    "p6.integration-author-stages.003"
   ],
   "requiredRisks": [
     "p0.unit-boundaries.001",
@@ -58,7 +59,8 @@
     "p6-supervision-controller",
     "p6-autoloop-live",
     "p6-running-followup-live",
-    "p6-author-stages"
+    "p6-author-stages",
+    "p6-author-stage-recovery"
   ],
   "coreRegression": [
     "dev.unit-boundaries.001",

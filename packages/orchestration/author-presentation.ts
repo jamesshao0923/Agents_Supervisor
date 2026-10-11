@@ -1,3 +1,4 @@
+import {parseStageRecoveryInput,renderStageRecoveryPrompt} from './author-stage-recovery-presentation.js';
 import {parseAuthorStageInput,renderAuthorStagePrompt} from './author-stage-protocol.js';
 import {isIndexedCompact,expandIndexedHistoryContext,renderIndexedHistoryReferences,INDEXED_COMPACT_PROMPT} from './indexed-history-presentation.js';
 import {AUTHOR_PATCH_PROMPT,authorPatchSchema,patchInput,type AuthorPatchContext} from './author-result-patch.js';
@@ -28,8 +29,10 @@ export interface PresentedAuthorInput { prompt: string; outputSchema: Record<str
 
 /** A version selects a deterministic presentation, never grants authority. */
 export function authorWireInput(input: PresentedAuthorInput, purpose: string): PresentedAuthorInput & {presented: boolean} {
+  const recoveryStage=parseStageRecoveryInput(input);
+  if(recoveryStage){ensure(purpose==='acceptance-authoring','Only acceptance authors support stage recovery');return {...input,prompt:renderStageRecoveryPrompt(recoveryStage),presented:true};}
   const stage=parseAuthorStageInput(input);
-  if(stage){ensure(purpose==='acceptance-authoring','Only acceptance authors support stages');return {...input,prompt:renderAuthorStagePrompt(stage.context.acceptance,stage.context.authorStage,stage.context.authorStageParents,stage.context.authorPresentation.schemaVersion),presented:true};}
+  if(stage){ensure(purpose==='acceptance-authoring','Only acceptance authors support stages');return {...input,prompt:renderAuthorStagePrompt(stage.context.acceptance,stage.context.authorStage,stage.context.authorStageParents,stage.context.authorPresentation.schemaVersion as 6|8|9),presented:true};}
   if(isIndexedCompact(input.context)){ensure(purpose==='acceptance-authoring'&&input.prompt===INDEXED_COMPACT_PROMPT,'Referenced author marker/purpose changed');const expanded=expandIndexedHistoryContext(input.context);return {...input,context:expanded,prompt:renderIndexedHistoryReferences(input.context,renderIndexedHistoryEvolutionPromptV4(expanded.evolution)),presented:true};}
   const patch=patchInput(input);
   if(patch){

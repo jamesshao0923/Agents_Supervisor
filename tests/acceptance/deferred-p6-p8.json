@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
-  "date": "2026-10-11",
+  "date": "2026-10-12",
   "authorization": "User explicitly requested reduced P6-P8 acceptance tests with a record of omissions and potential risks for later field validation.",
   "scope": "Personal field-trial gate; source tests and original failures retained. Exclusion is not a pass or a claim of duplicate coverage.",
-  "catalogRevision": "dev-v51-indexed-history-deferred-candidate",
+  "catalogRevision": "dev-p6-stage-recovery-separated-20261012",
   "reason": "Deferred from default stage gate to shorten personal-trial delivery. Run when affected by changes, field failures, or before broader release.",
   "stages": {
     "P6": {
       "originalProfile": "tests/acceptance/extended/p6.json",
       "originalProfileSHA256": "b64e9b588d473bb0eea7644a4efa5124db9787b86b6233045fb2247067b38393",
       "previousDefaultCount": 656,
-      "newDefaultCount": 48,
+      "newDefaultCount": 49,
       "keptCaseIds": [
         "dev.unit-boundaries.001",
         "dev.unit-boundaries.002",
@@ -18,6 +18,7 @@
         "dev.unit-boundaries.004",
         "p6.integration-author-stages.001",
         "p6.integration-author-stages.002",
+        "p6.integration-author-stages.003",
         "p6.integration-runtime-cancellation-sync.001",
         "p6.integration-runtime-cancellation-sync.002",
         "p6.integration-runtime-cancellation-sync.003",
@@ -979,7 +980,11 @@
         "p6.integration-author-presentation.001",
         "p6.integration-author-presentation.002",
         "p6.integration-author-presentation.003"
-      ]
+      ],
+      "addedNewCaseIds": [
+        "p6.integration-author-stages.003"
+      ],
+      "addedNewCaseReason": "Independent stage-local recovery chain separated from original I01; all original I01 assertions and 120s bound retained. New I03 has its own 120s bound; suite sums 120+60+120=300s. No product deadline or deferred case changed."
     },
     "P7": {
       "originalProfile": "tests/acceptance/extended/p7.json",
@@ -2538,11 +2543,12 @@
       "kind": "scenario-gap-not-a-new-test-case-id",
       "relatedCaseIds": [
         "p6.integration-author-stages.001",
+        "p6.integration-author-stages.003",
         "p6.live-supervision-loop.001"
       ],
       "status": "not-demonstrated",
       "scope": "An explicitly higher call limit allows a successful fragment regeneration followed by a successful full-bundle V5 rebuild in the same author session.",
-      "currentEvidence": "Static independent review of charged ancestry; existing V1/V2 full-bundle rebuild tests do not include a prior failed fragment. The max4 fragment-recovery scenario checks refusal of a fifth call, not success of this combination. New recovery component candidate still has retained r1 failures and is not merged.",
+      "currentEvidence": "Static independent review of charged ancestry. Original V1/V2 full-bundle rebuild and the separate fragment-recovery components passed; the max4 scenario proves fifth-call refusal. Successful fragment regeneration followed by a full-bundle rebuild in one session has not been demonstrated. Original r1/r2 failures retained.",
       "reason": "Avoid adding an expanded combination matrix to the personal-trial gate; retain the original live scenario limits and independently review shared charge accounting.",
       "risk": "A later full rebuild might lose the rejected fragment or paused attempt linkage, miscalculate remaining allowance, or reject valid recovery despite each part working separately.",
       "revisitWhen": "A real task or the retained L01 naturally reaches fragment regeneration followed by full rebuild; modification of this charged ancestry; broader release. Add the minimal same-case check if needed; no automatic full historical rerun.",

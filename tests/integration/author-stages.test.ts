@@ -1,3 +1,6 @@
+import {beginAuthorStageRecovery} from '../../packages/orchestration/author-stage-recovery.js';
+import {parseStageRecoveryInput} from '../../packages/orchestration/author-stage-recovery-presentation.js';
+import {authorStageChargePrefix,readRejectedAuthorStage} from '../../packages/orchestration/author-stage-proofs.js';
 import assert from 'node:assert/strict';
 import test, {type TestContext} from 'node:test';
 import {createHash} from 'node:crypto';
@@ -14,7 +17,7 @@ import {beginAuthorStages,advanceAuthorStage} from '../../packages/orchestration
 import {authorStageDigest,parseAuthorStageInput} from '../../packages/orchestration/author-stage-protocol.js';
 import {assertStoredAuthorStage,assertAuthorStageAssemblyProof} from '../../packages/orchestration/author-stage-proofs.js';
 import {SupervisionReasoningRunner} from '../../packages/orchestration/supervision-reasoning.js';
-import {prepareReasonerTurn,type SupervisorReasoner,type ReasonerInput,type ReasonerResult} from '../../packages/orchestration/reasoner.js';
+import {prepareReasonerTurn,parseFinalReasonerOutput,ReasonerError,type SupervisorReasoner,type ReasonerInput,type ReasonerResult} from '../../packages/orchestration/reasoner.js';
 import {resolveAuthorBundle,patchInput,assertAuthorExpansionProof} from '../../packages/orchestration/author-result-patch.js';
 import {assertAuthorWireProof} from '../../packages/orchestration/author-presentation-proofs.js';
 import {acceptanceAuthoringContextDigest,materializeAcceptanceBundle,validateAcceptanceBundle,type AcceptanceAuthoringContext,type AcceptanceBundle} from '../../packages/orchestration/acceptance-authoring.js';
@@ -29,7 +32,9 @@ const sha=(value:string|Uint8Array)=>createHash('sha256').update(value).digest('
 // physical stop and P4 command execution. Model JSON and seven tokens per turn
 // are explicit protocol fixtures, never supplier reasoning or semantic approval.
 async function fixture(t:TestContext,options:{calls?:number;limit?:number;protocol?:AuthorStageProtocol}={}) {
+  const observedAt=Date.now(),diagnostic=(message:string)=>t.diagnostic(`[${options.protocol??AUTHOR_STAGE_PROTOCOL}] +${Date.now()-observedAt}ms ${message}`);
   const root=realpathSync(mkdtempSync('/tmp/sv-author-stages-'));
+  diagnostic('fixture created');
   const data=join(root,'data'),workspace=join(root,'workspace');mkdirSync(workspace);
   const content='export const value=2;\n';writeFileSync(join(workspace,'value.mjs'),content);
   const item={id:'value',description:'Export the exact value',kind:'command' as const,target:'value.mjs',checks:['Named value export equals two.']};
@@ -53,18 +58,19 @@ async function fixture(t:TestContext,options:{calls?:number;limit?:number;protoc
   const runners:SupervisionReasoningRunner[]=[];
   t.after(async()=>{for(const runner of runners)await runner.close();store.close();rmSync(root,{recursive:true,force:true});});
   return {root,data,workspace,runtime,loop,acceptance,candidate,bundle,fragments:[definition,positive,negative],
-    get store(){return store;},reopen(){runners.length=0;store.close();store=new SupervisorStore(data);},
-    begin(){return beginAuthorStages(store,loop.id,{acceptance,candidate});},
-    runner(transport:SupervisorReasoner){const runner=new SupervisionReasoningRunner(store,data,transport);runners.push(runner);return runner;},
+    get store(){return store;},reopen(){diagnostic('reopen');runners.length=0;store.close();store=new SupervisorStore(data);},
+    begin(){diagnostic('begin author stages');return beginAuthorStages(store,loop.id,{acceptance,candidate});},
+    runner(transport:SupervisorReasoner){if(transport instanceof NodeFragments)transport.diagnostic=diagnostic;const runner=new SupervisionReasoningRunner(store,data,transport);runners.push(runner);return runner;},
     pause(){const current=store.supervision.get(loop.id);store.supervision.update(current.id,current.revision,{paused:true});},
   };
 }
 
 class NodeFragments implements SupervisorReasoner {
   calls=0;
-  constructor(private readonly output:(request:ReasonerInput)=>unknown,private readonly options:{unknown?:boolean;afterStop?:()=>void;usage?:number}={}){}
+  diagnostic?:(message:string)=>void;
+  constructor(private readonly output:(request:ReasonerInput)=>unknown,private readonly options:{unknown?:boolean;afterStop?:()=>void;usage?:number;schemaRejection?:boolean}={}){}
   async request(input:ReasonerInput):Promise<ReasonerResult> {
-    this.calls++;
+    this.calls++;this.diagnostic?.(`actual request ${this.calls} ${input.id}`);
     const raw=JSON.stringify(this.output(input)),threadId='fixture-thread-'+input.id,turnId='fixture-turn-'+input.id;
     const result:ReasonerResult={value:null,usage:this.options.unknown?null:this.options.usage??7,threadId,turnId,proofFiles:[],stopConfirmed:false,modelStarted:false};
     await prepareReasonerTurn(input,result,()=>input.assertEligible?.());
@@ -74,7 +80,7 @@ class NodeFragments implements SupervisorReasoner {
     const child=await spawnManagedProcess({operationId:input.id+'-fragment',command:process.execPath,args:['-e',"process.stdout.write(require('node:fs').readFileSync(process.argv[1]))",requestPath],cwd:input.cwd,timeoutMs:input.timeoutMs,onBeforeSpawn:intent=>input.onIntent?.(intent),onIdentity:identity=>input.onIdentity?.(identity)});
     let stdout='';child.stdout.on('data',chunk=>stdout+=chunk);
     const stopped=await child.completion;
-    assert.equal((await inspectProcess(child.identity)).status,'stopped');assert.equal(stopped.stopped,true);
+    assert.equal((await inspectProcess(child.identity)).status,'stopped');assert.equal(stopped.stopped,true);this.diagnostic?.(`actual Node stopped ${input.id}`);
     const actual=JSON.parse(stdout);assert.deepEqual(actual,notification);
     const events=[
       {kind:'reasoner-input',value:{id:input.id,prompt:input.prompt,outputSchema:input.outputSchema,model:input.model,effort:input.effort,timeoutMs:input.timeoutMs,...(input.absoluteDeadlineMs!==undefined?{absoluteDeadlineMs:input.absoluteDeadlineMs}:{})}},
@@ -88,9 +94,13 @@ class NodeFragments implements SupervisorReasoner {
     writeFileSync(join(input.logDir,'output.txt'),actual.params.turn.items[0]!.text);
     result.value=JSON.parse(actual.params.turn.items[0]!.text);result.stopConfirmed=stopped.stopped;
     result.proofFiles=[requestPath,stdoutPath,eventsPath,join(input.logDir,'output.txt'),join(input.logDir,'result.json')];
+    let schemaError:unknown=null;
+    if(this.options.schemaRejection){try{result.value=parseFinalReasonerOutput(raw,input.outputSchema,result);}catch(error){result.value=null;schemaError=error;}}
     writeFileSync(join(input.logDir,'result.json'),JSON.stringify(result));
     await input.onUsage?.(this.options.usage??7);
+    this.diagnostic?.(`raw persisted ${input.id} usage=${result.usage}`);
     this.options.afterStop?.();
+    if(schemaError)throw new ReasonerError((schemaError as Error).message,result);
     return result;
   }
 }
@@ -191,6 +201,74 @@ test('P6-AUTH-STAGE-I01 actual three-stage author retains raw fragments and shar
   }
 });
 
+test('P6-AUTH-STAGE-I03 rejected fragment is regenerated once with charged ancestry and no fifth-call allowance',{timeout:120000},async t=>{
+  // Separate V2 ledger: the failed negative is charged evidence, never an
+  // accepted parent. Original I01 retains its full V1/V2 review-rebuild coverage.
+  const f=await fixture(t,{protocol:AUTHOR_STAGE_PROTOCOL_V2});
+  const bad=structuredClone(f.fragments[2]!) as AuthorNegativeStage;
+  bad.controls[0]!.fileChanges.push(structuredClone(bad.controls[0]!.fileChanges[0]!));
+  const transport=new NodeFragments(request=>{
+    const current=f.store.supervision.job(request.id),input=parseAuthorStageInput(current.input)!;
+    return input.context.authorStage.index===2&&!parseStageRecoveryInput(current.input)?bad:f.fragments[input.context.authorStage.index];
+  });
+  let runner=f.runner(transport),job=f.begin();const originals:SupervisionJob[]=[];
+  for(const index of [0,1]){const completed=await runner.run(job.id);originals.push(completed);job=advanceAuthorStage(f.store,f.data,completed)!;}
+  await assert.rejects(runner.run(job.id),/Supervision job has no applicable result/);
+  const failed=f.store.supervision.job(job.id),rejected=readRejectedAuthorStage(failed,f.data);
+  assert.equal(failed.error,'Author stage: overlapping file changes');assert.equal(failed.result,null);assert.equal(failed.usage,7);assert.equal(rejected.ref.classification,'semantic');assert.deepEqual(rejected.raw,bad);
+  assert.equal(f.store.runtime.inspect(f.runtime.id).run.budget.spent,21);
+  await runner.close();f.reopen();runner=f.runner(transport);await runner.initialize();
+  await assert.rejects(runner.run(failed.id),/Supervision job has no applicable result/);assert.equal(transport.calls,3);
+  t.diagnostic('I03 failed negative retained; begin replacement');
+  const replacement=await beginAuthorStageRecovery(f.store,f.data,failed.id);
+  assert.equal(replacement.config.reservation,9);assert.equal(replacement.config.timeoutMs,5000);
+  const input=parseStageRecoveryInput(replacement.input)!;
+  assert.equal(input.context.stageRecovery.rejection.jobId,failed.id);assert.equal(input.context.stageRecovery.previousAttempt,null);
+  assert.deepEqual(input.context.authorStage,parseAuthorStageInput(failed.input)!.context.authorStage);
+  assert.deepEqual(input.context.authorStageParents,parseAuthorStageInput(failed.input)!.context.authorStageParents);
+  assert.deepEqual(input.context.stageRecovery.raw,bad);
+  assert.deepEqual(await beginAuthorStageRecovery(f.store,f.data,failed.id),replacement);
+  assert.deepEqual(authorStageChargePrefix(replacement,id=>f.store.supervision.job(id),f.data).map(j=>j.id),[...originals,failed].map(j=>j.id));
+  const completed=await runner.run(replacement.id);t.diagnostic('I03 replacement completed');await assertProofs(f,completed);
+  assertAuthorStageAssemblyProof(completed,id=>f.store.supervision.job(id),f.data);
+  assert.deepEqual(resolveAuthorBundle(completed,id=>f.store.supervision.job(id),f.data).bundle,f.bundle);
+  assert.equal(f.store.supervision.get(f.loop.id).reasoningCount,4);assert.equal(f.store.runtime.inspect(f.runtime.id).run.budget.spent,28);
+  const before=f.store.runtime.inspect(f.runtime.id);
+  await assert.rejects(beginAuthorStageRecovery(f.store,f.data,completed.id),/original V2 fragment/);
+  assert.deepEqual(f.store.runtime.inspect(f.runtime.id),before);
+  assert.equal(f.store.authorRouting.routes(f.loop.id).length,0);assert.equal(f.store.verification.list('delivery').length,0);
+  for(const original of [...originals,failed])assert.deepEqual(f.store.supervision.job(original.id),original);
+  const run=f.store.runtime.inspect(f.runtime.id).run;
+  assert.ok(run.attempts.every(a=>a.settled));assert.ok(run.operations.every(o=>o.status==='confirmed'));assert.ok(run.leases.every(l=>l.released));
+  await runner.close();f.reopen();runner=f.runner(transport);await runner.initialize();
+  assert.deepEqual(await runner.run(completed.id),completed);assert.equal(transport.calls,4);
+  assert.deepEqual(await beginAuthorStageRecovery(f.store,f.data,failed.id),completed);
+  assertAuthorStageAssemblyProof(completed,id=>f.store.supervision.job(id),f.data);
+  // The recovered assembly still reaches ordinary real P4; using the fourth
+  // author call cannot authorize an unbudgeted fifth full-bundle rebuild.
+  t.diagnostic('I03 reopen verified; start ordinary P4');
+  const assets=await materializeAcceptanceBundle({privateRoot:join(f.data,'supervision','authoring'),jobId:completed.id,context:f.acceptance,bundle:f.bundle});
+  const p4=new VerificationController(f.store,f.data);await p4.initialize();
+  try{
+    const proposal=await p4.dispatch({type:'propose',commandId:'fragment-propose',runtimeId:f.runtime.id,specPath:assets.specPath}) as Proposal;
+    let review=await p4.dispatch({type:'review',commandId:'fragment-review',proposalId:proposal.id,model:'must-not-launch-provider',effort:'low',reservation:20,timeoutMs:15000}) as VerificationJob;
+    const deadline=Date.now()+15000;
+    while(review.status==='running'){assert.ok(Date.now()<deadline);await delay(25);review=f.store.verification.get('job',review.id);}
+    assert.equal(review.approved,false);assert.equal(review.modelStarted,false);assert.equal(review.usage,0);assert.equal(review.stopConfirmed,true);
+    assert.ok(review.controls.some(control=>control.results.some(result=>result.executionStatus==='verifier-error')));
+    const loop=f.store.supervision.get(f.loop.id);f.store.supervision.update(loop.id,loop.revision,{phase:'reviewing',references:{...loop.references,proposalId:proposal.id,reviewId:review.id}});
+    t.diagnostic('I03 P4 rejected; assess remaining full-patch allowance');
+    const rejection=await f.store.authorRouting.assess(f.loop.id,completed.id,true);
+    const request={commandId:'no-fifth-author',loopId:f.loop.id,previousJobId:completed.id,expectedRevision:f.store.supervision.get(f.loop.id).revision,rejection,capabilities:await capabilities(f.data)};
+    const before=f.store.runtime.inspect(f.runtime.id);
+    assert.throws(()=>f.store.authorRouting.beginV2(request),/reasoning limit exhausted/);
+    assert.deepEqual(f.store.runtime.inspect(f.runtime.id),before);assert.equal(f.store.authorRouting.routes(f.loop.id).length,0);
+    assert.equal(f.store.supervision.get(f.loop.id).reasoningCount,4);assert.equal(f.store.runtime.inspect(f.runtime.id).run.budget.spent,28);
+    assert.equal(f.store.verification.list('delivery').length,0);
+  }finally{await p4.close();}
+
+});
+
 test('P6-AUTH-STAGE-I02 stage preflight and interrupted accounting reject without extra calls or fabricated progress',{timeout:60000},async t=>{
   for(const protocol of [AUTHOR_STAGE_PROTOCOL,AUTHOR_STAGE_PROTOCOL_V2]) {
   for(const options of [{calls:2},{limit:49}]) {
@@ -243,4 +321,45 @@ test('P6-AUTH-STAGE-I02 stage preflight and interrupted accounting reject withou
     }
   }
   }
+  for(const calls of [4,5]) {
+    // Five calls are an explicit isolated component policy to exercise resume;
+    // the ordinary four-call policy must reject the same extra reservation.
+    const f=await fixture(t,{protocol:AUTHOR_STAGE_PROTOCOL_V2,calls}),first=f.begin();
+    const raw={...f.fragments[0],unexpected:'schema-invalid but complete JSON'};
+    const transport=new NodeFragments(()=>raw,{schemaRejection:true});let runner=f.runner(transport);
+    await assert.rejects(runner.run(first.id));const failed=f.store.supervision.job(first.id);
+    assert.equal(readRejectedAuthorStage(failed,f.data).ref.classification,'schema');assert.equal(failed.usage,7);
+    const replacement=await beginAuthorStageRecovery(f.store,f.data,failed.id);assert.equal(replacement.config.reservation,23);
+    f.pause();await assert.rejects(runner.run(replacement.id),/Supervision job has no applicable result/);
+    const paused=f.store.supervision.job(replacement.id);assert.equal(paused.error,'Supervision dispatch disabled');assert.equal(paused.stopConfirmed,true);assert.equal(paused.usage,0);assert.equal(paused.modelStarted,false);
+    assert.equal(f.store.supervision.get(f.loop.id).reasoningCount,2);assert.equal(transport.calls,1);
+    await runner.close();f.reopen();runner=f.runner(transport);await runner.initialize();
+    const runtime=new LocalRuntimeAdapter(f.store,f.data),verification=new VerificationController(f.store,f.data);
+    const controller=new SupervisionController(f.store,f.data,runtime,verification,runner);
+    const before=f.store.runtime.inspect(f.runtime.id),beforeLoop=f.store.supervision.get(f.loop.id);
+    try {
+      if(calls===4){
+        await assert.rejects(controller.dispatch({type:'resume',loopId:f.loop.id}),/cannot refund consumed calls/);
+        assert.deepEqual(f.store.runtime.inspect(f.runtime.id),before);
+        const blocked=f.store.supervision.get(f.loop.id);
+        assert.equal(blocked.phase,'blocked');assert.equal(blocked.reason,'Author stage recovery: resume cannot refund consumed calls');
+        assert.equal(blocked.revision,beforeLoop.revision+1);assert.ok(Date.parse(blocked.updatedAt)>=Date.parse(beforeLoop.updatedAt));
+        assert.deepEqual({...blocked,phase:beforeLoop.phase,reason:beforeLoop.reason,revision:beforeLoop.revision,updatedAt:beforeLoop.updatedAt},beforeLoop);
+        assert.equal(blocked.paused,true);assert.equal(blocked.reasoningCount,2);assert.deepEqual(blocked.references,beforeLoop.references);
+        assert.equal(f.store.supervision.jobs(f.loop.id).length,2);
+      }else{
+        await controller.dispatch({type:'resume',loopId:f.loop.id});
+        const next=f.store.supervision.job(f.store.supervision.get(f.loop.id).references.authorJobId!);
+        const input=parseStageRecoveryInput(next.input)!;
+        assert.equal(input.context.stageRecovery.previousAttempt!.jobId,paused.id);
+        assert.equal(input.context.stageRecovery.previousAttempt!.completionDigest,paused.completionDigest);
+        assert.equal(input.context.stageRecovery.rejection.jobId,failed.id);
+        assert.deepEqual(authorStageChargePrefix(next,id=>f.store.supervision.job(id),f.data).map(j=>j.id),[failed.id,paused.id]);
+        assert.equal(next.config.reservation,23);assert.equal(f.store.supervision.get(f.loop.id).reasoningCount,3);
+        assert.equal(f.store.runtime.inspect(f.runtime.id).run.budget.spent,7);assert.equal(transport.calls,1);
+      }
+      assert.deepEqual(f.store.supervision.job(failed.id),failed);assert.deepEqual(f.store.supervision.job(paused.id),paused);
+    }finally{await controller.close();await verification.close();await runtime.close();}
+  }
+
 });

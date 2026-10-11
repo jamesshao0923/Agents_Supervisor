@@ -21,7 +21,7 @@ export function authorWireReceipt(job: Pick<SupervisionJob, 'id' | 'input' | 'in
   const presentation = ((job.input as PresentedAuthorInput).context as {authorPresentation:{schemaVersion:number}}).authorPresentation;
   const version = (presentation.schemaVersion === 4 && (presentation as {kind?:string}).kind === 'indexed-history-evolution') || (presentation.schemaVersion === 7 && (presentation as {kind?:string}).kind === 'indexed-history-references')
     ? {schemaVersion:3,kind:'indexed-history-author-wire',presentation}
-    : presentation.schemaVersion === 3 || presentation.schemaVersion === 4 || presentation.schemaVersion === 5 || presentation.schemaVersion === 6 || presentation.schemaVersion === 8 || presentation.schemaVersion === 9
+    : presentation.schemaVersion === 3 || presentation.schemaVersion === 4 || presentation.schemaVersion === 5 || presentation.schemaVersion === 6 || presentation.schemaVersion === 8 || presentation.schemaVersion === 9 || presentation.schemaVersion === 10
     ? {schemaVersion:2,kind:'acceptance-author-wire',presentation}
     : {schemaVersion:1,kind:'control-evolution-author-wire'};
   return {

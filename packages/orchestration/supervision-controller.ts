@@ -1,3 +1,5 @@
+import {beginAuthorStageRecovery,resumeAuthorStageRecovery} from './author-stage-recovery.js';
+import {parseStageRecoveryInput} from './author-stage-recovery-presentation.js';
 import {isAuthorStageProtocol,parseAuthorStageInput} from './author-stage-protocol.js';
 import {beginAuthorStages,advanceAuthorStage} from './author-stage-controller.js';
 import {isCommandOnlyAuthorContext} from './acceptance-authoring-presentation.js';
@@ -153,7 +155,7 @@ export class SupervisionController {
     await assertCandidate(modelInput(job).context.candidate);
     this.repo.transaction(()=>{
       const current=this.repo.get(loop.id);ensure(current.paused&&!current.stopped,'Pause boundary changed');this.update(loop.id,{paused:false,reason:null});this.dispatchAllowed(loop.id);this.ensureFloor(current);
-      const next=this.repo.beginJob({commandId:randomUUID(),loopId:loop.id,expectedRevision:this.repo.get(loop.id).revision,purpose:job.purpose,context:job.input,config:job.config});
+      const next=parseStageRecoveryInput(job.input)?resumeAuthorStageRecovery(this.store,this.dataDir,job):this.repo.beginJob({commandId:randomUUID(),loopId:loop.id,expectedRevision:this.repo.get(loop.id).revision,purpose:job.purpose,context:job.input,config:job.config});
       this.update(loop.id,{phase:job.purpose==='acceptance-authoring'?'authoring':'diagnosing',references:{...current.references,...(job.purpose==='acceptance-authoring'?{authorJobId:next.id}:{diagnosisJobId:next.id})}});
     });
     // The normal next scan owns dispatch. Resume itself records authorization and
@@ -262,7 +264,11 @@ export class SupervisionController {
     }
     if(loop.phase==='authoring'){
       const job=this.repo.job(loop.references.authorJobId!);if(job.status==='running'){this.launch(job);return;}
-      if(job.error!==null){ensure(!parseAuthorStageInput(job.input),'Author fragment failed; partial output cannot authorize complete-bundle recovery: '+job.error);ensure(!this.store.controlMaintenance.forLoop(loop.id),'Required V2 maintenance author failed; no automatic replay: '+job.error);const next=await this.authorRecovery.begin(loop.id,job.id,()=>{this.dispatchAllowed(loop.id);this.ensureFloor(this.repo.get(loop.id));});this.launch(next.job);return;}
+      if(job.error!==null&&parseAuthorStageInput(job.input)){
+        const next=await beginAuthorStageRecovery(this.store,this.dataDir,job.id,()=>{this.dispatchAllowed(loop.id);this.ensureFloor(this.repo.get(loop.id));});
+        this.launch(next);return;
+      }
+      if(job.error!==null){ensure(!this.store.controlMaintenance.forLoop(loop.id),'Required V2 maintenance author failed; no automatic replay: '+job.error);const next=await this.authorRecovery.begin(loop.id,job.id,()=>{this.dispatchAllowed(loop.id);this.ensureFloor(this.repo.get(loop.id));});this.launch(next.job);return;}
       const verified=await this.runner.run(job.id),input=modelInput(verified),context=input.context;
       if(parseAuthorStageInput(verified.input)?.context.authorStage.index!==undefined&&parseAuthorStageInput(verified.input)!.context.authorStage.index<2){
         await assertCandidate(context.candidate);this.dispatchAllowed(loop.id);

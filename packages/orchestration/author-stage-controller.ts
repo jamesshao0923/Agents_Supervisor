@@ -1,3 +1,5 @@
+import {authorStageChargePrefix} from './author-stage-proofs.js';
+import {assertStageAttemptLedger} from './author-stage-recovery.js';
 import {createHash} from 'node:crypto';
 import type {SupervisorStore} from '../persistence/store.js';
 import type {SupervisionJob} from '../contracts/p6-supervision.js';
@@ -40,7 +42,7 @@ export function advanceAuthorStage(store:SupervisorStore,dataDir:string,job:Supe
     const prior=assertAuthorStageParents(actual,id=>repo.job(id),dataDir);
     assertStoredAuthorStage(actual,dataDir);
     parseAuthorStageOutput(actual.result,input.context.acceptance,binding,input.context.authorStageParents);
-    const all=[...prior,actual],{run}=store.runtime.inspect(loop.runtimeId);
+    const all=[...prior,actual],charged=[...authorStageChargePrefix(actual,id=>repo.job(id),dataDir),actual],{run}=store.runtime.inspect(loop.runtimeId);
     for(const parent of all){
       const attempt=run.attempts.find(a=>a.id===parent.attemptId);
       ensure(attempt?.purpose==='reasoning'&&attempt.nodeId==='@supervisor'&&attempt.contractVersion===parent.contractVersion
@@ -50,10 +52,11 @@ export function advanceAuthorStage(store:SupervisorStore,dataDir:string,job:Supe
     const index=(binding.index+1) as 1|2;
     ensure(loop.reasoningCount+AUTHOR_STAGE_ORDER.length-index<=loop.limits.maxReasoningCalls,'not enough remaining calls for complete assembly');
     ensure(binding.loopDeadlineMs-Date.now()>=1000,'Loop deadline exhausted');
-    const spent=all.reduce((n,parent)=>n+parent.usage!,0),reservation=binding.sessionTokenCeiling-spent;
+    assertStageAttemptLedger(store,actual,charged);
+    const spent=charged.reduce((n,parent)=>n+parent.usage!,0),reservation=binding.sessionTokenCeiling-spent;
     ensure(Number.isSafeInteger(spent)&&Number.isSafeInteger(reservation)&&reservation>0,'shared author session budget exhausted');
     const next:AnyHostAuthorStageBinding={...binding,index,stage:AUTHOR_STAGE_ORDER[index],parents:all.map(parent=>authorStageParent(parent,dataDir))};
-    const nextInput=renderAuthorStageInput({acceptance:input.context.acceptance,candidate:input.context.candidate,binding:next,parents:all.map(parent=>parent.result)},input.context.authorPresentation.schemaVersion);
+    const nextInput=renderAuthorStageInput({acceptance:input.context.acceptance,candidate:input.context.candidate,binding:next,parents:all.map(parent=>parent.result)},input.context.authorPresentation.schemaVersion===10?9:input.context.authorPresentation.schemaVersion);
     const commandId=binding.sessionId+':'+index;
     // A previously published next job would already be the current reference. It must never be silently dispatched twice.
     ensure(!repo.jobs(loop.id).some(j=>j.id==='supervision-job-'+sha(commandId).slice(0,24)),'next fragment already exists outside current reference');

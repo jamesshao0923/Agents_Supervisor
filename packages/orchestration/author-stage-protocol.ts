@@ -1,3 +1,4 @@
+import {parseStageRecoveryInput,type PresentedStageRecoveryInput} from './author-stage-recovery-presentation.js';
 /** Exact version dispatch only. Neither protocol confers approval or publication. */
 import * as v1 from './acceptance-authoring-stages.js';
 import * as v2 from './acceptance-authoring-stages-v2.js';
@@ -8,7 +9,7 @@ import {AUTHOR_STAGE_PROTOCOL, AUTHOR_STAGE_PROTOCOL_V2,
 import type {AcceptanceAuthoringContext} from './acceptance-authoring.js';
 export {authorStageDigest} from './acceptance-authoring-stages.js';
 export type {AnyHostAuthorStageBinding} from '../contracts/p6-author-stages.js';
-export type PresentedAuthorStageInput = v1.PresentedAuthorStageInput | v2.PresentedAuthorStageInput | command.PresentedCommandStageInput;
+export type PresentedAuthorStageInput = v1.PresentedAuthorStageInput | v2.PresentedAuthorStageInput | command.PresentedCommandStageInput | PresentedStageRecoveryInput;
 export function isAuthorStageProtocol(value: unknown): value is typeof AUTHOR_STAGE_PROTOCOL | typeof AUTHOR_STAGE_PROTOCOL_V2 {
   return value === AUTHOR_STAGE_PROTOCOL || value === AUTHOR_STAGE_PROTOCOL_V2;
 }
@@ -19,6 +20,7 @@ export function validateAuthorStageBinding(value: unknown): AnyHostAuthorStageBi
 }
 export function parseAuthorStageInput(value: unknown): PresentedAuthorStageInput | null {
   const input = value as {prompt?:unknown;context?:{authorPresentation?:{schemaVersion?:unknown};authorStage?:{protocol?:unknown}}} | null;
+  const recovery=parseStageRecoveryInput(value);if(recovery)return recovery;
   const current=command.parseCommandStageInput(value);if(current)return current;
   // Any V2 marker routes to its strict parser; inconsistent mixed markers never fall back.
   if (input?.prompt === v2.AUTHOR_STAGE_PROMPT || input?.context?.authorPresentation?.schemaVersion === 8

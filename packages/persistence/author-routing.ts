@@ -1,3 +1,5 @@
+import {authorStageChargePrefix,readRejectedAuthorStage} from '../orchestration/author-stage-proofs.js';
+import {parseStageRecoveryInput} from '../orchestration/author-stage-recovery-presentation.js';
 import {parseAuthorStageInput} from '../orchestration/author-stage-protocol.js';
 import {assertAuthorStagePhysical,assertAuthorStageAssemblyProof,assertAuthorStageParents,assertStoredAuthorOutput} from '../orchestration/author-stage-proofs.js';
 import {authorPatchBinding,resolveAuthorBundle,patchInput,assertAuthorPatchBase,assertAuthorExpansionProof} from '../orchestration/author-result-patch.js';
@@ -53,13 +55,15 @@ export class AuthorRoutingRepository {
   const loop=this.supervision.get(job.loopId),binding=input.context.authorStage;
   ensure(loop.authoringProtocol===binding.protocol&&binding.sessionTokenCeiling===loop.config.reservation
    &&binding.loopDeadlineMs===Date.parse(loop.createdAt)+loop.limits.maxDurationMs,'Author session policy changed');
-  const jobs=[...assertAuthorStageParents(current,id=>this.supervision.job(id),this.dataDir),current,...patches.reverse()];
+  assertAuthorStageParents(current,id=>this.supervision.job(id),this.dataDir);
+  const jobs=[...authorStageChargePrefix(current,id=>this.supervision.job(id),this.dataDir),current,...patches.reverse()];
   assertAuthorStageAssemblyProof(current,id=>this.supervision.job(id),this.dataDir);
   const {run}=this.runtime.inspect(loop.runtimeId);let spent=0;
   for(const source of jobs) {
    for(const key of ['loopId','runtimeId','projectId','runId','contractVersion','contractDigest','purpose'] as const)
     ensure(source[key]===job[key],'Author session scope changed');
-   assertStoredAuthorOutput(source,this.dataDir);
+   if(source.error){if(source.modelStarted)readRejectedAuthorStage(source,this.dataDir);else ensure(source.usage===0&&parseStageRecoveryInput(source.input),'unbound failed session attempt');}
+   else assertStoredAuthorOutput(source,this.dataDir);
    if(patchInput(source.input)) {
     assertAuthorPatchBase(source,id=>this.supervision.job(id),this.dataDir);
     assertAuthorExpansionProof(source,id=>this.supervision.job(id),this.dataDir);
@@ -67,7 +71,7 @@ export class AuthorRoutingRepository {
    ensure(source.config.reservation===binding.sessionTokenCeiling-spent,'Author session prior reservation changed');
    const attempt=run.attempts.find(a=>a.id===source.attemptId);
    ensure(attempt?.purpose==='reasoning'&&attempt.nodeId==='@supervisor'&&attempt.contractVersion===source.contractVersion
-    &&attempt.status==='succeeded'&&attempt.settled&&attempt.actual===source.usage&&attempt.reservation===source.config.reservation,
+    &&attempt.status===(source.error?'failed':'succeeded')&&attempt.settled&&attempt.actual===source.usage&&attempt.reservation===source.config.reservation,
     'Author session actual accounting changed');
    ensure(run.operations.some(o=>o.id===source.id&&o.attemptId===source.attemptId&&o.status==='confirmed')
     &&run.leases.filter(l=>l.attemptId===source.attemptId).every(l=>l.released),'Author session operation unresolved');
@@ -94,7 +98,7 @@ export class AuthorRoutingRepository {
  }
  /** All writers sharing the filesystem boundary matter, even in another Run.
   * The exact set is frozen into assessment, then re-read under begin's lock. */
- private workspaceBoundary(workspace:string){
+ workspaceBoundary(workspace:string){
   const executions=this.db.prepare('SELECT record FROM executions ORDER BY id').all().map(row=>JSON.parse(String(row.record)) as ExecutionRecord).filter(e=>overlaps(e.workspace,workspace));
   const ledgers=executions.map(execution=>{
    ensure(['completed','cancelled','failed','interrupted'].includes(execution.state)&&execution.stopConfirmed,'Workspace has active or unverified execution');
@@ -203,6 +207,7 @@ export class AuthorRoutingRepository {
   delete (context as Record<string,unknown>).authorPatch;
   delete (context as Record<string,unknown>).authorStage;
   delete (context as Record<string,unknown>).authorStageParents;
+  delete (context as Record<string,unknown>).stageRecovery;
   if(patchInput(value.job.input))feedback.references={...feedback.references,previousFeedback:value.input.context.authorFeedback} as typeof feedback.references;
   let nextInput=createAuthorRecoveryInput({...context,authorFeedback:feedback as AuthorRecoveryFeedback},acceptanceAuthoringSchema(context.acceptance));
   if(v2&&input.rejection.kind!=='schema'&&!context.acceptance.workflowMode&&isCommandOnlyAuthorContext(context.acceptance)){
