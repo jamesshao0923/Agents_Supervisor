@@ -54,7 +54,9 @@ export function captureSourceRefreshControlContext(db:DatabaseSync,dataRoot:stri
  const previousBinding=materialBinding(previous.spec),currentBinding=materialBinding(currentSpec);
  const store={verificationLineage:lineage,runtime:new RuntimeRepository(db,dataRoot),goals:new GoalRepository(db,dataRoot)};
  const args={transitionId:t.id,previousOperationId:materialsOperation(db,previousBinding),currentOperationId:materialsOperation(db,currentBinding)},currentRun=new RuntimeRepository(db,dataRoot).inspect(new RuntimeRepository(db,dataRoot).getOperation(currentBinding.operationId).runtimeId).run;const sealed=deliveries.find(d=>d.projectId===base.target.projectId&&d.runId===base.target.runId);const generation=currentRun.status==='succeeded'?(assertTrue(sealed,'Archived refresh has no actual delivery'),readArchivedSourceRefreshGeneration(db,dataRoot,args,(sealed as {id:string}).id)):actualProposalId?readQualificationSourceRefreshGeneration(db,dataRoot,args,actualProposalId):readSourceRefreshGeneration(store as Parameters<typeof readSourceRefreshGeneration>[0],dataRoot,args);
- assertTrue(generation.state==='changed'&&generation.entries.filter(e=>e.selected).every(e=>e.state!=='unknown'),'Refresh qualification needs actual known selected source change');
+ assertTrue((generation.state==='current'||generation.state==='changed')
+  &&generation.entries.filter(e=>e.selected).every(e=>e.state!=='unknown'),
+  'Refresh qualification needs actual complete known selected acquisition');
  const historicalEpochs:HistoricalMaterialEpoch[]=[];
  for(const specimen of history.specimens)for(const witness of specimen.revision.witnesses){
   const def=history.definitions.find(d=>d.definition.definitionDigest===witness.definitionDigest)!;

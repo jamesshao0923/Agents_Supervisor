@@ -1,3 +1,9 @@
+import type {DatabaseSync} from 'node:sqlite';
+import {readArchivedSourceRefreshGeneration} from '../../packages/verification/source-refresh-binding.js';
+import {SupervisionReasoningRunner} from '../../packages/orchestration/supervision-reasoning.js';
+import {CodexReasonerAdapter} from '../../packages/orchestration/reasoner.js';
+import {authorWireInput} from '../../packages/orchestration/author-presentation.js';
+import type {AcceptanceBundle} from '../../packages/orchestration/acceptance-authoring.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdir,writeFile,readFile,readdir,cp} from 'node:fs/promises';
@@ -14,7 +20,7 @@ import {captureMaterialBinding,readMaterialBinding,materialProjectionReviewEvide
 import {captureCandidate,canonical,digest,environmentFingerprint} from '../../packages/verification/candidate.js';
 import {createEnvironmentScope} from '../../packages/verification/scoped-environment.js';
 import {acceptanceAuthoringContextDigest,type AcceptanceAuthoringContext} from '../../packages/orchestration/acceptance-authoring.js';
-import {captureControlEvolutionContext,controlEvolutionContextDigest,controlEvolutionAuthoringSchema,buildControlEvolutionAuthoringPrompt,materializeControlEvolutionBundle,type ControlEvolutionBundle} from '../../packages/orchestration/acceptance-authoring-v2.js';
+import {controlEvolutionAuthorInput,captureControlEvolutionContext,controlEvolutionContextDigest,controlEvolutionAuthoringSchema,buildControlEvolutionAuthoringPrompt,materializeControlEvolutionBundle,type ControlEvolutionBundle} from '../../packages/orchestration/acceptance-authoring-v2.js';
 import {controlSpecimenKey} from '../../packages/verification/control-bootstrap.js';
 import {prepareResearchWorkflowEvolution} from '../../packages/verification/research-evolution.js';
 import {RESEARCH_HOST_GATES} from '../../packages/verification/research-workflow.js';
@@ -24,7 +30,7 @@ import type {GoalProposal} from '../../packages/contracts/p5.js';
 import {SupervisorStore} from '../../packages/persistence/store.js';
 import {VerificationController} from '../../packages/verification/controller.js';
 import {assertHistoricalMaterialEpoch} from '../../packages/verification/source-refresh-controls.js';
-import {assertQualificationMatrix} from '../../packages/verification/control-rules.js';
+import {buildQualificationMatrix,assertQualificationMatrix} from '../../packages/verification/control-rules.js';
 import type {TaskContract} from '../../packages/contracts/p1.js';
 import type {RuntimeOperation,RuntimeRecord} from '../../packages/contracts/p3.js';
 
@@ -116,7 +122,8 @@ function protocolFixture(){
   if(m.method==='thread/start')return send({id:m.id,result:{thread:{id:threadId,turns:[]}}});
   if(m.method==='turn/start'){
    const text=m.params.input.find((i:{type:string})=>i.type==='text').text;
-   const payload=JSON.parse(text.slice(text.indexOf('\n')+1));let passed=true;
+   const authorRequest=text.startsWith('Propose independent acceptance assets and a control evolution plan');
+   const payload=authorRequest?{}:JSON.parse(text.slice(text.indexOf('\n')+1));let passed=true;
    if(payload.proposed?.proposal){
     const criterion=payload.obligations[0].criterionId;
     const claim=payload.proposed.proposal.claims.find((c:{criterionIds:string[]})=>c.criterionIds.includes(criterion));
@@ -126,7 +133,7 @@ function protocolFixture(){
    send({id:m.id,result:{turn:{id:turnId,status:'inProgress',items:[]}}});
    const usage={inputTokens:1,cachedInputTokens:0,outputTokens:1,reasoningOutputTokens:0,totalTokens:2};
    send({method:'thread/tokenUsage/updated',params:{threadId,turnId,tokenUsage:{total:usage,last:usage}}});
-   const output=JSON.stringify({verdict:passed?'passed':'failed',reason:'Explicit finite synthetic judgment; no provider semantic approval',observations:[]});
+   const output=authorRequest?fs.readFileSync(process.argv[1]+'.author.json','utf8'):JSON.stringify({verdict:passed?'passed':'failed',reason:'Explicit finite synthetic judgment; no provider semantic approval',observations:[]});
    send({method:'item/completed',params:{threadId,turnId,item:{id:'message',type:'agentMessage',text:output}}});
    send({method:'turn/completed',params:{threadId,turn:{id:turnId,status:'completed',items:[{type:'agentMessage',text:output}]}}});return;
   }
@@ -163,7 +170,194 @@ async function actualFollowup(
  return f.store.goals.applyFollowup(sessionId,followupJob.id);
 }
 
-test('P8-REFRESH-DELIVERY-I01 actual authorized research continuation new producer full V2 original-witness replay and ALL-OF sealed second delivery preserve original scope history and total budget', {timeout:270000},async t=>{
+async function successorProducer(f:Awaited<ReturnType<typeof researchWorkflowFixture>>, runtime:RuntimeRecord) {
+    const activity = new ResearchRuntimeActivity(f.store, f.data), owner = 'successor-followup-owner';
+    const acquire = f.store.runtime.claim(runtime.id, owner)!;
+    await activity.acquire(acquire, owner);
+    const op = f.store.runtime.claim(runtime.id, owner)!;
+    await activity.prepare(op.id, owner);
+    const input = f.store.runtime.researchInput(op.id)!, report = fixtureProposal(input.package.context);
+    const currentQuote = await readFile(f.source, 'utf8');
+    report.citations[0]!.quote = currentQuote.trimEnd();
+    report.citations[0]!.end = currentQuote.trimEnd().length;
+    f.store.runtime.markStarted(op.id, owner);
+    const record = f.store.executionCreate({ ...f.store.runtime.executionInput(op.id, owner), workspace: f.workspace, workspaceKind: 'project' }, f.store.runtime.binding(op.id, owner)).record;
+    const child = await spawnManagedProcess({ operationId: record.id, command: process.execPath, args: ['-e', 'process.stdout.write(' + JSON.stringify('Actual followup component producer process\n') + ')'], cwd: f.workspace, timeoutMs: 3000,
+        onBeforeSpawn: intent => { f.store.executionUpdate(record.id, {}, 'process-intent', intent); },
+        onIdentity: identity => { f.store.executionUpdate(record.id, { identity, pid: identity.pid }, 'process-identity', identity); } });
+    const result = await child.completion;
+    assert.equal(result.exitCode, 0);
+    const stop = await child.terminate();
+    assert.equal(stop.stopped, true);
+    const text = JSON.stringify(report), threadId = 'explicit-followup-producer-thread', turnId = 'explicit-followup-producer-turn';
+    f.store.executionUpdate(record.id, { threadId, turnId, turnIntent: true, terminalStatus: 'completed', message: text,
+        usageStatus: 'reported', usage: { inputTokens: 5, cachedInputTokens: 0, outputTokens: 2, reasoningOutputTokens: 0, totalTokens: 7 } }, 'explicit-synthetic-accounting', { notProvider: true });
+    f.store.executionUpdate(record.id, {}, 'codex-event', { kind: 'message', method: 'item/completed', threadId, turnId, text,
+        raw: { method: 'item/completed', params: { threadId, turnId, item: { type: 'agentMessage', text } } } });
+    f.store.executionUpdate(record.id, {}, 'codex-event', { kind: 'turn-status', method: 'turn/completed', threadId, turnId, terminal: true, status: 'completed',
+        raw: { method: 'turn/completed', params: { threadId, turn: { id: turnId, status: 'completed', error: null } } } });
+    const immutableBefore = canonical(f.store.executionGet(record.id));
+    const recovered = await new ResearchRuntimeActivity(f.store, f.data).materialize(f.store.executionGet(record.id));
+    assert.equal(recovered.executionId, record.id);
+    assert.equal(canonical(f.store.executionGet(record.id)), immutableBefore);
+    await new ResearchRuntimeActivity(f.store, f.data).materialize(f.store.executionGet(record.id));
+    // Pause is real host state, and a foreign edit is preserved on rejection.
+    f.store.runtime.control({ type: 'pause', runtimeId: runtime.id, commandId: 'successor-pause-round-publication' });
+    await assert.rejects(new ResearchRuntimeActivity(f.store, f.data).materialize(f.store.executionGet(record.id)), /paused\/cancelled/);
+    f.store.runtime.control({ type: 'resume', runtimeId: runtime.id, commandId: 'successor-resume-round-publication' });
+    const reportPath = join(f.workspace, input.package.reportDirectory, 'report.json'), ownedBytes = await readFile(reportPath);
+    await writeFile(reportPath, 'Foreign subsequent user edit');
+    await assert.rejects(new ResearchRuntimeActivity(f.store, f.data).materialize(f.store.executionGet(record.id)), /ownership changed/);
+    assert.equal(await readFile(reportPath, 'utf8'), 'Foreign subsequent user edit');
+    // Only this isolated fixture restores its deliberate fault injection. The
+    // production helper never overwrites, repairs or authorizes a foreign edit.
+    await writeFile(reportPath, ownedBytes);
+    const manager = new ExecutionManager(f.store, f.data);
+    await (manager as unknown as {finalize(id:string,state:'completed',stop:boolean,evidence:unknown,launched:boolean,authoritative:boolean):Promise<void>}).finalize(record.id, 'completed', true, stop, true, true);
+    await manager.close({ cancel: false });
+    assert.equal(f.store.executionGet(record.id).state, 'completed', f.store.executionGet(record.id).error ?? '');
+    f.store.runtime.report(op.id, owner, { messageId: 'successor-followup-result', outcome: 'confirmed', result: { executionId: record.id } });
+    return { op, report, input, binding: await captureMaterialBinding(f.store, f.data, op.id) };
+}
+
+
+interface ContinuityTrace {root:string;stages:string[];previous:{runtimeId:string;proposalId:string;reviewId:string|null;finalId:string;deliveryId:string};current?:{runtimeId:string;runId:string;proposalId?:string;reviewId?:string;finalId?:string;deliveryId?:string};capacity?:{sourceChars:number;legacyStored:number;compactStored:number;actualWire:number;cap:number};author?:{id:string;usage:number|null;proofs:Record<string,string>;inputDigest:string};budget?:ReturnType<SupervisorStore['conversations']['budget']>;error?:{name:string;message:string;stack:string};}
+async function appendSecondRefresh(t:test.TestContext, f:Awaited<ReturnType<typeof researchWorkflowFixture>>, conversationId:string, priorRuntime:RuntimeRecord, priorProposal:Proposal, priorAssets:AcceptanceBundle, priorFinal:VerificationJob, priorDelivery:Delivery, config:typeof f.config, finished:(action:Parameters<VerificationController['dispatch']>[0])=>Promise<VerificationJob>) {
+    const priorHistory=canonical({run:f.store.runtime.inspect(priorRuntime.id).run,proposal:priorProposal,delivery:priorDelivery});
+    const trace:ContinuityTrace={root:f.root,stages:[],previous:{runtimeId:priorRuntime.id,proposalId:priorProposal.id,reviewId:priorProposal.reviewId??null,finalId:priorFinal.id,deliveryId:priorDelivery.id}};
+    const phase=async(name:string)=>{trace.stages.push(name);await writeFile(join(f.root,'successor-probe.json'),JSON.stringify(trace,null,2));};
+    try {
+    await phase('prior second seal complete and all original assertions retained');
+    const message=f.store.conversations.receive({conversationId,commandId:'second-refresh-message',source:'user',kind:'change',text:'Refresh original from the same path again; preserve every original question, check and cutoff.'});
+    const child=f.store.goals.createContinuation(conversationId,'third-round');
+    await phase('normal received message and createContinuation');
+    const proposal=structuredClone(child.session.proposal!);
+    const applied=await actualFollowup(f,child.session.id,message.id,f.store.runtime.inspect(priorRuntime.id).run.contract,child.session.proposal!,{decision:'revise',response:'Refresh only original bytes again; retain all original criteria.',proposal,retiredCriterionIds:[],retirementSources:[],criterionChanges:[],sourceRefresh:{materialIds:['original'],sources:[{messageId:message.id,quote:message.text}]}});
+    const runtime=f.store.runtime.get(applied.session.runtimeId!);
+    assert.equal(f.store.conversations.rounds(conversationId).length,3);
+    assert.deepEqual(applied.run.contract.criteria,f.store.runtime.inspect(priorRuntime.id).run.contract.criteria);
+    trace.current={runtimeId:runtime.id,runId:runtime.runId};await phase('normal followup applied with exact original criteria');
+    const root=join(f.root,'third-round');await mkdir(root);
+    f={...f,root,proposal:priorProposal,bundle:priorAssets};
+    await writeFile(f.source,'The newly refreshed document still describes a bounded read-only tool.\n');
+    const current=await successorProducer(f,runtime);
+    await phase('actual next acquisition and producer stopped settled materialized');
+    const candidate = await captureCandidate(f.workspace, join(f.root, 'current-author-candidate'));
+    const source = await readMaterialBinding(current.binding), scope = await createEnvironmentScope(f.data, runtime);
+    const acceptance:AcceptanceAuthoringContext = { contract: applied.run.contract, criteria: applied.session.proposal!.criteria,
+        candidate: { workspace: f.workspace, digest: candidate.digest, files: await Promise.all(Object.keys(candidate.files).map(async (path) => { const content = await readFile(join(candidate.tree, path), 'utf8'); return { path, content, sha256: digest(content) }; })) },
+        environment: { ...await environmentFingerprint(scope), scope }, failureContext: null, previousSpec: null, workflowMode: 'native-host-v1',
+        materials: applied.session.proposal!.criteria.map(c => ({ target: c.target, binding: current.binding, evidence: { context: source.input.context, sources: source.input.context.sources.map(s => ({ materialId: s.materialId, text: readFileSyncCompatible(s.textPath).toString('utf8') })) } })) };
+    const base = f.store.verificationLineage.captureBase(runtime.projectId, runtime.runId), history = f.store.controlQualification.loadHistory(f.proposal.id);
+    const evolution = await captureControlEvolutionContext({ current: acceptance, base, transitions: base.transitionIds.map(id => f.store.verificationLineage.transition(id)), history });
+    const oldCase = structuredClone(f.proposal.spec.cases.at(-1)!), currentCase = { ...structuredClone(oldCase), revision: 3, verifier: { kind: 'material' as const, version: 'native-followup-v2', claimFile: 'research-report/report.json', binding: current.binding, timeoutMs: 15000 } };
+    const goodFiles = [{ path: 'research-report/report.json', content: JSON.stringify(current.report) }];
+    const wrongOld = structuredClone(current.report);
+    wrongOld.claims[0]!.text = 'The document requires unbounded writes.';
+    const stale = structuredClone(current.report);
+    stale.citations[0]!.quote = 'The original document describes a bounded read-only tool.';
+    stale.citations[0]!.end = stale.citations[0]!.quote.length;
+    // An obsolete quote is malformed current evidence, never the required semantic defect.
+    const staleRoot = join(f.root, 'stale-current-negative');
+    await mkdir(join(staleRoot, 'research-report'), { recursive: true });
+    await writeFile(join(staleRoot, 'research-report/report.json'), JSON.stringify(stale));
+    await assert.rejects(() => acquireMaterialEvidence(currentCase.verifier, staleRoot, join(f.root, 'stale-proof'), new AbortController().signal), /literal|quote|context/i);
+    const assets:AcceptanceBundle = { contextDigest: acceptanceAuthoringContextDigest(acceptance),
+        spec: { schemaVersion: 1, contractVersion: applied.run.contract.version, standardsVersion: 'native-followup-v2',
+            obligations: [...f.proposal.spec.obligations],
+            cases: [...structuredClone(f.proposal.spec.cases), currentCase],
+            controls: [{ id: 'good-current', workspace: 'good-current', expect: 'passed', mustFail: [] }, { id: 'bad-current', workspace: 'bad-current', expect: 'failed', mustFail: ['faithful-meaning'] }], moduleDependencies: { meaning: [] } },
+        verifierFiles: [], controls: [{ id: 'good-current', files: goodFiles }, { id: 'bad-current', files: [{ path: 'research-report/report.json', content: JSON.stringify(wrongOld) }] }],
+        coverageExplanation: structuredClone(f.bundle.coverageExplanation),
+        researchWorkflow: { schemaVersion: 1, mappings: structuredClone(f.bundle.researchWorkflow!.mappings) } };
+    const oldGood = history.specimens.find(s => s.revision.kind === 'positive-full' && history.manifest!.entries.some(e => e.disposition === 'current' && canonical(e.specimen) === canonical(s.revision.ref))), oldBad = history.specimens.find(s => s.revision.kind === 'negative' && history.manifest!.entries.some(e => e.disposition === 'current' && canonical(e.specimen) === canonical(s.revision.ref)));
+    const bundle:ControlEvolutionBundle = { contextDigest: controlEvolutionContextDigest(evolution), assets, plan: {
+            controlPlan: [{ controlId: 'good-current', kind: 'positive-full', predecessorKey: controlSpecimenKey(oldGood!.revision.ref) },
+                { controlId: 'bad-current', kind: 'negative', predecessorKey: controlSpecimenKey(oldBad!.revision.ref) }],
+            historyPlan: [{ specimenKey: controlSpecimenKey(oldGood!.revision.ref), successorControlId: 'good-current', retireObligationIds: [] },
+                { specimenKey: controlSpecimenKey(oldBad!.revision.ref), successorControlId: 'bad-current', retireObligationIds: [] }], evolutionExplanation: 'Exact old semantic fault with valid current citations; every original requirement retained unchanged.'
+        } };
+    const loop = f.store.supervision.attach({ commandId: 'successor-followup-loop', runtimeId: runtime.id, config: { ...f.config, timeoutMs: 15000 }, limits: { maxRepairs: 0, maxReasoningCalls: 4, maxDurationMs: 600000, maxContextChars: 200000 } });
+    const compact=controlEvolutionAuthorInput({acceptance,candidate,evolution});
+    const legacy={prompt:buildControlEvolutionAuthoringPrompt(evolution),outputSchema:controlEvolutionAuthoringSchema(evolution),context:{acceptance,candidate,evolution}};
+    trace.capacity={sourceChars:(await readFile(f.source,'utf8')).length,legacyStored:JSON.stringify(legacy).length+6000,compactStored:JSON.stringify(compact).length+6000,actualWire:authorWireInput(compact,'acceptance-authoring').prompt.length+JSON.stringify(compact.outputSchema).length+6000,cap:200000};
+    assert.equal(trace.capacity!.sourceChars,71);assert.ok(trace.capacity!.legacyStored>200000);assert.ok(trace.capacity!.compactStored<=200000);assert.ok(trace.capacity!.actualWire<=200000);
+    const author = f.store.supervision.beginJob({commandId:'successor-followup-native-author',loopId:loop.id,expectedRevision:loop.revision,purpose:'acceptance-authoring',context:compact});
+    await phase('versioned author admitted with full history and unchanged 200k dual ceiling');
+    const authorOutput=process.env.SUPERVISOR_CODEX_PATH+'.author.json';await writeFile(authorOutput,JSON.stringify(bundle),{flag:'wx'});
+    const authorRunner=new SupervisionReasoningRunner(f.store,f.data,new CodexReasonerAdapter());
+    let durableAuthor;try{durableAuthor=await authorRunner.run(author.id);}finally{await authorRunner.close();}
+    assert.equal(durableAuthor.stopConfirmed,true);assert.equal(durableAuthor.usage,2);assert.equal(durableAuthor.error,null);
+    trace.author={id:durableAuthor.id,usage:durableAuthor.usage,proofs:durableAuthor.proofs,inputDigest:durableAuthor.inputDigest};await phase('actual Node protocol author completed rendered prompt with known cost and proofs');
+    const material = await materializeControlEvolutionBundle({ privateRoot: join(f.data, 'supervision', 'authoring'), jobId: author.id, context: (durableAuthor.input as {context:{evolution:typeof evolution}}).context.evolution, bundle: durableAuthor.result as ControlEvolutionBundle });
+    const p = await f.p4.dispatch({ type: 'propose', commandId: 'successor-native-followup-proposal', runtimeId: runtime.id, specPath: material.assets.specPath, controlDeclarationPath: material.declarationPath, controlAuthorJobId: author.id, researchAuthorJobId: author.id }) as Proposal;
+    phase('V2 propose finished');
+
+    trace.current!.proposalId=p.id;await phase('next V2 proposal');
+    const checked=await finished({type:'review',commandId:'successor-review',proposalId:p.id,...config});
+    trace.current!.reviewId=checked.id;await phase('next actual review complete');
+    await f.p4.dispatch({type:'publish',commandId:'successor-publish',proposalId:p.id,reviewId:checked.id});
+    await phase('next publication accepted');
+    const qualified=f.store.controlQualification.qualificationForReview(checked.id);
+    assert.ok(qualified.assembled.matrix.sourceRefresh!.adaptations.some(a=>a.previous.revision===1&&a.successor.revision===2));
+    assert.ok(qualified.assembled.matrix.rows.some(row=>row.context?.role==='historical'&&row.specimen.revision===1));
+    assert.ok(qualified.assembled.matrix.rows.some(row=>row.context?.role==='historical'&&row.specimen.revision===2));
+    assert.ok(qualified.assembled.matrix.rows.some(row=>row.context?.role==='current'&&row.specimen.revision===3));
+    const historic=f.store.controlQualification.qualificationForReview(priorProposal.reviewId!);
+    assert.equal(historic.proposalId,priorProposal.id);
+    const g=historic.assembled.matrix.sourceRefresh!.context.generation;
+    const args={transitionId:g.authorization.transitionId,previousOperationId:g.previousOperationId,currentOperationId:g.currentOperationId};
+    assert.equal(readArchivedSourceRefreshGeneration((f.store as unknown as {db:DatabaseSync}).db,f.data,args,priorDelivery.id).digest,g.digest);
+    assert.throws(()=>readArchivedSourceRefreshGeneration((f.store as unknown as {db:DatabaseSync}).db,f.data,args,trace.current!.proposalId!),/missing|sealed/);
+    const rules=structuredClone(qualified.assembled.rules);
+    const historical=rules.manifest.entries.find(e=>e.disposition!=='current'&&e.successor);
+    historical!.successor=historical!.specimen;
+    assert.throws(()=>buildQualificationMatrix(rules),/Successor|mapping|chain|Cyclic/);
+    const missingEpoch=structuredClone(qualified.assembled.rules);
+    missingEpoch.sourceRefresh!.historicalEpochs.shift();
+    const {digest:discarded,...body}=missingEpoch.sourceRefresh!;missingEpoch.sourceRefresh!.digest=digest(canonical(body));
+    assert.throws(()=>buildQualificationMatrix(missingEpoch),/epoch|Epoch/);
+    // These integrity negatives use this fresh chain's real stored authorities.
+    assert.throws(()=>f.store.verificationLineage.assertRefreshPublicationSupported(runtime.projectId,runtime.runId,{proposalId:p.id,reviewId:priorProposal.reviewId!}),/another proposal/);
+    const wrongBase=structuredClone(qualified.assembled.rules);
+    wrongBase.base=wrongBase.historicalDefinitions!.find(d=>d.definitionDigest!==wrongBase.base!.definitionDigest)!;
+    assert.throws(()=>buildQualificationMatrix(wrongBase),/bound definition|transition/);
+    const noMiddleWitness=structuredClone(qualified.assembled.rules);
+    noMiddleWitness.specimens.find(s=>s.kind==='negative'&&s.ref.revision===2)!.witnesses=[];
+    assert.throws(()=>buildQualificationMatrix(noMiddleWitness),/witness|Witness/);
+    const emptyOriginalProofs=structuredClone(qualified.assembled.rules);
+    emptyOriginalProofs.sourceRefresh!.historicalEpochs[0]!.originalProofs={};
+    {const {digest:_discarded,...body}=emptyOriginalProofs.sourceRefresh!;emptyOriginalProofs.sourceRefresh!.digest=digest(canonical(body));}
+    assert.throws(()=>buildQualificationMatrix(emptyOriginalProofs),/epoch|Epoch/);
+    const db=(f.store as unknown as {db:DatabaseSync}).db;
+    assert.throws(()=>readArchivedSourceRefreshGeneration(db,f.data,{...args,previousOperationId:args.currentOperationId},priorDelivery.id));
+    assert.throws(()=>readArchivedSourceRefreshGeneration(db,f.data,{...args,currentOperationId:args.previousOperationId},priorDelivery.id));
+    const finalPlan=await f.p4.dispatch({type:'freeze',commandId:'successor-final-freeze',runtimeId:runtime.id,mode:'final'}) as FrozenPlan;
+    const final=await finished({type:'run',commandId:'successor-final-run',planId:finalPlan.id,...config});
+    trace.current!.finalId=final.id;assert.equal(final.evaluation!.complete,true);
+    const delivery=await f.p4.dispatch({type:'deliver',commandId:'third-delivery',jobId:final.id}) as Delivery;
+    trace.current!.deliveryId=delivery.id;await phase('third full ALL-OF seal committed');
+    assert.equal(f.store.runtime.inspect(runtime.id).run.status,'succeeded');
+    const budget=f.store.conversations.budget(conversationId);assert.equal(budget.reserved,0);assert.ok(budget.spent<=budget.limit);trace.budget=budget;
+    const reopened=new SupervisorStore(f.data),viewer=new VerificationController(reopened,f.data);
+    try{
+      assert.equal(reopened.controlQualification.qualificationForReview(checked.id).digest,qualified.digest);
+      assert.equal(reopened.controlQualification.qualificationForReview(priorProposal.reviewId!).digest,historic.digest);
+      assert.deepEqual(await viewer.dispatch({type:'deliver',commandId:'third-delivery',jobId:final.id}),delivery);
+      await reopened.researchWorkflow.assertCommittedCurrent(delivery);
+      assert.equal(readArchivedSourceRefreshGeneration((reopened as unknown as {db:DatabaseSync}).db,f.data,args,priorDelivery.id).digest,g.digest);
+    }finally{await viewer.close();reopened.close();}
+    assert.equal(canonical({run:f.store.runtime.inspect(priorRuntime.id).run,proposal:f.store.verification.get('proposal',priorProposal.id),delivery:f.store.verification.get('delivery',priorDelivery.id)}),priorHistory);
+    await phase('third sealed delivery and old historical qualification reopen without new model');
+    } catch(error) {
+      trace.error={name:error instanceof Error?error.name:'Unknown',message:String(error),stack:error instanceof Error?error.stack??'':''};
+      trace.budget=f.store.conversations.budget(conversationId);
+      await writeFile(join(trace.root,'successor-probe.json'),JSON.stringify(trace,null,2));
+      throw error;
+    }
+}
+
+test('P8-REFRESH-DELIVERY-I01 actual authorized research continuation new producer full V2 original-witness replay and ALL-OF sealed third delivery preserve original scope history and total budget', {timeout:660000},async t=>{
  const began=Date.now();
  const phase=(name:string)=>console.log('P8-REFRESH-DELIVERY-I01 phase',name,Date.now()-began);
  // Trace actual original methods; no verdict, result, gate or I/O is replaced.
@@ -307,6 +501,7 @@ test('P8-REFRESH-DELIVERY-I01 actual authorized research continuation new produc
   const reopened=new SupervisorStore(f.data),viewer=new VerificationController(reopened,f.data);
   try{assert.equal(reopened.controlQualification.qualificationForReview(checked.id).digest,qualification.digest);await reopened.researchWorkflow.assertCommittedCurrent(delivered);assert.deepEqual(await viewer.dispatch({type:'deliver',commandId:'second-delivery',jobId:final.id}),delivered);}finally{await viewer.close();reopened.close();}
   await writeFile(join(f.root,'refresh-complete-record.json'),JSON.stringify({scope:'actual Node/FS/SQLite mechanism; explicit synthetic model protocol, not supplier semantic approval',root:f.root,data:f.data,original:{proposalId:f.proposal.id,reviewId:f.proposal.reviewId,deliveryId:first.id},current:{runtimeId:runtime.id,proposalId:p.id,reviewId:checked.id,finalId:final.id,deliveryId:delivered.id},generation:adapted.context.generation,qualificationDigest:qualification.digest,budget},null,2));
+  await appendSecondRefresh(t,f,conversation.id,runtime,f.store.verification.get('proposal',p.id),assets,final,delivered,config,finished);
   for(const job of f.store.verification.list('job'))for(const identity of job.identities)assert.equal((await inspectProcess(identity)).status,'stopped');
  }finally{
   if(oldBinary===undefined)delete process.env.SUPERVISOR_CODEX_PATH;else process.env.SUPERVISOR_CODEX_PATH=oldBinary;

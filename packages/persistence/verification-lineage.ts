@@ -104,14 +104,46 @@ export class VerificationLineageRepository {
     const value=input.transition;this.validateTransition(value);const old=this.db.prepare('SELECT record FROM verification_contract_transitions WHERE id=?').get(value.id);if(old){ensure(old.record===json(value),'Conflicting applied transition');return value;}
     this.db.prepare('INSERT INTO verification_contract_transitions(id,lineage_id,project_id,run_id,to_contract_digest,record) VALUES (?,?,?,?,?,?)').run(value.id,value.lineageId,value.to.projectId,value.to.runId,value.to.contractDigest,json(value));return structuredClone(value);
   });}
-  /** Fail closed even before the first head exists. No new-generation report
-   * publication is supported until adapted native P4 controls are implemented. */
+  /** Each proposal covers only its frozen base-to-target interval. Published
+   * ancestors retain their own actual review authority; they are never treated
+   * as current-source evidence for a later generation. */
   assertRefreshPublicationSupported(projectId:string,runId:string,actualReview?:{proposalId:string;reviewId:string}):void {
-    let ref={projectId,runId,contractDigest:lineageDigest(this.run(projectId,runId).contract)};
-    const seen=new Set<string>();
-    for(;;){const row=this.db.prepare('SELECT id FROM verification_contract_transitions WHERE project_id=? AND run_id=? AND to_contract_digest=?').get(ref.projectId,ref.runId,ref.contractDigest);if(!row)return;
-      ensure(seen.size<32&&!seen.has(String(row.id)),'Refresh publication ancestry is unresolved');seen.add(String(row.id));const transition=this.transition(String(row.id));
-      if(transition.sourceRefresh){ensure(actualReview,'Source refresh publication blocked until adapted P4 qualification is implemented');const qualification=assertControlQualificationPublication(this.db,actualReview);const proposal=this.record<Proposal>('proposal',actualReview.proposalId);ensure(proposal.projectId===projectId&&proposal.runId===runId&&qualification.assembled.matrix.sourceRefresh?.context.generation.authorization.transitionId===transition.id&&qualification.assembled.matrix.sourceRefresh.adaptations.length>0,'Refresh publication lacks complete adapted actual qualification');}ref=transition.from;
+    if(!actualReview){
+      let ref={projectId,runId,contractDigest:lineageDigest(this.run(projectId,runId).contract)};
+      const seen=new Set<string>();
+      for(;;){
+        const row=this.db.prepare('SELECT id FROM verification_contract_transitions WHERE project_id=? AND run_id=? AND to_contract_digest=?').get(ref.projectId,ref.runId,ref.contractDigest);
+        if(!row)return;
+        ensure(seen.size<32&&!seen.has(String(row.id)),'Refresh publication ancestry is unresolved');
+        seen.add(String(row.id));const t=this.transition(String(row.id));
+        ensure(!t.sourceRefresh,'Source refresh publication blocked until adapted P4 qualification is implemented');ref=t.from;
+      }
+    }
+    const current=this.record<Proposal>('proposal',actualReview.proposalId);
+    ensure(current.projectId===projectId&&current.runId===runId,'Refresh publication crosses the actual target Run');
+    const visited=new Set<string>();
+    let proposal=current,reviewId=actualReview.reviewId;
+    for(;;){
+      ensure(visited.size<32&&!visited.has(proposal.id),'Refresh publication base ancestry is unresolved');visited.add(proposal.id);
+      const binding=this.bindingForProposal(proposal.id),base=binding.base,runBinding=this.resolveRun(proposal.projectId,proposal.runId);
+      ensure(base.lineageId===runBinding.lineageId&&same(base.target,{projectId:proposal.projectId,runId:proposal.runId,contractDigest:proposal.contractDigest}),
+        'Refresh publication frozen target differs');
+      const previous=base.baseProposalId?this.record<Proposal>('proposal',base.baseProposalId):null;
+      if(previous){
+        ensure(previous.status==='published'&&previous.reviewId&&previous.bundle.digest===base.baseDefinitionDigest
+          &&previous.version===proposal.baseVersion&&base.expectedHeadRevision===this.bindingForProposal(previous.id).base.expectedHeadRevision+1,
+          'Refresh publication predecessor authority differs');
+        ensure(same(this.transitionChain(runBinding,{projectId:previous.projectId,runId:previous.runId,contractDigest:previous.contractDigest},base.target),base.transitionIds),
+          'Refresh publication omits or changes the actual transition interval');
+      }else ensure(base.expectedHeadRevision===0&&base.baseDefinitionDigest===null&&base.transitionIds.length===0,'Refresh root base is inconsistent');
+      const transitions=base.transitionIds.map(id=>this.transition(id)),refreshes=transitions.filter(t=>t.sourceRefresh);
+      if(refreshes.length){
+        const qualification=assertControlQualificationPublication(this.db,{proposalId:proposal.id,reviewId});
+        ensure(refreshes.length===1&&qualification.assembled.matrix.sourceRefresh?.context.generation.authorization.transitionId===refreshes[0]!.id
+          &&qualification.assembled.matrix.sourceRefresh.adaptations.length>0,'Refresh publication lacks complete adapted actual qualification');
+      }
+      if(!previous)return;
+      proposal=previous;reviewId=previous.reviewId!;
     }
   }
   /** Existing applied lineage receipt only; no new approval or acquisition. */

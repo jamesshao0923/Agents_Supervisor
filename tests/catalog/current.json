@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-v46-author-presentation-reader-timing",
+  "revision": "dev-v47-refresh-continuity-nochange",
   "modules": [
     {
       "id": "dev-contracts",
@@ -1000,7 +1000,7 @@
       "id": "integration-source-refresh-delivery",
       "layer": "integration",
       "file": "dist/tests/integration/source-refresh-delivery.test.js",
-      "timeoutMs": 300000
+      "timeoutMs": 720000
     },
     {
       "id": "unit-research-reader",
@@ -1019,6 +1019,12 @@
       "layer": "integration",
       "file": "dist/tests/integration/author-presentation.test.js",
       "timeoutMs": 120000
+    },
+    {
+      "id": "integration-source-refresh-nochange-delivery",
+      "layer": "integration",
+      "file": "dist/tests/integration/source-refresh-nochange-delivery.test.js",
+      "timeoutMs": 540000
     }
   ],
   "cases": [
@@ -20513,7 +20519,8 @@
         "p8-source-refresh-foundation",
         "v41-source-refresh-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "p8-nochange-refresh-impact"
       ],
       "prerequisites": "Pinned Node, actual SQLite/FS and managed Node. Explicit synthetic model output/usage fixture; no supplier or native request.",
       "assertions": "tests/integration/source-refresh.test.ts :: P8-REFRESH-I01 actual explicit dual-call applied intent and new local source generation remain integrity-only across restart",
@@ -20534,7 +20541,8 @@
         "p8-source-refresh-foundation",
         "v41-source-refresh-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "p8-nochange-refresh-impact"
       ],
       "prerequisites": "Pinned Node, actual SQLite/FS and managed Node. Explicit synthetic model output/usage fixture; no supplier or native request.",
       "assertions": "tests/integration/source-refresh.test.ts :: P8-REFRESH-I02 refresh request cannot change source IDs original checks or bypass independent intent authorization",
@@ -20555,7 +20563,8 @@
         "p8-source-refresh-foundation",
         "v41-source-refresh-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "p8-nochange-refresh-impact"
       ],
       "prerequisites": "Pinned Node, actual SQLite/FS and managed Node. Explicit synthetic model output/usage fixture; no supplier or native request.",
       "assertions": "tests/integration/source-refresh.test.ts :: P8-REFRESH-I03 actual same-loopback HTTP byte refresh retains both snapshots and explicit failed later observation",
@@ -20778,21 +20787,22 @@
     },
     {
       "id": "p8.integration-source-refresh-delivery.001",
-      "name": "P8-REFRESH-DELIVERY-I01 actual authorized research continuation new producer full V2 original-witness replay and ALL-OF sealed second delivery preserve original scope history and total budget",
+      "name": "P8-REFRESH-DELIVERY-I01 actual authorized research continuation new producer full V2 original-witness replay and ALL-OF sealed third delivery preserve original scope history and total budget",
       "suiteId": "integration-source-refresh-delivery",
       "module": "verification",
       "layer": "integration",
       "covers": [
         "p8-source-refresh-delivery"
       ],
-      "scenario": "Already delivered configured report → explicit unchanged-input refresh → new acquisition/producer → frozen historical/current adapted V2 rows → original ALL-OF final sealed second delivery and SQLite reopen. Synthetic model transport only.",
+      "scenario": "Three actual same-input changed-source generations, each with independent V2 authority: preserve original55 assertions and add multi-hop witness/epoch lineage, exact archived receipts, wrong-base/ancestor/missing-middle-proof refusals, full third ALL-OF seal and reopen. Synthetic model protocol only; all original product limits unchanged.",
       "impactTags": [
         "p8-source-refresh-delivery",
         "v44-source-refresh-delivery-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "v47-refresh-continuity-impact"
       ],
       "prerequisites": "Pinned Node, actual SQLite/local files and owned managed Node; explicit synthetic semantic protocol/usage, no provider/native call.",
-      "assertions": "tests/integration/source-refresh-delivery.test.ts :: P8-REFRESH-DELIVERY-I01 actual authorized research continuation new producer full V2 original-witness replay and ALL-OF sealed second delivery preserve original scope history and total budget",
+      "assertions": "tests/integration/source-refresh-delivery.test.ts :: P8-REFRESH-DELIVERY-I01 actual authorized research continuation new producer full V2 original-witness replay and ALL-OF sealed third delivery preserve original scope history and total budget",
       "cleanup": "Physically stop owned processes and close DB; retain original immutable absolute proof roots and archive for independent replay; never alter global config.",
       "status": "active"
     },
@@ -21106,6 +21116,25 @@
       "prerequisites": "Actual SQLite, owned Node and complete frozen author input; provider outputs are explicit synthetic protocol fixtures.",
       "assertions": "tests/integration/author-presentation.test.ts :: P6-AUTH-PRESENT-I03 actual Node dispatch stores wire binding and finished reopen never dispatches again",
       "cleanup": "Stop exact owned processes and close store; retain failed attempts.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-source-refresh-nochange-delivery.001",
+      "name": "P8-NOCHANGE-DELIVERY-I01 actual same-byte reacquisition new producer historical witnesses current controls independent V2 full final and ALL-OF second seal preserve original scope budget and reopen",
+      "suiteId": "integration-source-refresh-nochange-delivery",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-source-refresh-nochange-delivery"
+      ],
+      "scenario": "Actual same-byte new acquisition/producer after sealed predecessor; original historical witnesses and current positive/negative qualification, independent review, full final and ALL-OF second seal/reopen. No synthetic supplier claim.",
+      "impactTags": [
+        "p8-source-refresh-nochange-delivery",
+        "p8-nochange-refresh-impact"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/FS and managed Node. A r2 continuity prerequisite has not passed fresh three-chain. Semantic protocol/token fixture explicitly synthetic; no provider/native request.",
+      "assertions": "tests/integration/source-refresh-nochange-delivery.test.ts :: P8-NOCHANGE-DELIVERY-I01 actual same-byte reacquisition new producer historical witnesses current controls independent V2 full final and ALL-OF second seal preserve original scope budget and reopen",
+      "cleanup": "Actually stop owned processes and close DB, preserve exclusive root/archive/raw/ledger including failure; never change global config.",
       "status": "active"
     }
   ]

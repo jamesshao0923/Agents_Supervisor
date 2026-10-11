@@ -105,10 +105,10 @@ export function parseManifest(value: unknown): StageManifest {
     // plus owned-process cleanup, within this 60-minute harness ceiling. This
     // changes no product budget/deadline; each frozen suite declares its timeout.
     // Integration may observe a bounded multi-generation component chain whose
-    // original test timeout is eight minutes, plus shutdown/evidence margin.
+    // three-generation test observation is eleven minutes, plus shutdown/evidence margin.
     // Unit and live ceilings remain independent; this grants no product time.
     const maxTimeoutMs = entry.layer === 'live' ? 3_600_000
-      : entry.layer === 'integration' ? 600_000 : 300_000;
+      : entry.layer === 'integration' ? 720_000 : 300_000;
     if (typeof entry.timeoutMs !== 'number' || !Number.isInteger(entry.timeoutMs)
       || entry.timeoutMs < 1 || entry.timeoutMs > maxTimeoutMs) {
       manifestError(`${path}.timeoutMs`, `must be an integer between 1 and ${maxTimeoutMs}`);

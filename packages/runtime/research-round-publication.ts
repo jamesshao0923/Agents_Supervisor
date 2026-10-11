@@ -99,7 +99,8 @@ export async function publishResearchRoundReports(
  if(refreshTransitions.length){
   assertTrue(refreshTransitions.length===1&&proposalBase.transitionIds.length===1&&refreshTransitions[0]!.changes.length===0&&proposalBase.baseProposalId===previous.id,'Refresh report activation requires exact same-input delivered predecessor');
   refresh=await readActivatingSourceRefreshGeneration(store,dataRoot,{transitionId:refreshTransitions[0]!.id,previousOperationId:before.input.acquisitionOperationId,currentOperationId:input.package.acquisitionOperationId},record.id);
-  assertTrue(refresh.entries.filter(e=>e.selected).every(e=>e.state!=='unknown')&&refresh.state==='changed'&&researchDigest(before.input.context.requirements)===researchDigest(input.package.context.requirements)&&researchDigest(before.input.context.limits)===researchDigest(input.package.context.limits),'Refresh source observation or original questions/conditions incomplete');
+  assertTrue(refresh.entries.filter(e=>e.selected).every(e=>e.state!=='unknown')
+   &&(refresh.state==='current'||refresh.state==='changed')&&researchDigest(before.input.context.requirements)===researchDigest(input.package.context.requirements)&&researchDigest(before.input.context.limits)===researchDigest(input.package.context.limits),'Refresh source observation or original questions/conditions incomplete');
   basisDigest=refresh.digest;
  }else{
   goalAppend=readResearchGoalAppendProof(dataRoot,binding,currentBinding,before.input.context,input.package.context);

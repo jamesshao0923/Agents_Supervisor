@@ -1,3 +1,8 @@
+## v47 continuous refresh regression
+
+- 原 `p8.integration-source-refresh-delivery.001` 稳定ID扩充三seal，不新增长链重复ID；原55个断言保留，增加多代见证/原epoch/祖先/归档收据反例。三代private机制实际535.233s；canonical源码尚未正式运行。
+- 仅integration观察上限600s→720s，本suite720s/test660s；unit/live上限不变，产品单model15s、来源TTL600s、原预算均不变。P8仍developing。
+
 ## v45 — 索引读取完整性及默认执行器兼容（开发中）
 
 - 新增 `unit-research-reader` 5 项和 `integration-material-reader-session` 8 项；旧 945 项 ID、断言及风险要求保留，总数 958。accessor 反例并入同一 I07，不另建重复用例。
@@ -292,3 +297,7 @@ P1 新业务场景由对应工作包的稳定测试登记追加到同一目录�
 ## v43 — 效率比较真实验收入口
 
 新增 `p7.live-scheduled-efficiency.001`，相同任务/原标准串行与并行各自独立交付后才比较实际时间与累计费用。保留首臂失败停止、未知费用、实际停止与单样本缓存偏差；未执行不得视为通过。原 943 项不变，清单共 944 项。未修改生产实现或阶段完成状态。
+
+## v47 unchanged-source refresh
+
+Add p8.integration-source-refresh-nochange-delivery.001 for actual reacquisition with identical bytes and a distinct published generation, independent review and delivery. Preserve the changed-source case extended to three generations, all prior assertions and negative cases. Local protocol component evidence is not provider or stage acceptance.

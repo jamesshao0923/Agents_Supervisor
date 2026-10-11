@@ -76,7 +76,43 @@ export function buildQualificationMatrix(raw:QualificationMatrixInput):FrozenQua
       for(const w of applicable)ensure(final.instances.some(i=>i.obligationIds.includes(w.obligationId)&&equal(i.parameters,w.instance.parameters)),'Current detector loses original witness parameters');
       ensure(s.kind==='positive-full'||applicable.length>0,'Current negative has no current failure witness');for(const instance of final.instances)add(s,target,instance,'current',applicable);
     }else{
-      for(const scope of s.scope){if(entry.retiredScopes.some(r=>r.obligationId===scope.obligationId))continue;ensure(entry.successor,'Historical scope lacks an explicit successor');const successor=byRef.get(key(entry.successor))!;ensure(successor.scope.some(o=>equal(o,scope)),'Successor drops original unretired expectation');for(const w of s.witnesses.filter(w=>w.obligationId===scope.obligationId)){const original=defs.get(w.definitionDigest)!.spec.cases.find(c=>c.id===w.instance.caseId&&c.revision===w.instance.revision);if(refresh&&original?.verifier.kind==='material'){const next=successor.witnesses.filter(n=>n.obligationId===w.obligationId&&n.expectationDigest===w.expectationDigest&&n.definitionDigest===target.definitionDigest&&equal(n.instance.parameters,w.instance.parameters)&&target.spec.cases.some(c=>c.id===n.instance.caseId&&c.revision===n.instance.revision&&c.verifier.kind==='material'&&equal(c.verifier.binding,refresh.currentBinding)));ensure(next.length===1&&refresh.historicalEpochs.some(e=>equal(e.specimen,s.ref)&&e.witnessId===w.id),'Adapted source successor loses original actual fault or current witness');adaptations.push({previous:s.ref,successor:successor.ref,originalWitness:w,currentWitnessId:next[0]!.id,obligationId:w.obligationId,expectationDigest:w.expectationDigest,contextDigest:refresh.digest});}else ensure(successor.witnesses.some(n=>n.obligationId===w.obligationId&&n.expectationDigest===w.expectationDigest&&n.definitionDigest===w.definitionDigest&&equal(n.instance,w.instance)),'Successor drops original detector failure witness');}exclusions.push({specimen:s.ref,obligationId:scope.obligationId,transitionId:null,reason:'Historical candidate kept; explicit successor qualifies current compatibility'});}
+      for(const scope of s.scope){if(entry.retiredScopes.some(r=>r.obligationId===scope.obligationId))continue;ensure(entry.successor,'Historical scope lacks an explicit successor');const successor=byRef.get(key(entry.successor))!;ensure(successor.scope.some(o=>equal(o,scope)),'Successor drops original unretired expectation');for(const w of s.witnesses.filter(w=>w.obligationId===scope.obligationId)){const original=defs.get(w.definitionDigest)!.spec.cases.find(c=>c.id===w.instance.caseId&&c.revision===w.instance.revision);if(refresh&&original?.verifier.kind==='material'){
+          // The immutable manifest can contain several already-published hops.
+          // Recheck every original witness and epoch; only the final frontier
+          // must use this proposal's current source binding and detector.
+          let cursor=s,witness=w;
+          const visited=new Set<string>();
+          for(;;){
+            ensure(!visited.has(key(cursor.ref)),'Cyclic adapted source successor');
+            visited.add(key(cursor.ref));
+            const link=entries.get(key(cursor.ref))!;
+            if(link.disposition==='current'){
+              ensure(witness.definitionDigest===target.definitionDigest,
+                'Adapted source frontier does not use the current definition');
+              const detector=target.spec.cases.find(c=>c.id===witness.instance.caseId&&c.revision===witness.instance.revision);
+              ensure(detector?.verifier.kind==='material'&&equal(detector.verifier.binding,refresh.currentBinding),
+                'Adapted source frontier does not use the current binding');
+              break;
+            }
+            ensure(!link.retiredScopes.some(r=>r.obligationId===w.obligationId)&&link.successor,
+              'Adapted source chain loses an unretired original fault');
+            const epoch=refresh.historicalEpochs.filter(e=>equal(e.specimen,cursor.ref)&&e.witnessId===witness.id);
+            const previousDetector=defs.get(witness.definitionDigest)!.spec.cases.find(c=>c.id===witness.instance.caseId&&c.revision===witness.instance.revision);
+            ensure(epoch.length===1&&previousDetector?.verifier.kind==='material'&&equal(epoch[0]!.binding,previousDetector.verifier.binding),
+              'Adapted source hop lacks its complete original epoch');
+            const nextSpecimen=byRef.get(key(link.successor))!;
+            ensure(nextSpecimen.scope.some(o=>equal(o,scope)), 'Adapted source hop changes original expectation');
+            const nextDefinition=defs.get(nextSpecimen.introducedDefinitionDigest)!;
+            const next=nextSpecimen.witnesses.filter(n=>n.obligationId===w.obligationId&&n.expectationDigest===w.expectationDigest
+              &&n.definitionDigest===nextDefinition.definitionDigest&&equal(n.instance.parameters,w.instance.parameters)
+              &&nextDefinition.spec.cases.some(c=>c.id===n.instance.caseId&&c.revision===n.instance.revision&&c.verifier.kind==='material'
+                &&previousDetector.defectRefs.every(id=>c.defectRefs.includes(id))));
+            ensure(next.length===1,'Adapted source successor loses original actual fault or current witness');
+            cursor=nextSpecimen;witness=next[0]!;
+          }
+          adaptations.push({previous:s.ref,successor:successor.ref,originalWitness:w,currentWitnessId:witness.id,
+            obligationId:w.obligationId,expectationDigest:w.expectationDigest,contextDigest:refresh.digest});
+        }else ensure(successor.witnesses.some(n=>n.obligationId===w.obligationId&&n.expectationDigest===w.expectationDigest&&n.definitionDigest===w.definitionDigest&&equal(n.instance,w.instance)),'Successor drops original detector failure witness');}exclusions.push({specimen:s.ref,obligationId:scope.obligationId,transitionId:null,reason:'Historical candidate kept; explicit successor qualifies current compatibility'});}
     }
   }
   for(const control of target.spec.controls)ensure(manifest.entries.filter(e=>e.disposition==='current'&&byRef.get(key(e.specimen))?.controlId===control.id).length===1,'Every declared target control requires exactly one current specimen');

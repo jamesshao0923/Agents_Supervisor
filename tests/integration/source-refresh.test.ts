@@ -80,13 +80,32 @@ test('P8-REFRESH-I01 actual explicit dual-call applied intent and new local sour
  const run=f.store.runtime.inspect(f.runtime.id).run;assert.ok(run.attempts.every(a=>a.settled));assert.equal(run.budget.spent,before.budget.spent+2);assert.equal(f.store.verificationLineage.transition(transitionId).changes.length,0);
  const receiptFile=join(f.data,'materials-receipts',digest(fresh.id),'receipt.json'),receiptBytes=await readFile(receiptFile);await writeFile(receiptFile,'{}');assert.throws(()=>readSourceRefreshGeneration(f.store,f.data,args),/actual archived operation receipt/);await writeFile(receiptFile,receiptBytes);assert.deepEqual(readSourceRefreshGeneration(f.store,f.data,args),proof);
  // Fresh unselected acquisition timestamps are allowed; changed or missing actual bytes are not authorization.
- for(const variant of ['changed','missing'] as const){
+ for(const variant of ['unchanged','changed','missing'] as const){
   const v=await prepared(t),oldRun=v.store.runtime.inspect(v.runtime.id).run,cv=v.store.conversations.ensureForGoal(oldRun.id),m=v.store.conversations.receive({conversationId:cv.id,commandId:'refresh-only-original',source:'user',kind:'change',text:'Refresh original only; preserve frozen input and every original check.'});
   const proposal={decision:'revise',response:'Explicit original-only refresh',proposal:v.proposal,retiredCriterionIds:[],retirementSources:[],criterionChanges:[],sourceRefresh:{materialIds:['original'],sources:[{messageId:m.id,quote:m.text}]}};
   const applied=await actualFollowup(v,oldRun.id,m.id,oldRun.contract,v.proposal,proposal),transition='transition:'+applied.session.jobs.at(-1)!.id,oldResult=v.store.runtime.getOperation(v.old.id).result;
-  await writeFile(v.source,'Selected new source bytes.\n');if(variant==='changed')await writeFile(v.frozenSource,'Unauthorized unselected new bytes.\n');else await rm(v.frozenSource);
+  if(variant!=='unchanged')await writeFile(v.source,'Selected new source bytes.\n');if(variant==='changed')await writeFile(v.frozenSource,'Unauthorized unselected new bytes.\n');else if(variant==='missing')await rm(v.frozenSource);
   const op=v.store.runtime.claim(v.runtime.id,'scope-owner')!;await v.activity.acquire(op,'scope-owner');const acquisition=v.store.runtime.getOperation(op.id).result;
-  assert.throws(()=>readSourceRefreshGeneration(v.store,v.data,{transitionId:transition,previousOperationId:v.old.id,currentOperationId:op.id}),/Unselected refresh input basis changed or unknown: frozen/);
+  const generationArgs={transitionId:transition,previousOperationId:v.old.id,currentOperationId:op.id};
+  if(variant==='unchanged'){
+   const current=readSourceRefreshGeneration(v.store,v.data,generationArgs);
+   assert.equal(current.state,'current');assert.ok(current.entries.every(entry=>entry.state==='current'));
+   assert.ok(current.entries.some(entry=>entry.selected&&entry.id==='original'));
+   for(const entry of current.entries){assert.equal(entry.oldRawDigest,entry.newRawDigest);assert.equal(entry.oldTextDigest,entry.newTextDigest);}
+   assert.notEqual(current.currentGeneration,current.previousGeneration);
+   assert.notEqual(current.currentIndexDigest,current.previousIndexDigest);
+   assert.notEqual(current.currentReceiptDigest,current.previousReceiptDigest);
+   const previous=(oldResult as {receipt:{index:{directory:string;acquiredAt:string}}}).receipt;
+   const latest=(acquisition as {receipt:{index:{directory:string;acquiredAt:string}}}).receipt;
+   assert.notEqual(latest.index.directory,previous.index.directory);
+   assert.ok(Date.parse(latest.index.acquiredAt)>=Date.parse(previous.index.acquiredAt));
+   assert.deepEqual(applied.run.contract.criteria,oldRun.contract.criteria);
+   assert.equal(applied.run.budget.limit,oldRun.budget.limit);
+   assert.ok(v.store.runtime.inspect(v.runtime.id).run.attempts.every(attempt=>attempt.settled));
+   assert.throws(()=>v.store.verificationLineage.assertRefreshPublicationSupported(oldRun.projectId,oldRun.id),/blocked until adapted P4/);
+   const reopened=new SupervisorStore(v.data);
+   try{assert.deepEqual(readSourceRefreshGeneration(reopened,v.data,generationArgs),current);}finally{reopened.close();}
+  }else assert.throws(()=>readSourceRefreshGeneration(v.store,v.data,generationArgs),/Unselected refresh input basis changed or unknown: frozen/);
   assert.deepEqual(v.store.runtime.getOperation(op.id).result,acquisition);assert.deepEqual(v.store.runtime.getOperation(v.old.id).result,oldResult);assert.equal(v.store.verification.list('delivery').length,0);assert.equal(v.store.runtime.inspect(v.runtime.id).run.budget.spent,oldRun.budget.spent+2);
  }
  // Snapshot tampering must reject, not become another refresh generation.
@@ -109,8 +128,16 @@ test('P8-REFRESH-I02 refresh request cannot change source IDs original checks or
 });
 
 test('P8-REFRESH-I03 actual same-loopback HTTP byte refresh retains both snapshots and explicit failed later observation',async t=>{
- const root=await realpath(await mkdtemp('/tmp/sv-refresh-http-'));let body='Actual HTTP version A',status=200;const server=createServer((_request,response)=>{response.writeHead(status,{'content-type':'text/plain'});response.end(body);});await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));t.after(async()=>{await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));await rm(root,{recursive:true,force:true});});
+ const root=await realpath(await mkdtemp('/tmp/sv-refresh-http-'));let body='Actual HTTP version A',status=200,requests=0;const server=createServer((_request,response)=>{requests++;response.writeHead(status,{'content-type':'text/plain'});response.end(body);});await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));t.after(async()=>{await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));await rm(root,{recursive:true,force:true});});
  const intake=new MaterialIntake(root,{allowLoopbackHTTP:true}),inputs=[{id:'official',kind:'url' as const,url:'http://127.0.0.1:'+(server.address() as AddressInfo).port+'/same'}],limits={maxInputs:5,parallel:2,maxItemBytes:4096,maxTotalBytes:8192,timeoutMs:1000,maxDurationMs:3000,maxRedirects:0};
- const old=await intake.acquire({commandId:'original',inputs,limits});body='Actual HTTP version B';const observed=await intake.refresh(old.directory,inputs);assert.equal(observed.state,'changed');assert.equal(observed.entries[0]!.state,'changed');assert.deepEqual(await intake.inspect(old.directory),old);const current=await intake.inspect(observed.directory);assert.notEqual(current.generation,old.generation);assert.equal(await readFile(join(current.directory,current.entries[0]!.raw!.path),'utf8'),body);
- status=503;const failure=await intake.refresh(old.directory,inputs);assert.equal(failure.state,'unknown');assert.equal((await intake.inspect(failure.directory)).entries[0]!.status,'failed');assert.deepEqual(await intake.inspect(old.directory),old);
+ const old=await intake.acquire({commandId:'original',inputs,limits});assert.equal(requests,1);
+ const same=await intake.refresh(old.directory,inputs);assert.equal(requests,2);
+ assert.equal(same.state,'current');assert.equal(same.entries[0]!.state,'current');
+ const sameIndex=await intake.inspect(same.directory);
+ assert.notEqual(sameIndex.generation,old.generation);assert.notEqual(sameIndex.indexDigest,old.indexDigest);
+ assert.notEqual(sameIndex.directory,old.directory);assert.equal(sameIndex.entries[0]!.raw!.sha256,old.entries[0]!.raw!.sha256);
+ assert.ok(Date.parse(sameIndex.entries[0]!.acquiredAt)>=Date.parse(old.entries[0]!.acquiredAt));
+ assert.deepEqual(await intake.inspect(old.directory),old);
+ body='Actual HTTP version B';const observed=await intake.refresh(old.directory,inputs);assert.equal(requests,3);assert.equal(observed.state,'changed');assert.equal(observed.entries[0]!.state,'changed');assert.deepEqual(await intake.inspect(old.directory),old);const current=await intake.inspect(observed.directory);assert.notEqual(current.generation,old.generation);assert.equal(await readFile(join(current.directory,current.entries[0]!.raw!.path),'utf8'),body);
+ status=503;const failure=await intake.refresh(old.directory,inputs);assert.equal(requests,4);assert.equal(failure.state,'unknown');assert.equal((await intake.inspect(failure.directory)).entries[0]!.status,'failed');assert.deepEqual(await intake.inspect(old.directory),old);
 });

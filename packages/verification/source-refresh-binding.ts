@@ -9,6 +9,7 @@ import type {SourceRefreshGenerationProof} from '../contracts/p8-source-refresh.
 import type {MaterialsReceipt} from '../contracts/p8-research-runtime.js';
 import {assertMaterialsReceipt,assertMaterialsStepReceipt,assertTrue,readBounded,bytesDigest} from '../workspace/research-runtime-files.js';
 import {assertSourceRefreshConfiguration} from './source-refresh-intent.js';
+import {evaluateVerification,selectInstances} from './rules.js';
 import {researchDigest} from '../workspace/research-materials.js';
 /** Derive from actual immutable lineage and actual confirmed material receipts.
  * No caller generation, verdict, arbitrary receipt or current report is accepted.
@@ -21,7 +22,7 @@ function readGeneration(store:SupervisorStore,dataRoot:string,input:{transitionI
  const oldRuntime=store.runtime.get(previous.runtimeId),runtime=store.runtime.get(current.runtimeId),oldRun=store.runtime.inspect(oldRuntime.id).run,run=store.runtime.inspect(runtime.id).run;
  assertTrue(oldRuntime.projectId===authorization.projectId&&runtime.projectId===authorization.projectId&&oldRuntime.runId===authorization.previousRunId&&runtime.runId===authorization.currentRunId,'Refresh acquisition belongs to another Run');
  assertTrue(previous.contractVersion===transition.fromContract.version&&current.contractVersion===transition.toContract.version&&researchDigest(run.contract)===transition.to.contractDigest,'Refresh acquisition contract boundary changed');
- assertTrue(store.runtime.currentOperations(runtime.id).some(o=>o.id===current.id)&&!runtime.cancelled&&!runtime.paused&&(!['cancelled','succeeded','blocked'].includes(run.status)||sealedArchive&&run.status==='succeeded'),'Refresh current acquisition is stale or boundary closed');
+ assertTrue(sealedArchive?run.status==='succeeded':store.runtime.currentOperations(runtime.id).some(o=>o.id===current.id)&&!runtime.cancelled&&!runtime.paused&&!['cancelled','succeeded','blocked'].includes(run.status),'Refresh current acquisition is stale or boundary closed');
  assertTrue(previous.step.kind==='materials'&&current.step.kind==='materials'&&previous.step.id===current.step.id&&previous.id!==current.id&&previous.state==='confirmed'&&current.state==='confirmed','Two actual confirmed same-input material operations required');
  assertTrue(researchDigest(previous.step.inputs)===researchDigest(current.step.inputs)&&researchDigest(previous.step.limits)===researchDigest(current.step.limits),'Refresh changes source identity order or acquisition limits');
  const session=store.goals.inspect(transition.sessionId).session;
@@ -73,7 +74,70 @@ export function readArchivedSourceRefreshGeneration(db:DatabaseSync,dataRoot:str
  const row=db.prepare('SELECT record FROM research_delivery_seals WHERE delivery_id=?').get(delivery.id);assertTrue(row,'Archived refresh requires actual native sealed delivery');const seal=JSON.parse(String(row.record)) as import('../contracts/p4-research-workflow.js').ResearchDeliverySeal;const {digest,...body}=seal;
  assertTrue(researchDigest(body)===digest&&seal.deliveryId===delivery.id&&seal.combined.complete&&seal.binding.jobId===job.id&&seal.binding.planId===plan.id&&seal.binding.proposalId===plan.proposalId&&seal.binding.runId===delivery.runId&&seal.binding.projectId===delivery.projectId&&seal.binding.contractDigest===plan.contractDigest&&job.approved&&job.stopConfirmed&&!job.usageUnknown&&job.usage<=job.config.reservation&&job.kind==='verification'&&plan.selection.mode==='final','Archived refresh delivery seal is incomplete or inconsistent');
  const runtime=new RuntimeRepository(db,dataRoot),current=runtime.getOperation(input.currentOperationId),runtimeRecord=runtime.get(current.runtimeId),lineage=new VerificationLineageRepository(db);
- assertTrue(runtimeRecord.projectId===delivery.projectId&&runtimeRecord.runId===delivery.runId&&lineage.headForRun(delivery.projectId,delivery.runId)?.proposalId===plan.proposalId,'Archived refresh is not the exact current sealed scope');
+ const proposal=get<import('./records.js').Proposal>('proposal',plan.proposalId),run=runtime.inspect(runtimeRecord.id).run;
+ // A published head can move to a later Run. This archive is authorized only
+ // by its original committed delivery, never by whichever head is current now.
+ assertTrue(runtimeRecord.projectId===delivery.projectId&&runtimeRecord.runId===delivery.runId
+   &&[job,plan,proposal].every(v=>v.projectId===delivery.projectId&&v.runId===delivery.runId&&v.runtimeId===delivery.runtimeId)
+   &&job.planId===delivery.planId&&job.proposalId===proposal.id&&job.status==='finished'&&!job.error
+   &&proposal.status==='published'&&proposal.version===plan.catalogVersion&&proposal.reviewId
+   &&proposal.bundle.digest===plan.definitionDigest&&proposal.contractDigest===plan.contractDigest
+   &&delivery.definitionDigest===plan.definitionDigest&&delivery.candidateDigest===plan.candidate.digest
+   &&run.status==='succeeded'&&run.artifact?.id===plan.id&&researchDigest(run.contract)===plan.contractDigest,
+   'Archived refresh is not the exact immutable sealed scope');
+ const transition=lineage.transition(input.transitionId),binding=lineage.bindingForProposal(proposal.id);
+ assertTrue(binding.base.target.runId===delivery.runId&&binding.base.target.projectId===delivery.projectId
+   &&binding.base.target.contractDigest===plan.contractDigest&&binding.base.transitionIds.includes(transition.id)
+   &&transition.to.runId===delivery.runId&&transition.to.contractDigest===plan.contractDigest
+   &&current.contractVersion===transition.toContract.version,'Archived refresh transition or original operation differs');
+ const draftRow=db.prepare('SELECT record FROM verification_control_drafts WHERE proposal_id=?').get(proposal.id);
+ assertTrue(draftRow,'Archived refresh frozen draft missing');
+ const draft=JSON.parse(String(draftRow.record)).draft as import('../contracts/p4-control-draft.js').FrozenControlDraft;
+ const {digest:draftDigest,...draftBody}=draft;
+ assertTrue(draftDigest===proposal.controlDraftDigest&&researchDigest(draftBody)===draftDigest
+   &&researchDigest(draft.base)===researchDigest(binding.base)
+   &&draft.sourceRefresh?.generation.authorization.transitionId===input.transitionId
+   &&draft.sourceRefresh.generation.previousOperationId===input.previousOperationId
+   &&draft.sourceRefresh.generation.currentOperationId===input.currentOperationId,
+   'Archived refresh acquisition differs from the original frozen proposal');
+ const receipt=db.prepare('SELECT request,result FROM verification_product_receipts WHERE command_id=?').get(seal.commandId);
+ assertTrue(receipt&&researchDigest(JSON.parse(String(receipt.request)))===researchDigest({type:'deliver',commandId:seal.commandId,jobId:job.id})
+   &&researchDigest(JSON.parse(String(receipt.result)))===researchDigest(delivery)&&seal.receiptCoreDigest===researchDigest(delivery),
+   'Archived refresh committed receipt differs');
+ const captured=db.prepare('SELECT record FROM research_artifact_evidence WHERE job_id=?').get(job.id);
+ assertTrue(captured,'Archived refresh lacks original artifact evidence');
+ const artifact=JSON.parse(String(captured.record)) as import('../contracts/p4-research-workflow.js').ResearchArtifactEvidence;
+ const {digest:artifactDigest,...artifactBody}=artifact;
+ assertTrue(researchDigest(artifactBody)===artifactDigest&&artifactDigest===seal.artifactEvidenceDigest
+   &&researchDigest(artifact.binding)===researchDigest(seal.binding)&&artifact.jobDigest===researchDigest(job)
+   &&artifact.resultsDigest===researchDigest(job.results)&&artifact.boundaryDigest===researchDigest(artifact.boundary),
+   'Archived refresh original artifact evidence differs');
+ const attempt=run.attempts.find(a=>a.id===job.attemptId);
+ assertTrue(attempt?.settled&&attempt.actual===job.usage&&attempt.purpose==='verification'&&job.usage>0
+   &&plan.selection.completeScope&&researchDigest(plan.selection)===researchDigest(selectInstances(proposal.spec,{mode:'final'}))
+   &&evaluateVerification(proposal.spec,plan.selection,job.results).complete,
+   'Archived refresh original final accounting or full coverage differs');
+ assertTrue(Object.keys(job.proofs).length>0,'Archived refresh original final proofs missing');
+ const acquisition=(current.result as {receipt?:MaterialsReceipt})?.receipt;
+ assertTrue(acquisition,'Archived refresh original acquisition missing');
+ assertMaterialsReceipt(acquisition,current.id,current.attemptId,current.contractVersion,dataRoot);
+ assertMaterialsStepReceipt(acquisition,current);
+ for(const [path,hash]of Object.entries(artifact.files)){
+   // captureArtifact also records then-current local input paths. Their later
+   // authorized changes do not rewrite the original sealed acquisition. Only
+   // this exact receipt's raw archive may prove those historical source bytes.
+   const local=acquisition.index.entries.filter(e=>e.input.kind==='local'&&e.input.path===path);
+   if(local.length){
+     assertTrue(local.every(e=>e.raw?.complete&&e.raw.sha256===hash&&readBounded(join(acquisition.index.directory,e.raw.path)).length===e.raw.size&&bytesDigest(readBounded(join(acquisition.index.directory,e.raw.path)))===hash),
+       'Archived refresh local source differs from its exact original raw archive');
+   }else assertTrue(bytesDigest(readBounded(path))===hash,'Archived refresh actual sealed proof bytes changed');
+ }
+ for(const [path,hash]of Object.entries(job.proofs))
+   assertTrue(bytesDigest(readBounded(path))===hash,'Archived refresh original job proof bytes changed');
+ assertTrue(run.contract.criteria.filter(c=>c.required).every(c=>run.evidence.some(e=>e.id===delivery.id+':'+c.id
+   &&e.criterionId===c.id&&e.contractVersion===run.contract.version&&e.artifactDigest===run.artifact?.digest
+   &&e.verdict==='passed'&&e.verifierVersion==='p4:'+plan.definitionDigest)),
+   'Archived refresh original criterion completion missing');
  return readGeneration({runtime,goals:new GoalRepository(db,dataRoot),verificationLineage:lineage} as SupervisorStore,dataRoot,input,true);
 }
 
