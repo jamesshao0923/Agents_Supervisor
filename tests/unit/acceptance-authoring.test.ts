@@ -1,3 +1,4 @@
+import {authorWireReceipt} from '../../packages/orchestration/author-presentation-proofs.js';
 import * as stageProtocols from '../../packages/orchestration/author-stage-protocol.js';
 import * as stageV2 from '../../packages/orchestration/acceptance-authoring-stages-v2.js';
 import {AUTHOR_STAGE_PROTOCOL_V2,type HostAuthorStageBindingV2,type AuthorDefinitionStageV2,type AuthorPositiveStageV2,type AuthorNegativeStageV2} from '../../packages/contracts/p6-author-stages.js';
@@ -93,6 +94,28 @@ test('P6-AUTH-U01 strict proposed assets bind complete contract source environme
     assert.deepEqual(input.context.acceptance,c);assert.deepEqual(input.context.authorStageParents,parents);
     const wire=authorWireInput(input,'acceptance-authoring');
     assert.equal(wire.prompt,stageV2.renderAuthorStagePrompt(c,v2.binding(index),parents));
+    const fresh=stageProtocols.renderNewAuthorStageInput({acceptance:c,candidate:{complete:'snapshot'},binding:v2.binding(index),parents});
+    assert.equal(fresh.context.authorPresentation.schemaVersion,9);
+    assert.deepEqual(stageProtocols.parseAuthorStageInput(fresh),fresh);
+    assert.deepEqual(fresh.outputSchema,input.outputSchema);
+    assert.deepEqual(fresh.context.acceptance,input.context.acceptance);
+    assert.deepEqual(fresh.context.authorStageParents,input.context.authorStageParents);
+    const freshWire=authorWireInput(fresh,'acceptance-authoring');
+    assert.ok(freshWire.prompt.endsWith(wire.prompt),'All previous V2 requirements/context remain byte-exact');
+    assert.match(freshWire.prompt,/EACH positive\/negative control and the final candidate/);
+    assert.match(freshWire.prompt,/not passed to the checker as readable files/);
+    assert.match(freshWire.prompt,/does not prove a particular earlier development action/);
+    assert.match(freshWire.prompt,/do not impose a blanket syntax restriction/);
+    const receipt=authorWireReceipt({id:'prompt-only-binding',input:fresh,inputDigest:'fixed-test-input',purpose:'acceptance-authoring'});
+    assert.equal(receipt?.schemaVersion,2);
+    assert.deepEqual(receipt?.presentation,{schemaVersion:9,kind:'acceptance-stage'});
+    assert.equal(receipt?.promptDigest,hash(freshWire.prompt));
+    assert.deepEqual(stageProtocols.renderAuthorStageInput({acceptance:c,candidate:{complete:'snapshot'},binding:v2.binding(index),parents},8),input);
+    assert.deepEqual(stageProtocols.renderAuthorStageInput({acceptance:c,candidate:{complete:'snapshot'},binding:v2.binding(index),parents},9),fresh);
+    assert.throws(()=>stageProtocols.parseAuthorStageInput({...fresh,prompt:input.prompt}));
+    assert.throws(()=>stageProtocols.parseAuthorStageInput({...fresh,context:{...fresh.context,authorPresentation:{schemaVersion:10,kind:'acceptance-stage'}}}));
+    assert.throws(()=>stageProtocols.renderAuthorStageInput({acceptance:c,candidate:{},binding:staged.binding(index),parents:[staged.d,staged.p].slice(0,index)},9));
+
     assert.ok(wire.prompt.includes(JSON.stringify(c.contract.criteria[0]!.description).slice(1,-1)));
     // The legacy dispatcher path must reproduce the original stored and wire bytes exactly.
     const oldParents=[staged.d,staged.p].slice(0,index);

@@ -3,7 +3,7 @@ import type {SupervisorStore} from '../persistence/store.js';
 import type {SupervisionJob} from '../contracts/p6-supervision.js';
 import {AUTHOR_STAGE_ORDER,type AnyHostAuthorStageBinding} from '../contracts/p6-author-stages.js';
 import type {AcceptanceAuthoringContext} from './acceptance-authoring.js';
-import {isAuthorStageProtocol,parseAuthorStageInput,renderAuthorStageInput,parseAuthorStageOutput,authorStageDigest} from './author-stage-protocol.js';
+import {isAuthorStageProtocol,parseAuthorStageInput,renderAuthorStageInput,renderNewAuthorStageInput,parseAuthorStageOutput,authorStageDigest} from './author-stage-protocol.js';
 import {assertAuthorStageParents,assertStoredAuthorStage,authorStageParent} from './author-stage-proofs.js';
 
 function ensure(value:unknown,message:string):asserts value {if(!value)throw Error('Author stages: '+message);}
@@ -21,7 +21,7 @@ export function beginAuthorStages(store:SupervisorStore,loopId:string,context:Sn
     const sessionId='author-session-'+authorStageDigest({loopId,revision:loop.revision,contractDigest:loop.contractDigest,context});
     const binding:AnyHostAuthorStageBinding={protocol:loop.authoringProtocol,sessionId,index:0,stage:'definition',
       sessionTokenCeiling:loop.config.reservation,perCallTimeoutMs:loop.config.timeoutMs,loopDeadlineMs:deadline,parents:[]};
-    const input=renderAuthorStageInput({...context,binding,parents:[]});
+    const input=renderNewAuthorStageInput({...context,binding,parents:[]});
     const job=repo.beginJob({commandId:sessionId+':0',loopId,expectedRevision:loop.revision,purpose:'acceptance-authoring',context:input});
     const current=repo.get(loopId);repo.update(loopId,current.revision,{phase:'authoring',reason:null,references:{...current.references,authorJobId:job.id}});
     return job;
@@ -53,7 +53,7 @@ export function advanceAuthorStage(store:SupervisorStore,dataDir:string,job:Supe
     const spent=all.reduce((n,parent)=>n+parent.usage!,0),reservation=binding.sessionTokenCeiling-spent;
     ensure(Number.isSafeInteger(spent)&&Number.isSafeInteger(reservation)&&reservation>0,'shared author session budget exhausted');
     const next:AnyHostAuthorStageBinding={...binding,index,stage:AUTHOR_STAGE_ORDER[index],parents:all.map(parent=>authorStageParent(parent,dataDir))};
-    const nextInput=renderAuthorStageInput({acceptance:input.context.acceptance,candidate:input.context.candidate,binding:next,parents:all.map(parent=>parent.result)});
+    const nextInput=renderAuthorStageInput({acceptance:input.context.acceptance,candidate:input.context.candidate,binding:next,parents:all.map(parent=>parent.result)},input.context.authorPresentation.schemaVersion);
     const commandId=binding.sessionId+':'+index;
     // A previously published next job would already be the current reference. It must never be silently dispatched twice.
     ensure(!repo.jobs(loop.id).some(j=>j.id==='supervision-job-'+sha(commandId).slice(0,24)),'next fragment already exists outside current reference');

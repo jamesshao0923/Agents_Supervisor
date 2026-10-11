@@ -116,7 +116,7 @@ test('P6-AUTH-STAGE-I01 actual three-stage author retains raw fragments and shar
     assert.equal(job.config.timeoutMs,5000);
     const binding=parseAuthorStageInput(job.input)!.context.authorStage;
     assert.equal(binding.protocol,protocol);
-    assert.equal(parseAuthorStageInput(job.input)!.context.authorPresentation.schemaVersion,protocol===AUTHOR_STAGE_PROTOCOL?6:8);
+    assert.equal(parseAuthorStageInput(job.input)!.context.authorPresentation.schemaVersion,protocol===AUTHOR_STAGE_PROTOCOL?6:9);
     assert.equal(binding.sessionTokenCeiling,30);assert.equal(binding.perCallTimeoutMs,5000);
     assert.equal(binding.loopDeadlineMs,Date.parse(f.loop.createdAt)+120000);
     assert.equal(binding.index,index);assert.equal(binding.parents.length,index);
