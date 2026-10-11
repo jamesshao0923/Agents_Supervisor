@@ -2531,5 +2531,22 @@
     "gitCommit": "53e6237",
     "sha256": "537cdc9f613715d9641abb93bb05429c89422b761bf14723c37d3cf109b6d601",
     "caseDetails": "Each deferred ID resolves to its name, suite, assertions and risks in this exact tracked catalog. No copied per-case risk prose; scope/risk categories are in docs/field-validation.md."
-  }
+  },
+  "deferredScenariosWithinRetainedCases": [
+    {
+      "id": "stage-fragment-recovery-then-full-bundle-rebuild",
+      "kind": "scenario-gap-not-a-new-test-case-id",
+      "relatedCaseIds": [
+        "p6.integration-author-stages.001",
+        "p6.live-supervision-loop.001"
+      ],
+      "status": "not-demonstrated",
+      "scope": "An explicitly higher call limit allows a successful fragment regeneration followed by a successful full-bundle V5 rebuild in the same author session.",
+      "currentEvidence": "Static independent review of charged ancestry; existing V1/V2 full-bundle rebuild tests do not include a prior failed fragment. The max4 fragment-recovery scenario checks refusal of a fifth call, not success of this combination. New recovery component candidate still has retained r1 failures and is not merged.",
+      "reason": "Avoid adding an expanded combination matrix to the personal-trial gate; retain the original live scenario limits and independently review shared charge accounting.",
+      "risk": "A later full rebuild might lose the rejected fragment or paused attempt linkage, miscalculate remaining allowance, or reject valid recovery despite each part working separately.",
+      "revisitWhen": "A real task or the retained L01 naturally reaches fragment regeneration followed by full rebuild; modification of this charged ancestry; broader release. Add the minimal same-case check if needed; no automatic full historical rerun.",
+      "evidenceScope": "No claim this combination has passed; future actual observation may close the gap only with its own bound evidence."
+    }
+  ]
 }
