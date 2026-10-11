@@ -18,9 +18,9 @@ Supervisor 的需求理解与计划已由模型驱动，P6 自动监督控制器
 
 P7 手写检查器现在捕获真实 Promise 的异步断言拒绝：归属固定在调用时，只记录原有真实 AssertionError，再抛回同一错误；同步行为不改。原检查器对合法 `await assert.rejects()` 的实际误判已保留，修后15项相关真实组件检查通过。为长期回归，既有 live 用例保留原10个控制并新增此正例；新增控制独立复验1项通过、九个变体均检出，其他14项按不变检查器与输入复用，没有整批再跑或新增稳定ID。
 
-合入前独立审查和正常构建通过。证据 `.supervisor-dev/p7-parallel-checker-promise-work/actual-report.json`、`p7-parallel-checker-promise-r2-work/ready.json` 与 `root-independent-review.json`。真实并行门禁仍需另行通过，原模型拒绝及费用记录不变。
+合入前独立审查和正常构建通过。证据 `.supervisor-dev/p7-parallel-checker-promise-work/actual-report.json`、`p7-parallel-checker-promise-r2-work/ready.json` 与 `root-independent-review.json`。后续真实并行门禁仍被独立审核拒绝：带 query/fragment 的合法算术模块导入无法命中当前变异目标。异步断言正例已通过，该新缺陷另行保留并定位，不能由组件通过推断真实交付完成。原模型拒绝及费用记录不变。
 
-原自主修复 L01 也已实际执行并失败：它走旧的完整方案作者路径，三次作者返回完整结果，但两次 P4 正例均为 unknown，最终耗尽一次重建额度并正确阻塞，未修复代码、未发布或交付。已知194,973 token全部结算，156份证明一致、22个所属进程停止。第三次作者只修改覆盖说明，没有修改失败检查器。证据 `.supervisor-dev/p6-original-autoloop-live-work/final-result.json`。当前桌面默认分步作者路径的600秒跟进场景仍在运行；旧路径失败不能替代对当前默认路径的实际验证。
+原自主修复 L01 也已实际执行并失败：它走旧的完整方案作者路径，三次作者返回完整结果，但两次 P4 正例均为 unknown，最终耗尽一次重建额度并正确阻塞，未修复代码、未发布或交付。已知194,973 token全部结算，156份证明一致、22个所属进程停止。第三次作者只修改覆盖说明，没有修改失败检查器。证据 `.supervisor-dev/p6-original-autoloop-live-work/final-result.json`。当前桌面默认分步作者路径的600秒跟进场景也已结束：三段均完成，第三段重复删除同一文件，严格解析拒绝，0 P4/交付。该次268,706 token全部结算、195份证明一致、29个所属进程停止。已完成片段修正尚不受支持，系统即使剩余一次调用和83,342作者token额度仍会阻塞；这是下一项明确能力缺口。证据 `.supervisor-dev/p6-followup600-cc674cc-candidate/final-audit.json`。
 
 ## 先前开发检查点（2026-10-11，有界验收调用配置）
 
