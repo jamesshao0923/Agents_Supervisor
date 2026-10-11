@@ -1,14 +1,7 @@
-import {parseAuthorStageInput,parseAuthorStageOutput} from '../../packages/orchestration/author-stage-protocol.js';
-import {assertStoredAuthorStage,assertAuthorStageParents,assertAuthorStageAssemblyProof,authorStageChargePrefix,readRejectedAuthorStage,stageAttemptRef} from '../../packages/orchestration/author-stage-proofs.js';
-import {assertStageRecoveryRootPolicy,parseStageRecoveryInput} from '../../packages/orchestration/author-stage-recovery-presentation.js';
-import {assertStageAttemptLedger} from '../../packages/orchestration/author-stage-recovery.js';
-import {resolveAuthorBundle,assertAuthorExpansionProof,patchInput,authorPatchSchema} from '../../packages/orchestration/author-result-patch.js';
+import {validateControlEvolutionBundle,type ControlEvolutionAuthoringContext} from '../../packages/orchestration/acceptance-authoring-v2.js';
+import {prepareSuppliedIncrement} from './supervision-loop-supplied-fixture.js';
 import {assertLiveMaintenance} from './supervision-loop-maintenance-checker.js';
-import {assertAuthorRouteChain} from './supervision-loop-route-checker.js';
-import {readRoutingCapabilities} from '../../packages/orchestration/supervision-routing-capabilities.js';
-import {expectedAuthorRouteConfig} from '../../packages/orchestration/acceptance-authoring-route.js';
-import {parseReasonerOutput,ReasonerSchemaError} from '../../packages/orchestration/reasoner-schema.js';
-import {diagnoseAcceptanceAuthoringResult,type AcceptanceAuthoringContext} from '../../packages/orchestration/acceptance-authoring.js';
+import {type AcceptanceAuthoringContext} from '../../packages/orchestration/acceptance-authoring.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp,mkdir,realpath,writeFile,readFile,cp } from 'node:fs/promises';
@@ -40,9 +33,9 @@ const criterion={id:'increment',kind:'command',target:'result.test.mjs',descript
   '当前 result.mjs 命名导出 increment(value)，有限 number 返回 JavaScript value+1；实际检查 2、-2、0、0.5 和 17。',
   '当前 increment 对 NaN、Infinity、-Infinity、字符串、null、undefined、布尔值和对象等非有限 number 输入抛真正 TypeError。',
   '对当前冻结产物实际执行 node result.test.mjs，进程成功退出，退出码为 0。',
-  '当前交付仅有 result.mjs 和 result.test.mjs，不联网、不安装外部依赖、不增加其他功能。',
+  '当前冻结交付目录恰好包含 result.mjs 和 result.test.mjs 两个文件。',
 ]};
-const goal='创建最小 Node.js ESM 工程，不联网、不安装依赖，仅交付 result.mjs 和 result.test.mjs。result.mjs 命名导出 increment(value)：有限 number 返回 JavaScript value+1；其他所有输入（包括 NaN、Infinity、-Infinity、字符串、null、undefined、布尔值和对象）抛真正 TypeError。实现步骤创建 Node 测试，检查 2→3、-2→-1、0→1、0.5→1.5 及上述非法输入，并实际运行 node result.test.mjs，保留真实工具调用与退出结果。恰好一个 Codex 实现步骤和一条 command criterion；criterion 必须逐字采用下列 JSON 的 id、kind、target、description 和 checks，不得增加或改写 checks：'+JSON.stringify(criterion)+'。P4 用独立执行验证当前函数业务行为；用户测试命令只要求当前真实成功运行。实现期历史动作不属于正负控制项目资格义务；本场景不要求通用断言触达、静态导入审计、用户测试变异检测质量、隔离变异进程退出证明或形式化 forall 数学证明。实施完成后仍须独立验收才能交付，不要提问。';
+const goal='创建最小 Node.js ESM 工程，不联网、不安装依赖，仅交付 result.mjs 和 result.test.mjs。result.mjs 命名导出 increment(value)：有限 number 返回 JavaScript value+1；其他所有输入（包括 NaN、Infinity、-Infinity、字符串、null、undefined、布尔值和对象）抛真正 TypeError。实现步骤创建 Node 测试，检查 2→3、-2→-1、0→1、0.5→1.5 及上述非法输入，并实际运行 node result.test.mjs，保留真实工具调用与退出结果。恰好一个 Codex 实现步骤和一条 command criterion；criterion 必须逐字采用下列 JSON 的 id、kind、target、description 和 checks，不得增加或改写 checks：'+JSON.stringify(criterion)+'。P4 用独立执行验证当前函数业务行为；用户测试命令只要求当前真实成功运行。不联网、不安装依赖是实施指令及宿主权限边界，不作为控制项目历史行为资格；第四 check 只验证当前双文件目录，不证明额外功能排除或通用依赖审计。实现期历史动作不属于正负控制项目资格义务；本场景不要求通用断言触达、静态导入审计、用户测试变异检测质量、隔离变异进程退出证明或形式化 forall 数学证明。实施完成后仍须独立验收才能交付，不要提问。';
 const externalBehavior="import assert from 'node:assert/strict';import {increment} from './result.mjs';for(const [value,expected] of [[2,3],[-2,-1],[0,1],[0.5,1.5],[17,18]])assert.equal(increment(value),expected);for(const value of [NaN,Infinity,-Infinity,'2',null,undefined,true,false,{},[]])assert.throws(()=>increment(value),TypeError);";
 // An explicit, traceable fault in product bytes, not a change to its requirements,
 // verifier, execution ledger, controller state or completion receipt.
@@ -50,7 +43,8 @@ const injected="export function increment(value){if(typeof value!=='number'||!Nu
 
 // This case uses default production Codex adapters throughout. The harness only
 // observes product APIs, exercises external Node behavior and injects one fault.
-// No seeded verification specification/approval, direct repair action, manual
+// Initial fixed user assets still require actual independent P4 qualification.
+// No seeded approval, direct repair action, manual
 // scan, fake timer or conditional skip can substitute for the autonomous loop.
 test('P6-LOOP-L01 real autonomous supervision authors reviews rejects repairs and delivers one immutable contract',{timeout:2_640_000},async t=>{
   const root=await realpath(await mkdtemp(join(tmpdir(),'sv-p6-loop-live-'))),data=join(root,'data'),workspace=join(root,'project');await mkdir(workspace);
@@ -91,7 +85,13 @@ test('P6-LOOP-L01 real autonomous supervision authors reviews rejects repairs an
   const diff=await execute('git',['diff','--no-index','--',join(evidence,'result-before.mjs'),join(evidence,'result-injected.mjs')]).then(value=>value.stdout,error=>{assert.equal(error.code,1);return String(error.stdout);});await writeFile(join(evidence,'fault-injection.diff'),diff);
   await save('fault-injection',{file:'result.mjs',beforeDigest:sha(before),afterDigest:sha(injected),unchangedTestDigest:sha(testBefore),contractDigest:sha(contractBytes),reason:'Inject finite input wrong arithmetic while preserving TypeError validation.'});assert.notEqual(sha(before),sha(injected));
   await assert.rejects(execute(process.execPath,['result.test.mjs'],{cwd:workspace,timeout:10_000}),'Actual candidate tests must reject this injected behavior');await assert.rejects(execute(process.execPath,['--input-type=module','-e',externalBehavior],{cwd:workspace,timeout:10_000}));assert.equal(canonical(store.runtime.inspect(runtimeId).run.contract),contractBytes);
-  assert.equal(store.verification.headForRun(admitted.run.projectId,admitted.run.id),null,'No manual specification precedes product authoring');
+  const supplied=await prepareSuppliedIncrement(join(root,'supplied-initial'),admitted.run.contract.version,criterion.checks);await proofs(supplied.files);
+  const suppliedProposal=await verification.dispatch({type:'propose',commandId:randomUUID(),runtimeId:runtimeId!,specPath:supplied.specPath}) as import('../../packages/verification/records.js').Proposal;
+  assert.equal(suppliedProposal.status,'proposed');assert.deepEqual(suppliedProposal.spec,supplied.spec);assert.equal(suppliedProposal.contractDigest,sha(contractBytes));await assertCandidate(suppliedProposal.candidate,false);
+  const dispatchedReview=await verification.dispatch({type:'review',commandId:randomUUID(),proposalId:suppliedProposal.id,...config}) as VerificationJob;
+  const suppliedReview=await until(()=>store.verification.get('job',dispatchedReview.id),job=>job.status==='finished','supplied-independent-review');await checked(suppliedReview);assert.equal(suppliedReview.approved,true,suppliedReview.error??JSON.stringify(suppliedReview));assert.equal(suppliedReview.proposalId,suppliedProposal.id);assert.ok(suppliedReview.controls.length===supplied.spec.controls.length&&suppliedReview.controls.every(c=>c.passed));
+  await verification.dispatch({type:'publish',commandId:randomUUID(),proposalId:suppliedProposal.id,reviewId:suppliedReview.id});
+  assert.equal(store.verification.headForRun(admitted.run.projectId,admitted.run.id)?.id,suppliedProposal.id);await save('supplied-initial-qualified',{assets:supplied,proposal:store.verification.get('proposal',suppliedProposal.id),review:suppliedReview});
   const attached=await supervision.dispatch({type:'attach',commandId:randomUUID(),runtimeId,authoringProtocol:'acceptance-stages-v2',config,limits:{maxRepairs:3,maxReasoningCalls:12,maxDurationMs:1_320_000,maxContextChars:200_000}}) as SupervisionInspection;loopId=attached.loop.id;await save('attached',attached);assert.equal(attached.capabilities.scanIntervalMs,2_000);assert.equal(attached.capabilities.healthIntervalMs,10_000);assert.equal(attached.capabilities.modelMonitoring,true); // Capability availability only; this case does not establish three real 300-second inspection windows.
   let lastFingerprint='',failedBytes:string|undefined,failedId:string|undefined,publishedBytes:string|undefined;
   const preservedJobs=new Map<string,string>(),preservedMaintenance=new Set<string>(),preservedStages=new Set<string>();
@@ -128,6 +128,7 @@ test('P6-LOOP-L01 real autonomous supervision authors reviews rejects repairs an
   await save('completed-loop',final);assert.equal(final.loop.phase,'complete',final.loop.reason??JSON.stringify(final));assert.equal(final.loop.paused,false);assert.equal(final.loop.stopped,false);assert.equal(final.runtime.run.status,'succeeded');assert.ok(failedId&&failedBytes&&publishedBytes,'A real failed verification must precede successful delivery');assert.equal(final.loop.repairCount,1,'One injected defect should require exactly one appended repair');
   const maintenance=final.controlMaintenance;assert.ok(maintenance,'A real same-contract repair requires one bounded maintenance receipt');
   assert.equal(maintenance.status,'complete');assert.equal(maintenance.basis.necessity,'required-regression');
+  assert.equal(final.loop.references.authorJobId,maintenance.authorJobId);
   const originalPublished=JSON.parse(publishedBytes) as import('../../packages/verification/records.js').Proposal;
   assert.equal(canonical(store.verification.get('proposal',originalPublished.id)),publishedBytes,'Original published standard is never rewritten');
   const published=store.verification.headForRun(admitted.run.projectId,admitted.run.id)!;
@@ -135,97 +136,26 @@ test('P6-LOOP-L01 real autonomous supervision authors reviews rejects repairs an
   assert.equal(final.verification.proposals.filter(proposal=>proposal.status==='published').length,2,'Original standard and exactly one maintained successor');
   await assertCandidate(published.candidate,false);
   assert.equal(canonical(store.verification.get('job',failedId)),failedBytes,'Failed job results/proofs remain immutable');const failedPlan=store.verification.get('plan',store.verification.get('job',failedId).planId!);await assertCandidate(failedPlan.candidate,false);assert.equal(await readFile(join(failedPlan.candidate.tree,'result.mjs'),'utf8'),injected);
-  const allAuthors=final.jobs.filter(job=>job.purpose==='acceptance-authoring'),maintenanceAuthors=allAuthors.filter(job=>job.id===maintenance.authorJobId),authors=allAuthors.filter(job=>job.id!==maintenance.authorJobId),diagnoses=final.jobs.filter(job=>job.purpose==='diagnosis'),inspections=final.jobs.filter(job=>job.purpose==='inspection'),workflowJobs=final.jobs.filter(job=>job.purpose!=='inspection');
+  const allAuthors=final.jobs.filter(job=>job.purpose==='acceptance-authoring'),maintenanceAuthors=allAuthors.filter(job=>job.id===maintenance.authorJobId),authors=allAuthors,diagnoses=final.jobs.filter(job=>job.purpose==='diagnosis'),inspections=final.jobs.filter(job=>job.purpose==='inspection'),workflowJobs=final.jobs.filter(job=>job.purpose!=='inspection');
   assert.equal(final.loop.authoringProtocol,'acceptance-stages-v2');
-  assert.equal(diagnoses.length,1);assert.equal(maintenanceAuthors.length,1);assert.equal(workflowJobs.length,authors.length+2);assert.equal(final.jobs.length,workflowJobs.length+inspections.length);assert.equal(final.loop.reasoningCount,workflowJobs.length+inspections.length);assert.ok(final.loop.reasoningCount<=12);
+  assert.equal(diagnoses.length,1);assert.equal(maintenanceAuthors.length,1);assert.equal(workflowJobs.length,authors.length+1);assert.equal(final.jobs.length,workflowJobs.length+inspections.length);assert.equal(final.loop.reasoningCount,workflowJobs.length+inspections.length);assert.ok(final.loop.reasoningCount<=12);
   const authorRoutes=store.authorRouting.routes(final.loop.id);
-  const readAuthor=(id:string)=>{const job=authors.find(value=>value.id===id);assert.ok(job,'Actual charged author ancestry must be retained: '+id);return job;};
-  // Bind the accepted author to the original published definition's actual
-  // materialization root; the Loop reference now points at maintenance instead.
-  const publishedAuthors=authors.filter(job=>resolve(join(data,'supervision','authoring',job.id))===resolve(originalPublished.bundle.root));
-  assert.equal(publishedAuthors.length,1,'Published proposal must bind exactly one actual author asset root');
-  const finalAuthor=publishedAuthors[0]!;
-  const fullAuthors=authors.filter(job=>patchInput(job.input));
-  const assemblyCandidates=authors.filter(job=>{const input=parseAuthorStageInput(job.input);return input?.context.authorStage.index===2&&!job.error;});
-  assert.equal(assemblyCandidates.length,1,'Exactly one successful final fragment assembles the original definition');
-  const assembly=assemblyCandidates[0]!,assemblyInput=parseAuthorStageInput(assembly.input)!;
-  const acceptedStages=[...assertAuthorStageParents(assembly,readAuthor,data),assembly];
-  assert.equal(acceptedStages.length,3);assert.deepEqual(acceptedStages.map(job=>parseAuthorStageInput(job.input)!.context.authorStage.index),[0,1,2]);
-  const chargedStages=[...authorStageChargePrefix(assembly,readAuthor,data),assembly];
-  assertStageAttemptLedger(store,assembly,chargedStages);
-  const stageRejections=chargedStages.filter(job=>job.error&&job.modelStarted);
-  const recoveryRoots=chargedStages.map(job=>parseStageRecoveryInput(job.input)).filter(input=>input!==null);
-  assertStageRecoveryRootPolicy(recoveryRoots.map(input=>({schemaVersion:input.context.stageRecovery.schemaVersion,sessionId:input.context.authorStage.sessionId,index:input.context.authorStage.index,rejectionJobId:input.context.stageRecovery.rejection.jobId})));
-  const rejectedIds=new Set<string>();
-  for(const job of stageRejections){const rejected=readRejectedAuthorStage(job,data);rejectedIds.add(job.id);await save('retained-stage-rejection-'+job.id,{job,rejected});}
-  for(const job of chargedStages){
-    const input=parseAuthorStageInput(job.input);assert.ok(input);const binding=input.context.authorStage;
-    assert.equal(binding.protocol,'acceptance-stages-v2');assert.equal(binding.sessionId,assemblyInput.context.authorStage.sessionId);assert.equal(binding.sessionTokenCeiling,150_000);assert.equal(binding.perCallTimeoutMs,config.timeoutMs);assert.equal(binding.loopDeadlineMs,Date.parse(final.loop.createdAt)+final.loop.limits.maxDurationMs);
-    const recovery=parseStageRecoveryInput(job.input);
-    if(recovery){
-      const rejected=readAuthor(recovery.context.stageRecovery.rejection.jobId),actual=readRejectedAuthorStage(rejected,data);
-      assert.deepEqual(recovery.context.stageRecovery.rejection,actual.ref);assert.deepEqual(recovery.context.stageRecovery.raw,actual.raw);
-      if(recovery.context.stageRecovery.previousAttempt){const prior=readAuthor(recovery.context.stageRecovery.previousAttempt.jobId);assert.deepEqual(stageAttemptRef(prior),recovery.context.stageRecovery.previousAttempt);assert.equal(prior.modelStarted,false);assert.equal(prior.usage,0);assert.ok(prior.error);}
-    }
-    if(!job.error){assertStoredAuthorStage(job,data);assertAuthorStageParents(job,readAuthor,data);assertAuthorStageAssemblyProof(job,readAuthor,data);const fragment=parseAuthorStageOutput(job.result,input.context.acceptance,binding,input.context.authorStageParents);assert.equal(fragment.stage,binding.stage);}
-    else if(!job.modelStarted){assert.ok(recovery,'Known-zero attempt must retain exact stage-recovery presentation');assert.equal(job.status,'finished');assert.equal(job.stopConfirmed,true);assert.equal(job.usage,0);assertStageAttemptLedger(store,job,[job]);if(job.identities.length)await stopped(job.identities);if(Object.keys(job.proofs).length)await proofs(job.proofs);await save('retained-known-zero-stage-'+job.id,job);}
-  }
-  assertStageAttemptLedger(store,assembly,authors);
-  const routeAuthors=[assembly,...fullAuthors];
-  assert.deepEqual([...new Set([...chargedStages,...fullAuthors].map(job=>job.id))].sort(),authors.map(job=>job.id).sort(),'No author attempt, rejected fee, resumed attempt or patch may disappear');
-  assert.equal(new Set(authors.map(job=>job.id)).size,authors.length);assert.ok(authors.every(job=>job.usage!==null));assert.ok(authors.reduce((sum,job)=>sum+job.usage!,0)<=150_000,'All fragments, failures, known-zero resumes and complete-bundle recovery share the original allowance');
-  for(const job of workflowJobs){if(job.purpose==='acceptance-authoring'&&!job.modelStarted){assert.ok(chargedStages.includes(job));continue;}await reasoning(job,rejectedIds.has(job.id)||authorRoutes.some(route=>route.rejection.previousJobId===job.id&&route.rejection.kind==='schema'));}
-  await save('actual-stage-session',{acceptedStageIds:acceptedStages.map(job=>job.id),chargedStageIds:chargedStages.map(job=>job.id),fullRouteIds:fullAuthors.map(job=>job.id),publishedAuthorId:finalAuthor.id,ceiling:150_000,spent:authors.reduce((sum,job)=>sum+job.usage!,0)});
-  const authorInput=(job:SupervisionJob)=>job.input as {outputSchema:Record<string,unknown>;context:{acceptance:AcceptanceAuthoringContext;candidate:unknown;authorFeedback?:{previousJobId:string;inputDigest:string;rejection:import('../../packages/contracts/p6-author-routing.js').AuthorRejection}}};
-  // Preserve raw model output; only the host resolver can expand a proof-bound patch.
-  const authoredBundle=(job:SupervisionJob)=>{
-    assertAuthorExpansionProof(job,id=>store.supervision.job(id),data);
-    return resolveAuthorBundle(job,id=>store.supervision.job(id),data).bundle;
-  };
-  assert.equal(final.loop.references.authorJobId,maintenance.authorJobId);
-  assert.ok(finalAuthor);assert.equal(finalAuthor.error,null);assert.equal(diagnoseAcceptanceAuthoringResult(authoredBundle(finalAuthor),authorInput(finalAuthor).context.acceptance),null,'Published author must satisfy all original semantic checks');
-  assert.equal(authorRoutes.length,routeAuthors.length-1,'Every replacement has exactly one immutable route and no extra route');
-  assertAuthorRouteChain(routeAuthors,authorRoutes,finalAuthor.id);
-  assert.ok(authorRoutes.filter(route=>route.rejection.kind==='review').length<=1,'Review reconstruction is independently bounded once');
-  assert.ok(authorRoutes.filter(route=>route.rejection.kind!=='review').length<=1,'Schema/semantic regeneration remains bounded once');
-  const replacements=new Set(authorRoutes.map(route=>route.nextJobId));assert.equal(replacements.size,authorRoutes.length);
-  assert.equal(routeAuthors.filter(job=>!replacements.has(job.id)).length,1,'One assembled author root, no orphan full-bundle recovery jobs');
-  for(const route of authorRoutes){
-    const original=authors.find(job=>job.id===route.rejection.previousJobId)!,nextAuthor=authors.find(job=>job.id===route.nextJobId)!;assert.ok(original&&nextAuthor);
-    assert.equal(route.schemaVersion,2,'Staged full-bundle recovery must preserve its bounded author session');assert.ok(route.authorization.authorSession,'All rejected and resumed fragments remain charged in route authorization');
-    const feedback=authorInput(nextAuthor).context.authorFeedback;
-    assert.ok(feedback);assert.equal(feedback.previousJobId,original.id);assert.equal(feedback.inputDigest,original.inputDigest);if(route.rejection.kind!=='review')assert.deepEqual(feedback.rejection,route.rejection);else{assert.equal(feedback.rejection.kind,'review');assert.equal(feedback.rejection.message,route.rejection.message);assert.deepEqual(feedback.rejection.raw,route.rejection.raw);}assert.equal(route.rejection.previousJobId,original.id);assert.equal(route.rejection.jobDigest,sha(runtimeCanonical(original)));assert.equal(route.nextJobId,nextAuthor.id);assert.equal(route.nextInputDigest,nextAuthor.inputDigest);assert.equal(route.contractDigest,sha(contractBytes));assert.deepEqual(route.baseline,original.config);assert.deepEqual(route.selected,nextAuthor.config);if(route.schemaVersion===2&&route.authorization.authorSession){const session=route.authorization.authorSession;assert.equal(session.sessionId,assemblyInput.context.authorStage.sessionId);assert.equal(session.ceiling,150_000);const charged=session.jobs.map(ref=>{const job=readAuthor(ref.jobId);assert.equal(ref.inputDigest,job.inputDigest);assert.equal(ref.completionDigest,job.completionDigest);assert.equal(ref.proofsDigest,sha(runtimeCanonical(job.proofs)));assert.equal(ref.usage,job.usage);return job;});assertStageAttemptLedger(store,original,charged);assert.deepEqual(charged.map(job=>job.id),[...chargedStages,...fullAuthors.slice(0,fullAuthors.indexOf(nextAuthor))].map(job=>job.id));assert.equal(session.spent,charged.reduce((sum,job)=>sum+job.usage!,0));assert.equal(session.remaining,session.ceiling-session.spent);assert.equal(nextAuthor.config.reservation,session.remaining);}else{assert.equal(nextAuthor.config.reservation,original.config.reservation);}assert.deepEqual(nextAuthor.config,expectedAuthorRouteConfig(route));assert.ok(nextAuthor.config.timeoutMs<=original.config.timeoutMs);assert.equal(route.authorization.absoluteDeadlineMs,Date.parse(final.loop.createdAt)+final.loop.limits.maxDurationMs);assert.notDeepEqual(nextAuthor.config,original.config,'Actual recovery changes quality or depth within the same allocation');assert.notEqual(nextAuthor.threadId,original.threadId,'Real replacement uses a new independent context');
-    assert.equal(sha(await readFile(route.rejection.rawOutputPath)),route.rejection.rawOutputDigest);assert.deepEqual(JSON.parse(await readFile(route.rejection.rawOutputPath,'utf8')),route.rejection.raw);await proofs(original.proofs);await proofs(nextAuthor.proofs);
-    const raw=await readFile(route.rejection.rawOutputPath,'utf8');
-    assert.equal(route.policyDigest,sha(runtimeCanonical(route.policy)));
-    const capabilities=readRoutingCapabilities(data,route.capabilities);
-    await stopped([route.capabilities.identity]);await proofs({[route.capabilities.proofPath]:route.capabilities.proofDigest,[route.capabilities.snapshotPath]:route.capabilities.snapshotDigest});
-    assert.deepEqual(route.selected,expectedAuthorRouteConfig({...route,capabilities:{...route.capabilities,capabilities}}));
-    const capabilityAge=Date.parse(route.createdAt)-Date.parse(capabilities.checkedAt);assert.ok(capabilityAge>=0&&capabilityAge<=route.policy.capabilityMaxAgeMs);
-    assert.equal(route.rejection.schemaDigest,sha(runtimeCanonical(authorInput(original).outputSchema)));assert.equal(route.rejection.proofsDigest,sha(runtimeCanonical(original.proofs)));
-    const resultPaths=Object.keys(original.proofs).filter(path=>path.endsWith('/result.json')),eventPaths=Object.keys(original.proofs).filter(path=>path.endsWith('/events.jsonl'));assert.equal(resultPaths.length,1);assert.equal(eventPaths.length,1);
-    const transportResult=JSON.parse(await readFile(resultPaths[0]!,'utf8')),events=(await readFile(eventPaths[0]!,'utf8')).trim().split('\n').map(line=>JSON.parse(line));
-    const completed=events.filter(event=>event.kind==='codex-event'&&event.value?.raw?.method==='turn/completed').map(event=>event.value.raw.params);assert.equal(completed.length,1);assert.equal(completed[0].threadId,original.threadId);assert.equal(completed[0].turn.id,transportResult.turnId);assert.equal(completed[0].turn.status,'completed');assert.equal(completed[0].turn.items.filter((item:{type:string})=>item.type==='agentMessage').at(-1)?.text,raw);
-    assert.equal(transportResult.usage,original.usage);assert.equal(transportResult.threadId,original.threadId);assert.equal(transportResult.stopConfirmed,true);assert.equal(transportResult.modelStarted,true);
-    if(route.rejection.kind==='semantic'){assert.equal(original.error,null);assert.deepEqual(route.rejection.raw,original.result);const diagnostic=diagnoseAcceptanceAuthoringResult(authoredBundle(original),authorInput(original).context.acceptance);assert.ok(diagnostic);assert.equal(route.rejection.message,diagnostic.message);}
-    else if(route.rejection.kind==='schema'){assert.equal(route.rejection.kind,'schema');assert.equal(original.result,null);assert.equal(original.error,route.rejection.message);assert.equal(transportResult.value,null);assert.deepEqual(transportResult.outputRejection,{schemaVersion:1,kind:'schema',rawOutputDigest:route.rejection.rawOutputDigest,message:route.rejection.message});assert.throws(()=>parseReasonerOutput(raw,authorInput(original).outputSchema),error=>error instanceof ReasonerSchemaError&&error.message===route.rejection.message);}
-    else {assert.equal(route.rejection.kind,'review');assert.equal(original.error,null);assert.equal(diagnoseAcceptanceAuthoringResult(authoredBundle(original),authorInput(original).context.acceptance),null);assert.deepEqual(route.rejection.raw,original.result);const rejected=route.rejection.review!;assert.ok(rejected);const projected=feedback.rejection as unknown as {rawOutputDigest:string;authorProofsDigest:string;review:{classification:string;proposalId:string;proposalDigest:string;baseDigest:string;candidateDigest:string;definitionDigest:string;reviewId:string;reviewDigest:string;proofsDigest:string;usage:number;stopConfirmed:boolean;controls:unknown;diagnostics:unknown;independentReview:unknown}};assert.equal(projected.rawOutputDigest,route.rejection.rawOutputDigest);assert.equal(projected.authorProofsDigest,route.rejection.proofsDigest);const expectedModelReview=rejected.independentReview?{verdict:rejected.independentReview.verdict,reason:rejected.independentReview.reason,observations:rejected.independentReview.observations,usage:rejected.independentReview.usage,threadId:rejected.independentReview.threadId,turnId:rejected.independentReview.turnId}:null;assert.deepEqual(projected.review,{classification:rejected.classification,proposalId:rejected.proposalId,proposalDigest:rejected.proposalDigest,baseDigest:rejected.baseDigest,candidateDigest:rejected.candidateDigest,definitionDigest:rejected.definitionDigest,reviewId:rejected.review.id,reviewDigest:sha(runtimeCanonical(rejected.review)),proofsDigest:sha(runtimeCanonical(rejected.review.proofs)),usage:rejected.review.usage,stopConfirmed:rejected.review.stopConfirmed,controls:rejected.review.controls.map(control=>({id:control.id,passed:control.passed,results:control.results.map(({proofFiles:_paths,...result})=>result)})),diagnostics:rejected.diagnostics,independentReview:expectedModelReview});const actual=store.verification.get('job',rejected.review.id);assert.equal(canonical(actual),canonical(rejected.review),'Original rejected review remains byte-equivalent to receipt');assert.equal(actual.approved,false);assert.equal(actual.status,'finished');assert.ok(actual.error);assert.equal(actual.stopConfirmed,true);assert.equal(actual.usageUnknown,false);assert.ok(actual.usage>=0&&actual.usage<=actual.config.reservation);assert.equal(actual.intents.length,actual.identities.length);await stopped(actual.identities);await proofs(actual.proofs);assert.equal(actual.proposalId,rejected.proposalId);const proposal=store.verification.get('proposal',rejected.proposalId);assert.equal(proposal.status,'proposed');assert.equal(proposal.version,null);assert.equal(proposal.contractDigest,sha(contractBytes));assert.equal(proposal.bundle.digest,rejected.definitionDigest);assert.equal(proposal.candidate.digest,rejected.candidateDigest);assert.equal(store.verificationLineage.bindingForProposal(proposal.id).proposalDigest,rejected.proposalDigest);const reviewAttempt=final.runtime.run.attempts.find(attempt=>attempt.id===actual.attemptId);assert.ok(reviewAttempt);assert.equal(reviewAttempt.purpose,'verification');assert.equal(reviewAttempt.settled,true);assert.equal(reviewAttempt.status,'failed');assert.equal(reviewAttempt.actual,actual.usage);assert.equal(reviewAttempt.reservation,actual.config.reservation);await assertCandidate(proposal.candidate,false);if(rejected.classification==='control-rejected'){assert.equal(actual.modelStarted,false);assert.equal(actual.usage,0);assert.ok(actual.controls.some(control=>!control.passed));}else{assert.equal(rejected.classification,'definition-rejected');assert.equal(actual.modelStarted,true);assert.ok(actual.usage>0);assert.ok(actual.controls.every(control=>control.passed));assert.ok(rejected.independentReview&&['failed','unknown'].includes(rejected.independentReview.verdict));}await save('retained-rejected-review-'+actual.id,{route,proposal,actual});}
-    const patch=patchInput(nextAuthor.input);
-    if(patch){
-      assert.equal(route.schemaVersion,2,'Patch recovery requires the bounded V2 route');
-      assert.ok(['semantic','review'].includes(route.rejection.kind),'Schema-invalid bundles retain full recovery');
-      assert.equal(patch.context.authorPatch!.base.jobId,original.id);
-      assert.equal(patch.context.authorPatch!.base.inputDigest,original.inputDigest);
-      assert.deepEqual(authorInput(nextAuthor).outputSchema,authorPatchSchema(patch.context.authorPatch!.base));
-      // Exact actual base, raw patch, expanded bundle and receipt are all re-read.
-      authoredBundle(nextAuthor);
-    }else{
-      assert.deepEqual(authorInput(nextAuthor).outputSchema,authorInput(original).outputSchema);
-    }
-assert.deepEqual(authorInput(nextAuthor).context.acceptance,authorInput(original).context.acceptance);assert.deepEqual(authorInput(nextAuthor).context.candidate,authorInput(original).context.candidate);if(route.rejection.kind!=='review')assert.equal(authorInput(original).context.authorFeedback,undefined);await save('bounded-author-regeneration-'+route.id,{original,nextAuthor,route});
-  }
-  const materializedSpec=structuredClone(authoredBundle(finalAuthor).spec);for(const control of materializedSpec.controls)if(authoredBundle(finalAuthor).controls.some(asset=>asset.id===control.id))control.workspace=join(data,'supervision','authoring',finalAuthor.id,'controls',control.id);assert.deepEqual(originalPublished.spec,materializedSpec,'Published standards are exactly the resolved assembly/patch, with only actual host control paths materialized');
-  if(!authorRoutes.length)assert.equal(authorInput(finalAuthor).context.authorFeedback,undefined);
+  const finalAuthor=maintenanceAuthors[0]!;assert.ok(finalAuthor);
+  assert.equal(resolve(published.bundle.root),resolve(join(data,'supervision','authoring',finalAuthor.id)),'Maintained published assets bind the real final author');
+  assert.equal(authors.length,1,'Only the real mandatory maintenance author remains; initial assets were supplied');
+  assert.equal(authorRoutes.length,0,'This scenario does not claim initial automatic author regeneration');
+  assert.ok(authors.every(job=>job.usage!==null));assert.ok(authors.reduce((sum,job)=>sum+job.usage!,0)<=150_000,'Dynamic maintenance author stays inside the original observed allowance');
+  for(const job of workflowJobs)await reasoning(job);
+  assert.equal(finalAuthor.error,null);
+  const maintenanceInput=finalAuthor.input as {context:{acceptance:AcceptanceAuthoringContext;evolution:ControlEvolutionAuthoringContext}};
+  assert.ok(maintenanceInput.context.evolution.maintenance);
+  assert.deepEqual(maintenanceInput.context.evolution.maintenance.basis,maintenance.basis);
+  const maintainedBundle=validateControlEvolutionBundle(finalAuthor.result,maintenanceInput.context.evolution);
+  const materializedSpec=structuredClone(maintainedBundle.assets.spec);
+  for(const control of materializedSpec.controls)if(maintainedBundle.assets.controls.some(asset=>asset.id===control.id))control.workspace=join(data,'supervision','authoring',finalAuthor.id,'controls',control.id);
+  assert.deepEqual(published.spec,materializedSpec,'Maintained published standards bind the strict actual V2 output, changing only host control paths');
+  assert.equal(originalPublished.id,suppliedProposal.id,'The original standard is the independently qualified supplied proposal');
+  assert.equal(originalPublished.reviewId,suppliedReview.id);
   const monitor=final.monitor;assert.ok(monitor,'Enabled monitoring must expose its durable inspection state');
   assert.deepEqual(monitor.jobs,inspections,'Every durable inspection remains visible; no inspection cost or failed record is filtered away');
   assert.equal(monitor.envelope?.activeJobId??null,null,'A completed loop cannot retain an unresolved inspection');

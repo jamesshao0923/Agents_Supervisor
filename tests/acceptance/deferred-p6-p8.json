@@ -3,7 +3,7 @@
   "date": "2026-10-12",
   "authorization": "User explicitly requested reduced P6-P8 acceptance tests with a record of omissions and potential risks for later field validation.",
   "scope": "Personal field-trial gate; source tests and original failures retained. Exclusion is not a pass or a claim of duplicate coverage.",
-  "catalogRevision": "dev-p6-personal-followup-core-v5-loop-core-20261012",
+  "catalogRevision": "dev-p6-personal-followup-core-v6-supplied-loop-20261012",
   "reason": "Deferred from default stage gate to shorten personal-trial delivery. Run when affected by changes, field failures, or before broader release.",
   "stages": {
     "P6": {
@@ -2659,6 +2659,37 @@
       "risk": "An empty or weak script may satisfy current CLI-success requirement while independent API probes pass. This does not establish that user tests catch regressions. Broader asynchronous/framework support also remains unverified.",
       "revisitWhen": "First real project relying on generated tests for regression detection; introduce a relevant defect and inspect actual assertions, then restore selected quality controls.",
       "evidenceScope": "All original live lifecycle assertions, actual service restart, exactly-once followup, two real implementations, original criteria inheritance, independent full P4, delivery/reopen and accounting/stop requirements retained. Not an equivalent pass of v4."
+    },
+    {
+      "id": "followup-script-dependency-and-framework-qualification",
+      "kind": "scope-revision-not-a-new-test-case-id",
+      "relatedCaseIds": [
+        "p6.live-running-followup.001"
+      ],
+      "status": "deferred-not-demonstrated",
+      "scope": "Core v6 only checks actual arithmetic/TypeError behavior, required artifact files and successful real CLI. Candidate dependency-policy enforcement, synchronous/framework classification and generalized test quality are not qualified. Host execution permissions remain unchanged.",
+      "removedControls": [
+        "external-dependency"
+      ],
+      "currentEvidence": "Core v5 P4 FAIL a4cf63df retained: script dependency hooks did not observe separate CLI process, callback asynchronous forms escaped syntax checks, and API negatives failed at CLI before independent check. 201442known/0unknown/611proofs/43stopped/0delivery.",
+      "reason": "User-authorized smaller functional followup scenario; remove sample-specific restrictions rather than build a generic dependency/framework verifier.",
+      "risk": "No claim that arbitrary dependency trees, test frameworks or asynchronous scripts are fully supported or controlled by this gate. Current process permissions are not proof of all historical dependency/network actions.",
+      "revisitWhen": "First field project with external packages or framework/asynchronous tests; run its real build/tests and inspect dependency/process behavior.",
+      "evidenceScope": "Direct API probes and original lifecycle/delivery remain; incorrect API controls now use successful scripts so actual P4 reaches independent business check."
+    },
+    {
+      "id": "loop-initial-dynamic-author-combination",
+      "kind": "scope-revision-not-a-new-test-case-id",
+      "relatedCaseIds": [
+        "p6.live-supervision-loop.001"
+      ],
+      "status": "deferred-not-demonstrated",
+      "scope": "Supply frozen initial direct-business verifier assets through actual propose/review/publish/attach. Defer initial automatic definition/positive/negative authoring, their raw/prompt/schema/stage ancestry audit, initial fragment/full-bundle recovery and no-manual-spec premise. New fourth check promises exactly two current files only; extra-function semantic qualification, generic dependency auditing and historical network/install proof are also deferred. Execution permissions are unchanged.",
+      "currentEvidence": "e1930d8 actual FAIL478e92c1 retained: added import/syntax restrictions, then Cannot instrument lookup on positive controls; 205312known/0unknown/675proofs/47stopped, no business repair/maintenance/delivery.",
+      "reason": "Isolate core supervision and repair from a repeatedly failing initial authoring combination while preserving independent approval.",
+      "risk": "Personal trial does not prove that Supervisor can automatically create a usable initial verifier for arbitrary projects; supplied assets may be needed. Dynamic maintenance remains fallible and still must succeed in the retained scenario. A second export or extra behavior inside the same two files is not ruled out by the reduced file-list check.",
+      "revisitWhen": "First field project without a supplied verifier, or changes to acceptance-author protocol/semantic mapping; restore initial-author scenario separately.",
+      "evidenceScope": "No seeded approval. Actual P4 controls and independent review, real +2 defect, model repair, dynamic mandatory regression maintenance, two publications/three full verifications, delivery/reopen and accounting/stop assertions retained. Original maintenance-author reference equality restored during review."
     }
   ]
 }
