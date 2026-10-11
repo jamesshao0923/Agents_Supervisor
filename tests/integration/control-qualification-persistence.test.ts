@@ -64,13 +64,13 @@ async function fixture(t: TestContext) {
     await writeFile(events, [ { kind: 'review-input', value: { prompt } }, { kind: 'codex-event', value: { method: 'turn/completed', threadId: result.threadId, turnId: result.turnId, raw: { method: 'turn/completed', params: { threadId: result.threadId, turn: { id: result.turnId, status: 'completed' } } } } } ].map(x => JSON.stringify(x)).join('\n') + '\n');
     await writeFile(resultPath, JSON.stringify(result)); ctx.job.modelStarted = true; ctx.job.usage = 3; return result;
   }
-  async function complete() {
+  async function complete(presentation?:'compact-v2') {
     repo.insertDraft({ commandId: 'draft', proposalId: proposal.id, draft }); repo.appendReviewStage({ commandId: 's1', reviewId: 'review', stage: 'bootstrap', payload: { draftDigest: draft.digest } });
     const bootstrap = await executeControlBootstrap(ctx, draft), assembled = await assembleQualification({ draft, evidence: bootstrap, reviewJob: ctx.job });
     repo.appendReviewStage({ commandId: 's2', reviewId: 'review', stage: 'matrix-frozen', payload: { bootstrap, assembled } });
     const execution = await executeQualification(ctx, { ...assembled, matrix: assembled.matrix });
     repo.appendReviewStage({ commandId: 's3', reviewId: 'review', stage: 'qualification', payload: { execution } });
-    const prompt = await controlQualificationReviewPrompt({ ...assembled, pairs: execution.pairs }), review = await model(prompt); ctx.save();
+    const prompt = await controlQualificationReviewPrompt({ ...assembled, pairs: execution.pairs },1_000_000,presentation), review = await model(prompt); ctx.save();
     repo.appendReviewStage({ commandId: 's4', reviewId: 'review', stage: 'independent-review', payload: { review, promptDigest: digest(prompt) } });
     await writeFile(join(ctx.output, 'report.json'), JSON.stringify({ results: ctx.job.results, controls: ctx.job.controls, evaluation: ctx.job.evaluation, error: ctx.job.error })); ctx.job.proofs = await proofs(); finish();
     const content = { schemaVersion: 1 as const, id: 'qualification:review', proposalId: proposal.id, proposalDigest: lineage.bindingForProposal(proposal.id).proposalDigest, controlDraftDigest: draft.digest, reviewJobId: 'review', environmentDigest: ctx.job.environmentDigest, bootstrap, assembled, execution, independentReview: review, reviewPromptDigest: digest(prompt), proofs: ctx.job.proofs };
@@ -115,7 +115,7 @@ test('P6-QUAL-I03 caller rehashed draft or altered frozen author bytes cannot en
 });
 
 test('P6-QUAL-I04 actual command qualification is atomically bound to final job and scoped publication then reloads exact history', async t => {
-  const f = await fixture(t), evidence = await f.complete(), request = { commandId: 'publish', proposalId: 'proposal', reviewId: 'review', expectedBaseProposalId: null, expectedHeadRevision: 0 };
+  const f = await fixture(t), evidence = await f.complete('compact-v2'), request = { commandId: 'publish', proposalId: 'proposal', reviewId: 'review', expectedBaseProposalId: null, expectedHeadRevision: 0 };
   assert.throws(() => f.lineage.publishBound(request), /finalized/);
   assert.throws(() => f.repo.transaction(() => { f.repo.recordQualification({ commandId: 'final', reviewId: 'review', evidence }); f.lineage.publishBound(request); assert.equal(f.db.isTransaction, true); throw new Error('atomic rollback'); }), /atomic rollback/);
   assert.equal(f.lineage.headForRun('project', 'run'), null); assert.equal(f.db.prepare('SELECT count(*) n FROM verification_control_qualifications').get()!.n, 0);

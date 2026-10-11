@@ -67,13 +67,13 @@ async function fixture(t: TestContext) {
     await writeFile(events, [ { kind: 'review-input', value: { prompt } }, { kind: 'codex-event', value: { method: 'turn/completed', threadId: result.threadId, turnId: result.turnId, raw: { method: 'turn/completed', params: { threadId: result.threadId, turn: { id: result.turnId, status: 'completed' } } } } } ].map(x => JSON.stringify(x)).join('\n') + '\n');
     await writeFile(resultPath, JSON.stringify(result)); ctx.job.modelStarted = true; ctx.job.usage = 3; return result;
   }
-  async function complete() {
+  async function complete(presentation?:'compact-v2') {
     repo.insertDraft({ commandId: 'draft', proposalId: proposal.id, draft }); repo.appendReviewStage({ commandId: 's1', reviewId: 'review', stage: 'bootstrap', payload: { draftDigest: draft.digest } });
     const bootstrap = await executeControlBootstrap(ctx, draft), assembled = await assembleQualification({ draft, evidence: bootstrap, reviewJob: ctx.job });
     repo.appendReviewStage({ commandId: 's2', reviewId: 'review', stage: 'matrix-frozen', payload: { bootstrap, assembled } });
     const execution = await executeQualification(ctx, { ...assembled, matrix: assembled.matrix });
     repo.appendReviewStage({ commandId: 's3', reviewId: 'review', stage: 'qualification', payload: { execution } });
-    const prompt = await controlQualificationReviewPrompt({ ...assembled, pairs: execution.pairs }), review = await model(prompt); ctx.save();
+    const prompt = await controlQualificationReviewPrompt({ ...assembled, pairs: execution.pairs },1_000_000,presentation), review = await model(prompt); ctx.save();
     repo.appendReviewStage({ commandId: 's4', reviewId: 'review', stage: 'independent-review', payload: { review, promptDigest: digest(prompt) } });
     await writeFile(join(ctx.output, 'report.json'), JSON.stringify({ results: ctx.job.results, controls: ctx.job.controls, evaluation: ctx.job.evaluation, error: ctx.job.error })); ctx.job.proofs = await proofs(); finish();
     const content = { schemaVersion: 1 as const, id: 'qualification:review', proposalId: proposal.id, proposalDigest: lineage.bindingForProposal(proposal.id).proposalDigest, controlDraftDigest: draft.digest, reviewJobId: 'review', environmentDigest: ctx.job.environmentDigest, bootstrap, assembled, execution, independentReview: review, reviewPromptDigest: digest(prompt), proofs: ctx.job.proofs };
@@ -82,8 +82,8 @@ async function fixture(t: TestContext) {
   return { ...f, get db() { return db; }, get repo() { return repo; }, get lineage() { return lineage; }, draft, proposal, ctx, run, record, saveRun, author, finish, proofs, model, complete, reopen() { db.close(); db = new DatabaseSync(dbPath); repo = new ControlQualificationRepository(db, f.root); lineage = new VerificationLineageRepository(db); } };
 }
 
-async function deliveredFixture(t: TestContext) {
-  const f = await fixture(t), evidence = await f.complete(); f.repo.recordQualification({ commandId: 'final-receipt', reviewId: 'review', evidence }); f.lineage.publishBound({ commandId: 'publish', proposalId: 'proposal', reviewId: 'review', expectedBaseProposalId: null, expectedHeadRevision: 0 });
+async function deliveredFixture(t: TestContext,presentation?:'compact-v2') {
+  const f = await fixture(t), evidence = await f.complete(presentation); f.repo.recordQualification({ commandId: 'final-receipt', reviewId: 'review', evidence }); f.lineage.publishBound({ commandId: 'publish', proposalId: 'proposal', reviewId: 'review', expectedBaseProposalId: null, expectedHeadRevision: 0 });
   const proposal = JSON.parse(String(f.db.prepare("SELECT record FROM verification_records WHERE kind='proposal' AND id='proposal'").get()!.record)) as Proposal;
   const candidate = await captureCandidate(join(f.root, 'good'), join(f.root, 'final-candidate'));
   const plan: FrozenPlan = { id: 'plan', runtimeId: 'runtime', projectId: 'project', runId: 'run', proposalId: proposal.id, catalogVersion: proposal.version!, candidate, contractDigest: proposal.contractDigest, definitionDigest: proposal.bundle.digest, environmentDigest: f.ctx.job.environmentDigest, selection: selectInstances(proposal.spec, { mode: 'final' }), createdAt: new Date().toISOString() };
@@ -106,7 +106,7 @@ async function deliveredFixture(t: TestContext) {
 }
 
 test('P6-HISTV2-I01 actual SQLite qualification receipt and full final command preserve historical acceptance across reopen', async t => {
-  const { f, load, options, evidence } = await deliveredFixture(t); const before = f.db.prepare('SELECT record FROM verification_records ORDER BY kind,id').all();
+  const { f, load, options, evidence } = await deliveredFixture(t,'compact-v2'); const before = f.db.prepare('SELECT record FROM verification_records ORDER BY kind,id').all();
   assert.notEqual(load().review.controls.length, load().proposal.spec.controls.length, 'V2 bootstrap/matrix inventory must not be checked as V1 controls');
   const assessed = await assessDeliveryEvidence(load(), options()); assert.equal(assessed.historicalEvidenceIntact, true, JSON.stringify(assessed.issues)); assert.equal(assessed.workspaceMatches, true); assert.equal(assessed.environmentMatches, true);
   f.reopen(); assert.deepEqual(await assessDeliveryEvidence(load(), options()), assessed); assert.deepEqual(f.repo.qualificationForReview('review'), evidence); assert.deepEqual(f.db.prepare('SELECT record FROM verification_records ORDER BY kind,id').all(), before); assert.equal(Object.hasOwn(assessed, 'canDeliver'), false);

@@ -1,3 +1,4 @@
+import {captureMaintenanceCausalEvidence,type MaintenanceCausalOperationInput} from '../verification/maintenance-causal-evidence.js';
 import {assertLegacyControlReviewEvidence} from '../verification/legacy-review-evidence.js';
 import {assertControlQualificationPublication} from './control-qualification.js';
 import {expandedAuthorInput} from '../orchestration/indexed-history-presentation.js';
@@ -541,7 +542,8 @@ export class ControlMaintenanceRepository {
             assertRecordedStops(job, reader);
         }
     }
-    reviewPayload(proposalId: string, reviewId: string): unknown | null {
+    reviewPayload(proposalId: string, reviewId: string, presentation?:'causal-v1'): unknown | null {
+        ensure(presentation===undefined||presentation==='causal-v1','Unknown maintenance causal presentation');
         const proposal = this.object<Proposal>('proposal', proposalId), source = this.sourcesForProposal(proposal);
         if (!source)
             return null;
@@ -578,7 +580,18 @@ export class ControlMaintenanceRepository {
             role:'original-execution-regression-v1',defectRef:replay.defectRef,originalFailureJobId:replay.source.failureJobId,originalInstance:replay.source.instance,currentInstance:replay.instance,
             meaning:'Exact already-published single-obligation entry-exit case only; not arbitrary business assertion coverage. Bad actual entry nonzero with no checker, good actual entry zero plus original checker pass.'
         }));
-        return { context, plan: source.plan, replay: stage, passingSourceText, ...(executionRegressions.length?{executionRegressions}:{}) };
+        const legacy = { context, plan: source.plan, replay: stage, passingSourceText, ...(executionRegressions.length?{executionRegressions}:{}) };
+        if(presentation===undefined)return legacy;
+        const database=this.db.prepare('PRAGMA database_list').all().find(row=>row.name==='main');ensure(database?.file,'Causal evidence requires actual database directory');
+        const dataDir=this.dataDir??dirname(String(database.file)),review=this.object<VerificationJob>('job',reviewId),root=verificationDirectory(dataDir,review),operations:MaintenanceCausalOperationInput[]=[];
+        for(const replay of stage.replays){
+            const original=source.basis.sources.find(s=>s.defectRef===replay.defectRef)!;this.assertSource(original);
+            const failure=this.object<VerificationJob>('job',original.failureJobId);
+            operations.push({role:'original-failure',defectRef:original.defectRef,job:failure,instance:original.instance,candidateDigest:original.candidate.digest,output:join(verificationDirectory(dataDir,failure),'candidate',original.instance.id),label:'candidate',result:original.result,fixedProofs:failure.proofs});
+            for(const side of ['bad','good']as const)operations.push({role:side==='bad'?'bad-replay':'good-replay',defectRef:original.defectRef,job:review,instance:replay.instance,candidateDigest:side==='bad'?original.candidate.digest:replay.passingCandidate.digest,output:join(root,'maintenance-'+replay.id+'-'+side,replay.instance.id),label:'maintenance-'+replay.id+'-'+side,result:replay[side][0]!,fixedProofs:stage.executionProofs});
+        }
+        const causalEvidence=captureMaintenanceCausalEvidence({proposalId,reviewId,replayStageDigest:stage.digest,operations},new FrozenReader(dataDir));
+        return {...legacy,causalEvidence};
     }
     /** A recorded mandatory gap cannot be bypassed by manually delivering its old baseline. */
     assertDelivery(projectId: string, runId: string, contractDigest: string): void {

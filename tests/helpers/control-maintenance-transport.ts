@@ -12,7 +12,9 @@ if(m.method==='thread/start')return send({id:m.id,result:{thread:{id:thread,turn
 if(m.method==='turn/start'){
  const schema=m.params.outputSchema;let value={verdict:'passed',reason:'Explicit synthetic review judgment; not a model acceptance claim',observations:[]};
  if(schema.properties.contextDigest){
-  const prompt=m.params.input.find(i=>i.type==='text').text,c=JSON.parse(prompt.slice(prompt.lastIndexOf('\\n\\n')+2));
+  const prompt=m.params.input.find(i=>i.type==='text').text,blocks=prompt.split('\\n\\n').filter(block=>block.startsWith('{')).map(block=>JSON.parse(block));
+  if(blocks.length!==1||!blocks[0].history||!blocks[0].current)throw Error('Synthetic maintenance transport requires one complete frozen context');
+  const c=blocks[0];
   const base=c.history.definitions.find(d=>d.definition.definitionDigest===c.base.baseDefinitionDigest),spec=structuredClone(base.definition.spec),sources=c.maintenance.basis.sources;
   for(const original of base.definition.spec.cases.filter(i=>i.status!=='retired'))spec.cases.push({...original,revision:original.revision+1,status:mode==='dedup'?'retired':'active',modules:c.current.criteria.map(x=>x.id),defectRefs:[...original.defectRefs,...sources.map(s=>s.defectRef)]});
   if(mode==='dedup')spec.cases.push({...base.definition.spec.cases[0],id:'merged-value',revision:1,status:'active',modules:c.current.criteria.map(x=>x.id),replaces:base.definition.spec.cases.map(x=>x.id),defectRefs:[...new Set([...base.definition.spec.cases.flatMap(x=>x.defectRefs),...sources.map(s=>s.defectRef)])]});

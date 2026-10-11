@@ -1,3 +1,4 @@
+import {captureMaintenanceCausalEvidence,type MaintenanceCausalOperationInput} from '../../packages/verification/maintenance-causal-evidence.js';
 import {failedCandidate} from '../helpers/control-maintenance-fixture.js';
 import {regressionRef} from '../../packages/verification/control-maintenance-rules.js';
 import {verificationDirectory} from '../../packages/verification/scoped-environment.js';
@@ -84,6 +85,29 @@ test('P6-MAINT-I09 actual candidate entry and command evidence bind one specific
   assert.equal(goodResult.checks[0]!.verdict,'passed');assert.ok(goodResult.proofFiles!.some(path=>path.endsWith('/command/report.json')));
   for(const identity of replayJob.identities)assert.equal((await inspectProcess(identity)).status,'stopped');
   assert.equal(replayJob.usage,0);assert.equal(replayJob.usageUnknown,false);
+  const originalJob=f.store.verification.get('job',source.failureJobId);
+  const causalOperations:MaintenanceCausalOperationInput[]=[
+    {role:'original-failure',defectRef:source.defectRef,job:originalJob,instance:source.instance,candidateDigest:source.candidate.digest,output:join(verificationDirectory(f.data,originalJob),'candidate',source.instance.id),label:'candidate',result:source.result,fixedProofs:originalJob.proofs},
+    {role:'bad-replay',defectRef:source.defectRef,job:replayJob,instance:mapped,candidateDigest:source.candidate.digest,output:join(replayOutput,badLabel,mapped.id),label:badLabel,result:badResult,fixedProofs:replayJob.proofs},
+    {role:'good-replay',defectRef:source.defectRef,job:replayJob,instance:mapped,candidateDigest:goodCandidate.digest,output:join(replayOutput,goodLabel,mapped.id),label:goodLabel,result:goodResult,fixedProofs:replayJob.proofs}
+  ];
+  const causalInput={proposalId:target.id,reviewId:replayJob.id,replayStageDigest:digest('Explicit fixture source+replay inventory; not a sealed review'),operations:causalOperations};
+  const causal=captureMaintenanceCausalEvidence(causalInput,new FrozenReader(f.data));
+  assert.deepEqual(causal.operations.map(o=>o.role),['original-failure','bad-replay','good-replay']);
+  assert.equal(causal.operations[0]!.jobId,originalJob.id);assert.deepEqual(causal.operations[0]!.instance,source.instance);assert.deepEqual(causal.operations[2]!.instance,mapped);
+  assert.equal(causal.operations[0]!.executions.length,1);assert.equal(causal.operations[1]!.executions.length,1);assert.equal(causal.operations[2]!.executions.length,2);
+  for(const operation of causal.operations)for(const execution of operation.executions)for(const file of Object.values(execution.files)){
+    const content=Buffer.from(file.content,file.encoding==='utf8'?'utf8':'base64');assert.deepEqual(content,await readFile(file.path));assert.equal(digest(content),file.sha256);
+  }
+  const badFiles=causal.operations[1]!.executions[0]!.files,goodFiles=causal.operations[2]!.executions;
+  assert.equal(JSON.parse(badFiles['process.json']!.content).exitCode,1);assert.equal(JSON.parse(goodFiles[0]!.files['process.json']!.content).exitCode,0);
+  assert.equal(JSON.parse(goodFiles[1]!.files['report.json']!.content).checks[0].verdict,'passed');
+  const unrelatedPath=join(f.root,'not-created-causal-path.json'),outside=structuredClone(causalInput);outside.operations[0]!.result.proofFiles!.push(unrelatedPath);outside.operations[0]!.job.proofs[unrelatedPath]=digest('not-created');outside.operations[0]!.fixedProofs[unrelatedPath]=digest('not-created');
+  assert.throws(()=>captureMaintenanceCausalEvidence(outside,new FrozenReader(f.data)),/path outside actual operation/,'Reject undeclared path before any arbitrary file read');
+  const missing=structuredClone(causalInput);missing.operations[0]!.result.proofFiles=missing.operations[0]!.result.proofFiles!.filter(p=>!p.endsWith('/identity.json'));
+  assert.throws(()=>captureMaintenanceCausalEvidence(missing,new FrozenReader(f.data)),/complete command inventory differs/);
+  const wrongInstance=structuredClone(causalInput);wrongInstance.operations[0]!.instance={...wrongInstance.operations[0]!.instance,id:'different-instance'};
+  assert.throws(()=>captureMaintenanceCausalEvidence(wrongInstance,new FrozenReader(f.data)),/exact command instance/);
   f.restart();assert.ok(f.store.controlMaintenance.executionRegressionSource(source,target.id,mapped,'bad'),'Readonly authority reloaded after actual SQLite reopen');
 
 });
