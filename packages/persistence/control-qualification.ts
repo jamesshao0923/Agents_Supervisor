@@ -1,5 +1,7 @@
 import {ControlMaintenanceRepository} from './control-maintenance.js';
 import {FrozenReader} from '../verification/frozen-reader.js';
+import {persistedResearchWorkflow,researchQualificationReviewContext} from '../verification/research-mapping-proof.js';
+import {materialProjectionReviewEvidence} from '../verification/material.js';
 import {verificationDirectory} from '../verification/scoped-environment.js';
 import { lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
@@ -259,7 +261,11 @@ export class ControlQualificationRepository {
     for (const definition of assembled.definitions) implementations[definition.definition.definitionDigest] = Object.fromEntries(Object.keys(definition.bundle.files).map(name => [name, new TextDecoder('utf-8', { fatal: true }).decode(reader.read(join(definition.bundle.directory, name)))]));
     for (const specimen of assembled.specimens) specimenImplementations[specimen.revision.ref.id + ':' + specimen.revision.ref.revision] = Object.fromEntries(Object.keys(specimen.candidate.files).map(name => [name, new TextDecoder('utf-8', { fatal: true }).decode(reader.read(join(specimen.candidate.tree, name)))]));
     const diffs = assembled.specimens.filter(s => s.revision.predecessor).map(s => { const before = assembled.specimens.find(p => same(p.revision.ref, s.revision.predecessor)); ensure(before, 'Review specimen predecessor missing'); return { specimen: s.revision.ref, diff: specimenDiff(before, s) }; });
-    ensure(same(payload, { rules: assembled.rules, matrix: assembled.matrix, pairs: evidence.execution.pairs, deterministicQualification: evaluateControlQualification(assembled.matrix, evidence.execution.pairs), implementations, specimenImplementations, diffs, ...(()=>{const value=new ControlMaintenanceRepository(this.db,this.dataDir).reviewPayload(job.proposalId,job.id);return value?{maintenance:value}:{};})() }), 'Independent model did not review the complete actual qualification context');
+    const proposal=this.record<Proposal>('proposal',evidence.proposalId);
+    const native=persistedResearchWorkflow(this.db,proposal.id);
+    const researchWorkflow=native?researchQualificationReviewContext(this.db,proposal,this.run(proposal.projectId,proposal.runId).contract):undefined;
+    const materialProjections=materialProjectionReviewEvidence(evidence.execution.pairs,job.materials??[],assembled);
+    ensure(same(payload, { ...(researchWorkflow?{researchWorkflow}:{}),...(materialProjections.length?{materialProjections}:{}),rules: assembled.rules, matrix: assembled.matrix, pairs: evidence.execution.pairs, deterministicQualification: evaluateControlQualification(assembled.matrix, evidence.execution.pairs), implementations, specimenImplementations, diffs, ...(()=>{const value=new ControlMaintenanceRepository(this.db,this.dataDir).reviewPayload(job.proposalId,job.id);return value?{maintenance:value}:{};})() }), 'Independent model did not review the complete actual qualification context');
     const completed = events.filter(e => e.kind === 'codex-event' && e.value?.method === 'turn/completed').map(e => e.value.raw?.params);
     ensure(completed.some(p => p?.threadId === model.threadId
         && p?.turn?.id === model.turnId

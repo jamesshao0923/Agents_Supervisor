@@ -15,6 +15,7 @@ import { definitionReviewPrompt } from '../../packages/verification/engine.js';
 import { legacyControlQualified } from '../../packages/verification/control-qualification-gates.js';
 import { evaluateVerification, selectInstances } from '../../packages/verification/rules.js';
 import { RESEARCH_HOST_GATES } from '../../packages/verification/research-workflow.js';
+import type { RuntimeRecord } from '../../packages/contracts/p3.js';
 import type { GoalProposal } from '../../packages/contracts/p5.js';
 import type { ResearchProposal, ResearchEvidenceContext } from '../../packages/contracts/p8-research.js';
 import type { VerificationJob, Proposal, FrozenPlan } from '../../packages/verification/records.js';
@@ -80,7 +81,8 @@ async function hashes(dir: string): Promise<Record<string, string>> {
     await visit(dir);
     return files;
 }
-export async function researchWorkflowFixture(t: TestContext, fault?: (point: string) => void) {
+export async function researchWorkflowFixture(t: TestContext, fault?: (point: string) => void,
+    beforeRuntime?: (store:SupervisorStore,runtime:RuntimeRecord,root:string,workspace:string)=>Promise<void>) {
     const root = await realpath(await mkdtemp('/tmp/sv-research-host-authority-')), data = join(root, 'data'), workspace = join(root, 'workspace'), source = join(root, 'notes.md');
     await mkdir(workspace);
     await writeFile(source, originalQuote + '\n');
@@ -171,7 +173,12 @@ export async function researchWorkflowFixture(t: TestContext, fault?: (point: st
         commandId: 'fixture-admit',
         sessionId: ready.session.id,
         expectedRevision: ready.session.revision
-    }), runtime = store.runtime.get(admitted.session.runtimeId!);
+    });
+    let runtime = store.runtime.get(admitted.session.runtimeId!);
+    if(beforeRuntime){
+        await beforeRuntime(store,runtime,root,workspace);
+        runtime=store.runtime.get(runtime.id);
+    }
     const activity = new ResearchRuntimeActivity(store, data), acquire = store.runtime.claim(runtime.id, 'fixture-owner')!;
     await activity.acquire(acquire, 'fixture-owner');
     const op = store.runtime.claim(runtime.id, 'fixture-owner')!;
@@ -475,8 +482,11 @@ export async function researchWorkflowFixture(t: TestContext, fault?: (point: st
                 store.verification.update('job', job);
             }
         });
-        assert.equal((await child.completion).exitCode, 0);
+        const actualProcessResult=await child.completion;
+        assert.equal(actualProcessResult.exitCode, 0);
         await child.terminate();
+        const processPath=join(outputRoot,'model.process.json');
+        await writeFile(processPath,JSON.stringify({intent:job.intents.at(-1),identity:child.identity,result:actualProcessResult}));
         assert.equal((await inspectProcess(child.identity)).status, 'stopped');
         const result = {
             verdict: passed ? 'passed' : 'failed',
@@ -485,7 +495,7 @@ export async function researchWorkflowFixture(t: TestContext, fault?: (point: st
             usage: 1,
             threadId: 'synthetic-' + digest(outputRoot).slice(0, 12),
             turnId: 'synthetic-turn',
-            proofFiles: [join(outputRoot, 'result.json'), join(outputRoot, 'output.txt'), join(outputRoot, 'events.jsonl')],
+            proofFiles: [join(outputRoot, 'result.json'), join(outputRoot, 'output.txt'), join(outputRoot, 'events.jsonl'),processPath],
             stopConfirmed: true,
             modelStarted: true
         };
@@ -667,7 +677,7 @@ export async function researchWorkflowFixture(t: TestContext, fault?: (point: st
     }
     const review = await begin('review', null);
     for (const control of p.bundle.controls) {
-        const result = await materialResult(review, join(verificationDirectory(data, review), 'control-' + digest(control.id)), control.candidate.tree);
+        const result = await materialResult(review, join(verificationDirectory(data, review), 'control-' + digest(control.id),selectInstances(p.spec,{mode:'final'}).instances[0]!.id), control.candidate.tree);
         review.controls.push({
             id: control.id,
             results: [result],

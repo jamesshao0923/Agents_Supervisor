@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 // Deliberately expose named operations, never arbitrary IPC or filesystem access.
 contextBridge.exposeInMainWorld('supervisor', Object.freeze({
+  exploration: action => ipcRenderer.invoke('supervisor:exploration',action),
   supervisionList: () => ipcRenderer.invoke('supervisor:supervision-list'),
   supervisionAttach: input => ipcRenderer.invoke('supervisor:supervision-attach',input),
   supervisionPause: loopId => ipcRenderer.invoke('supervisor:supervision-pause',loopId),

@@ -32,9 +32,9 @@ rl.createInterface({input:process.stdin}).on('line',line=>{const m=JSON.parse(li
  if(m.method==='initialize')return send({id:m.id,result:{userAgent:'explicit-fixture',codexHome:process.cwd(),platformFamily:'unix',platformOs:'darwin'}});
  if(m.method==='model/list')return send({id:m.id,result:{data:[{id:'node-fixture',model:'node-fixture',isDefault:true,inputModalities:['text'],supportedReasoningEfforts:[{reasoningEffort:'low'}],defaultReasoningEffort:'low'}],nextCursor:null}});
  if(m.method==='thread/start')return send({id:m.id,result:{thread:{id:thread,turns:[]}}});if(m.method==='turn/interrupt')return send({id:m.id,result:{}});if(m.method!=='turn/start')throw Error(m.method);
- const text=m.params.input[0].text,match=text.match(/CURRENT STEP:\\n([^\\n]+)/),task=match?JSON.parse(match[1]).id:'integrate';send({id:m.id,result:{turn:{id:'turn',status:'inProgress',items:[]}}});
- setTimeout(()=>{let value=0;for(const folder of ['task-inputs','integration-inputs']){const root=p.join(process.cwd(),'.supervisor',folder);if(fs.existsSync(root))for(const id of fs.readdirSync(root)){const r=p.join(root,id),index=JSON.parse(fs.readFileSync(p.join(r,'manifest.json')));for(const input of index.inputs){const f=p.join(r,input.directory,'state.json');if(fs.existsSync(f))value=Math.max(value,JSON.parse(fs.readFileSync(f)).value);}}}
- if(task==='transform')value=mode==='constant'?0:value+1;const name=task==='left'?'left.json':task==='right'?'right.json':task==='integrate'?'final.json':'state.json';fs.writeFileSync(name,JSON.stringify({value}));fs.chmodSync(name,0o700);if(mode==='outside'&&task==='transform')fs.writeFileSync('outside.txt','actual forbidden bytes');
+ const text=m.params.input[0].text,match=text.match(/CURRENT STEP:\\n([^\\n]+)/),optional=text.match(/OPTIONAL CANDIDATE AND SOURCES:\\n([^\\n]+)/),task=match?JSON.parse(match[1]).id:optional?JSON.parse(optional[1]).id:'integrate';send({id:m.id,result:{turn:{id:'turn',status:'inProgress',items:[]}}});
+ setTimeout(()=>{let value=0,optionalValue=null;for(const folder of ['task-inputs','integration-inputs']){const root=p.join(process.cwd(),'.supervisor',folder);if(fs.existsSync(root))for(const id of fs.readdirSync(root)){const r=p.join(root,id),index=JSON.parse(fs.readFileSync(p.join(r,'manifest.json')));for(const input of index.inputs){const f=p.join(r,input.directory,'state.json');if(fs.existsSync(f))value=Math.max(value,JSON.parse(fs.readFileSync(f)).value);const note=p.join(r,input.directory,'exploration/notes/report.json');if(fs.existsSync(note))optionalValue=JSON.parse(fs.readFileSync(note)).value;}}}
+ if(task==='transform')value=mode==='constant'?0:value+1;const name=task==='left'?'left.json':task==='right'?'right.json':task==='integrate'?'final.json':task==='notes'?'exploration/notes/report.json':'state.json';if(task==='notes')fs.mkdirSync(p.dirname(name),{recursive:true});fs.writeFileSync(name,JSON.stringify(mode==='exploration'?{value,optionalValue}:{value}));fs.chmodSync(name,0o700);if(mode==='outside'&&task==='transform')fs.writeFileSync('outside.txt','actual forbidden bytes');
  send({method:'item/agentMessage/delta',params:{threadId:thread,turnId:'turn',delta:'Actual Node output; synthetic accounting.'}});if(!(mode==='unknown'&&task==='transform'))send({method:'thread/tokenUsage/updated',params:{threadId:thread,turnId:'turn',tokenUsage:{total:usage,last:usage}}});send({method:'turn/completed',params:{threadId:thread,turn:{id:'turn',status:'completed',items:[]}}});
  },task==='left'||task==='right'?1800:30);
 });
@@ -49,9 +49,10 @@ async function fixture(t:TestContext,mode='normal',single=false){
  const p:GoalProposal={decision:'ready',summary:'Explicit synthetic proposal fixture for automatic host bridge',questions:[],facts:[{text:first.session.goal,sourceId:first.session.messages[0]!.id,origin:'explicit'}],constraints:['No external effects.'],style:[],criteria:[{id:'value',description:'All original numeric and report behavior remains mandatory.',kind:'command',target:'state.test.mjs',checks:['Check original state and reports independently.']}],steps:ids.map(id=>({id,description:id==='left'||id==='right'?`Produce ${id}.json report from state.json value`:`${id}: produce state.json numeric value using the previous result`,dependencies:single||id==='seed'?[]:id==='transform'?['seed']:id==='summarize'?['transform']:['summarize'],acceptanceIds:['value']})),decomposition:{schemaVersion:1,tasks:ids.map(id=>({taskId:id,knowledge:'declared',reads:id==='seed'?[]:[{path:'state.json',kind:'file'}],writes:[{path:id==='left'||id==='right'?id+'.json':'state.json',kind:'file'}],resources:[],reason:'Explicit complete fixture logical scopes'}))}};
  const leaf=(id:string):LoopProgramNode=>({kind:'task',id,taskId:id}),limits={iterations:mode==='cap'?1:5,tokens:300,nodes:20,durationMs:200000,unchangedIterations:1};
  const tree:LoopProgramNode=single?{kind:'loop',id:'single',limits,until:{taskId:'transform',path:'state.json',field:'value',atLeast:mode==='normal'?2:3},body:leaf('transform')}:{kind:'sequence',id:'root-sequence',children:[leaf('seed'),{kind:'loop',id:'outer',limits:{...limits,tokens:600,nodes:40},until:{taskId:'summarize',path:'state.json',field:'value',atLeast:3},body:{kind:'sequence',id:'outer-body',children:[{kind:'loop',id:'inner',limits,until:{taskId:'transform',path:'state.json',field:'value',atLeast:2},body:leaf('transform')},leaf('summarize')]}},{kind:'parallel',id:'reports',children:[leaf('left'),leaf('right')]}]};p.iteration=encode(tree);
- validateProposal(p,first.session);parseReasonerOutput(JSON.stringify(p),goalProposalSchema(first.session.messages.map(m=>m.id),'graph-loop-v1'));
+ if(mode==='exploration'){p.iteration=null;p.exploration=[{id:'notes',description:'Supplemental analysis of the numeric output',dependencies:['transform'],relatedCriterionIds:['value'],reads:[{path:'state.json',kind:'file'}],writes:[{path:'exploration/notes/report.json',kind:'file'}],quality:'exploratory',value:'supported',qualityReason:'The original numeric artifact is available for an additional perspective',valueReason:'A supplemental report may help explain the state',sources:[{messageId:first.session.messages[0]!.id,quote:'state.json numeric value'}]}];}
+ validateProposal(p,first.session);parseReasonerOutput(JSON.stringify(p),goalProposalSchema(first.session.messages.map(m=>m.id),mode==='exploration'?'graph-exploration-v1':'graph-loop-v1'));
  const child=await spawnManagedProcess({operationId:job.id+'-fixture',command:process.execPath,args:['-e','console.log(process.argv[1])',JSON.stringify(p)],cwd:workspace,timeoutMs:5000,onBeforeSpawn:intent=>{store.goals.update(first.session.id,job.id,j=>j.intents.push(intent));},onIdentity:identity=>{store.goals.update(first.session.id,job.id,j=>j.identities.push(identity));}});let raw='';child.stdout.on('data',b=>raw+=b);assert.equal((await child.completion).stopped,true);assert.deepEqual(JSON.parse(raw),p);const output=join(data,'explicit-planner.json');await writeFile(output,raw);
- const ready=store.goals.finish(first.session.id,job.id,j=>{j.modelStarted=true;j.threadId='synthetic-planner';j.usage=7;j.stopConfirmed=true;j.proofs={[output]:digest(raw)};j.proposal=p;}),action={type:'admit' as const,commandId:'admit',sessionId:ready.session.id,expectedRevision:ready.session.revision};
+ const ready=store.goals.finish(first.session.id,job.id,j=>{j.modelStarted=true;j.threadId='synthetic-planner';j.usage=7;j.stopConfirmed=true;j.proofs={[output]:digest(raw)};j.proposal=p;}),action={type:'admit' as const,commandId:'admit',sessionId:ready.session.id,expectedRevision:ready.session.revision,...(mode==='exploration'?{explorationTier:'high' as const}:{})};
  let overlap=false;
  async function until(predicate:()=>boolean,limit=160000){const end=Date.now()+limit;while(!predicate()){assert.ok(Date.now()<end,'Automatic worker timeout: '+JSON.stringify({runtime:store.runtime.list(),executions:store.executionList().map(e=>({id:e.id,state:e.state,error:e.error}))}));const active=store.executionList().filter(e=>e.identity&&!e.stopConfirmed&&/"id":"(?:left|right)"/.test(e.prompt));if(active.length===2&&(await Promise.all(active.map(e=>inspectProcess(e.identity as ProcessIdentity)))).every(p=>p.status==='verified'))overlap=true;await new Promise(r=>setTimeout(r,30));}}
  async function admit(){const old=process.env.SUPERVISOR_CODEX_PATH;process.env.SUPERVISOR_CODEX_PATH=binary;try{controller=new OrchestrationController(store,data,new LocalRuntimeAdapter(store,data),undefined,{graphAdmission:options});return await controller.dispatch(action) as GoalInspection;}finally{if(old===undefined)delete process.env.SUPERVISOR_CODEX_PATH;else process.env.SUPERVISOR_CODEX_PATH=old;}}
@@ -91,5 +92,49 @@ test('P7-AUTOLOOP-I05 actual unknown usage and cancellation retain shared reserv
  const f=await fixture(t,'unknown',true),admitted=await f.admit(),id=admitted.session.graphAdmission!.policy.schedulerId;await f.until(()=>f.store.executionList().some(e=>e.stopConfirmed&&e.usageStatus==='unknown'),60000);const before=f.store.runtime.inspect(admitted.session.id).run,count=f.store.executionList().length,decisions=canonical(f.store.scheduledLoops.decisions(id));assert.equal(before.budget.spent,7);assert.equal(before.attempts.filter(a=>!a.settled).length,1);assert.equal(before.attempts.find(a=>!a.settled)!.reservation,20);await f.reopen();await f.resumeWorker();await new Promise(r=>setTimeout(r,300));assert.equal(f.store.executionList().length,count);assert.equal(canonical(f.store.scheduledLoops.decisions(id)),decisions);f.store.runtime.control({type:'cancel',commandId:'cancel',runtimeId:admitted.session.id});await new Promise(r=>setTimeout(r,300));assert.equal(f.store.runtime.inspect(admitted.session.id).run.attempts.find(a=>!a.settled)!.reservation,20);assert.equal(f.store.verification.list('delivery').length,0);
 });
 test('P7-AUTOLOOP-I06 real out-of-scope occurrence bytes cannot publish or trigger another numeric iteration',{timeout:90000},async t=>{
- const f=await fixture(t,'outside',true),admitted=await f.admit(),id=admitted.session.graphAdmission!.policy.schedulerId;await f.until(()=>f.store.executionList().some(e=>e.stopConfirmed&&e.usageStatus==='reported'),60000);await new Promise(r=>setTimeout(r,700));const claims=f.store.scheduler.claims(id);assert.equal(claims.length,1);assert.equal(f.store.taskResults.inspect({projectId:admitted.run.projectId,runId:admitted.run.id}).heads.length,0);assert.equal(f.store.runtime.inspect(admitted.session.id).run.budget.spent,12);assert.equal(f.store.scheduler.get(id).fence,'held');assert.equal(f.store.verification.list('delivery').length,0);assert.equal(f.store.executionList()[0]!.stopConfirmed,true);assert.match(await readFile(join(f.data,'runtime-worker.log'),'utf8'),/actual output violates frozen declared write scope: outside.txt/);
+ const f=await fixture(t,'outside',true),admitted=await f.admit(),id=admitted.session.graphAdmission!.policy.schedulerId;
+ const reason='TaskResult repository: actual output violates frozen declared write scope: outside.txt';
+ const publication=()=>{
+  const claims=f.store.scheduler.claims(id);if(claims.length!==1)return undefined;
+  return f.db.prepare("SELECT record FROM scheduled_loop_events WHERE scheduler_id=? AND kind='publication-blocked' ORDER BY seq").all(id)
+   .map(row=>JSON.parse(String(row.record)) as {claimId:string;reason:string})
+   .find(event=>event.claimId===claims[0]!.id&&event.reason===reason);
+ };
+ // A transient worker/CAS fault log is not the authoritative publication result.
+ // Await the actual immutable rejection and its completed parent projection in
+ // the original 60-second window; no model, product or test timeout is enlarged.
+ await f.until(()=>!!publication()
+  &&f.store.scheduledLoops.inspect(id)!.frames.find(frame=>frame.key==='root')!.state==='blocked'
+  &&f.store.runtime.get(admitted.session.id).phase==='blocked'
+  &&f.store.runtime.inspect(admitted.session.id).run.status==='blocked',60000);
+ const claims=f.store.scheduler.claims(id);assert.equal(claims.length,1);
+ assert.deepEqual(publication(),{claimId:claims[0]!.id,reason});
+ assert.equal(f.store.scheduledLoops.inspect(id)!.frames.find(frame=>frame.key==='root')!.reason,'Actual publication rejected: '+reason);
+ assert.equal(f.store.runtime.get(admitted.session.id).error,'Scheduled loop cannot continue: Actual publication rejected: '+reason);
+ assert.equal(f.store.scheduler.get(id).state,'blocked');
+ assert.equal(f.store.taskResults.inspect({projectId:admitted.run.projectId,runId:admitted.run.id}).heads.length,0);
+ assert.equal(f.store.runtime.inspect(admitted.session.id).run.budget.spent,12);
+ assert.equal(f.store.scheduler.get(id).fence,'held');assert.equal(f.store.verification.list('delivery').length,0);
+ const execution=f.store.executionList()[0]!;assert.equal(execution.stopConfirmed,true);assert.equal(execution.usageStatus,'reported');
+ assert.equal((await inspectProcess(execution.identity as ProcessIdentity)).status,'stopped');
+});
+
+
+test('P7-EXPLORE-I05 ordinary P5 admission automatically executes core optional and final integration with real input packages and restart',{timeout:90000},async t=>{
+ const f=await fixture(t,'exploration',true);
+ assert.throws(()=>f.store.goals.control(f.action),/atomic graph admission/);
+ const original=admittedPlan(f.ready.session,f.ready.run),admitted=await f.admit(),id=admitted.session.graphAdmission!.policy.schedulerId;
+ assert.deepEqual(admitted.run.contract,original.contract);
+ await f.until(()=>f.store.runtime.get(admitted.session.id).phase==='awaiting-verification',80000);
+ const view=f.store.runtime.inspect(admitted.session.id),claims=f.store.scheduler.claims(id);
+ assert.equal(claims.length,2);assert.equal(f.store.scheduler.get(id).state,'drained');assert.equal(view.run.budget.spent,22);
+ assert.deepEqual(JSON.parse(await readFile(join(f.workspace,'final.json'),'utf8')),{value:1,optionalValue:1});
+ assert.equal(view.run.attempts.filter(a=>a.purpose==='reasoning').length,1);assert.equal(view.run.attempts.filter(a=>a.purpose==='execution').length,3);
+ assert.ok(view.run.attempts.every(a=>a.settled));assert.equal(view.run.budget.verificationReserve,30);assert.equal(futureExecutionFloor(view.run),0);
+ for(const execution of f.store.executionList()){assert.equal(execution.stopConfirmed,true);assert.equal((await inspectProcess(execution.identity as ProcessIdentity)).status,'stopped');assert.ok(f.store.executionEvents(execution.id,0).some(event=>event.kind==='codex-raw'));}
+ const optional=claims.find(claim=>claim.taskId==='notes')!;assert.equal(optional.inputBindings[0]!.dependencyNodeId,'transform');
+ assert.equal(f.store.verification.list('delivery').length,0);assert.notEqual(view.run.status,'succeeded');
+ const before=canonical({run:view.run,claims,policy:f.store.scheduler.exploration(id).tier});await f.reopen();await f.resumeWorker();await new Promise(resolve=>setTimeout(resolve,400));
+ assert.equal(canonical({run:f.store.runtime.inspect(admitted.session.id).run,claims:f.store.scheduler.claims(id),policy:f.store.scheduler.exploration(id).tier}),before);
+ assert.equal(f.store.executionList().length,3);
 });

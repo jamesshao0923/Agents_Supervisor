@@ -1,3 +1,4 @@
+import {publishResearchRoundReports,researchReportContents,type ResearchRoundPublicationHooks} from './research-round-publication.js';
 import {inspectProcess,type ProcessIdentity} from '../process-control/index.js';
 import {mkdir,readFile,writeFile,lstat,realpath,readdir} from 'node:fs/promises';
 import {join} from 'node:path';
@@ -14,7 +15,7 @@ export {researchExecutionPrompt} from '../workspace/research-runtime-files.js';
 /** Activity called by the existing worker. No model/runner/reservation of its own. */
 export class ResearchRuntimeActivity {
  private readonly intake:MaterialIntake;
- constructor(private readonly store:SupervisorStore,private readonly dataRoot:string){this.intake=new MaterialIntake(dataRoot);}
+ constructor(private readonly store:SupervisorStore,private readonly dataRoot:string,private readonly roundHooks:ResearchRoundPublicationHooks={}){this.intake=new MaterialIntake(dataRoot);}
  async acquire(operation:RuntimeOperation,owner:string):Promise<void> {
   assertTrue(operation.step.kind==='materials','Materials step required');const op=this.store.runtime.beginMaterials(operation.id,owner),controller=new AbortController();
   const timer=setInterval(()=>{try{const runtime=this.store.runtime.get(op.runtimeId),current=this.store.runtime.getOperation(op.id);if(runtime.cancelled||current.owner!==owner)controller.abort(Error('Materials cancelled or worker superseded'));}catch(error){controller.abort(error);}},50);
@@ -48,11 +49,16 @@ export class ResearchRuntimeActivity {
   const input=this.store.runtime.researchInput(op.id);assertTrue(input,'Research input missing');assertResearchInput(input,op.id,op.contractVersion,this.dataRoot);
   const draft=await validateResearchProposal({intake:this.intake,context:input.package.context,output:record.message});
   this.store.runtime.verifyResearchInputs(op.id);assertTrue(!this.store.runtime.get(runtime.id).cancelled&&!this.store.runtime.get(runtime.id).paused,'Research boundary changed during validation');
-  const directory=reportPath(runtime.workspace,input.package.reportDirectory);await mkdir(directory,{recursive:true,mode:0o700});assertTrue(!(await lstat(directory)).isSymbolicLink()&&await realpath(directory)===directory,'Report directory alias');assertTrue((await readdir(directory)).every(name=>['report.json','report.md'].includes(name)),'Unowned report files retained; no partial overwrite');
-  const proposal=JSON.stringify(draft.proposal,null,2)+'\n',markdown=['# Research draft','',draft.proposal.claims.map(claim=>'## '+claim.id+'\n'+claim.text+'\nSources: '+claim.supportCitationIds.join(', ')+'\nLimitations: '+claim.limitations.join('; ')).join('\n\n'),'','## Complete material coverage',...draft.coverage.map(entry=>`- ${entry.id}: ${entry.status}${entry.error?' — '+entry.error:''}`),'','This report is a model interpretation. Independent P4 verification and delivery remain required.',''].join('\n');
+  const directory=reportPath(runtime.workspace,input.package.reportDirectory);
+  const contents=researchReportContents(draft),proposal=contents['report.json']!,markdown=contents['report.md']!;
   const files={'report.json':bytesDigest(proposal),'report.md':bytesDigest(markdown)},body={schemaVersion:1 as const,executionId:record.id,operationId:op.id,inputDigest:input.digest,threadId:record.threadId,turnId:record.turnId,rawOutputDigest:bytesDigest(record.message),completionEvents,draft,files},completion:ResearchCompletionReceipt={...body,digest:researchDigest(body)};
   const archive=await privateDirectory(this.dataRoot,'research-completions',record.id);await exclusiveJSON(join(archive,'receipt.json'),completion);
-  for(const [name,content]of [['report.json',proposal],['report.md',markdown]] as const){const path=join(directory,name);try{await writeFile(path,content,{flag:'wx',mode:0o600});}catch(error){if((error as NodeJS.ErrnoException).code!=='EEXIST')throw error;assertTrue(!(await lstat(path)).isSymbolicLink()&&(await readFile(path,'utf8'))===content,'Conflicting or partial report retained');}}
+  const reports=join(archive,'reports');await mkdir(reports,{recursive:true,mode:0o700});assertTrue(!(await lstat(reports)).isSymbolicLink()&&await realpath(reports)===reports,'Research report archive alias');
+  for(const [name,content]of [['report.json',proposal],['report.md',markdown]] as const){const path=join(reports,name);try{await writeFile(path,content,{flag:'wx',mode:0o600});}catch(error){if((error as NodeJS.ErrnoException).code!=='EEXIST')throw error;assertTrue(bytesDigest(readBounded(path))===files[name],'Partial/conflicting immutable report archive retained');}}
+  const round=await publishResearchRoundReports(this.store,this.dataRoot,record,completion,{'report.json':proposal,'report.md':markdown},this.roundHooks);
+  if(!round){await mkdir(directory,{recursive:true,mode:0o700});assertTrue(!(await lstat(directory)).isSymbolicLink()&&await realpath(directory)===directory,'Report directory alias');assertTrue((await readdir(directory)).every(name=>['report.json','report.md'].includes(name)),'Unowned report files retained; no partial overwrite');}
+  assertTrue((await readdir(reports)).sort().join(',')==='report.json,report.md','Unowned immutable report archive entries');
+  if(!round)for(const [name,content]of [['report.json',proposal],['report.md',markdown]] as const){const path=join(directory,name);try{await writeFile(path,content,{flag:'wx',mode:0o600});}catch(error){if((error as NodeJS.ErrnoException).code!=='EEXIST')throw error;assertTrue(!(await lstat(path)).isSymbolicLink()&&(await readFile(path,'utf8'))===content,'Conflicting or partial report retained');}}
   this.store.runtime.verifyResearchInputs(op.id);const latest=this.store.executionGet(record.id),current=this.store.runtime.get(runtime.id);assertTrue(!current.cancelled&&!current.paused&&!latest.cancelRequested&&researchDigest({message:latest.message,usage:latest.usage,threadId:latest.threadId,turnId:latest.turnId,terminalStatus:latest.terminalStatus})===researchDigest({message:record.message,usage:record.usage,threadId:record.threadId,turnId:record.turnId,terminalStatus:record.terminalStatus}),'Research boundary changed before completion publication');const checked=researchCompletionEvents(latest,after=>this.store.executionEvents(record.id,after));assertTrue(checked.messageSeq===completionEvents.messageSeq&&checked.terminalSeq===completionEvents.terminalSeq,'Research completed event boundary changed');for(const [name,hash]of Object.entries(files))assertTrue(bytesDigest(readBounded(join(directory,name)))===hash,'Research report changed during materialization');return completion;
  }
 }

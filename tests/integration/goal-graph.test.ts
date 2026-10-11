@@ -1,3 +1,7 @@
+import {validateProposal} from '../../packages/orchestration/admission.js';
+import {goalProposalSchema} from '../../packages/contracts/p5.js';
+import {parseReasonerOutput} from '../../packages/orchestration/reasoner-schema.js';
+import {inspectDeclaredWorkspaceChanges} from '../../packages/orchestration/decomposition.js';
 import test,{type TestContext} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,mkdir,realpath,rm,writeFile,readFile,chmod,stat,unlink} from 'node:fs/promises';
@@ -20,13 +24,14 @@ import type {GraphPreparationRequest} from '../../packages/contracts/p7-graph.js
 
 /** Ready proposal and 7 planning tokens are explicit repository fixtures, not an
  * actual planner/provider result. SQLite/FS/admission/scheduler/Node are real. */
-async function fixture(t:TestContext){
+async function fixture(t:TestContext,configure?:(session:GoalSession)=>void){
  const root=await realpath(await mkdtemp(join(tmpdir(),'sv-goal-graph-'))),data=join(root,'data'),workspace=join(root,'project'),host=join(root,'owned');
  await mkdir(workspace);await mkdir(host);await mkdir(join(workspace,'src'));await writeFile(join(workspace,'src','seed.mjs'),'export const initial = true;\n');await writeFile(join(workspace,'check.sh'),'#!/bin/sh\nexit 0\n');await chmod(join(workspace,'check.sh'),0o755);
  const store=new SupervisorStore(data),db=new DatabaseSync(join(data,'supervisor.sqlite'));db.exec('PRAGMA foreign_keys=ON;PRAGMA busy_timeout=5000');const runtimeRepo=new RuntimeRepository(db),scheduler=new TaskSchedulerRepository(db,data),results=new TaskResultRepository(db,data);
  t.after(async()=>{db.close();store.close();await rm(root,{recursive:true,force:true});});
  const goal='Implement sum and double. Preserve every requirement and check.';
  const session:GoalSession={id:'graph-run',projectId:'graph-project',workspace,workspaceKind:'project',revision:1,goal,phase:'ready',messages:[{id:'user-original',role:'user',text:goal,createdAt:'2026-10-01T00:00:00.000Z'}],jobs:[],proposal:{decision:'ready',summary:'Explicit component proposal fixture',questions:[],facts:[{text:goal,sourceId:'user-original',origin:'explicit'}],constraints:['Use exact named exports.'],style:['Retain executable checks.'],criteria:[{id:'sum',description:'Export sum(a,b)',kind:'command',target:'math.test.mjs',checks:['Check positive, negative, and zero addition.']},{id:'double',description:'Export double(x)',kind:'command',target:'math.test.mjs',checks:['Check positive, negative, and zero doubling.']}],steps:[{id:'double-tests',description:'Implement doubling and its checks',dependencies:['sum-module'],acceptanceIds:['double']},{id:'sum-module',description:'Implement sum and its checks',dependencies:[],acceptanceIds:['sum']},{id:'documentation',description:'Document both required APIs',dependencies:[],acceptanceIds:['sum','double']}]},runtimeId:null,error:null,createdAt:'2026-10-01T00:00:00.000Z',updatedAt:'2026-10-01T00:00:00.000Z',config:{model:'explicit-no-provider-fixture',effort:'low',reservation:20,timeoutMs:10000},maxContextChars:100000};
+ configure?.(session);
  let baseRun=createDraftRun({id:session.id,projectId:session.projectId,goal,budget:{limit:200,verificationReserve:30}});
  for(const action of [{type:'startAttempt',attemptId:'planning-fixture',nodeId:'@supervisor',contractVersion:1,purpose:'reasoning',reservation:20,resources:[]},{type:'setOperation',operationId:'planning-fixture',attemptId:'planning-fixture',status:'pending'},{type:'finishAttempt',attemptId:'planning-fixture',outcome:'succeeded'},{type:'settleAttempt',attemptId:'planning-fixture',actual:7},{type:'setOperation',operationId:'planning-fixture',attemptId:'planning-fixture',status:'confirmed'}] as const)baseRun=applyAction(baseRun,{...action,...(action.type==='startAttempt'?{resources:[]}: {})} as Parameters<typeof applyAction>[1]).run;
  const admission=buildGoalGraphAdmission(session,baseRun),admitted=applyAction(baseRun,{type:'admit',contract:admission.contract,nodes:[{id:admission.integrationStep.id,dependencies:[],required:true}]}).run;
@@ -90,4 +95,35 @@ test('P7-GRAPH-I06 two actual Node SQLite workers race the compiled frontier and
  const source=`import {DatabaseSync} from 'node:sqlite';import {TaskSchedulerRepository} from ${JSON.stringify(module)};const db=new DatabaseSync(${JSON.stringify(join(f.data,'supervisor.sqlite'))});db.exec('PRAGMA foreign_keys=ON;PRAGMA busy_timeout=5000');const repo=new TaskSchedulerRepository(db,${JSON.stringify(f.data)});process.stdin.once('data',()=>{try{console.log(JSON.stringify({ok:true,value:repo.claim({commandId:process.argv[1],id:'graph',expected:${JSON.stringify(expected)},owner:process.argv[1]})}));}catch(e){console.log(JSON.stringify({ok:false,error:String(e)}));}finally{db.close();}});console.log('READY');`;
  const launch=(id:string)=>{const child=spawn(process.execPath,['--input-type=module','-e',source,id],{stdio:['pipe','pipe','pipe']});t.after(()=>child.kill());let stdout='',stderr='';child.stderr.on('data',b=>stderr+=b);const ready=new Promise<void>((resolve,reject)=>{child.stdout.on('data',b=>{stdout+=b;if(stdout.includes('READY'))resolve();});child.on('error',reject);});const done=new Promise<string>((resolve,reject)=>{child.on('error',reject);child.on('close',code=>code===0?resolve(stdout):reject(Error(stderr)));});return {child,ready,done};};
  const a=launch('first'),b=launch('second');await Promise.all([a.ready,b.ready]);a.child.stdin.end('go');b.child.stdin.end('go');const values=(await Promise.all([a.done,b.done])).map(s=>JSON.parse(s.trim().split('\n').at(-1)!));assert.equal(values.filter(v=>v.ok).length,1);assert.match(values.find(v=>!v.ok).error,/CAS/);assert.equal(f.scheduler.claims(f.plan.id).length,1);assert.equal(f.run().attempts.filter(a=>!a.settled).length,1);assert.equal(f.results.inspect(f.plan).consumers.length,1);assert.equal(f.scheduler.leases().filter(l=>l.state==='held').length,1);assert.equal(f.run().budget.spent,7);
+});
+
+
+test('P7-EXPLORE-I01 optional proposal keeps exact required core and freezes scoped supplemental work without more planning cost',async t=>{
+ const f=await fixture(t,session=>{session.proposal!.exploration=[{id:'alternatives',description:'Compare optional implementation alternatives',dependencies:[],relatedCriterionIds:['sum'],reads:[{path:'src',kind:'tree'}],writes:[{path:'exploration/alternatives/report.txt',kind:'file'}],quality:'supported',value:'exploratory',qualityReason:'Existing source can be inspected',valueReason:'An optional comparison may reveal alternatives',sources:[{messageId:'user-original',quote:'Implement sum and double.'}]}];});
+ const proposal=f.session.proposal!;
+ parseReasonerOutput(JSON.stringify({...proposal,decomposition:null,iteration:null}),goalProposalSchema(['user-original'],'graph-exploration-v1'));
+ assert.deepEqual(f.admission.contract,admittedPlan(f.session,f.baseRun).contract);
+ assert.deepEqual(f.admission.implementationSteps.slice(0,-1),admittedPlan(f.session,f.baseRun).steps);
+ assert.equal(f.plan.tasks.at(-1)!.node.required,false);
+ assert.ok(f.plan.tasks.slice(0,-1).every(task=>task.node.required));
+ assert.equal(f.plan.tasks.at(-1)!.node.admission.value,'exploratory');
+ assert.equal(f.run().budget.spent,7);
+ f.install();assert.equal(f.scheduler.exploration(f.plan.id).counts.optional,1);
+ const task=f.plan.tasks.at(-1)!,binding=task.scopeBinding!;
+ await writeFile(join(task.workspace,'outside.txt'),'actual undeclared write');
+ assert.deepEqual(inspectDeclaredWorkspaceChanges(binding.seed,task.workspace,binding.declaration).violations,['outside.txt']);
+ const old=structuredClone(proposal);
+ for(const mutate of [(p:typeof proposal)=>p.exploration![0]!.sources[0]!.quote='not a user quote',(p:typeof proposal)=>p.exploration![0]!.id=p.steps[0]!.id,(p:typeof proposal)=>p.exploration![0]!.writes[0]!.path='src/core.mjs',(p:typeof proposal)=>p.steps[0]!.dependencies.push('alternatives')]){const changed=structuredClone(old);mutate(changed);assert.throws(()=>validateProposal(changed,f.session));}
+});
+
+test('P7-EXPLORE-I02 unknown sources native research and loops cannot gain optional authorization and legacy proposals still parse',async t=>{
+ const f=await fixture(t),p=f.session.proposal!;assert.doesNotThrow(()=>validateProposal(p,f.session));
+ const candidate={id:'notes',description:'Optional notes',dependencies:[],relatedCriterionIds:['sum'],reads:[],writes:[{path:'exploration/notes/readme.txt',kind:'file' as const}],quality:'uncertain' as const,value:'supported' as const,qualityReason:'Explicit uncertainty',valueReason:'A supplementary explanation',sources:[{messageId:'user-original',quote:'Implement sum'}]};
+ p.exploration=[candidate];
+ // Direct validator assertions use explicit proposal fixtures, never live model claims.
+ const {validateExploration}=await import('../../packages/orchestration/exploration.js');
+ p.iteration={} as NonNullable<typeof p.iteration>;assert.throws(()=>validateExploration(p,f.session),/iteration with exploration/);delete p.iteration;
+ assert.throws(()=>validateExploration(p,{...f.session,research:{} as NonNullable<GoalSession['research']>}),/native research exploration/);
+ p.exploration[0]!.relatedCriterionIds=['invented'];assert.throws(()=>validateExploration(p,f.session),/unknown criteria/);
+ delete p.exploration;parseReasonerOutput(JSON.stringify(p),goalProposalSchema(['user-original']));
 });

@@ -202,6 +202,7 @@ export class SupervisionController {
         if(previous&&previous.contractDigest===loop.contractDigest){this.update(loop.id,{phase:'freezing',references:{...loop.references,proposalId:previous.id}});}
         else {await this.startAuthor(loop);return;}
       }else if(runtime.phase==='blocked'){
+        if(this.store.scheduler.list().some(s=>s.plan.runtimeId===runtime.id&&s.state==='blocked'))throw Error(runtime.error??'Scheduled graph blocked; no automatic replay authorized.');
         const operation=this.store.runtime.currentOperations(runtime.id).find(item=>item.stepIndex===runtime.cursor);
         ensure(operation?.state==='failed'&&operation.step.kind==='codex','Workflow blocked without a confirmed failed Codex operation; automatic replay prohibited.');
         const execution=this.store.executionGet(operation!.executionId!);ensure(execution.state==='failed'&&execution.stopConfirmed&&execution.usageStatus==='reported'&&execution.usage!==null&&!execution.cancelRequested,'Execution failure has unknown usage, stop or cancellation.');
@@ -217,7 +218,7 @@ export class SupervisionController {
       if(context.evolution){
         await assertCandidate(context.candidate);
         const material=await materializeControlEvolutionBundle({privateRoot:join(this.dataDir,'supervision','authoring'),jobId:job.id,context:context.evolution,bundle:verified.result});
-        await assertCandidate(context.candidate);await this.prepare(loop.id,'propose',{type:'propose',runtimeId:runtime.id,specPath:material.assets.specPath,controlDeclarationPath:material.declarationPath,controlAuthorJobId:job.id});return;
+        await assertCandidate(context.candidate);await this.prepare(loop.id,'propose',{type:'propose',runtimeId:runtime.id,specPath:material.assets.specPath,controlDeclarationPath:material.declarationPath,controlAuthorJobId:job.id,...(context.acceptance.workflowMode?{researchAuthorJobId:job.id}:{})});return;
       }
       await assertCandidate(context.candidate);
       const diagnostic=diagnoseAcceptanceAuthoringResult(verified.result,context.acceptance);
@@ -291,7 +292,6 @@ export class SupervisionController {
     const evolved = previous && (maintenance
       || previous.contractDigest !== loop.contractDigest
       || this.store.verificationLineage.bindingForProposal(previous.id).definitionFormat === 'qualified-v2');
-    if (evolved && context.acceptance.workflowMode) throw new Error('Native research workflow evolution requires an independently frozen historical mapping transition');
     if (evolved) {
       const base = this.store.verificationLineage.captureBase(loop.projectId, loop.runId);
       context.acceptance = { ...context.acceptance, previousSpec: null };

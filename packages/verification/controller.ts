@@ -16,7 +16,7 @@ import { SupervisorStore } from '../persistence/store.js';
 import { inspectProcess, terminateProcess, type ProcessIdentity } from '../process-control/index.js';
 import { assertCandidate, canonical, captureCandidate, digest, environmentFingerprint } from './candidate.js';
 import { assertDefinition, captureDefinition, validateBundleChange } from './definition.js';
-import { evaluateVerification, selectInstances, validateSpecChange } from './rules.js';
+import { currentVerificationCases,evaluateVerification, selectInstances, validateSpecChange } from './rules.js';
 import { definitionReviewPrompt, executeDefinitionControls, executeInstances, reviewModel, type EngineContext } from './engine.js';
 import { assertSourcesCurrent } from './source.js';
 import type { Delivery, FrozenPlan, ModelConfig, Proposal, VerificationAction, VerificationJob } from './records.js';
@@ -160,7 +160,7 @@ export class VerificationController {
       if(action.type==='run'&&action.futureVerificationAllocationId)this.assertFinalAllocationPlan(plan!);
       const proposal=this.repo.get('proposal',plan?.proposalId??(action as Extract<VerificationAction,{type:'review'}>).proposalId),runtime=this.store.runtime.get(plan?.runtimeId??proposal.runtimeId);
       const nativeRole=this.repo.researchProofPlanDigest(proposal.id);if(nativeRole)ensure(proposal.researchProofPlanDigest===nativeRole,'Persisted native research role differs; no new request may be reserved');
-      await this.writers(runtime);await assertDefinition(proposal.spec,proposal.bundle);await assertMaterialSpecBindings(this.store,this.dataDir,runtime.id,proposal.spec.cases.flatMap(c=>c.verifier.kind==='material'?[c.verifier]:c.verifier.kind==='source'&&c.verifier.binding?[{kind:'material' as const,version:c.verifier.version,claimFile:c.verifier.claimFile,binding:c.verifier.binding,timeoutMs:c.verifier.timeoutMs}]:[]));await assertCandidate(plan?.candidate??proposal.candidate);
+      await this.writers(runtime);await assertDefinition(proposal.spec,proposal.bundle);await assertMaterialSpecBindings(this.store,this.dataDir,runtime.id,currentVerificationCases(proposal.spec).filter(c=>(c.status??'active')==='active').flatMap(c=>c.verifier.kind==='material'?[c.verifier]:c.verifier.kind==='source'&&c.verifier.binding?[{kind:'material' as const,version:c.verifier.version,claimFile:c.verifier.claimFile,binding:c.verifier.binding,timeoutMs:c.verifier.timeoutMs}]:[]));await assertCandidate(plan?.candidate??proposal.candidate);
       if(action.type==='review')this.assertReviewBase(proposal);
       const run=this.repo.run(runtime.projectId,runtime.runId);ensure(!['succeeded','cancelled','paused'].includes(run.status),'Run is terminal or paused');
       ensure(digest(canonical(run.contract))===(plan?.contractDigest??proposal.contractDigest),'Frozen contract changed');
@@ -235,7 +235,9 @@ export class VerificationController {
   }
   private async proposeControl(action:Extract<VerificationAction,{type:'propose'}>):Promise<Proposal> {
     const runtime=this.store.runtime.get(action.runtimeId);await this.writers(runtime);
-    ensure(!this.store.researchWorkflow.requires(runtime.id),'Native research historical evolution requires its explicit reviewed mapping transition');
+    const native=this.store.researchWorkflow.requires(runtime.id);
+    ensure(native? action.researchAuthorJobId===action.controlAuthorJobId:!action.researchAuthorJobId,
+      'native evolution needs its same actual V2 author/mapping; ordinary proposals cannot assign that role');
     ensure(action.controlAuthorJobId&&action.controlDeclarationPath,'Missing control author declaration');
     const initial=this.store.supervision.job(action.controlAuthorJobId);
     ensure(initial.status==='finished'&&initial.purpose==='acceptance-authoring'&&initial.runtimeId===runtime.id&&initial.projectId===runtime.projectId&&initial.runId===runtime.runId,'Control declaration requires its completed actual author');
@@ -264,15 +266,16 @@ export class VerificationController {
     const materialized=await materializeControlEvolutionBundle({privateRoot,jobId:author.id,context:evolution,bundle:author.result});
     ensure(materialized.assets.specPath===action.specPath&&canonical(materialized.assets)===canonical(declaration.assets),'Control spec differs from materialized actual author assets');
     const environmentScope=await createEnvironmentScope(this.dataDir,runtime),id='proposal-'+randomUUID(),directory=verificationDirectory(this.dataDir,{...runtime,id,environmentScope});
-    const target=await captureControlSpec({specPath:action.specPath,directory,contract:run.contract});await assertMaterialSpecBindings(this.store,this.dataDir,runtime.id,target.definition.spec.cases.flatMap(c=>c.verifier.kind==='material'?[c.verifier]:c.verifier.kind==='source'&&c.verifier.binding?[{kind:'material' as const,version:c.verifier.version,claimFile:c.verifier.claimFile,binding:c.verifier.binding,timeoutMs:c.verifier.timeoutMs}]:[]));const candidate=await captureCandidate(runtime.workspace,join(directory,'candidate'));
+    const target=await captureControlSpec({specPath:action.specPath,directory,contract:run.contract});await assertMaterialSpecBindings(this.store,this.dataDir,runtime.id,currentVerificationCases(target.definition.spec).filter(c=>(c.status??'active')==='active').flatMap(c=>c.verifier.kind==='material'?[c.verifier]:c.verifier.kind==='source'&&c.verifier.binding?[{kind:'material' as const,version:c.verifier.version,claimFile:c.verifier.claimFile,binding:c.verifier.binding,timeoutMs:c.verifier.timeoutMs}]:[]));const candidate=await captureCandidate(runtime.workspace,join(directory,'candidate'));
     ensure(candidate.digest===input.context.candidate.digest,'Candidate changed during control proposal capture');
     const result=author.result as {maintenance?:MaintenancePlan;plan:Parameters<typeof prepareControlDraft>[0]['authoredPlan']};
     const draft=await prepareControlDraft({proposalId:id,base,baseDefinition:history.definitions.find(d=>d.definition.definitionDigest===base.baseDefinitionDigest)?.definition??null,target,transitions:current.transitions,history,authoredPlan:result.plan,authorBinding:{jobId:author.id,inputDigest:author.inputDigest,resultDigest:controlDigest(author.result)}});
     const previous=base.baseProposalId?this.repo.get('proposal',base.baseProposalId):null;
+    const nativePlan=native?prepareResearchProofPlan(evolution.current.criteria,run.contract,target.definition.spec,(author.result as import('../orchestration/acceptance-authoring-v2.js').ControlEvolutionBundle).assets.researchWorkflow!):undefined;
     const maintenance=evolution.maintenance?this.store.controlMaintenance.forLoop(author.loopId):null;ensure(!evolution.maintenance||maintenance?.authorJobId===author.id,'Maintenance author reservation changed');
-    const proposal:Proposal={id,...(maintenance?{maintenanceId:maintenance.id,maintenanceDigest:maintenance.basisDigest}:{}),...((evolution.maintenance||evolution.regression)?{regressionDigest:controlDigest(evolution.maintenance?.basis??evolution.regression)}:{}),environmentScope,runtimeId:runtime.id,projectId:runtime.projectId,runId:runtime.runId,baseVersion:previous?.version??0,version:null,spec:target.definition.spec,bundle:target.bundle,candidate,contractDigest:author.contractDigest,controlDraftDigest:draft.digest,status:'proposed',createdAt:new Date().toISOString()};
+    const proposal:Proposal={id,...(nativePlan?{researchProofPlanDigest:nativePlan.digest}:{}),...(maintenance?{maintenanceId:maintenance.id,maintenanceDigest:maintenance.basisDigest}:{}),...((evolution.maintenance||evolution.regression)?{regressionDigest:controlDigest(evolution.maintenance?.basis??evolution.regression)}:{}),environmentScope,runtimeId:runtime.id,projectId:runtime.projectId,runId:runtime.runId,baseVersion:previous?.version??0,version:null,spec:target.definition.spec,bundle:target.bundle,candidate,contractDigest:author.contractDigest,controlDraftDigest:draft.digest,status:'proposed',createdAt:new Date().toISOString()};
     const snapshot=this.store.managedSnapshot(canonical(candidate));await assertCandidate(candidate);await assertDefinition(proposal.spec,proposal.bundle);
-    return this.repo.transaction(()=>{this.assertQuietWorkspace(runtime.workspace);this.repo.assertNoVerificationWriter(runtime.workspace);this.repo.insert('proposal',proposal);this.store.verificationLineage.bindProposal({commandId:'bind:'+action.commandId,proposalId:id,base,definitionFormat:'qualified-v2'});this.store.controlQualification.insertDraft({commandId:'draft:'+action.commandId,proposalId:id,draft});if(maintenance)this.store.controlMaintenance.bindProposal(id,author.id,result.maintenance!);this.repo.artifact(run.projectId,run.id,{id,...snapshot,contractVersion:run.contract.version});this.repo.remember(action.commandId,action,proposal);return proposal;});
+    return this.repo.transaction(()=>{this.assertQuietWorkspace(runtime.workspace);this.repo.assertNoVerificationWriter(runtime.workspace);this.repo.insert('proposal',proposal);this.store.verificationLineage.bindProposal({commandId:'bind:'+action.commandId,proposalId:id,base,definitionFormat:'qualified-v2'});this.store.controlQualification.insertDraft({commandId:'draft:'+action.commandId,proposalId:id,draft});if(nativePlan)this.store.researchWorkflow.bindProposal({proposalId:id,authorJobId:author.id,proofPlan:nativePlan});if(maintenance)this.store.controlMaintenance.bindProposal(id,author.id,result.maintenance!);this.repo.artifact(run.projectId,run.id,{id,...snapshot,contractVersion:run.contract.version});this.repo.remember(action.commandId,action,proposal);return proposal;});
   }
   private frozenBaseProposal(proposal:Proposal):Proposal|null {
     const base=this.store.verificationLineage.baseForProposal(proposal.id),previous=base.baseProposalId?this.repo.get('proposal',base.baseProposalId):null;
@@ -333,7 +336,7 @@ export class VerificationController {
     const maintenance=this.store.controlMaintenance.sourcesForProposal(proposal);
     if(maintenance){const replay=await executeMaintenanceReplay(context,proposal,maintenance.basis,maintenance.plan);this.store.controlMaintenance.appendReplay(replay);}
     const maintenancePayload=this.store.controlMaintenance.reviewPayload(proposal.id,context.job.id);
-    const prompt=await controlQualificationReviewPrompt({...assembled,pairs:execution.pairs,...(maintenancePayload?{maintenance:maintenancePayload}:{})});
+    const prompt=await controlQualificationReviewPrompt({...assembled,pairs:execution.pairs,materialObservations:context.job.materials??[],...(proposal.researchProofPlanDigest?{researchWorkflow:this.store.researchWorkflow.qualificationReviewContext(proposal.id)}:{}),...(maintenancePayload?{maintenance:maintenancePayload}:{})});
     const independentReview=await reviewModel(context,prompt,proposal.candidate.tree,join(context.output,'definition-review'));
     context.save();context.eligible();
     const reviewPromptDigest=digest(prompt);

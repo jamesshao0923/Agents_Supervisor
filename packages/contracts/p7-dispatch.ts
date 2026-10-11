@@ -19,7 +19,7 @@ export interface ScheduledPlan {
  loops:Omit<SchedulerLoop,'spent'>[];
  limits:{maxActive:number;maxNodes:number;maxDepth:number;deadlineMs:number};
 }
-export interface ScheduledRecord {id:string;plan:ScheduledPlan;planDigest:string;revision:number;state:'active'|'paused'|'cancelled'|'drained';fence:'held'|'released'}
+export interface ScheduledRecord {id:string;plan:ScheduledPlan;planDigest:string;revision:number;state:'active'|'paused'|'cancelled'|'drained'|'blocked';fence:'held'|'released'}
 export interface ScheduledClaim {
  schemaVersion:1;id:string;schedulerId:string;runtimeId:string;projectId:string;runId:string;
  taskId:string;attemptId:string;operationId:string;planRevision:number;planDigest:string;generation:number;
@@ -31,5 +31,5 @@ export interface ScheduledOperation {id:string;claimId:string;state:'claimed'|'s
 export interface ScheduledLease {id:string;claimId:string;resource:SchedulerResource;state:'held'|'released'}
 export interface ScheduledExpected {schedulerRevision:number;runRevision:number;resultRevision:number;leaseRevision:number}
 export type ScheduledClaimResult={kind:'claimed';claim:ScheduledClaim;operation:ScheduledOperation;decision:SchedulerDecision}|{kind:'waiting';decision:SchedulerDecision};
-export interface ScheduledDomainInput {run:Run;plan:ScheduledPlan;ledger:ResultLedger;claims:ScheduledClaim[];operations:ScheduledOperation[];leases:ScheduledLease[];nowMs:number;blockedTaskIds?:string[];taskId:string;attemptId:string;claimId:string;operationId:string;owner:string}
+export interface ScheduledDomainInput {effectiveTier?:ExplorationTier;run:Run;plan:ScheduledPlan;ledger:ResultLedger;claims:ScheduledClaim[];operations:ScheduledOperation[];leases:ScheduledLease[];nowMs:number;blockedTaskIds?:string[];taskId:string;attemptId:string;claimId:string;operationId:string;owner:string}
 export interface ScheduledDomainResult {run:Run;events:DomainEvent[];claim:ScheduledClaim;operation:ScheduledOperation;decision:SchedulerDecision}

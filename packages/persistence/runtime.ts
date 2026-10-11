@@ -273,7 +273,7 @@ export class RuntimeRepository {
     if(input.type==='cancel') {if(!r.cancelled){r.cancelled=true;r.paused=false;r.phase='cancelled';this.action(r,{type:'cancel'});for(const o of this.operations(r.id))if(o.state==='queued'){o.state='cancelled';this.saveOp(o);}}}
     else {ensure(!r.cancelled||input.type==='reconcile','Cancelled runtime cannot resume or accept input');
       if(input.type==='pause'){if(!r.paused){r.paused=true;r.phase='paused';this.action(r,{type:'pause'});}}
-      if(input.type==='resume'){this.checkpoint(r.id);ensure(r.paused,'Runtime is not paused');r.paused=false;this.action(r,{type:'resume'});r.phase=this.phase(r);}
+      if(input.type==='resume'){const scheduled=this.db.prepare('SELECT record FROM scheduled_records WHERE runtime_id=?').get(r.id);ensure(!scheduled||JSON.parse(String(scheduled.record)).state!=='blocked','Scheduled graph blocked; pause/resume cannot authorize retry');this.checkpoint(r.id);ensure(r.paused,'Runtime is not paused');r.paused=false;this.action(r,{type:'resume'});r.phase=this.phase(r);}
       if(input.type==='input'){const s=r.definition.steps[r.cursor];ensure(s?.kind==='input'&&s.id===input.stepId,'Input is only accepted at the declared current wait');ensure(!Object.hasOwn(r.inputs,input.stepId),'Input already supplied');r.inputs[input.stepId]=input.text;r.phase=this.phase(r);}
       if(input.type==='reconcile'){r.error=null;/* A durable request, consumed by worker query-only reconciliation. */}
     }

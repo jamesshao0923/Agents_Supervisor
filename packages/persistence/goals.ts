@@ -186,7 +186,7 @@ export class GoalRepository {
     if(a.type==='cancel'){ensure(!s.runtimeId,'Cancel admitted tasks through runtime');this.act(s,{type:'cancel'});s.phase='cancelled';}
     else {ensure(s.phase!=='cancelled','Goal is cancelled');ensure(a.expectedRevision===s.revision,'Goal revision changed');
       if(a.type==='admit'){
-        ensure(!s.proposal?.iteration,'Loop proposal requires the atomic graph admission bridge');
+        ensure(!s.proposal?.iteration&&!s.proposal?.exploration?.length,'Loop or exploration proposal requires the atomic graph admission bridge');
         ensure(!new ConversationRepository(this.db).hasPendingForRun(s.projectId,s.id),'Pending follow-up prevents ordinary admission');
         ensure(s.phase==='ready'&&!s.runtimeId,'Goal is not ready for admission');const plan=admittedPlan(s,this.run(s));
         ensure(s.jobs.every(j=>j.status==='finished'&&j.stopConfirmed&&j.usage!==null),'Unresolved model work prevents admission');

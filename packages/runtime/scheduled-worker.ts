@@ -41,7 +41,7 @@ export class ScheduledRuntimeWorker {
  }
  private async advance(record:ScheduledRecord):Promise<void>{
   const runtime=this.store.runtime.get(record.plan.runtimeId),run=this.store.query({type:'run',projectId:record.plan.projectId,runId:record.plan.runId}) as Run;
-  const cancelled=runtime.cancelled||record.state==='cancelled'||run.status==='cancelled';
+  const cancelled=runtime.cancelled||['cancelled','blocked'].includes(record.state)||run.status==='cancelled';
   const expired=Date.now()>=record.plan.limits.deadlineMs;
   this.store.scheduledLoops.observeDeadlines(record.id);
   const publicationErrors:string[]=[];
@@ -59,6 +59,7 @@ export class ScheduledRuntimeWorker {
    }else if(['claimed','started'].includes(operation.state)&&!runtime.paused&&!cancelled&&!expired&&record.state==='active')await this.start(claim);
   }
   if(!cancelled&&!runtime.paused&&!expired)try{await this.loops.advance(record.id);}catch(error){publicationErrors.push('loop: '+(error instanceof Error?error.message:String(error)));}
+  if(record.state==='active'&&!cancelled&&!runtime.paused){const expected=this.store.scheduler.expected(record.id);const commandId='scheduled-terminal:'+createHash('sha256').update(JSON.stringify({id:record.id,expected,expired})).digest('hex');const terminal=await this.store.scheduler.reconcileTerminal({commandId,id:record.id,expected});if(terminal.kind==='blocked'||terminal.kind==='drained')return;}
   let released=false;if(!cancelled&&!runtime.paused)try{released=this.publisher.releaseIfReady(record.id);}catch(error){publicationErrors.push(error instanceof Error?error.message:String(error));}
   if(released||record.state!=='active'||record.fence!=='held'||runtime.paused||cancelled||expired){if(publicationErrors.length)throw Error(publicationErrors.join('; '));return;}
   for(let count=0;count<record.plan.limits.maxActive;count++){

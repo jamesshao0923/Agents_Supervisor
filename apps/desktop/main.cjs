@@ -14,6 +14,7 @@ let request;
 let parseOrchestrationAction;
 let parseConversationAction;
 let parseSupervisionAction;
+let parseExplorationAction;
 let deliveryBrowserOrigin;
 
 function assertSender(event) {
@@ -45,6 +46,7 @@ function register(channel, handler) {
   ipcMain.handle(`supervisor:${channel}`, (event, ...args) => { assertSender(event); return handler(...args); });
 }
 function installBridge() {
+  register('exploration', action => invoke({method:'exploration',action:parseExplorationAction(action)}));
   register('health', () => invoke({ method: 'health' }));
   register('supervision-list', () => supervision({ type: 'list' }));
   register('supervision-attach', input => { if (!input || typeof input !== 'object' || Array.isArray(input) || Object.hasOwn(input, 'type')) throw new Error('Invalid supervision input');return supervision({type:'attach',...input}); });
@@ -181,6 +183,7 @@ function createWindow() {
 app.whenReady().then(async () => {
   ({ request } = await import(pathToFileURL(join(__dirname, '../cli/client.js')).href));
   ({ parseOrchestrationAction } = await import(pathToFileURL(join(__dirname, '../../packages/contracts/p5.js')).href));
+  ({ parseExplorationAction } = await import(pathToFileURL(join(__dirname, '../../packages/contracts/p7-exploration.js')).href));
   ({ parseSupervisionAction } = await import(pathToFileURL(join(__dirname, '../../packages/contracts/p6-supervision-actions.js')).href));
   ({ parseConversationAction } = await import(pathToFileURL(join(__dirname, '../../packages/contracts/p6-actions.js')).href));
   ({ deliveryBrowserOrigin } = await import(pathToFileURL(join(__dirname, 'verification-versions.js')).href));

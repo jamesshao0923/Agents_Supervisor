@@ -1,3 +1,4 @@
+import {prepareResearchWorkflowEvolution} from '../verification/research-evolution.js';
 import { assertResearchMappingApproval } from '../verification/research-mapping-proof.js';
 import type { DatabaseSync } from 'node:sqlite';
 import { join, relative, sep } from 'node:path';
@@ -12,7 +13,7 @@ import { VerificationProofReader } from '../verification/proof-reader.js';
 import { assertLegacyControlReviewEvidence } from '../verification/legacy-review-evidence.js';
 import { captureMaterialBinding, readMaterialBinding } from '../verification/material.js';
 import { readBounded } from '../workspace/research-runtime-files.js';
-import { evaluateVerification, selectInstances } from '../verification/rules.js';
+import { evaluateVerification, selectInstances,currentVerificationCases } from '../verification/rules.js';
 import { safeControlJSON } from '../contracts/p4-controls.js';
 function ensure(v: unknown, m: string): asserts v {
     if (!v)
@@ -67,9 +68,10 @@ export class ResearchWorkflowRepository {
         ensure(this.db.isTransaction, 'proposal binding needs parent transaction');
         safeControlJSON(input);
         const p = this.repo.get('proposal', input.proposalId), goal = this.goal(p.runtimeId), author = this.store.supervision.job(input.authorJobId), run = this.repo.run(p.projectId, p.runId);
-        ensure(p.status === 'proposed'
-            && p.baseVersion === 0
-            && !p.controlDraftDigest, 'initial native mapping needs a new initial definition; historical transitions require their own reviewed protocol');
+        ensure(p.status === 'proposed','native plan requires an unpublished exact proposal');
+        const qualified=this.store.verificationLineage.bindingForProposal(p.id).definitionFormat==='qualified-v2';
+        ensure(qualified?!!p.controlDraftDigest:p.baseVersion===0&&!p.controlDraftDigest,
+            'native historical definitions require exact qualified V2 protocol');
         ensure(author.purpose === 'acceptance-authoring'
             && author.status === 'finished'
             && !author.error
@@ -95,11 +97,29 @@ export class ResearchWorkflowRepository {
         ensure(frozen.context.acceptance.workflowMode === 'native-host-v1'
             && canonical(frozen.context.acceptance.criteria) === canonical(goal.proposal!.criteria)
             && canonical(frozen.context.acceptance.contract) === canonical(run.contract)
-            && output.researchWorkflow, 'author did not freeze complete native criteria');
-        const expected = prepareResearchProofPlan(goal.proposal!.criteria, run.contract, p.spec, output.researchWorkflow);
+            && (qualified?(author.result as import('../orchestration/acceptance-authoring-v2.js').ControlEvolutionBundle).assets.researchWorkflow:output.researchWorkflow), 'author did not freeze complete native criteria');
+        const declaration=qualified?(author.result as import('../orchestration/acceptance-authoring-v2.js').ControlEvolutionBundle).assets.researchWorkflow:output.researchWorkflow;
+        ensure(declaration,'native complete mapping declaration missing');
+        const expected = prepareResearchProofPlan(goal.proposal!.criteria, run.contract, p.spec, declaration);
         ensure(canonical(expected) === canonical(input.proofPlan)
             && p.researchProofPlanDigest === expected.digest, 'host plan differs from actual author/current criteria');
+        let evolution:import('../contracts/p4-research-workflow.js').ResearchWorkflowEvolution|undefined;
+        if(qualified){
+            const draft=this.store.controlQualification.draftForProposal(p.id).draft;
+            ensure(draft.authorBinding.jobId===author.id
+                &&draft.authorBinding.inputDigest===author.inputDigest
+                &&draft.authorBinding.resultDigest===digest(canonical(author.result)),
+                'native evolution author differs from actual control draft');
+            ensure(draft.base.baseProposalId,'native evolution predecessor missing');
+            const previous=this.repo.get('proposal',draft.base.baseProposalId);
+            ensure(previous.status==='published'&&previous.reviewId,'native predecessor is not published');
+            this.assertMappingReview(previous,this.repo.get('job',previous.reviewId));
+            evolution=prepareResearchWorkflowEvolution({previous:this.proposal(previous.id),
+                previousSpec:previous.spec,currentPlan:expected,currentSpec:p.spec,currentContract:run.contract,
+                base:draft.base,transitions:draft.transitions});
+        }
         const body = {
+            ...(evolution?{evolution}:{}),
             schemaVersion: 1 as const,
             proposalId: p.id,
             proofPlan: expected,
@@ -117,6 +137,22 @@ export class ResearchWorkflowRepository {
     }
     assertMappingReview(p: Proposal, j: VerificationJob): void {
         assertResearchMappingApproval(this.db, p, j);
+    }
+    qualificationReviewContext(proposalId:string):{
+        current:ResearchWorkflowProposal;previous:ResearchWorkflowProposal;
+        contract:import('../contracts/p1.js').TaskContract;
+    } {
+        const current=this.proposal(proposalId);
+        ensure(current.evolution,'native V2 mapping lacks exact evolution binding');
+        const proposal=this.repo.get('proposal',proposalId),draft=this.store.controlQualification.draftForProposal(proposalId).draft;
+        const previous=this.proposal(current.evolution.predecessorProposalId);
+        const contract=this.repo.run(proposal.projectId,proposal.runId).contract;
+        const expected=prepareResearchWorkflowEvolution({previous,
+            previousSpec:this.repo.get('proposal',previous.proposalId).spec,
+            currentPlan:current.proofPlan,currentSpec:proposal.spec,currentContract:contract,
+            base:draft.base,transitions:draft.transitions});
+        ensure(canonical(expected)===canonical(current.evolution),'actual native evolution changed');
+        return {current,previous,contract};
     }
     private snapshot(jobId: string) {
         const job = this.repo.get('job', jobId);
@@ -207,7 +243,9 @@ export class ResearchWorkflowRepository {
         }))
             && evaluateVerification(proposal.spec, plan.selection, job.results).complete
             && canonical(job.evaluation) === canonical(evaluateVerification(proposal.spec, plan.selection, job.results)), 'exact full artifact selection failed');
-        assertLegacyControlReviewEvidence({
+        if(this.store.verificationLineage.bindingForProposal(proposal.id).definitionFormat==='qualified-v2')
+            this.store.controlQualification.assertPublicationBinding({proposalId:proposal.id,reviewId:review.id});
+        else assertLegacyControlReviewEvidence({
             dataDir: this.repo.dataDirectory(),
             proposal,
             review
@@ -240,7 +278,7 @@ export class ResearchWorkflowRepository {
             ref('definition-review', s.review.id, s.review),
             {kind: 'native-plan', id: s.proposal.id, digest: s.native.digest}
         ];
-        const producer = s.proposal.spec.cases.flatMap(c => {
+        const producer = currentVerificationCases(s.proposal.spec).filter(c=>(c.status??'active')==='active').flatMap(c => {
             if (c.verifier.kind !== 'material') return [];
             const nativeBinding = c.verifier.binding;
             const operation = s.operations.find(o => o.id === nativeBinding.operationId);
@@ -324,7 +362,7 @@ export class ResearchWorkflowRepository {
         }
         for (const [name, hash] of Object.entries(s.proposal.bundle.files))
             collect(join(s.proposal.bundle.directory, name), hash);
-        const materialCases = s.proposal.spec.cases.filter(c => c.verifier.kind === 'material');
+        const materialCases = currentVerificationCases(s.proposal.spec).filter(c => (c.status??'active')==='active'&&c.verifier.kind === 'material');
         ensure(materialCases.length > 0, 'native material producer evidence missing');
         for (const c of materialCases) {
             if (c.verifier.kind !== 'material')

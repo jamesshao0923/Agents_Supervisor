@@ -1,5 +1,7 @@
+import {parseExplorationAction,type ExplorationAction,type ExplorationInspection} from '../contracts/p7-exploration.js';
+import type {ExplorationTier} from '../contracts/p7-scheduler.js';
 import {ConversationRepository} from './conversations.js';
-import {assertScheduledProjection,assertScheduledClaimOrigin,loopProgramComplete,stoppedLoopTask} from './scheduled-plan-history.js';
+import {assertScheduledProjection,assertScheduledClaimOrigin,loopProgramComplete,stoppedLoopTask,hasLoopTables} from './scheduled-plan-history.js';
 import {HostScheduledInputs,type ScheduledInputSource,type ScheduledInputReceipt} from '../workspace/scheduled-inputs.js';
 import {scheduledExecutionPrompt} from '../contracts/p7-inputs.js';
 import {createHash} from 'node:crypto';
@@ -44,6 +46,83 @@ export class TaskSchedulerRepository{
   if(!head||!v||!upstream||!claim||v.manifest.planRevision!==claim.planRevision||v.manifest.generation!==upstream.generation||v.manifest.attemptId!==claim.attemptId||input.minimumState!=='submitted')return true;
   try{assertScheduledClaimOrigin(this.db,s,claim!);this.results().readPublished({projectId:s.plan.projectId,runId:s.plan.runId,ref:head.ref,minimumState:'submitted'});return false;}catch{return true;}
  })).map(task=>task.node.id);}
+ private effectivePolicy(id: string): {tier: ExplorationTier; revision: number} {
+  const s = this.get(id);
+  const row = this.db.prepare('SELECT revision,tier,record FROM scheduled_exploration_policy WHERE scheduler_id=?').get(id);
+  if (!row) return {tier: s.plan.tier, revision: 0};
+  const record = JSON.parse(String(row.record)) as {schedulerId: string; planDigest: string; tier: ExplorationTier; revision: number};
+  ensure(record.schedulerId === id && record.planDigest === s.planDigest && record.tier === row.tier && record.revision === row.revision, 'exploration policy binding changed');
+  return {tier: record.tier, revision: record.revision};
+ }
+ private decision(id: string) {
+  const s = this.get(id), claims = this.claims(id);
+  return domain.evaluate({
+   run: this.run(s.plan), plan: s.plan, effectiveTier: this.effectivePolicy(id).tier,
+   ledger: this.results().inspect(s.plan), claims,
+   operations: this.actualOperations(claims, this.operations(id)), leases: this.allResourceLeases(),
+   nowMs: this.now(), blockedTaskIds: this.unavailableDependencies(s),
+  });
+ }
+ exploration(id: string): ExplorationInspection {
+  const s = this.get(id), policy = this.effectivePolicy(id), claims = this.claims(id), runtime = this.runtime(s.plan.runtimeId);
+  let decision: ExplorationInspection['decision'] = null, reason: string | null = null;
+  try { decision = this.decision(id); } catch (error) { reason = String(error); }
+  let completion: ExplorationInspection['completion'] = null, completionError: string | null = null;
+  if (s.state === 'drained' && s.fence === 'released' && !this.db.isTransaction) {
+   try { completion = this.persistedCompletion(id); } catch (error) { completionError = String(error); }
+  }
+  if (runtime.paused) reason = 'Runtime is paused; exploration cannot dispatch';
+  if (runtime.cancelled || s.state === 'cancelled') reason = 'Runtime is cancelled; no new exploration';
+  if (s.fence === 'released') reason = 'Integration has started; use a follow-up for new work';
+  const optional = s.plan.tasks.some(task => !task.node.required);
+  const loop = !!this.db.prepare('SELECT 1 FROM scheduled_loop_programs WHERE scheduler_id=?').get(id);
+  if (!optional) reason = 'No optional exploration candidates; required work is unchanged';
+  if (loop) reason = 'Changing exploration tiers within loop programs is not supported';
+  if (completionError) reason = completionError;
+  const canChangeTier = optional && !loop && s.fence === 'held' && ['active', 'paused'].includes(s.state) &&
+   !runtime.cancelled && !['cancelled', 'succeeded'].includes(this.run(s.plan).status);
+  return {
+   schedulerId: id, canChangeTier, tier: policy.tier, originalTier: s.plan.tier,
+   policyRevision: policy.revision, expected: this.expected(id), decision, reason, completion,
+   counts: {
+    required: s.plan.tasks.filter(task => task.node.required).length,
+    optional: s.plan.tasks.filter(task => !task.node.required).length,
+    admitted: decision?.nodes.filter(node => node.admitted).length ?? 0,
+    waiting: s.fence === 'released' ? 0 : decision?.nodes.filter(node => node.admitted && !node.dispatch &&
+     s.plan.tasks.some(task => task.node.id === node.taskId) && !claims.some(claim => claim.taskId === node.taskId)).length ?? 0,
+    active: claims.filter(claim => !['confirmed', 'cancelled', 'failed'].includes(this.operation(claim.operationId).state)).length,
+   },
+  };
+ }
+ dispatchExploration(input: ExplorationAction): ExplorationInspection {
+  const action = parseExplorationAction(input);
+  if (action.type === 'inspect') return this.exploration(action.schedulerId);
+  return this.setExplorationTier({commandId: action.commandId, id: action.schedulerId, expected: action.expected, tier: action.tier});
+ }
+ setExplorationTier(input: {commandId: string; id: string; expected: ScheduledExpected; tier: ExplorationTier}): ExplorationInspection {
+  parseExplorationAction({type: 'set-tier', commandId: input.commandId, schedulerId: input.id, expected: input.expected, tier: input.tier});
+  return this.tx(() => {
+   const request = {method: 'scheduled-exploration-tier', ...input};
+   const prior = this.prior<ExplorationInspection>(input.commandId, request);
+   if (prior) return prior;
+   this.checkExpected(input.id, input.expected);
+   const s = this.get(input.id), run = this.run(s.plan), runtime = this.runtime(s.plan.runtimeId), old = this.effectivePolicy(s.id);
+   ensure(s.fence === 'held' && ['active', 'paused'].includes(s.state) && !runtime.cancelled &&
+    !['cancelled', 'succeeded'].includes(run.status), 'exploration cannot reopen terminal or integrated work');
+   ensure(s.plan.tasks.some(task => !task.node.required) &&
+    !this.db.prepare('SELECT 1 FROM scheduled_loop_programs WHERE scheduler_id=?').get(s.id),
+    'tier changes require optional candidates outside loop programs');
+   ensure(run.contract.version === s.plan.contractVersion && domain.digest(run.contract) === s.plan.contractDigest, 'exploration contract changed');
+   const record = {schemaVersion: 1, schedulerId: s.id, planDigest: s.planDigest,
+    revision: old.revision + 1, tier: input.tier, previousTier: old.tier};
+   this.db.prepare('INSERT INTO scheduled_exploration_policy VALUES(?,?,?,?) ON CONFLICT(scheduler_id) DO UPDATE SET revision=excluded.revision,tier=excluded.tier,record=excluded.record')
+    .run(s.id, record.revision, record.tier, canonical(record));
+   this.save(s, 'exploration-tier-changed', record);
+   const result = this.exploration(s.id);
+   this.remember(input.commandId, request, result);
+   return result;
+  });
+ }
  private run(s:ScheduledPlan):Run{const row=this.db.prepare('SELECT snapshot FROM runs WHERE project_id=? AND id=?').get(s.projectId,s.runId);ensure(row,'missing Run');return JSON.parse(String(row.snapshot)) as Run;}
  private runtime(id:string):RuntimeRecord{const row=this.db.prepare('SELECT record FROM runtime_runs WHERE id=?').get(id);ensure(row,'missing original runtime');return JSON.parse(String(row.record)) as RuntimeRecord;}
  private results(){return new TaskResultRepository(this.db,this.dataRoot);}
@@ -62,7 +141,7 @@ export class TaskSchedulerRepository{
  });}
  claim(input:{commandId:string;id:string;expected:ScheduledExpected;owner:string}):ScheduledClaimResult{safeResultJSON(input);return this.tx(()=>{
   const request={method:'scheduled-claim',...input},prior=this.prior<ScheduledClaimResult>(input.commandId,request);if(prior)return prior;this.checkExpected(input.id,input.expected);const s=this.get(input.id),runtime=this.runtime(s.plan.runtimeId);ensure(s.state==='active'&&s.fence==='held'&&!runtime.paused&&!runtime.cancelled,'scheduler or original runtime stopped');ensure(input.owner.trim()&&input.owner.length<=200,'invalid host worker owner');ensure(!new ConversationRepository(this.db).hasPendingForRun(s.plan.projectId,s.plan.runId),'pending conversation change blocks new scheduled claims');
-  const run=this.run(s.plan),ledger=this.results().inspect(s.plan),claims=this.claims(s.id),operations=this.actualOperations(claims,this.operations(s.id)),leases=this.allResourceLeases(),base={run,plan:s.plan,ledger,claims,operations,leases,nowMs:this.now(),blockedTaskIds:[...this.unavailableDependencies(s),...s.plan.tasks.filter(t=>stoppedLoopTask(this.db,s.id,t.node.id)).map(t=>t.node.id)]},decision=domain.evaluate(base),taskId=decision.dispatchTaskIds[0];
+  const run=this.run(s.plan),ledger=this.results().inspect(s.plan),claims=this.claims(s.id),operations=this.actualOperations(claims,this.operations(s.id)),leases=this.allResourceLeases(),base={run,plan:s.plan,effectiveTier:this.effectivePolicy(s.id).tier,ledger,claims,operations,leases,nowMs:this.now(),blockedTaskIds:[...this.unavailableDependencies(s),...s.plan.tasks.filter(t=>stoppedLoopTask(this.db,s.id,t.node.id)).map(t=>t.node.id)]},decision=domain.evaluate(base),taskId=decision.dispatchTaskIds[0];
   if(!taskId){const waiting:ScheduledClaimResult={kind:'waiting',decision};this.remember(input.commandId,request,waiting);return waiting;}
   const claimId='claim-'+sha256(canonical({scheduler:s.id,plan:s.planDigest,taskId,generation:s.plan.tasks.find(t=>t.node.id===taskId)!.generation})),attemptId='exec-'+sha256(claimId),next=domain.start({...base,taskId,attemptId,claimId,operationId:attemptId,owner:input.owner});
   this.persistRun(run,next.run,next.events,input.commandId);this.db.prepare('INSERT INTO scheduled_claims VALUES(?,?,?,?,?,?)').run(claimId,s.id,attemptId,taskId,next.claim.generation,canonical(next.claim));this.db.prepare('INSERT INTO scheduled_outbox VALUES(?,?,?)').run(next.operation.id,claimId,canonical(next.operation));
@@ -70,15 +149,149 @@ export class TaskSchedulerRepository{
   this.db.prepare('UPDATE scheduled_meta SET lease_revision=lease_revision+1 WHERE id=1').run();
   this.results().bindScheduledConsumer({commandId:input.commandId+':inputs',projectId:run.projectId,runId:run.id,claimId,expectedRevision:ledger.revision});this.save(s,'claimed',{claimId,attemptId,taskId,inputBindings:next.claim.inputBindings});const result:ScheduledClaimResult={kind:'claimed',claim:next.claim,operation:next.operation,decision};this.remember(input.commandId,request,result);return result;
  });}
+ /** Read-only host completion eligibility, never an optional pass verdict.
+  * Unattempted optional admission is a spending permission, not a completion
+  * obligation. Only permanently unaffordable quiet branches may be omitted. */
+ completionEligibility(id:string):{ready:boolean;reasons:string[];remaining:number|null;unperformedOptional:{taskId:string;reason:string;blockedBy:string[]}[]}{return this.tx(()=>{
+  const s=this.get(id),run=this.run(s.plan),runtime=this.runtime(s.plan.runtimeId),claims=this.claims(id),operations=this.operations(id),reasons:string[]=[];
+  const result={ready:false,reasons,remaining:null as number|null,unperformedOptional:[] as {taskId:string;reason:string;blockedBy:string[]}[]};
+  if(s.state!=='active'||s.fence!=='held'||runtime.paused||runtime.cancelled||!['ready','running'].includes(run.status))reasons.push('completion boundary closed');
+  if(!loopProgramComplete(this.db,id))reasons.push('loop program has not yielded');
+  if(new ConversationRepository(this.db).hasPendingForRun(run.projectId,run.id))reasons.push('pending follow-up');
+  if(run.attempts.some(a=>!a.settled||a.status==='running')||run.operations.some(o=>o.status!=='confirmed')||run.leases.some(l=>!l.released)||this.leases().some(l=>claims.some(c=>c.id===l.claimId)&&l.state!=='released'))reasons.push('unresolved cost effects or resources');
+  if(run.budget.spent>run.budget.limit)reasons.push('total budget exceeded');
+  if(reasons.length)return result;
+  const actual=this.actualOperations(claims,operations),ledger=this.results().inspect(s.plan);
+  const snapshot=domain.snapshot(run,s.plan,ledger,claims,actual,this.allResourceLeases(),this.now());
+  result.remaining=snapshot.budget.limit-snapshot.budget.spent-Math.max(snapshot.budget.verificationRemaining,snapshot.budget.futureVerificationFloor)-(snapshot.budget.futureExecutionFloor??0);
+  if(result.remaining<0){reasons.push('protected final budget exhausted');return result;}
+  for(const task of s.plan.tasks){
+   const c=claims.find(c=>c.taskId===task.node.id&&c.generation===task.generation);if(!task.node.required&&!c)continue;
+   if(!c||actual.find(o=>o.claimId===c.id)?.state!=='confirmed'||run.nodes.find(n=>n.id===task.node.id)?.status!=='succeeded'){reasons.push('required or attempted branch not confirmed successful: '+task.node.id);continue;}
+   assertScheduledClaimOrigin(this.db,s,c);
+   const row=this.db.prepare('SELECT record FROM executions WHERE id=?').get(c.attemptId),execution=row?JSON.parse(String(row.record)) as ExecutionRecord:null,attempt=run.attempts.find(a=>a.id===c.attemptId);
+   if(!execution||!execution.stopConfirmed||execution.state!=='completed'||execution.error||execution.cancelRequested||execution.usageStatus!=='reported'||!execution.usage||!attempt?.settled||attempt.actual!==execution.usage.totalTokens){reasons.push('actual successful stop/accounting missing: '+task.node.id);continue;}
+   const head=ledger.heads.find(h=>h.taskId===task.node.id),v=ledger.versions.find(v=>head&&domain.digest(v.ref)===domain.digest(head.ref));
+   if(!head||!v||v.manifest.attemptId!==c.attemptId||v.manifest.generation!==c.generation||v.manifest.planRevision!==c.planRevision||domain.digest(v.manifest.inputs)!==domain.digest(c.inputBindings)){reasons.push('exact current branch publication missing: '+task.node.id);continue;}
+   try{this.results().readPublished({projectId:s.plan.projectId,runId:s.plan.runId,ref:head.ref,minimumState:'submitted'});}catch(error){if(error&&typeof error==='object'&&'code' in error&&String(error.code).startsWith('ERR_SQLITE'))throw error;reasons.push('current branch package rejected: '+task.node.id+': '+String(error));}
+  }
+  if(reasons.length)return result;
+  const decision=this.decision(id),omitted=new Map<string,{taskId:string;reason:string;blockedBy:string[]}>();
+  const unattempted=(task:ScheduledPlan['tasks'][number])=>!task.node.required&&!claims.some(c=>c.taskId===task.node.id&&c.generation===task.generation)&&run.nodes.find(n=>n.id===task.node.id)?.status==='pending'&&!stoppedLoopTask(this.db,id,task.node.id);
+  for(const task of s.plan.tasks){const node=decision.nodes.find(n=>n.taskId===task.node.id)!;
+   if(unattempted(task)&&node.admitted&&node.ready&&task.node.reservation>result.remaining)omitted.set(task.node.id,{taskId:task.node.id,reason:'never attempted: shared budget cannot fit reservation after protected final floors',blockedBy:[]});
+  }
+  // Only the unattempted optional dependency closure of actual budget exclusions
+  // is omitted. Required or attempted work, independent resource blockage and
+  // unrelated missing inputs cannot be concealed by this closure.
+  for(let changed=true;changed;){changed=false;for(const task of s.plan.tasks){
+   const node=decision.nodes.find(n=>n.taskId===task.node.id)!;if(!unattempted(task)||!node.admitted||omitted.has(task.node.id))continue;
+   const blockedBy=task.node.dependencies.filter(id=>omitted.has(id));if(!blockedBy.length)continue;
+   if(!task.node.dependencies.every(id=>omitted.has(id)||run.nodes.find(n=>n.id===id)?.status==='succeeded'))continue;
+   if(snapshot.nodes.find(n=>n.id===task.node.id)?.status!=='pending')continue;
+   omitted.set(task.node.id,{taskId:task.node.id,reason:'never attempted: optional prerequisite cannot fit protected shared budget',blockedBy});changed=true;
+  }}
+  for(const node of decision.nodes)if(node.admitted&&run.nodes.find(n=>n.id===node.taskId)?.status!=='succeeded'&&!omitted.has(node.taskId))reasons.push('admitted optional work remains: '+node.taskId);
+  result.unperformedOptional=[...omitted.values()];result.ready=reasons.length===0;return result;
+ });}
+ /** Projection of committed release evidence only; no live budget inference. */
+ persistedCompletion(id:string):{planDigest:string;protectedRemaining:number;unperformedOptional:{taskId:string;reason:string;blockedBy:string[]}[]}|null{
+  ensure(!this.db.isTransaction,'committed completion cannot be read inside a transaction');
+  const s=this.get(id);if(s.state!=='drained'||s.fence!=='released')return null;
+  const row=this.db.prepare("SELECT record FROM scheduled_events WHERE scheduler_id=? AND kind='integration-fence-released' ORDER BY rowid DESC LIMIT 1").get(id);if(!row)return null;
+  const evidence=JSON.parse(String(row.record));if(!Object.hasOwn(evidence,'unperformedOptional'))return null;
+  ensure(evidence.planDigest===s.planDigest&&Number.isSafeInteger(evidence.protectedRemaining)&&evidence.protectedRemaining>=0&&Array.isArray(evidence.unperformedOptional),'invalid committed completion evidence');
+  const seen=new Set<string>(),claims=this.claims(id);
+  for(const item of evidence.unperformedOptional){
+   const task=s.plan.tasks.find(t=>t.node.id===item.taskId);
+   ensure(task&&!task.node.required&&!claims.some(c=>c.taskId===item.taskId&&c.generation===task.generation)&&!seen.has(item.taskId)&&typeof item.reason==='string'&&item.reason.startsWith('never attempted:')&&Array.isArray(item.blockedBy)&&item.blockedBy.every((id:unknown)=>typeof id==='string'),'invalid committed optional omission');seen.add(item.taskId);
+  }
+  ensure(evidence.unperformedOptional.every((item:{blockedBy:string[]})=>item.blockedBy.every(id=>seen.has(id))),'invalid committed optional closure');
+  return {planDigest:s.planDigest,protectedRemaining:evidence.protectedRemaining,unperformedOptional:evidence.unperformedOptional};
+ }
  /** Release only for exact submitted branch packages and known actual receipts.
   * This opens serial integration; it never marks the Run delivered. */
  releaseIntegration(input:{commandId:string;id:string;expected:ScheduledExpected}):ScheduledRecord{safeResultJSON(input);return this.tx(()=>{
   const request={method:'scheduled-drain',...input},prior=this.prior<ScheduledRecord>(input.commandId,request);if(prior)return prior;this.checkExpected(input.id,input.expected);const s=this.get(input.id),run=this.run(s.plan),claims=this.claims(s.id),operations=this.operations(s.id);
-  ensure(s.state==='active'&&s.fence==='held'&&['ready','running'].includes(run.status),'drain boundary closed');ensure(loopProgramComplete(this.db,s.id),'loop program has not yielded; final integration remains fenced');
+  ensure(s.state==='active'&&s.fence==='held'&&['ready','running'].includes(run.status),loopProgramComplete(this.db,s.id)?'drain boundary closed':'loop program has not yielded; final integration remains fenced');ensure(loopProgramComplete(this.db,s.id),'loop program has not yielded; final integration remains fenced');
   ensure(run.attempts.every(a=>a.settled&&a.status!=='running')&&run.operations.every(o=>o.status==='confirmed')&&run.leases.every(l=>l.released)&&this.leases().filter(l=>claims.some(c=>c.id===l.claimId)).every(l=>l.state==='released'),'unresolved cost or effects prevent integration');
+  const completion=this.completionEligibility(s.id);ensure(completion.ready,completion.reasons.join('; '));
   for(const task of s.plan.tasks){const c=claims.find(c=>c.taskId===task.node.id&&c.generation===task.generation);if(!task.node.required&&!c)continue;ensure(c&&operations.find(o=>o.claimId===c.id)?.state==='confirmed'&&run.nodes.find(n=>n.id===task.node.id)?.status==='succeeded','required or attempted branch not confirmed successful');const ledger=this.results().inspect(s.plan),head=ledger.heads.find(h=>h.taskId===task.node.id),v=ledger.versions.find(v=>head&&domain.digest(v.ref)===domain.digest(head.ref));ensure(head&&v&&v.manifest.attemptId===c.attemptId&&v.manifest.generation===c.generation&&v.manifest.planRevision===c.planRevision&&domain.digest(v.manifest.inputs)===domain.digest(c.inputBindings),'exact current branch publication missing');this.results().readPublished({projectId:s.plan.projectId,runId:s.plan.runId,ref:head.ref,minimumState:'submitted'});}
-  s.state='drained';s.fence='released';this.save(s,'integration-fence-released',{planDigest:s.planDigest,claimIds:claims.map(c=>c.id),reason:'Exact submitted packages, actual settled branch receipts; final P4 still required'});this.remember(input.commandId,request,s);return s;
+  s.state='drained';s.fence='released';this.save(s,'integration-fence-released',{planDigest:s.planDigest,claimIds:claims.map(c=>c.id),unperformedOptional:completion.unperformedOptional,protectedRemaining:completion.remaining,reason:'Exact submitted packages, actual settled branch receipts; final P4 still required'});this.remember(input.commandId,request,s);return s;
  });}
+ /** Host-only blocked propagation. Callers supply CAS/command identity, never
+  * a verdict or receipt. OS observations happen outside the shared transaction;
+  * exact records are rechecked before any parent projection is changed. */
+ async reconcileTerminal(input:{commandId:string;id:string;expected:ScheduledExpected}):Promise<{kind:'waiting'|'blocked'|'drained';reason:string|null;known:boolean}>{
+  safeResultJSON(input);ensure(!this.db.isTransaction,'physical terminal inspection must precede transaction');
+  const initial=this.get(input.id),observedRuntime=this.runtime(initial.plan.runtimeId),observedClaims=this.claims(input.id);
+  const observed=await Promise.all(observedClaims.map(async claim=>{const row=this.db.prepare('SELECT record FROM executions WHERE id=?').get(claim.attemptId);if(!row)return {claim,record:null,stopped:false};const record=String(row.record),e=JSON.parse(record) as ExecutionRecord;return {claim,record,stopped:e.identity?(await inspectProcess(e.identity as ProcessIdentity)).status==='stopped':!e.turnIntent&&!e.turnId};}));
+  return this.tx(()=>{
+   const request={method:'scheduled-terminal',...input},prior=this.prior<{kind:'waiting'|'blocked'|'drained';reason:string|null;known:boolean}>(input.commandId,request);if(prior)return prior;
+   this.checkExpected(input.id,input.expected);const s=this.get(input.id),runtime=this.runtime(s.plan.runtimeId),run=this.run(s.plan);
+   ensure(canonical(runtime)===canonical(observedRuntime)&&canonical(observedClaims)===canonical(this.claims(input.id)),'terminal runtime/claims changed after physical inspection');
+   ensure(s.plan.contractVersion===run.contract.version&&s.plan.contractDigest===domain.digest(run.contract),'terminal contract stale');
+   const waiting={kind:'waiting' as const,reason:null,known:false};
+   if(s.state!=='active'||s.fence!=='held'||runtime.paused||runtime.cancelled||['paused','cancelled','succeeded'].includes(run.status))return waiting;
+   const operations=this.operations(s.id),allQuiet=run.attempts.every(a=>a.settled&&a.status!=='running')&&run.operations.every(o=>o.status==='confirmed')&&run.leases.every(l=>l.released)&&this.leases().filter(l=>observedClaims.some(c=>c.id===l.claimId)).every(l=>l.state==='released');
+   let actualQuiet=true;const failures:string[]=[];
+   for(const item of observed){
+    assertScheduledClaimOrigin(this.db,s,item.claim);
+    const current=this.db.prepare('SELECT record FROM executions WHERE id=?').get(item.claim.attemptId);ensure((current?String(current.record):null)===item.record,'terminal execution changed after physical inspection');
+    const op=operations.find(o=>o.id===item.claim.operationId),attempt=run.attempts.find(a=>a.id===item.claim.attemptId);ensure(op&&attempt,'terminal actual binding missing');
+    if(item.record===null){actualQuiet=false;continue;}
+    const e=JSON.parse(item.record) as ExecutionRecord&{scheduledBinding?:ScheduledBinding};
+    ensure(e.id===item.claim.attemptId&&e.attemptId===item.claim.attemptId&&e.workspace===item.claim.workspace&&e.projectId===s.plan.projectId&&e.runId===s.plan.runId&&domain.digest(e.scheduledBinding)===domain.digest({schedulerId:s.id,claimId:item.claim.id,operationId:op.id,owner:item.claim.owner,projectId:s.plan.projectId,runId:s.plan.runId,attemptId:item.claim.attemptId,planRevision:item.claim.planRevision,generation:item.claim.generation}),'terminal actual execution scope differs');
+    const known=op.executionId===e.id&&item.stopped&&e.stopConfirmed&&['completed','failed','cancelled'].includes(e.state)&&e.usageStatus==='reported'&&e.usage!==null&&attempt.settled&&attempt.actual===e.usage.totalTokens&&attempt.status===(e.state==='completed'?'succeeded':e.state==='cancelled'?'cancelled':'failed')&&['confirmed','failed','cancelled'].includes(op.state);
+    if(!known)actualQuiet=false;
+    const task=s.plan.tasks.find(t=>t.node.id===item.claim.taskId&&t.generation===item.claim.generation)!;
+    // Attempted optional branches remain required for safe integration under the
+    // existing release gate. Unattempted optional nodes never become failures.
+    if(known&&['failed','cancelled'].includes(op.state)&&run.nodes.find(n=>n.id===task.node.id)?.status==='failed')failures.push(task.node.id+': '+(e.error??op.error??e.state));
+   }
+   const expired=this.now()>=s.plan.limits.deadlineMs;
+   let pendingFrontier=false;
+   if(!expired){
+    if(new ConversationRepository(this.db).hasPendingForRun(run.projectId,run.id))return waiting;
+    const decision=domain.evaluate({run,plan:s.plan,effectiveTier:this.effectivePolicy(s.id).tier,ledger:this.results().inspect(s.plan),claims:observedClaims,operations:this.actualOperations(observedClaims,operations),leases:this.allResourceLeases(),nowMs:this.now(),blockedTaskIds:[...this.unavailableDependencies(s),...s.plan.tasks.filter(t=>stoppedLoopTask(this.db,s.id,t.node.id)).map(t=>t.node.id)]});
+    if(decision.dispatchTaskIds.length)return waiting;
+    // A temporarily leased/capacity-constrained independent task may still run
+    // later. Only failed dependency ancestry makes its pending frontier terminal.
+    const possible=(id:string,seen=new Set<string>()):boolean=>{if(seen.has(id))return false;const node=run.nodes.find(n=>n.id===id);if(!node||['failed','blocked'].includes(node.status))return false;if(node.status==='succeeded')return true;seen.add(id);return node.dependencies.every(d=>possible(d,new Set(seen)));};
+    const completion=this.completionEligibility(s.id),budgetOmitted=new Set(completion.ready?completion.unperformedOptional.map(t=>t.taskId):[]);
+    pendingFrontier=decision.nodes.some(n=>!budgetOmitted.has(n.taskId)&&n.admitted&&run.nodes.find(r=>r.id===n.taskId)?.status==='pending'&&possible(n.taskId)&&!stoppedLoopTask(this.db,s.id,n.taskId));
+   }
+   // Normal loop advancement runs before this method. A live root with no failed
+   // occurrence may still append its next genuine iteration and must wait.
+   const loopRow=hasLoopTables(this.db)?this.db.prepare('SELECT record FROM scheduled_loop_states WHERE scheduler_id=?').get(s.id):undefined;
+   const loop=loopRow?JSON.parse(String(loopRow.record)):null,root=loop?.frames.find((f:{key:string})=>f.key===loop.rootKey),loopStopped=root&&['blocked','stopped'].includes(root.state);
+   const known=allQuiet&&actualQuiet;
+   if(!expired&&((pendingFrontier&&!loopStopped)||(root&&!loopStopped&&!loopProgramComplete(this.db,s.id))))return waiting;
+   // The graph deadline prevents new branch starts, not use of an already
+   // completed and genuinely published graph. Reuse the original entire gate,
+   // including current packages/loop/tier eligibility. Its nested tx provides a
+   // SAVEPOINT: a failed qualification cannot leave a partial drain behind.
+   if(known&&!failures.length&&loopProgramComplete(this.db,s.id)){
+    try{
+     this.releaseIntegration({commandId:'scheduled-terminal-drain:'+sha256(canonical(request)),id:s.id,expected:input.expected});
+     const result={kind:'drained' as const,reason:null,known:true};this.remember(input.commandId,request,result);return result;
+    }catch(error){
+     // SQL/transaction failures are not qualification outcomes. Abort the parent
+     // transaction rather than translating an injected/failed write into blocked.
+     if(error&&typeof error==='object'&&'code' in error&&String(error.code).startsWith('ERR_SQLITE'))throw error;
+    }
+   }
+   if(!expired&&(!known||(!failures.length&&!loopStopped)))return waiting;
+   const reason=expired?'Scheduled graph absolute deadline reached'+(known?'; actual work stopped and accounting settled':'; stop or accounting remains unresolved'):(failures.length?'Scheduled branch cannot satisfy integration: '+failures.join('; '):'Scheduled loop cannot continue: '+String(root.reason??root.state));
+   const next=structuredClone(run);next.status='blocked';next.revision++;
+   this.persistRun(run,next,[{type:'ScheduledBlocked',runId:next.id,revision:next.revision,details:{schedulerId:s.id,reason,known,expired,failedTaskIds:failures.map(f=>f.split(':')[0])}}],input.commandId);
+   runtime.phase='blocked';runtime.error=reason;runtime.projectionVersion++;runtime.updatedAt=new Date(this.now()).toISOString();
+   const changed=this.db.prepare('UPDATE runtime_runs SET record=? WHERE id=? AND record=?').run(canonical(runtime),runtime.id,canonical(observedRuntime));ensure(changed.changes===1,'terminal runtime CAS failed');
+   this.db.prepare('INSERT INTO runtime_events(runtime_id,kind,payload,created_at) VALUES(?,?,?,?)').run(runtime.id,'scheduled-blocked',canonical({schedulerId:s.id,reason,known,expired}),runtime.updatedAt);
+   s.state='blocked';this.save(s,'terminal-blocked',{reason,known,expired,failedTaskIds:failures.map(f=>f.split(':')[0]),executionIds:observedClaims.map(c=>c.attemptId)});
+   const result={kind:'blocked' as const,reason,known};this.remember(input.commandId,request,result);return result;
+  });
+ }
  executionInput(claimId:string):ExecutionStart&{workspaceKind:'project'|'managed'}{const c=this.claimGet(claimId),s=this.get(c.schedulerId),run=this.run(s.plan),task=s.plan.tasks.find(t=>t.node.id===c.taskId&&t.generation===c.generation);assertScheduledClaimOrigin(this.db,s,c);ensure(task,'stale task input');return {type:'start',commandId:c.id,workspace:c.workspace,workspaceKind:c.workspaceKind,prompt:scheduledExecutionPrompt(task.step.prompt,c),model:task.step.model,effort:task.step.effort,images:task.step.images??[],timeoutMs:task.step.timeoutMs,tokenLimit:run.budget.limit,reservation:c.reservation,verificationReserve:run.budget.verificationReserve};}
  binding(claimId:string,owner:string):ScheduledBinding{const c=this.claimGet(claimId);this.eligible(c.operationId,owner);return {schedulerId:c.schedulerId,claimId:c.id,operationId:c.operationId,owner,projectId:c.projectId,runId:c.runId,attemptId:c.attemptId,planRevision:c.planRevision,generation:c.generation};}
  private inputSources(claim:ScheduledClaim):ScheduledInputSource[]{const scope={projectId:claim.projectId,runId:claim.runId},ledger=this.results().inspect(scope);return claim.inputBindings.map(binding=>{ensure(binding.minimumState==='submitted','scoped verified inputs unsupported');const pack=this.results().readPublished({...scope,ref:binding.result,minimumState:'submitted'}),version=ledger.versions.find(v=>domain.digest(v.ref)===domain.digest(binding.result));ensure(version,'input manifest missing');return {manifest:version.manifest,package:pack};});}

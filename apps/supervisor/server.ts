@@ -118,7 +118,8 @@ export async function startService(directory: string): Promise<{ socket: string;
           await supervision!.cancelRuntime(action.runtimeId);await runtime!.ensureWorker();
         }
         if(request.method==='execution'&&'executionId' in request.action&&['cancel','reconcile'].includes(request.action.type)&&store!.executionGet(request.action.executionId).runtimeBinding)throw new Error('Use runtime controller for durable activities');
-        const result = request.method === 'command' ? store!.command(parseCommand(request.command))
+        const result = request.method === 'exploration' ? store!.scheduler.dispatchExploration(request.action)
+          : request.method === 'command' ? store!.command(parseCommand(request.command))
           : request.method === 'query' ? store!.query(parseQuery(request.query))
           : request.method === 'execution' ? await manager!.dispatch(request.action)
           : request.method === 'verification' ? await verification!.dispatch(request.action)

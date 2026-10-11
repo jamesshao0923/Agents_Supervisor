@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "stage": "P7",
-  "revision": "p7-autonomous-bridge-v31",
+  "revision": "p7-v39-completion-developing",
   "caseIds": [
     "p7.unit-task-results.001",
     "p7.unit-task-results.002",
@@ -120,7 +120,20 @@
     "p7.integration-goal-loop-admission.003",
     "p7.integration-goal-loop-admission.004",
     "p7.integration-goal-loop-admission.005",
-    "p7.integration-goal-loop-admission.006"
+    "p7.integration-goal-loop-admission.006",
+    "p7.integration-exploration.001",
+    "p7.integration-exploration.002",
+    "p7.integration-exploration.003",
+    "p7.integration-exploration.004",
+    "p7.integration-exploration.005",
+    "p7.integration-scheduled-terminal.001",
+    "p7.integration-scheduled-terminal.002",
+    "p7.integration-scheduled-terminal.003",
+    "p7.integration-scheduled-terminal.004",
+    "p7.integration-scheduled-terminal.005",
+    "p7.integration-scheduled-terminal.006",
+    "p7.integration-scheduled-terminal.007",
+    "p7.integration-scheduled-terminal.008"
   ],
   "requiredRisks": [
     "p7-task-results",
@@ -138,7 +151,8 @@
     "p7-graph-admission",
     "p7-decomposition",
     "p7-parallel-admission",
-    "p7-nested-loop"
+    "p7-nested-loop",
+    "p7-exploration-tier"
   ],
   "coreRegression": [
     "dev.integration-runner.003",

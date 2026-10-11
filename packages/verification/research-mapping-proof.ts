@@ -1,3 +1,6 @@
+import {prepareResearchWorkflowEvolution} from './research-evolution.js';
+import {assertControlQualificationPublication} from '../persistence/control-qualification.js';
+import type {TaskContract} from '../contracts/p1.js';
 import type { DatabaseSync } from 'node:sqlite';
 import { join } from 'node:path';
 import { VerificationRepository } from '../persistence/verification.js';
@@ -25,6 +28,22 @@ export function persistedResearchWorkflow(db: DatabaseSync, proposalId: string):
     const native = JSON.parse(String(row.record)) as ResearchWorkflowProposal;
     ensure(native.proposalId === proposalId && native.digest === bodyDigest(native), 'Persisted native role changed');
     return native;
+}
+/** Exact host-owned V2 context for the one independent paid review; no sidecar
+ * is required yet here because this also builds that review's frozen prompt. */
+export function researchQualificationReviewContext(db:DatabaseSync,p:Proposal,contract:TaskContract){
+ const current=persistedResearchWorkflow(db,p.id);
+ ensure(current?.evolution,'native V2 evolution binding missing');
+ const previous=persistedResearchWorkflow(db,current.evolution.predecessorProposalId);
+ ensure(previous,'native predecessor proof plan missing');
+ const draftRow=db.prepare('SELECT record FROM verification_control_drafts WHERE proposal_id=?').get(p.id);
+ ensure(draftRow,'native exact control draft missing');
+ const draft=(JSON.parse(String(draftRow.record)) as import('../contracts/p4-qualification.js').StoredControlDraft).draft;
+ const repo=new VerificationRepository(db),before=repo.get('proposal',previous.proposalId);
+ const expected=prepareResearchWorkflowEvolution({previous,previousSpec:before.spec,
+  currentPlan:current.proofPlan,currentSpec:p.spec,currentContract:contract,base:draft.base,transitions:draft.transitions});
+ ensure(canonical(expected)===canonical(current.evolution),'native actual evolution receipt changed');
+ return {current,previous,contract};
 }
 export function assertResearchMappingApproval(db: DatabaseSync, p: Proposal, j: VerificationJob): void {
     const row = db.prepare('SELECT record FROM research_workflow_plans WHERE proposal_id=?').get(p.id);
@@ -75,7 +94,11 @@ export function assertResearchMappingApproval(db: DatabaseSync, p: Proposal, j: 
     ensure(inputs.length === 1
         && typeof inputs[0].value.prompt === 'string', 'complete mapping prompt absent');
     const prompt = inputs[0].value.prompt as string, context = JSON.parse(prompt.slice(prompt.indexOf('\n') + 1));
-    ensure(canonical(context.researchProofPlan) === canonical(native.proofPlan), 'independent reviewer did not receive exact complete mapping');
+    if(native.evolution){
+        ensure(canonical(context.researchWorkflow)===canonical(researchQualificationReviewContext(db,p,run.contract)),
+            'independent V2 reviewer did not receive both exact complete mappings and current contract');
+        assertControlQualificationPublication(db,{proposalId:p.id,reviewId:j.id},repo.dataDirectory());
+    }else ensure(canonical(context.researchProofPlan) === canonical(native.proofPlan), 'independent reviewer did not receive exact complete mapping');
     const expectedControls = j.controls.map(control => ({
         id: control.id,
         passed: control.passed,
@@ -86,7 +109,7 @@ export function assertResearchMappingApproval(db: DatabaseSync, p: Proposal, j: 
             reason
         }))
     })), implementations = Object.fromEntries(Object.keys(p.bundle.files).map(file => [file, readBounded(join(p.bundle.directory, file)).toString('utf8')]));
-    ensure(canonical(context.contract) === canonical(run.contract)
+    if(!native.evolution)ensure(canonical(context.contract) === canonical(run.contract)
         && canonical(context.proposed) === canonical(p.spec)
         && canonical(context.actualControls) === canonical(expectedControls)
         && canonical(context.implementations) === canonical(implementations)

@@ -17,7 +17,7 @@ async function main(): Promise<void> {
   const allowed: Record<string, string[]> = {
     supervision:['--data','--file'],supervisions:['--data'],'supervision-show':['--data','--loop'],
     conversation:['--data','--file'],conversations:['--data'],'conversation-show':['--data','--conversation'],
-    goal: ['--data','--file'], goals:['--data'], 'goal-show':['--data','--goal'],
+    exploration:['--data','--file'], goal: ['--data','--file'], goals:['--data'], 'goal-show':['--data','--goal'],
     verify: ['--data','--file'], 'verification-status':['--data','--runtime'], serve: ['--data'], health: ['--data'], projects: ['--data'],
     runs: ['--data', '--project'], show: ['--data', '--project', '--run'],
     events: ['--data', '--project', '--after'], send: ['--data', '--file'],
@@ -49,6 +49,7 @@ async function main(): Promise<void> {
   else if(command==='conversation')payload={id,method:'conversation',action:JSON.parse(await readFile(required('--file'),'utf8'))};
   else if(command==='conversations')payload={id,method:'conversation',action:{type:'list'}};
   else if(command==='conversation-show')payload={id,method:'conversation',action:{type:'inspect',conversationId:required('--conversation')}};
+  else if(command==='exploration')payload={id,method:'exploration',action:JSON.parse(await readFile(required('--file'),'utf8'))};
   else if(command==='goal')payload={id,method:'orchestration',action:JSON.parse(await readFile(required('--file'),'utf8'))};
   else if(command==='goals')payload={id,method:'orchestration',action:{type:'list'}};
   else if(command==='goal-show')payload={id,method:'orchestration',action:{type:'inspect',sessionId:required('--goal')}};

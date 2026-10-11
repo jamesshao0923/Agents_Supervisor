@@ -1,3 +1,4 @@
+import {explorationSchema,type ExplorationCandidate} from './p7-exploration.js';
 import {goalIterationSchema,type GoalIterationProposal} from './p7-goal-loop.js';
 import {parseRuntimeAction} from './p3.js';
 import type {GoalResearchConfiguration} from './p8-research-runtime.js';
@@ -11,6 +12,8 @@ export interface RequirementMessage {id:string;role:'user';text:string;createdAt
 export interface RequirementFact {text:string;sourceId:string;origin:'explicit'|'inferred'}
 export interface AcceptanceItem {id:string;description:string;kind:'command'|'ui'|'source'|'mobile'|'fullstack'|'material';target:string;checks:string[]}
 export interface GoalProposal {
+  /** Legacy records omit this; optional analyses never replace required steps. */
+  exploration?:ExplorationCandidate[];
   /** Legacy records omit it; latest schema requires null or a bounded strategy. */
   iteration?:GoalIterationProposal|null;
   /** Optional only for legacy records; current graph-v1 model schema requires null or declarations. */
@@ -57,9 +60,9 @@ function proposalSchema(sourceIds?:string[],graph=false):Record<string,unknown>{
   steps:{type:'array',maxItems:32,items:obj({id:str,description:str,dependencies:strings,acceptanceIds:{...strings,minItems:1}})}
 });if(graph){const properties=schema.properties as Record<string,unknown>;const scope=obj({path:str,kind:{type:'string',enum:['file','tree']}});properties.decomposition={anyOf:[{type:'null'},obj({schemaVersion:{type:'integer',const:1},tasks:{type:'array',maxItems:32,items:obj({taskId:str,knowledge:{type:'string',enum:['declared','unknown']},reads:{type:'array',maxItems:128,items:scope},writes:{type:'array',maxItems:128,items:scope},resources:{type:'array',maxItems:128,description:'External/shared resources only; project-relative files belong in reads/writes. Path keys must be canonical absolute host paths; leave resources empty when none are known.',items:{anyOf:[obj({kind:{type:'string',const:'path'},key:{...str,pattern:'^/[^\\\\]*$'},mode:{type:'string',enum:['read','write']}}),obj({kind:{type:'string',enum:['port','database','device','custom']},key:str,mode:{type:'string',enum:['read','write']}})]}},reason:str})}})]};schema.required.push('decomposition');}return schema;}
 export const GOAL_PROPOSAL_SCHEMA=proposalSchema();
-export function goalProposalSchema(sourceIds:string[],version:'legacy'|'graph-v1'|'graph-loop-v1'='legacy'):Record<string,unknown>{
+export function goalProposalSchema(sourceIds:string[],version:'legacy'|'graph-v1'|'graph-loop-v1'|'graph-exploration-v1'='legacy'):Record<string,unknown>{
   if(!sourceIds.length||sourceIds.some(id=>!id.trim())||new Set(sourceIds).size!==sourceIds.length)throw new Error('Invalid requirement source IDs');
-  const schema=proposalSchema(sourceIds,version!=='legacy');if(version==='graph-loop-v1'){(schema.properties as Record<string,unknown>).iteration=goalIterationSchema();(schema.required as string[]).push('iteration');}return schema;
+  const schema=proposalSchema(sourceIds,version!=='legacy');if(version==='graph-loop-v1'||version==='graph-exploration-v1'){(schema.properties as Record<string,unknown>).iteration=goalIterationSchema();(schema.required as string[]).push('iteration');}if(version==='graph-exploration-v1'){(schema.properties as Record<string,unknown>).exploration=explorationSchema(sourceIds);(schema.required as string[]).push('exploration');}return schema;
 }
 export function parseOrchestrationAction(v:unknown):OrchestrationAction {
   if(!v||typeof v!=='object'||Array.isArray(v))throw new Error('Invalid orchestration action');

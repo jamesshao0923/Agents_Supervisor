@@ -41,12 +41,17 @@ export function createTaskScheduler({ sha256, decisionId }: { sha256: (canonical
   ensure(typeof sha256 === 'function' && typeof decisionId === 'function', 'trusted digest and ID functions required');
   const resultDomain = createTaskResultDomain({ sha256 });
   function validate(s: SchedulerSnapshot): void {
-    safeResultJSON(s); exact(s, ['schemaVersion','revision','scope','status','tier','nodes','results','claims','loops','budget','limits']);
+    safeResultJSON(s); exact(s, ['schemaVersion','revision','scope','status','tier','nodes','results','claims','loops','budget','limits',...(Object.hasOwn(s,'attemptedTaskIds')?['attemptedTaskIds']:[])]);
     ensure(s.schemaVersion === 1 && ['ready','running','paused','blocked','cancelled','succeeded'].includes(s.status) && Object.hasOwn(thresholds, s.tier), 'invalid scheduler state'); integer(s.revision);
     exact(s.scope, ['projectId','runId','contractVersion','contractDigest']); text(s.scope.projectId); text(s.scope.runId); integer(s.scope.contractVersion, 1); ensure(/^[a-f0-9]{64}$/.test(s.scope.contractDigest), 'invalid contract digest');
     exact(s.budget, ['limit','spent','verificationRemaining','futureVerificationFloor',...(Object.hasOwn(s.budget,'futureExecutionFloor')?['futureExecutionFloor']:[])]); Object.values(s.budget).forEach(v => integer(v));
     exact(s.limits, ['maxActive','maxNodes','maxDepth','nowMs','deadlineMs']); Object.values(s.limits).forEach(v => integer(v)); integer(s.limits.maxActive, 1); integer(s.limits.maxNodes, 1);
     ensure(s.nodes.length <= 4096 && s.claims.length <= 4096 && s.loops.length <= 256, 'scheduler capacity exceeded');
+    if (s.attemptedTaskIds !== undefined) {
+      ensure(Array.isArray(s.attemptedTaskIds), 'invalid attempted task projection');
+      unique(s.attemptedTaskIds, 'attempted task');
+      ensure(s.attemptedTaskIds.every(id => s.nodes.some(node => node.id === id)) && s.claims.filter(claim=>s.nodes.some(node=>node.id===claim.taskId)).every(claim => s.attemptedTaskIds!.includes(claim.taskId)), 'attempted task projection inconsistent');
+    }
     unique(s.nodes.map(n => n.id), 'node'); unique(s.claims.map(c => c.id), 'claim'); unique(s.claims.map(c => c.taskId), 'claimed task'); unique(s.loops.map(l => l.id), 'loop');
     for (const l of s.loops) { exact(l, ['id','parentId','depth','iteration','maxIterations','nodeCount','maxNodes','limit','spent']); for (const k of ['depth','iteration','maxIterations','nodeCount','maxNodes','limit','spent'] as const) integer(l[k]); integer(l.depth, 1); integer(l.iteration, 1); integer(l.maxIterations, 1); integer(l.maxNodes, 1); if (l.parentId !== null) text(l.parentId); }
     function ancestors(ids: string[]): void {
@@ -91,8 +96,32 @@ export function createTaskScheduler({ sha256, decisionId }: { sha256: (canonical
   function evaluate(s: SchedulerSnapshot): SchedulerDecision {
     validate(s); const global = hardReasons(s), nodes: SchedulerNodeDecision[] = []; let remaining = available(s), slots = s.limits.maxActive - s.claims.length, reservation = 0;
     const selected: SchedulerResource[] = [], additions = new Map<string, number>();
+    // An unstarted optional successor is not useful at this tier when one of
+    // its unstarted optional prerequisites is excluded. Do not promote that
+    // prerequisite, discard required work, or hide an actual attempted failure.
+    const excluded = new Map<string, boolean>();
+    function unstartedOptional(node: SchedulerSnapshot['nodes'][number]): boolean {
+      return !node.required && !s.claims.some(claim => claim.taskId === node.id) &&
+        !s.attemptedTaskIds?.includes(node.id) &&
+        (node.status === 'pending' || node.status === 'blocked' && s.attemptedTaskIds !== undefined);
+    }
+    function optionalExcluded(id: string): boolean {
+      const known = excluded.get(id);
+      if (known !== undefined) return known;
+      const node = s.nodes.find(item => item.id === id);
+      if (!node || !unstartedOptional(node)) return false;
+      const value = admission(node.admission, false, s.tier).length > 0 || node.dependencies.some(optionalExcluded);
+      excluded.set(id, value);
+      return value;
+    }
     for (const n of s.nodes) {
-      const reasons = admission(n.admission, n.required, s.tier), admitted = reasons.length === 0;
+      const reasons = admission(n.admission, n.required, s.tier);
+      if (unstartedOptional(n)) {
+        for (const dependency of n.dependencies) {
+          if (optionalExcluded(dependency)) reasons.push('optional dependency excluded by admission: ' + dependency);
+        }
+      }
+      const admitted = reasons.length === 0;
       if (n.status !== 'pending') reasons.push('node not pending');
       if (s.claims.some(c => c.taskId === n.id)) reasons.push('task already claimed');
       for (const id of n.dependencies) { const dep = s.nodes.find(d => d.id === id); if (!dep || dep.status !== 'succeeded' || s.claims.some(c => c.taskId === id)) reasons.push('dependency unfinished or unknown: ' + id); if (!n.inputs.some(i => i.dependencyNodeId === id)) reasons.push('dependency has no frozen result: ' + id); }

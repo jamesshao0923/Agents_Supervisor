@@ -21,7 +21,7 @@ const digest=(s:string|Buffer)=>createHash('sha256').update(s).digest('hex');
 // Real SQLite/domain/scheduler/result repository, actual managed Node output and
 // physical stop. Persisted P2 record and five token accounting are explicit
 // mechanism fixtures, never provider execution or independent P4 evidence.
-async function fixture(t:TestContext,lifetime=100000){
+async function fixture(t:TestContext,lifetime=100000,configure?:(plan:ScheduledPlan)=>void){
  const cleanups:(()=>Promise<void>)[]=[];
  const root=await realpath(await mkdtemp(join(tmpdir(),'sv-producer-'))),data=join(root,'data'),workspace=join(root,'integration');await mkdir(workspace);const store=new SupervisorStore(data),db=new DatabaseSync(join(data,'supervisor.sqlite'));db.exec('PRAGMA foreign_keys=ON;PRAGMA busy_timeout=5000');
  const scheduler=new TaskSchedulerRepository(db,data),results=new TaskResultRepository(db,data),children:Awaited<ReturnType<typeof spawnManagedProcess>>[]=[];
@@ -30,6 +30,7 @@ async function fixture(t:TestContext,lifetime=100000){
  const scope={projectId:runtime.projectId,runId:runtime.runId};results.initializeScope({commandId:'results',...scope});const run=()=>store.query({type:'run',...scope}) as Run;
  const plan:ScheduledPlan={schemaVersion:1,engine:'scheduled-v1',workflowVersion:2,id:'scheduled',runtimeId:runtime.id,...scope,revision:1,contractVersion:run().contract.version,contractDigest:digest(canonical(run().contract)),integrationNodeId:'integrate',tasks:[],tier:'low',loops:[],limits:{maxActive:3,maxNodes:10,maxDepth:3,deadlineMs:Date.now()+lifetime}};
  for(const id of ['A','B','C']){const branch=join(root,id);await mkdir(branch);plan.tasks.push({node:{id,dependencies:id==='B'?['A']:[],required:true,admission:{authorized:true,executable:true,relevant:true,duplicate:false,independentVerificationPurpose:null,requirementRefs:run().contract.criteria.filter(c=>c.required).map(c=>c.id),quality:'strong',value:'strong',reasons:['Host frozen same contract decomposition']},resources:[{kind:'path',key:branch,mode:'write'}],reservation:20,loopIds:[]},inputRequirements:id==='B'?[{dependencyNodeId:'A',minimumState:'submitted'}]:[],step:{id,kind:'codex',prompt:'Explicit real Node mechanism fixture; no provider is invoked',model:'mechanism-no-model',effort:'low',reservation:20,timeoutMs:10000},workspace:branch,workspaceKind:'project',generation:1});}
+ configure?.(plan);
  scheduler.install({commandId:'install',plan,expectedRunRevision:run().revision,expectedResultRevision:results.inspect(scope).revision});
  function claim(commandId:string){const result=scheduler.claim({commandId,id:plan.id,expected:scheduler.expected(plan.id),owner:'owner'});assert.equal(result.kind,'claimed');if(result.kind!=='claimed')throw Error('No actual claim');scheduler.prepareInputs(result.claim.id,'owner');return result.claim;}
  async function complete(c:ScheduledClaim,keepAlive=false){
@@ -66,4 +67,71 @@ test('P7-PUBLISH-I03 one blocked partial publication preserves staging while unr
  const f=await fixture(t),a=f.claim('A'),c=f.claim('C');assert.equal(c.taskId,'C');await f.complete(a);await f.complete(c);const p=await f.prepared(a),prepare={...f.scope,ref:p.ref,operationId:a.operationId},intent=await f.results.preparePackage({...prepare,commandId:scheduledPublicationCommand('prepare',prepare)});await mkdir(join(f.data,'task-result-packages',intent.id+'.staging'));await writeFile(join(f.data,'task-result-packages',intent.id+'.staging','partial'),'Crash residue is retained');
  const worker=new ScheduledRuntimeWorker(f.store,f.data,'owner',join(f.root,'uninvoked-no-provider'));f.cleanups.push(()=>worker.close());await worker.tick();assert.ok(worker.errors().some(error=>error.reason.includes('staging requires explicit recovery')));assert.equal(f.results.inspect(f.scope).heads.some(head=>head.taskId==='A'),false);assert.equal(f.results.inspect(f.scope).heads.some(head=>head.taskId==='C'),true,'Independent confirmed output still publishes');assert.equal(await readFile(join(f.data,'task-result-packages',intent.id+'.staging','partial'),'utf8'),'Crash residue is retained');assert.equal(f.scheduler.integrationFenced(f.runtime.id),true);assert.equal(f.scheduler.claims(f.plan.id).some(claim=>claim.taskId==='B'),false);assert.equal(f.store.executionList().length,2);
  const run=applyAction(f.run(),{type:'cancel'}).run;f.db.prepare('UPDATE runs SET snapshot=?,revision=? WHERE project_id=? AND id=?').run(canonical(run),run.revision,run.projectId,run.id);const before=f.results.inspect(f.scope);await worker.tick();assert.deepEqual(f.results.inspect(f.scope),before);assert.equal(f.scheduler.integrationFenced(f.runtime.id),true);await assert.rejects(new ScheduledResultPublisher(f.store).publish(a),/scope stopped/);
+});
+
+
+// Real Node/SQLite/FS publication fixtures above; fixed P2 token receipts remain
+// synthetic and do not establish provider planning, tool use or P4 acceptance.
+test('P7-EXPLORE-I03 durable four tier control preserves plan and claims with full command CAS rollback reopen and unknown accounting',async t=>{
+ const f=await fixture(t,100000,plan=>{plan.tasks[2]!.node.required=false;plan.tasks[2]!.node.admission.quality='exploratory';plan.tasks[2]!.node.admission.value='supported';});
+ const requiredOnly=await fixture(t);assert.equal(requiredOnly.scheduler.exploration(requiredOnly.plan.id).canChangeTier,false);assert.throws(()=>requiredOnly.scheduler.setExplorationTier({commandId:'no-optional',id:requiredOnly.plan.id,expected:requiredOnly.scheduler.expected(requiredOnly.plan.id),tier:'high'}),/require optional candidates/);assert.equal(requiredOnly.db.prepare('SELECT count(*) AS n FROM scheduled_exploration_policy').get()!.n,0);
+ const ipc=await fixture(t,100000,plan=>{plan.tasks[2]!.node.required=false;});
+ ipc.store.runtime.control({type:'pause',commandId:'pause-for-ipc',runtimeId:ipc.runtime.id});
+ const {startService}=await import('../../apps/supervisor/server.js'),{request:send}=await import('../../apps/cli/client.js');
+ const service=await startService(ipc.data);
+ try{
+  const response=await send(ipc.data,{id:'inspect-tier',method:'exploration',action:{type:'inspect',schedulerId:ipc.plan.id}});
+  assert.equal(response.ok,true);
+  const actual=response.value as import('../../packages/contracts/p7-exploration.js').ExplorationInspection;
+  const action={type:'set-tier' as const,commandId:'ipc-high',schedulerId:ipc.plan.id,expected:actual.expected,tier:'high' as const};
+  const changed=await send(ipc.data,{id:'change-tier',method:'exploration',action});assert.equal(changed.ok,true);
+  assert.deepEqual(await send(ipc.data,{id:'repeat-tier',method:'exploration',action}),{...changed,id:'repeat-tier'});
+  const conflict=await send(ipc.data,{id:'conflict-tier',method:'exploration',action:{...action,tier:'low'}});assert.equal(conflict.ok,false);
+  assert.equal(ipc.scheduler.exploration(ipc.plan.id).tier,'high');assert.equal(ipc.store.executionList().length,0,'Paused API must not dispatch a provider');
+ }finally{await service.close();}
+ const original=canonical(f.scheduler.get(f.plan.id).plan),budget=canonical(f.run().budget),before=f.scheduler.exploration(f.plan.id);
+ assert.equal(before.canChangeTier,true);assert.equal(before.tier,'low');assert.equal(before.decision!.nodes.find(node=>node.taskId==='C')!.admitted,false);
+ const request={commandId:'tier-medium',id:f.plan.id,expected:before.expected,tier:'medium' as const};
+ const medium=f.scheduler.setExplorationTier(request);assert.equal(medium.decision!.nodes.find(node=>node.taskId==='C')!.admitted,false);
+ assert.deepEqual(f.scheduler.setExplorationTier(request),medium);assert.throws(()=>f.scheduler.setExplorationTier({...request,tier:'high'}),/command conflict/);
+ assert.throws(()=>f.scheduler.setExplorationTier({...request,commandId:'stale',tier:'high'}),/CAS/);
+ f.db.exec('BEGIN IMMEDIATE');f.scheduler.setExplorationTier({commandId:'rollback',id:f.plan.id,expected:f.scheduler.expected(f.plan.id),tier:'high'});f.db.exec('ROLLBACK');assert.equal(f.scheduler.exploration(f.plan.id).tier,'medium');assert.equal(f.db.prepare('SELECT 1 FROM scheduled_receipts WHERE command_id=?').get('rollback'),undefined);
+ const high=f.scheduler.setExplorationTier({commandId:'high',id:f.plan.id,expected:f.scheduler.expected(f.plan.id),tier:'high'});assert.equal(high.decision!.nodes.find(node=>node.taskId==='C')!.admitted,true);
+ const a=f.claim('A-high'),c=f.claim('C-high');assert.equal(c.taskId,'C');const frozen=canonical(c);
+ f.scheduler.setExplorationTier({commandId:'lower-active',id:f.plan.id,expected:f.scheduler.expected(f.plan.id),tier:'low'});assert.equal(canonical(f.scheduler.claimGet(c.id)),frozen);assert.equal(f.scheduler.operation(c.operationId).state,'claimed');
+ const reopened=new SupervisorStore(f.data);try{assert.equal(reopened.scheduler.exploration(f.plan.id).tier,'low');assert.equal(canonical(reopened.scheduler.get(f.plan.id).plan),original);}finally{reopened.close();}
+ const unknown=applyAction(f.run(),{type:'finishAttempt',attemptId:a.attemptId,outcome:'failed'}).run;f.db.prepare('UPDATE runs SET snapshot=?,revision=? WHERE project_id=? AND id=?').run(canonical(unknown),unknown.revision,unknown.projectId,unknown.id);
+ const unlimited=f.scheduler.setExplorationTier({commandId:'unlimited-unknown',id:f.plan.id,expected:f.scheduler.expected(f.plan.id),tier:'unlimited'});assert.ok(unlimited.decision?.reasons.includes('unknown shared accounting'));assert.equal(unlimited.decision!.dispatchTaskIds.length,0);assert.equal(canonical(f.run().budget),budget);assert.equal(canonical(f.scheduler.get(f.plan.id).plan),original);
+});
+
+test('P7-EXPLORE-I04 actual stopped optional output survives lowering and every attempted package precedes final integration',async t=>{
+ const f=await fixture(t,100000,plan=>{plan.tasks[2]!.node.required=false;plan.tasks[2]!.node.admission.quality='exploratory';plan.tasks[2]!.node.admission.value='supported';});
+ const publisher=new ScheduledResultPublisher(f.store),a=f.claim('required-A');await f.complete(a);await publisher.publish(a);const b=f.claim('required-B');await f.complete(b);await publisher.publish(b);
+ f.scheduler.setExplorationTier({commandId:'raise',id:f.plan.id,expected:f.scheduler.expected(f.plan.id),tier:'high'});
+ assert.equal(publisher.releaseIfReady(f.plan.id),false);
+ assert.throws(()=>f.scheduler.releaseIntegration({commandId:'cannot-race',id:f.plan.id,expected:f.scheduler.expected(f.plan.id)}),/optional work remains/);
+ const c=f.claim('optional-C');await f.complete(c);
+ f.scheduler.setExplorationTier({commandId:'lower',id:f.plan.id,expected:f.scheduler.expected(f.plan.id),tier:'low'});
+ assert.equal(publisher.releaseIfReady(f.plan.id),false,'Attempted optional output cannot disappear after lowering');
+ await publisher.publish(c);assert.equal(publisher.releaseIfReady(f.plan.id),true);
+ assert.equal(f.scheduler.exploration(f.plan.id).canChangeTier,false);assert.equal(f.results.inspect(f.scope).heads.length,3);assert.equal(f.run().budget.spent,15);assert.notEqual(f.run().status,'succeeded');
+ assert.throws(()=>f.scheduler.setExplorationTier({commandId:'late-raise',id:f.plan.id,expected:f.scheduler.expected(f.plan.id),tier:'high'}),/cannot reopen/);
+ assert.ok(f.store.runtime.claim(f.runtime.id,'final-owner'));
+ // A strong optional successor cannot force its weak, excluded prerequisite
+ // to execute or permanently block the already completed required core.
+ const chain=await fixture(t,100000,plan=>{
+  const b=plan.tasks[1]!,c=plan.tasks[2]!;b.node.required=false;b.node.dependencies=['C'];b.inputRequirements=[{dependencyNodeId:'C',minimumState:'submitted'}];
+  c.node.required=false;c.node.admission.quality='exploratory';c.node.admission.value='exploratory';c.node.dependencies=['A'];c.inputRequirements=[{dependencyNodeId:'A',minimumState:'submitted'}];
+ });
+ const publication=new ScheduledResultPublisher(chain.store),core=chain.claim('chain-core');await chain.complete(core);await publication.publish(core);
+ assert.equal(chain.scheduler.exploration(chain.plan.id).decision!.state,'exhausted');assert.ok(chain.scheduler.exploration(chain.plan.id).decision!.nodes.filter(n=>n.taskId!=='A').every(n=>!n.admitted));
+ chain.db.exec('BEGIN IMMEDIATE');chain.scheduler.releaseIntegration({commandId:'low-core-release',id:chain.plan.id,expected:chain.scheduler.expected(chain.plan.id)});assert.equal(chain.scheduler.get(chain.plan.id).fence,'released');chain.db.exec('ROLLBACK');assert.equal(chain.scheduler.get(chain.plan.id).fence,'held');
+ chain.scheduler.setExplorationTier({commandId:'chain-high',id:chain.plan.id,expected:chain.scheduler.expected(chain.plan.id),tier:'high'});assert.equal(publication.releaseIfReady(chain.plan.id),false);
+ assert.deepEqual(chain.scheduler.exploration(chain.plan.id).decision!.dispatchTaskIds,['C']);
+ chain.scheduler.setExplorationTier({commandId:'chain-low',id:chain.plan.id,expected:chain.scheduler.expected(chain.plan.id),tier:'low'});assert.equal(chain.scheduler.exploration(chain.plan.id).decision!.state,'exhausted');
+ chain.scheduler.setExplorationTier({commandId:'chain-high-again',id:chain.plan.id,expected:chain.scheduler.expected(chain.plan.id),tier:'high'});
+ const weak=chain.claim('weak-start');assert.equal(weak.taskId,'C');chain.scheduler.setExplorationTier({commandId:'lower-with-real-claim',id:chain.plan.id,expected:chain.scheduler.expected(chain.plan.id),tier:'low'});
+ assert.equal(chain.scheduler.exploration(chain.plan.id).decision!.nodes.find(n=>n.taskId==='B')!.admitted,true);assert.equal(publication.releaseIfReady(chain.plan.id),false);
+ await chain.complete(weak);await publication.publish(weak);const strong=chain.claim('strong-after-real-weak');assert.equal(strong.taskId,'B');assert.equal(strong.inputBindings[0]!.dependencyNodeId,'C');await chain.complete(strong);await publication.publish(strong);
+ assert.equal(publication.releaseIfReady(chain.plan.id),true);assert.equal(chain.run().budget.spent,15);assert.equal(chain.results.inspect(chain.scope).heads.length,3);
 });

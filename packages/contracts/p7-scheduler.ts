@@ -26,6 +26,8 @@ export interface SchedulerSnapshot {
   schemaVersion: 1; revision: number; scope: Pick<ResultProducer, 'projectId' | 'runId' | 'contractVersion' | 'contractDigest'>;
   status: RunStatus; tier: ExplorationTier; nodes: SchedulerNode[]; results: ResultLedger;
   claims: SchedulerClaim[]; loops: SchedulerLoop[];
+  /** Host projects every actual current-generation claim, including settled ones. */
+  attemptedTaskIds?: string[];
   budget: { limit: number; spent: number; verificationRemaining: number; futureVerificationFloor: number; futureExecutionFloor?:number };
   limits: { maxActive: number; maxNodes: number; maxDepth: number; nowMs: number; deadlineMs: number };
 }

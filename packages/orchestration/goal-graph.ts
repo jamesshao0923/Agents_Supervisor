@@ -1,3 +1,4 @@
+import {explorationDeclaration} from './exploration.js';
 import type { Run } from '../contracts/p1.js';
 import type { GoalSession } from '../contracts/p5.js';
 import type { RuntimeRecord } from '../contracts/p3.js';
@@ -17,6 +18,8 @@ export function buildGoalGraphAdmission(session:GoalSession,baseRun:Run):GoalGra
  ensure(session.phase==='ready'&&!session.runtimeId&&session.proposal?.decision==='ready','Goal is not ready for graph admission');
  ensure(baseRun.admission==='draft'&&baseRun.status==='ready'&&baseRun.attempts.every(a=>a.purpose==='reasoning'&&a.settled&&a.status!=='running')&&baseRun.operations.every(o=>o.status==='confirmed')&&baseRun.leases.every(l=>l.released),'Graph admission requires a settled draft');
  const plan=admittedPlan(session,baseRun),steps=plan.steps.map(s=>{ensure(s.kind==='codex','Graph requires original Codex steps');return s;});
+ const optional=session.proposal.exploration??[];
+ for(const candidate of optional)steps.push({...steps[0]!,id:candidate.id,prompt:'Perform ONLY the optional supplemental analysis below within its declared read/write scope. Do not implement or replace required work, change business requirements, write outside the declared supplemental directory, access new external resources or claim independent verification. A skipped optional analysis never waives acceptance.\nORIGINAL REQUIREMENTS:\n'+canonical(session.messages)+'\nFULL CORE ACCEPTANCE:\n'+canonical(session.proposal.criteria)+'\nOPTIONAL CANDIDATE AND SOURCES:\n'+canonical(candidate)});
  const source={sessionId:session.id,projectId:session.projectId,workspace:session.workspace,workspaceKind:session.workspaceKind,messages:session.messages,proposal:session.proposal,config:session.config,maxContextChars:session.maxContextChars};
  const sourceDigest=digest(canonical(source)),integrationId='integration-'+sourceDigest.slice(0,32);
  ensure(!steps.some(s=>s.id===integrationId),'Integration ID conflicts with an implementation step');
@@ -47,13 +50,22 @@ export function compileGoalScheduledTemplate(input:{session:GoalSession;baseRun:
  const limits=policy.limits;ensure(Object.values(limits).every(n=>Number.isSafeInteger(n)&&n>0)&&limits.maxNodes>=admission.implementationSteps.length&&limits.deadlineMs>Date.now(),'Host graph limits do not admit this task');
  const verificationUsed=run.attempts.filter(a=>a.purpose==='verification'&&a.contractVersion===run.contract.version).reduce((n,a)=>n+(a.settled?a.actual!:a.reservation),0);
  const protectedAmount=Math.max(0,run.budget.verificationReserve-verificationUsed,futureVerificationFloor(run));
- const initialExecution=admission.implementationSteps.reduce((n,s)=>n+s.reservation,admission.integrationStep.reservation);
+ const initialExecution=admission.implementationSteps.filter(step=>session.proposal!.steps.some(core=>core.id===step.id)).reduce((n,s)=>n+s.reservation,admission.integrationStep.reservation);
  ensure(Number.isSafeInteger(initialExecution)&&run.budget.limit-run.budget.spent-protectedAmount>=initialExecution,'Initial branches and final integration exceed remaining same-Run execution budget');
  // Concrete external-resource alias/isolation qualification is not implemented
  // by this automatic bridge. Any declared resource keeps conservative order;
  // it cannot act as a claim of permission or safe external concurrency.
  const declarations=session.proposal!.decomposition,projected=projectDeclaredDependencies(session.proposal!.steps.map(({id,dependencies,acceptanceIds})=>({id,dependencies,acceptanceIds})),declarations?{...declarations,tasks:declarations.tasks.map(task=>task.resources.length?{...task,knowledge:'unknown' as const}:task)}:undefined);
+ const optional=session.proposal!.exploration??[];
+ const allSteps=[...session.proposal!.steps.map(({id,dependencies,acceptanceIds})=>({id,dependencies,acceptanceIds})),...optional.map(candidate=>({id:candidate.id,dependencies:[...new Set([...session.proposal!.steps.map(core=>core.id),...candidate.dependencies])],acceptanceIds:candidate.relatedCriterionIds}))];
+ const allDeclarations={schemaVersion:1 as const,tasks:[...(declarations?.tasks??[]),...optional.map(explorationDeclaration)]};
+ const optionalProjection=optional.length?projectDeclaredDependencies(allSteps,allDeclarations):null;
  const tasks=admission.implementationSteps.map((step,index)=>{
+  const candidate=optional.find(value=>value.id===step.id);
+  if(candidate){
+   const declaration=explorationDeclaration(candidate),dependencies=optionalProjection!.tasks.find(task=>task.taskId===step.id)!.dependencies,workspace=preparation.workspaces[index]!.path;
+   return {scopeBinding:{schemaVersion:1 as const,sourceDigest:admission.sourceDigest,seed:structuredClone(preparation.request.seed),declaration},node:{id:step.id,dependencies,required:false,admission:{authorized:true,executable:true,relevant:true,duplicate:false,independentVerificationPurpose:null,requirementRefs:[...candidate.relatedCriterionIds],quality:candidate.quality,value:candidate.value,reasons:['Optional supplemental proposal admitted by user tier; original core and criteria remain independently required',candidate.qualityReason,candidate.valueReason,...candidate.sources.map(source=>source.messageId+': '+source.quote)]},resources:[{kind:'path' as const,key:workspace,mode:'write' as const}],reservation:step.reservation,loopIds:[]},inputRequirements:dependencies.map(dependencyNodeId=>({dependencyNodeId,minimumState:'submitted' as const})),step:structuredClone(step),workspace,workspaceKind:'managed' as const,generation:1};
+  }
   const original=session.proposal!.steps.find(s=>s.id===step.id)!;
   const dependencies=declarations?[...projected.tasks.find(task=>task.taskId===step.id)!.dependencies]:[...original.dependencies],declaration=declarations?.tasks.find(task=>task.taskId===step.id);
   const prior=admission.implementationSteps[index-1];if(!declarations&&prior&&!dependencies.includes(prior.id))dependencies.push(prior.id);

@@ -1,3 +1,5 @@
+import {ExplorationSelector,ExplorationProposal,ExplorationPanel,type ExplorationDesktopAPI} from './exploration-panel.js';
+import type {ExplorationTier} from '../../packages/contracts/p7-scheduler.js';
 import {VerificationVersionsPanel,type DeliveryDesktopAPI} from './verification-versions-panel.js';
 import {AgentWorkbench} from './agent-workbench.js';
 import type {WorkbenchSnapshot} from '../../packages/contracts/p8-workbench.js';
@@ -26,7 +28,7 @@ interface RuntimeInspection { runtime: RuntimeRecord; run: Run; operations: Runt
 interface VerificationStatus { proposals: Proposal[]; plans: FrozenPlan[]; jobs: VerificationJob[]; deliveries: Delivery[]; currentDelivery: { current: boolean; reason: string; delivery: Delivery | null; assessment?: DeliveryAssessment | null } }
 type VerificationMutation = Exclude<VerificationAction, { type: 'status' | 'job' | 'open' | 'close-open' | 'open-session' }>;
 type ConversationSend = Omit<Extract<ConversationAction, {type: 'send'}>, 'type'>;
-interface DesktopAPI extends SupervisionDesktopAPI,DeliveryDesktopAPI {
+interface DesktopAPI extends SupervisionDesktopAPI,DeliveryDesktopAPI,ExplorationDesktopAPI {
   conversationList(): Promise<ConversationInspection[]>;
   conversationForSession(sessionId: string): Promise<ConversationInspection>;
   conversationInspect(conversationId: string): Promise<ConversationInspection>;
@@ -493,10 +495,12 @@ function App() {
     } catch (error) { if (selectedRef.current === action.sessionId) setGoalActionError(errorText(error)); }
     finally { setBusy(false); }
   }
+  const [explorationTier,setExplorationTier]=useState<ExplorationTier>('medium');
+  useEffect(()=>{setExplorationTier('medium');},[goalSession?.id]);
   function goalAction(type: 'answer' | 'admit' | 'restore' | 'cancel') {
     if (!goalSession) return;
     const base = { commandId: crypto.randomUUID(), sessionId: goalSession.id };
-    const action: GoalMutation = type === 'cancel' ? { type, ...base } : type === 'answer' ? { type, ...base, expectedRevision: goalSession.revision, text: answerText.trim() } : { type, ...base, expectedRevision: goalSession.revision };
+    const action: GoalMutation = type === 'cancel' ? { type, ...base } : type === 'answer' ? { type, ...base, expectedRevision: goalSession.revision, text: answerText.trim() } : { type, ...base, expectedRevision: goalSession.revision, ...(type==='admit'?{explorationTier}:{}) };
     void performGoalAction(action);
   }
   async function control(kind: 'pause' | 'resume' | 'cancel' | 'reconcile') {
@@ -682,9 +686,10 @@ function App() {
           {goalSession.proposal.facts.length > 0 && <details className="goal-section"><summary>需求事实与来源（{goalSession.proposal.facts.length} 项）</summary><ul className="goal-list">{goalSession.proposal.facts.map((fact, index) => { const source = goalSession.messages.find(message => message.id === fact.sourceId); return <li key={index}><span className="pill">{fact.origin === 'explicit' ? '明确输入' : '主控推断 · 待核对'}</span><p>{fact.text}</p><details className="technical-details"><summary>查看依据</summary><p className="goal-source">{source?.text || '该引用未对应到已保存的用户输入，须由主控核对。'}</p><p className="mono subtle">{fact.sourceId}</p></details></li>; })}</ul></details>}
           {goalSession.proposal.constraints.length > 0 && <><h3 className="section-title">执行边界</h3><ul className="goal-list">{goalSession.proposal.constraints.map((constraint, index) => <li key={index}>{constraint}</li>)}</ul></>}
           {goalSession.proposal.style.length > 0 && <><h3 className="section-title">风格与偏好</h3><ul className="goal-list">{goalSession.proposal.style.map((style, index) => <li key={index}>{style}</li>)}</ul></>}
-          {goalSession.proposal.steps.length > 0 && <><h3 className="section-title">执行步骤</h3><ol className="goal-plan">{goalSession.proposal.steps.map((step, index) => <li key={step.id}><strong>{index + 1} · {step.description}</strong><p className="form-hint">{step.dependencies.length ? `依赖：${step.dependencies.map(id => { const dependency = goalSession.proposal?.steps.findIndex(item => item.id === id); return dependency !== undefined && dependency >= 0 ? `第 ${dependency + 1} 步` : id; }).join('、')}` : '起始步骤，无前置依赖'} · 验收 {step.acceptanceIds.length} 项</p></li>)}</ol></>}
+          {goalSession.phase==='ready'&&<ExplorationSelector value={explorationTier} onChange={setExplorationTier} disabled={busy}/>}<ExplorationProposal proposal={goalSession.proposal}/>{goalSession.proposal.steps.length > 0 && <><h3 className="section-title">执行步骤</h3><ol className="goal-plan">{goalSession.proposal.steps.map((step, index) => <li key={step.id}><strong>{index + 1} · {step.description}</strong><p className="form-hint">{step.dependencies.length ? `依赖：${step.dependencies.map(id => { const dependency = goalSession.proposal?.steps.findIndex(item => item.id === id); return dependency !== undefined && dependency >= 0 ? `第 ${dependency + 1} 步` : id; }).join('、')}` : '起始步骤，无前置依赖'} · 验收 {step.acceptanceIds.length} 项</p></li>)}</ol></>}
           {goalSession.proposal.criteria.length > 0 && <><h3 className="section-title">具体验收要求</h3><ol className="goal-criteria">{goalSession.proposal.criteria.map(item => <li key={item.id}><strong>{item.description}</strong><p className="form-hint">{item.kind === 'command' ? '工程检查' : item.kind === 'ui' ? '界面操作' : '来源核验'} · {item.target}</p><ul>{item.checks.map((check, index) => <li key={index}>{check}</li>)}</ul></li>)}</ol><p className="form-hint">这些是拟定的业务验收要求。准入后仍须独立复核并发布项目验收定义，冻结必要清单并实际验收。</p></>}
         </section>}
+        {goalSession.graphAdmission&&<ExplorationPanel key={goalSession.graphAdmission.policy.schedulerId} schedulerId={goalSession.graphAdmission.policy.schedulerId} api={api} online={online}/>}
         {goalCanAnswer(goalSession) && !selectedConversation && <form className="runtime-input" onSubmit={event => { event.preventDefault(); if (answerText.trim()) goalAction('answer'); }}><label className="field"><span>{goalSession.phase === 'ready' ? '修改或补充计划（尚未开始执行）' : '补充需求（可按问题编号一并回答）'}</span><textarea aria-label="补充需求" value={answerText} onChange={event => setAnswerText(event.target.value)} maxLength={40000} required disabled={!goalReady}/></label><button type="submit" className="button primary" disabled={!goalReady || !answerText.trim()}>{goalSession.phase === 'ready' ? '更新需求并重新分析' : '提交回答并继续分析'}</button></form>}
         {goalSession.phase === 'ready' && <div className="notice compact"><p>计划就绪。点击开始执行后，后台将按该提案准入并派发步骤；这一步不会跳过独立验收。</p><button className="button primary" disabled={!goalReady || goalSession.proposal?.decision !== 'ready'} onClick={() => goalAction('admit')}>开始执行</button></div>}
         {goalSession.runtimeId && <section className="goal-runtime"><h3 className="section-title">已准入的执行任务</h3><p className="form-hint">需求记录与执行共用累计账本。恢复主控只读取保存的任务和记忆，不会自动重跑已准入步骤。</p><div className="verification-buttons"><button className="button primary" disabled={!online || busy} onClick={() => { void openSessionRuntime(goalSession); }}>查看执行任务</button><button className="button" disabled={!restoreReady} onClick={() => goalAction('restore')}>恢复主控会话</button></div>{!restoreReady && goalSession.phase !== 'thinking' && <p className="form-hint">{goalTerminal ? '此轮已结束；可在本任务的对话框继续询问或提出新要求。继续开发会保留原交付并建立关联轮次。' : '恢复前需核对执行已暂停、阻塞或进入待验收阶段，且没有仍在运行或用量未结算的尝试。'}</p>}</section>}

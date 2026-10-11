@@ -61,7 +61,19 @@ export interface ResearchWorkflowDeclaration {
         hostGates: ResearchHostGate[];
     }[];
 }
+export interface ResearchWorkflowEvolution {
+    schemaVersion:1;
+    rule:'append-same-source-lossless-v1';
+    predecessorProposalId:string;
+    predecessorProofPlanDigest:string;
+    lineageId:string;
+    transitionIds:string[];
+    bases:{previous:import('./p4-material.js').MaterialVerifierBinding;
+        current:import('./p4-material.js').MaterialVerifierBinding;sourceBasisDigest:string}[];
+    digest:string;
+}
 export interface ResearchWorkflowProposal {
+    evolution?:ResearchWorkflowEvolution;
     schemaVersion: 1;
     proposalId: string;
     proofPlan: ResearchProofPlan;

@@ -1,3 +1,4 @@
+import {validateExploration} from './exploration.js';
 import {assertGoalIterationProposal,goalIterationTaskFraming} from './goal-loop-admission.js';
 import {mobileSourceTarget} from '../contracts/p4-mobile.js';
 import type { GoalProposal, GoalSession, AdmittedPlan } from '../contracts/p5.js';
@@ -8,6 +9,7 @@ function ensure(ok:unknown,reason:string):asserts ok {if(!ok)throw new Error(rea
 export function validateProposal(p:GoalProposal,s:GoalSession):void {
   ensure(!s.research||p.iteration==null,'Configured bounded research does not support iteration; acquisition and analysis must remain one fixed dependency');
   assertGoalIterationProposal(p);
+  validateExploration(p,s);
   if(p.decomposition!==undefined&&p.decomposition!==null)projectDeclaredDependencies(p.steps.map(({id,dependencies,acceptanceIds})=>({id,dependencies,acceptanceIds})),p.decomposition);
   ensure(p.facts.every(f=>s.messages.some(m=>m.id===f.sourceId&&(f.origin!=='explicit'||m.text.includes(f.text)))),'Requirement source is missing or misattributed');
   ensure(p.decision!=='clarify'||p.questions.length>0,'Clarification needs concrete questions');

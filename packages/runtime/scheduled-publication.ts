@@ -43,6 +43,7 @@ export class ScheduledResultPublisher {
    const head=ledger.heads.find(head=>head.taskId===claim.taskId),version=ledger.versions.find(version=>head&&canonical(version.ref)===canonical(head.ref));if(!version||!['submitted','verified'].includes(version.state)||version.manifest.attemptId!==claim.attemptId)return false;
    this.store.taskResults.readPublished({...scope,ref:version.ref,minimumState:'submitted'});
   }
+  if(!this.store.scheduler.completionEligibility(schedulerId).ready)return false;
   const request={id:schedulerId,expected:this.store.scheduler.expected(schedulerId)};this.store.scheduler.releaseIntegration({...request,commandId:scheduledPublicationCommand('release',request)});return true;
  }
 }
