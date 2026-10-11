@@ -184,7 +184,14 @@ function acceptanceAssetSchema(context: AcceptanceAuthoringContext, historicalCa
   const verifier = { anyOf: [MOBILE_VERIFIER_SCHEMA,fullstack, obj(command), obj({ ...command, candidateEntries: arr(text, 1, 8) }), obj({ ...command, build }), obj({ ...command, build, candidateEntries: arr(text, 1, 8) }),
     obj({ kind: { type: 'string', const: 'ui' }, version: text, entry: text, steps: arr(steps, 1), expectations: arr(text, 1), timeoutMs: num() }),
     obj({ kind: { type: 'string', const: 'source' }, version: text, claimFile: text, sources: arr(obj({ id: sourceId, url: text, excerpt: text, maxAgeMs: num(Number.MAX_SAFE_INTEGER) }), 1), timeoutMs: num() }),...(frozen.materials?.length?[materialVerifierSchema(frozen.materials.map(item=>item.binding))]:[])] };
-  const caseProperties = { id: caseId, revision: num(Number.MAX_SAFE_INTEGER), obligationIds: arr(obligationId, 1), parameters: arr(obj({}), 1, 1), modules: arr({ ...text, enum: ids }, 1), replaces: arr(caseId), defectRefs: strings, status: { type: 'string', enum: ['active', 'retired'] }, verifier };
+  // New revisions/replacements must be able to carry a published parameter
+  // inventory. Keep each full array exact; selecting an inventory grants no
+  // lineage authority (validateSpecChange still binds it to the actual case).
+  const parameterInventories = [...new Map(historical.map(item => [canonical(item.parameters), item.parameters])).values()]
+    .filter(parameters => canonical(parameters) !== '[{}]').map(typedLiteral);
+  const parameters = parameterInventories.length
+    ? typedAlternatives([arr(obj({}), 1, 1), ...parameterInventories]) : arr(obj({}), 1, 1);
+  const caseProperties = { id: caseId, revision: num(Number.MAX_SAFE_INTEGER), obligationIds: arr(obligationId, 1), parameters, modules: arr({ ...text, enum: ids }, 1), replaces: arr(caseId), defectRefs: strings, status: { type: 'string', enum: ['active', 'retired'] }, verifier };
   const newCase = frozen.materials?.length ? typedAlternatives([
     obj({ ...caseProperties, verifier: { anyOf: verifier.anyOf.filter(branch => (branch.properties as Record<string, { const?: string }>).kind?.const !== 'material') } }),
     obj({ ...caseProperties, obligationIds: arr(obligationId, 1, 1), verifier: materialVerifierSchema(frozen.materials.map(item => item.binding)) }),

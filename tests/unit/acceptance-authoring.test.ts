@@ -18,7 +18,8 @@ import { mkdtemp, readFile, realpath, rm, symlink, writeFile, mkdir } from 'node
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseVerificationSpec } from '../../packages/contracts/p4.js';
-import { parseReasonerOutput } from '../../packages/orchestration/reasoner-schema.js';
+import { parseReasonerOutput, projectProviderReasonerSchema } from '../../packages/orchestration/reasoner-schema.js';
+import { validateSpecChange } from '../../packages/verification/rules.js';
 import { acceptanceAuthoringContextDigest, acceptanceAuthoringSchema, currentAcceptanceAssetSchema, buildAcceptanceAuthoringPrompt, materializeAcceptanceBundle, validateAcceptanceBundle, type AcceptanceAuthoringContext, type AcceptanceBundle } from '../../packages/orchestration/acceptance-authoring.js';
 const hash = (text: string) => createHash('sha256').update(text).digest('hex');
 function context(): AcceptanceAuthoringContext {
@@ -545,7 +546,7 @@ test('P6-AUTH-U08 historical case schema is typed and preserves exact parameters
   ];
   for (const mutate of mutations) {
     const changed = structuredClone(cases[0]!); mutate(changed);
-    assert.throws(() => parseReasonerOutput(JSON.stringify(changed), caseSchema));
+    assert.throws(() => parseReasonerOutput(JSON.stringify(changed), historyBranch));
   }
   const next = bundle(c); next.spec.cases = [structuredClone(cases[0]!)];
   assert.doesNotThrow(() => parseReasonerOutput(JSON.stringify(next), schema));
@@ -554,6 +555,34 @@ test('P6-AUTH-U08 historical case schema is typed and preserves exact parameters
   const legacySchema = acceptanceAuthoringSchema(c);
   const legacyCase = (((legacySchema.properties as Node).spec as Node).properties as Node).cases as Node;
   assert.doesNotThrow(() => parseReasonerOutput(JSON.stringify(cases[0]), legacyCase.items as Node));
+  // New revisions carry the full published inventory; schema expressibility
+  // never replaces immutable-history and necessary-instance validation.
+  const revisionContext = context(), previous = bundle(revisionContext).spec;
+  const executable = (spec: typeof previous) => ({...structuredClone(spec), controls: spec.controls.map(control => ({...control, workspace: '/authoring-private/controls/' + control.id}))});
+  previous.cases[0]!.parameters = structuredClone(historical.parameters);
+  const revisedAssets = bundle(revisionContext);
+  const revised = {...structuredClone(previous.cases[0]!), revision: 2,
+    defectRefs: [...previous.cases[0]!.defectRefs, 'actual-regression']};
+  revisedAssets.spec.cases = [structuredClone(previous.cases[0]!), revised];
+  const revisedSchema = currentAcceptanceAssetSchema(revisionContext, previous.cases);
+  assert.deepEqual(parseReasonerOutput(JSON.stringify(revisedAssets), revisedSchema), revisedAssets);
+  const projected = projectProviderReasonerSchema(revisedSchema).schema;
+  assert.deepEqual(parseReasonerOutput(JSON.stringify(revisedAssets), projected), revisedAssets);
+  assert.doesNotThrow(() => validateSpecChange(executable(previous), executable(revisedAssets.spec), revisionContext.contract));
+  const dropped = structuredClone(revisedAssets); dropped.spec.cases[1]!.parameters = [{}];
+  assert.doesNotThrow(() => parseReasonerOutput(JSON.stringify(dropped), revisedSchema));
+  assert.throws(() => validateSpecChange(executable(previous), executable(dropped.spec), revisionContext.contract), /drops a necessary parameter/);
+  for (const mutation of mutations.filter((_, index) => index !== 5)) {
+    // Absent status and explicit active are deliberately semantically equivalent.
+    const changed = structuredClone(revisedAssets.spec); mutation(changed.cases[0]!);
+    assert.throws(() => validateSpecChange(executable(previous), executable(changed), revisionContext.contract));
+  }
+  const duplicated = structuredClone(revisedAssets);
+  duplicated.spec.cases[1]!.parameters = [structuredClone(historical.parameters[0]!), structuredClone(historical.parameters[0]!)];
+  assert.throws(() => parseReasonerOutput(JSON.stringify(duplicated), revisedSchema));
+  assert.throws(() => validateSpecChange(executable(previous), executable(duplicated.spec), revisionContext.contract));
+  const reordered = structuredClone(revisedAssets); reordered.spec.cases[1]!.parameters.reverse();
+  assert.throws(() => parseReasonerOutput(JSON.stringify(reordered), revisedSchema));
   let getterCalled = false;
   const unsafe = Object.defineProperty({}, 'id', { enumerable: true, get() { getterCalled = true; return 'published'; } });
   assert.throws(() => currentAcceptanceAssetSchema(context(), [unsafe as typeof historical]), /Unsafe JSON/);
