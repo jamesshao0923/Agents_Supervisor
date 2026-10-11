@@ -10,7 +10,7 @@ Supervisor 的需求理解与计划已由模型驱动，P6 自动监督控制器
 
 新增验收恢复的局部替换协议：仅对已完成、费用已知且基底证据完整的普通命令验收方案启用。模型返回替换项，宿主核对原始结果、输入、项目与候选版本后还原完整方案；原 schema、语义检查、独立复核和 P4 执行不变。原始模型输出与费用仍独立留存，扩展结果另存证明；不增加预算、期限或恢复次数，不改写旧未知费用。
 
-15 个不同现有组件用例分批修复后通过，运行真实模块、SQLite、文件和受管 Node；模型回复为明确的合成协议输入，不能代表真实供应商或交付通过。原三项开发失败保留，并非最终哈希下整批 15 项重跑；正常构建与独立差异审查通过。证据 `.supervisor-dev/p6-author-patch-recovery-work/case-result-map.json` 与 `.supervisor-dev/p6-author-patch-recovery-independent-review/review-final.json`。原在途跟进真实验收将使用新生产实现核验；自动修复 live 驱动仍须适配原始 patch 与展开方案的区别。P6–P8 保持 developing，`.gitignore` 持续排除运行数据、证据、构建、依赖及凭证。
+15 个不同现有组件用例分批修复后通过，运行真实模块、SQLite、文件和受管 Node；模型回复为明确的合成协议输入，不能代表真实供应商或交付通过。原三项开发失败保留，并非最终哈希下整批 15 项重跑；正常构建与独立差异审查通过。证据 `.supervisor-dev/p6-author-patch-recovery-work/case-result-map.json` 与 `.supervisor-dev/p6-author-patch-recovery-independent-review/review-final.json`。原在途跟进真实验收将使用新生产实现核验；自动修复 live 驱动已适配原始 patch 与展开方案的区别：保留原始输出核对，通过宿主证明解析展开方案，旧格式 schema 断言保留；独立审查确认原业务、预算与期限断言未减少，该驱动尚未进行新的真实运行。P6–P8 保持 developing，`.gitignore` 持续排除运行数据、证据、构建、依赖及凭证。
 
 ## 先前开发检查点（v56，2026-10-11，修复模型事件积压）
 
