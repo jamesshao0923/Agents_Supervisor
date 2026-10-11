@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-p6-followup-supplied-verifier-sync-v3-20261012",
+  "revision": "dev-p6-personal-followup-v4-loop-core-20261012",
   "modules": [
     {
       "id": "dev-contracts",
@@ -10400,11 +10400,11 @@
       "covers": [
         "p6-autoloop-live"
       ],
-      "scenario": "P6-LOOP-L01 real autonomous supervision authors reviews rejects repairs and delivers one immutable contract",
+      "scenario": "Reduced core: exact current criterion checked before admission; real author/P4 business rejection of +2 fault, repair, mandatory regression maintenance, two publications, three full verifications, delivery/reopen. Generic user-test quality qualification deferred; original +2 user-test nonzero driver observation retained.",
       "impactTags": [
         "p6-autoloop-live"
       ],
-      "prerequisites": "Pinned Node and authenticated actual local Codex; production adapters; real P4 controls/review and unchanged-contract repair required",
+      "prerequisites": "Pinned Node and authenticated actual local Codex; production adapters; real P4 controls/review and unchanged-contract repair required; not equivalent to previous wider test-quality scenario; unknown is not a business rejection",
       "assertions": "tests/live/supervision-loop.test.ts :: P6-LOOP-L01 real autonomous supervision authors reviews rejects repairs and delivers one immutable contract",
       "cleanup": "Stop owned processes; preserve partial attempts, raw proof files, failure and candidate snapshots",
       "status": "active"
@@ -21396,11 +21396,11 @@
       "covers": [
         "p6-running-followup-live"
       ],
-      "scenario": "Scope v3: explicit synchronous top-level assert/strict math script (no node:test or asynchronous test combinations); actual active writer and service restart; exact-once real followup preserves original criteria and executes additive requirement; supplied frozen checker/controls through independent actual P4 IPC review, complete final verification, delivery and reopen. Revised-contract automatic authoring explicitly deferred.",
+      "scenario": "Scope v4: exact bounded criterion descriptions/checks, initial pre-admit validation; real active writer/service restart/exact-once followup, two P2 executions, supplied checker/11 controls and actual independent P4 final delivery/reopen. Broad API behavior retained; sum candidate tests require four invalid categories at each isolated position, multiply representative invalid per isolated position. Artifact scope is independently checked, not candidate self-inspection or historical-process proof.",
       "impactTags": [
         "p6-running-followup-live"
       ],
-      "prerequisites": "Authenticated installed Codex; advertised inherited model and effort; frozen exact selection; actual supplier execution required, no injected protocol fixture; supplied verifier is not autonomous test generation; independent reviewer must reject any unsupported admitted requirement; scope v3 is not equivalent to the old wider framework scenario; unsupported framework observations are unknown, never qualified negatives",
+      "prerequisites": "Authenticated Codex; frozen selection; actual provider execution; exact initial criteria before admit; followup criteria checked at applied boundary (no promise of pre-dispatch interception); supplied verifier is not autonomous authoring; genuine independent P4 rejection remains FAIL; async/framework unknown not a qualification negative; original wider-scope failures remain.",
       "assertions": "tests/live/running-followup.test.ts :: P6 running followup survives real service restart applies once and independently delivers original plus additive requirements",
       "cleanup": "Cancel unfinished actual runtime, stop owned service/worker/model identities, preserve all DB/raw output/usage/unknown reservations and failure archives",
       "status": "active"

@@ -4,22 +4,22 @@ import assert from 'node:assert/strict';
 import {mkdtemp,realpath,readFile,writeFile,mkdir} from 'node:fs/promises';
 import {join} from 'node:path';
 import {createHash} from 'node:crypto';
-import {prepareFollowupVerifier,controlModule,deferredAsyncControlTests} from './running-followup-verifier.js';
+import {prepareFollowupVerifier,controlModule,deferredAsyncControlTests,unawaitedRejectionControlTests,followupScopeV4Criteria} from './running-followup-verifier.js';
 import {runCandidateEntry,runCommandVerifier} from '../../packages/verification/command.js';
 import {inspectProcess,type ProcessIdentity,type ProcessIntent} from '../../packages/process-control/index.js';
-export async function preflightFollowupVerifier(){
+export async function preflightFollowupVerifier(selection:'all'|'scope-v4'='all'){
  const root=await realpath(await mkdtemp('/tmp/sv-followup-verifier-'));
- const criteria=(['sum','multiply'] as const).map(id=>({id,description:id==='sum'?'Finite numbers add; invalid inputs throw TypeError.':'Finite numbers multiply; invalid inputs throw TypeError.',kind:'command' as const,target:'math.test.mjs',checks:id==='sum'?['2+3=5 and -1+1=0','NaN, Infinity, -Infinity and string inputs throw TypeError at both positions','Actual assert/strict tests cover these examples']:['3*4=12 and -2*3=-6','Invalid values at both positions throw TypeError','Actual assert/strict tests cover these examples']}));
+ const criteria=followupScopeV4Criteria;
  const contract={version:3,goal:'Explicit fixed fixture sum plus multiply',criteria:criteria.map(c=>({id:c.id,description:[c.description,...c.checks].join('\n'),required:true}))};
  const supplied=await prepareFollowupVerifier(root,{criteria},{contract});
  const identities:ProcessIdentity[]=[],intents:ProcessIntent[]=[],results:unknown[]=[],proofs:Record<string,string>={};
  const hooks={onIntent:(value:ProcessIntent)=>{intents.push(value);},onIdentity:(value:ProcessIdentity)=>{identities.push(value);}};
  try{
-  for(const control of supplied.spec.controls){
+  for(const control of supplied.spec.controls.filter(control=>selection==='all'||['good','invalid-both-positions-only'].includes(control.id))){
    const entry=await runCandidateEntry({id:control.id+'-entry',cwd:control.workspace,entry:'math.test.mjs',timeoutMs:30000,output:join(root,'evidence',control.id,'entry'),...hooks});
    results.push({control:control.id,entry});
    assert.equal(entry.executionStatus,'executed',entry.reason);assert.ok(entry.stopped);
-   if(control.expect==='passed')assert.equal(entry.passed,true,entry.reason);
+   if(control.expect==='passed'||control.id==='invalid-both-positions-only')assert.equal(entry.passed,true,entry.reason);
    for(const instance of supplied.spec.cases){
     const result=await runCommandVerifier({id:control.id+'-'+instance.id,bundle:join(root,'supplied-verifier'),entry:'check.mjs',cwd:control.workspace,parameters:instance.parameters[0]!,obligationIds:instance.obligationIds,timeoutMs:30000,output:join(root,'evidence',control.id,instance.id),...hooks});
     results.push({control:control.id,caseId:instance.id,result});
@@ -31,16 +31,24 @@ export async function preflightFollowupVerifier(){
     for(const path of [...entry.proofFiles,...result.proofFiles])proofs[path]=createHash('sha256').update(await readFile(path)).digest('hex');
    }
   }
+  if(selection==='all'){
   // Deferred wider-scope sample stays legal; unsupported must be unknown, never a qualified negative.
   const deferred=join(root,'deferred-async');await mkdir(deferred);await writeFile(join(deferred,'math.mjs'),controlModule());await writeFile(join(deferred,'math.test.mjs'),deferredAsyncControlTests);
   const unknown=await runCommandVerifier({id:'deferred-async-unsupported',bundle:join(root,'supplied-verifier'),entry:'check.mjs',cwd:deferred,parameters:{name:'sum',obligationId:'sum-complete'},obligationIds:['sum-complete'],timeoutMs:30000,output:join(root,'evidence','deferred-async'),...hooks});
   results.push({deferred:true,result:unknown});assert.equal(unknown.executionStatus,'executed',unknown.reason);assert.ok(unknown.stopped);assert.deepEqual(unknown.checks.map(c=>({id:c.obligationId,verdict:c.verdict})),[{id:'sum-complete',verdict:'unknown'}]);
   for(const path of unknown.proofFiles)proofs[path]=createHash('sha256').update(await readFile(path)).digest('hex');
+  }
+  // Actual native assert.rejects alias, without await; not a qualified negative.
+  const unsupported=join(root,'unawaited-rejection');await mkdir(unsupported);await writeFile(join(unsupported,'math.mjs'),controlModule());await writeFile(join(unsupported,'math.test.mjs'),unawaitedRejectionControlTests);
+  const entry=await runCandidateEntry({id:'unawaited-rejection-entry',cwd:unsupported,entry:'math.test.mjs',timeoutMs:30000,output:join(root,'evidence','unawaited-rejection','entry'),...hooks});results.push({unsupported:true,entry});assert.equal(entry.executionStatus,'executed',entry.reason);assert.ok(entry.passed&&entry.stopped);
+  for(const path of entry.proofFiles)proofs[path]=createHash('sha256').update(await readFile(path)).digest('hex');
+  for(const instance of supplied.spec.cases){const result=await runCommandVerifier({id:'unawaited-rejection-'+instance.id,bundle:join(root,'supplied-verifier'),entry:'check.mjs',cwd:unsupported,parameters:instance.parameters[0]!,obligationIds:instance.obligationIds,timeoutMs:30000,output:join(root,'evidence','unawaited-rejection',instance.id),...hooks});results.push({unsupported:true,caseId:instance.id,result});assert.equal(result.executionStatus,'executed',result.reason);assert.ok(result.stopped);assert.deepEqual(result.checks.map(c=>({id:c.obligationId,verdict:c.verdict})),[{id:instance.obligationIds[0],verdict:'unknown'}]);for(const path of result.proofFiles)proofs[path]=createHash('sha256').update(await readFile(path)).digest('hex');}
+
  }finally{
   const physical=[];for(const identity of identities){const actual=await inspectProcess(identity);physical.push({identity,actual});assert.equal(actual.status,'stopped');}
   await writeFile(join(root,'preflight.json'),JSON.stringify({scope:'actual component only; synthetic criteria metadata; no model/ledger/P4 approval',supplied,intents,identities,results,proofs,physical},null,2));
  }
- assert.equal(results.length,supplied.spec.controls.length*(1+supplied.spec.cases.length)+1);
+ assert.equal(results.length,selection==='scope-v4'?9:supplied.spec.controls.length*(1+supplied.spec.cases.length)+4);
  assert.equal(identities.length,intents.length);
- return{root,controlCount:supplied.spec.controls.length,commandInstances:supplied.spec.controls.length*supplied.spec.cases.length,deferredUnknownChecks:1,actualProcessCount:identities.length,proofCount:Object.keys(proofs).length};
+ return{root,selection,actualResultCount:results.length,inventoryControlCount:supplied.spec.controls.length,selectedControlCount:selection==='scope-v4'?2:supplied.spec.controls.length,commandInstances:selection==='scope-v4'?6:supplied.spec.controls.length*supplied.spec.cases.length+3,deferredUnknownChecks:selection==='scope-v4'?2:3,actualProcessCount:identities.length,proofCount:Object.keys(proofs).length};
 }

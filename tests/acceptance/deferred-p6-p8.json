@@ -2592,7 +2592,7 @@
       ],
       "status": "deferred-not-demonstrated",
       "scope": "Legal node:test registration/runners including top-level await test and asynchronous assert.rejects combinations. New initial goal explicitly requires synchronous top-level assert/strict; followup inherits that scope.",
-      "currentEvidence": "Original legal sample SHA90cb7e71a9e7a6a04843b47ef571eb32bbd8fd9af98cf348905a55fe62a0c4ea and preflight FAIL audit SHA162aab84f2a71f64d80c21e97dfed789b3aa22106ca0d73c178f76f7905d5b28 retained in p6-running-followup-supplied-verifier-work. Ordinary native entry passed while checker timed out. Diagnostic reports 2dc2f56a/2f39cd9f preserve exact input and actual stopped evidence; not provider/P4 success.",
+      "currentEvidence": "Original legal sample SHA90cb7e71a9e7a6a04843b47ef571eb32bbd8fd9af98cf348905a55fe62a0c4ea and preflight FAIL audit SHA162aab84f2a71f64d80c21e97dfed789b3aa22106ca0d73c178f76f7905d5b28 retained in p6-running-followup-supplied-verifier-work. Ordinary native entry passed while checker timed out. Diagnostic reports 2dc2f56a/2f39cd9f preserve exact input and actual stopped evidence; not provider/P4 success. Scope v3 preparatory audit05db observed the preserved async sample as unknown, not P4 approval. Scope v4 adds native assert.rejects/doesNotReject identity rejection as unknown; nine targeted commands passed expected outcomes (audit ebae092f); unawaited assert.rejects actually observed unknown. doesNotReject shares the statically reviewed branch but was not executed.",
       "reason": "User-authorized narrower personal-trial scenario avoids a new Node execution API or custom scheduling framework. Not equivalent to old wide scenario.",
       "risk": "Fixed checker cannot qualify legitimate framework/async tests; it must report unknown and block rather than falsely reject business semantics or count as a qualified negative.",
       "revisitWhen": "Actual broader project or release requires framework/asynchronous test support.",
@@ -2611,6 +2611,34 @@
       "risk": "Additional invented or impossible obligations may block valid projects; qualification controls cannot possess an unrelated historical execution receipt.",
       "revisitWhen": "First field task without explicit distinction, or changes to author semantic mapping; compare original criteria and derived obligations.",
       "evidenceScope": "Old failure retained; no original business assertion or product acceptance policy relaxed."
+    },
+    {
+      "id": "followup-planner-expanded-candidate-test-obligations",
+      "kind": "scope-revision-not-a-new-test-case-id",
+      "relatedCaseIds": [
+        "p6.live-running-followup.001"
+      ],
+      "status": "prior-failure-preserved-new-scope-unverified",
+      "scope": "Prior scope v3 allowed P5 to require seven additional sum invalid categories, per-category multiply tests and candidate file/scope self-assertions. New scope v4 supplies exact finite criteria before initial admit; broader API rejection is retained.",
+      "currentEvidence": "Original actual independent P4 FAIL: final-audit5aee65da,223883known/0unknown/0delivery,715proofs/53stopped. Ten controls passed but omitted frozen obligations; frozen-check-gap-diagnosis036e3f retained.",
+      "reason": "Explicit user-authorized new fixture scope, not repair or retroactive pass of the old frozen contract.",
+      "risk": "Exact wording can fail planning; followup automatic application has no second manual admission boundary. Fixed checker is finite evidence, not universal proof; independent P4 remains authoritative.",
+      "revisitWhen": "Broader user scenario needs autonomous acceptance definition or richer candidate-test obligations.",
+      "evidenceScope": "New exact-scope live followup remains unverified. Nine actual targeted component commands passed expected outcomes; no provider or independent P4 approval."
+    },
+    {
+      "id": "loop-generic-user-test-quality-qualification",
+      "kind": "scope-revision-not-a-new-test-case-id",
+      "relatedCaseIds": [
+        "p6.live-supervision-loop.001"
+      ],
+      "status": "deferred-not-demonstrated",
+      "scope": "New L01 core directly verifies current increment behavior and real user CLI exit0. Generic assertion reachability/static-import instrumentation, broad user-test mutation quality and isolated mutation-process exit qualification are deferred.",
+      "currentEvidence": "5675306 FAIL retained: first P4 positive unknown, then distinct database lock before any second P4. New scenario is not equivalent to that six-obligation scope. Original driver +2 fault and unchanged user test nonzero observation remain.",
+      "reason": "User-authorized personal-trial scope reduction; avoid making generic test-framework qualification a prerequisite to demonstrating the repair loop.",
+      "risk": "A weak user test can pass the reduced command criterion. This gate does not establish general generated-test quality or reliable automatic obligation derivation.",
+      "revisitWhen": "First field project relying on generated tests to detect regressions; inspect actual assertion execution and introduce a relevant defect, then restore the corresponding coverage.",
+      "evidenceScope": "Keep independent business-failure rejection, actual repair, mandatory regression maintenance, two publications, three full verifications and delivery/reopen; no live pass yet."
     }
   ]
 }

@@ -1,3 +1,15 @@
+## 2026-10-12 — Reduced L01 core and targeted followup results
+
+L01 now freezes an exact current-artifact criterion before admission. Defer generic assertion instrumentation, test mutation-quality and isolated mutation-process qualification; retain every original driver assertion, including the actual +2 test failure, independent business rejection, repair, required maintenance, publication and delivery. This is a narrower new scenario, not equivalent coverage or a rewrite of prior FAIL. See deferred-p6-p8.json.
+
+Followup v4 targeted preflight: 9 actual commands, 15.759 seconds, expected outcomes passed; 9 owned processes stopped, 69 proofs matched. Correct example passes, both-invalid-only tests fail each checker, unawaited rejects returns unknown. doesNotReject only statically reviewed. No provider/P4/live success claim.
+
+## 2026-10-12 — Running-followup scope v4: exact criteria and isolated invalid positions
+
+New user-authorized fixture wording fixes full criterion description/checks before initial admission, keeps broad API requirements and limits, and distinguishes current-artifact checks from implementation/history obligations. Preserve all lifecycle, inheritance, two actual P2, independent full P4/delivery/ledger/stop assertions. No step-description string gate. Followup applied validation is not claimed to precede the automatic second dispatch. Scope v3 P4 FAIL5aee65/223883known and all earlier failures remain, not reclassified.
+
+Checker invalid mutations now require the other argument to be finite; numeric mutations unchanged. Native strict assert.rejects/doesNotReject calls (including aliases) produce unknown, never a qualified negative. Preserve all old ten controls and add exactly one numeric-complete, invalid-(x,x)-only control requiring both criteria to fail. A separate unawaited native assert.rejects sample is outside qualification and must produce unknown. Proposed short selection: good regression + new both-invalid control + unsupported assertion sample =9 actual commands, each30s/outer180s, not yet run. Reuse prior evidence only for unchanged fixtures/paths, not a new full-matrix pass. No production or stable-ID change.
+
 ## 2026-10-12 — Reuse cancellation checks for no-op write-lock regression
 
 Extend existing CANCEL-I01 with a real independently owned SQLite writer: an uncancelled observation must read unchanged without acquiring a write lock, then preserve original cancel/once/reopen assertions. I01 successor passes; unchanged I02 unknown-accounting and I04 actual worker cancellation/reopen results are reused. The initial missing-intent fixture failure is retained; no stable ID, default selection or product timeout changed. The production fastpath rechecks real cancellation inside the original transaction.
