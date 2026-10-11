@@ -1,3 +1,5 @@
+import {resolveAuthorBundle,assertAuthorExpansionProof} from '../../packages/orchestration/author-result-patch.js';
+import {readAuthorReviewRejection} from '../../packages/persistence/author-review-rejection.js';
 import {authorWireInput,authorRecoveryInput,AUTHOR_RECOVERY_PRESENTATION_PROMPT_V3,AUTHOR_RECOVERY_PRESENTATION_PROMPT_V4} from '../../packages/orchestration/author-presentation.js';
 import test from 'node:test';
 import {createHash} from 'node:crypto';
@@ -18,7 +20,7 @@ import {selectAcceptanceAuthorRoute,selectAcceptanceAuthorRouteV2,ACCEPTANCE_AUT
 // the real controller/engine/permission sandbox and deliberately produce no
 // checker report, so all control errors are actual, stopped, zero-model-cost.
 async function review(f:Awaited<ReturnType<typeof fixture>>,author:SupervisionJob=f.old,modelReview=false){
- const assets=await materializeAcceptanceBundle({privateRoot:join(f.data,'supervision','authoring'),jobId:author.id,context:f.context,bundle:author.result});
+ const assets=await materializeAcceptanceBundle({privateRoot:join(f.data,'supervision','authoring'),jobId:author.id,context:f.context,bundle:resolveAuthorBundle(author,id=>f.store.supervision.job(id),f.data).bundle});
  const controller=new VerificationController(f.store,f.data);await controller.initialize();
  try{const proposal=await controller.dispatch({type:'propose',commandId:'propose-'+author.id,runtimeId:f.runtime.id,specPath:assets.specPath}) as Proposal;
  let job=await controller.dispatch({type:'review',commandId:'review-'+author.id,proposalId:proposal.id,model:'must-not-launch-provider',effort:'low',reservation:20,timeoutMs:15000}) as VerificationJob;
@@ -68,7 +70,11 @@ test('P6-AUTHREVIEW-I02 changed actual review proof and changed original candida
  writeFileSync(proof,Buffer.concat([bytes,Buffer.from(' ')]));assert.throws(()=>f.repo.begin(input),/proof changed/);writeFileSync(proof,bytes);writeFileSync(join(f.workspace,'value.mjs'),'changed original candidate');assert.throws(()=>f.repo.begin(input),/candidate changed/);assert.equal(f.repo.routes(f.loop.id).length,0);assert.equal(f.store.supervision.jobs(f.loop.id).length,1);
 });
 test('P6-AUTHREVIEW-I03 second actually rejected rebuilt author remains retained and cannot regenerate again',async t=>{
- const f=await fixture(t,{kind:'valid',calls:5});await review(f);const next=f.repo.begin(await request(f));await f.create('valid',next.job);await review(f,f.store.supervision.job(next.job.id));await assert.rejects(f.repo.assess(f.loop.id,next.job.id,true),/Review reconstruction limit exhausted/);assert.equal(f.repo.routes(f.loop.id).length,1);assert.equal(f.store.supervision.jobs(f.loop.id).length,2);assert.equal(f.store.runtime.inspect(f.runtime.id).run.budget.spent,14);assert.equal(f.store.verification.list('job').length,2);
+ const f=await fixture(t,{kind:'valid',calls:5});await review(f);const next=f.repo.beginV2(await request(f));await f.create('valid',next.job);await review(f,f.store.supervision.job(next.job.id));
+ const patched=f.store.supervision.job(next.job.id);assert.equal((patched.result as any).protocol,'acceptance-replace-v1');assertAuthorExpansionProof(patched,id=>f.store.supervision.job(id),f.data);
+ const actual=readAuthorReviewRejection(f.db,f.data,f.store.supervision.get(f.loop.id),patched,f.context,f.store.runtime.inspect(f.runtime.id).run);assert.equal(actual.classification,'control-rejected');assert.equal(actual.review.id,f.store.supervision.get(f.loop.id).references.reviewId);
+ f.reopen();assert.deepEqual(readAuthorReviewRejection(f.db,f.data,f.store.supervision.get(f.loop.id),f.store.supervision.job(next.job.id),f.context,f.store.runtime.inspect(f.runtime.id).run),actual);
+ await assert.rejects(f.repo.assess(f.loop.id,next.job.id,true),/Review reconstruction limit exhausted/);assert.equal(f.repo.routes(f.loop.id).length,1);assert.equal(f.store.supervision.jobs(f.loop.id).length,2);assert.equal(f.store.runtime.inspect(f.runtime.id).run.budget.spent,14);assert.equal(f.store.verification.list('job').length,2);
 });
 test('P6-AUTHREVIEW-I04 unknown review accounting and queued overlapping Run cannot consume replacement authority',async t=>{
  const f=await fixture(t,{kind:'valid'}),r=await review(f),input=await request(f);f.store.verification.update('job',{...r.job,usageUnknown:true});await assert.rejects(f.repo.assess(f.loop.id,f.old.id,true),/settlement|unresolved/);f.store.verification.update('job',r.job);

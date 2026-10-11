@@ -1,3 +1,4 @@
+import {resolveAuthorBundle,assertAuthorExpansionProof} from './author-result-patch.js';
 import type {MaintenanceBasis} from '../contracts/p6-control-maintenance.js';
 import {captureMaintenanceContext,captureRegressionContext} from '../verification/control-maintenance-replay.js';
 import {createEnvironmentScope} from '../verification/scoped-environment.js';
@@ -221,13 +222,15 @@ export class SupervisionController {
         await assertCandidate(context.candidate);await this.prepare(loop.id,'propose',{type:'propose',runtimeId:runtime.id,specPath:material.assets.specPath,controlDeclarationPath:material.declarationPath,controlAuthorJobId:job.id,...(context.acceptance.workflowMode?{researchAuthorJobId:job.id}:{})});return;
       }
       await assertCandidate(context.candidate);
-      const diagnostic=diagnoseAcceptanceAuthoringResult(verified.result,context.acceptance);
+      assertAuthorExpansionProof(verified,id=>this.repo.job(id),this.dataDir);
+      const authoredBundle=resolveAuthorBundle(verified,id=>this.repo.job(id),this.dataDir).bundle;
+      const diagnostic=diagnoseAcceptanceAuthoringResult(authoredBundle,context.acceptance);
       if(diagnostic){
         ensure(!Object.hasOwn(context,'authorFeedback'),'Acceptance author regeneration exhausted after second semantic rejection: '+diagnostic.message);
         const next=await this.authorRecovery.begin(loop.id,verified.id,()=>{this.dispatchAllowed(loop.id);this.ensureFloor(this.repo.get(loop.id));});
         this.launch(next.job);return;
       }
-      const assets=await materializeAcceptanceBundle({privateRoot:join(this.dataDir,'supervision','authoring'),jobId:job.id,context:context.acceptance,bundle:verified.result});
+      const assets=await materializeAcceptanceBundle({privateRoot:join(this.dataDir,'supervision','authoring'),jobId:job.id,context:context.acceptance,bundle:authoredBundle});
       await assertCandidate(context.candidate);await this.prepare(loop.id,'propose',{type:'propose',runtimeId:runtime.id,specPath:assets.specPath,...(context.acceptance.workflowMode?{researchAuthorJobId:job.id}:{})});return;
     }
     if(loop.phase==='reviewing'){

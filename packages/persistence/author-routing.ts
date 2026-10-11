@@ -1,6 +1,8 @@
+import {authorPatchBinding,resolveAuthorBundle,patchInput} from '../orchestration/author-result-patch.js';
+import {isCommandOnlyAuthorContext} from '../orchestration/acceptance-authoring-presentation.js';
 import {futureVerificationFloor,futureExecutionFloor} from '../domain/index.js';
 import {parseAuthorRouteReceipt,assertAuthorRouteJob,assertAuthorRouteProof} from '../orchestration/author-route-binding.js';
-import {createAuthorRecoveryInput,authorWireInput,type AuthorRecoveryFeedback} from '../orchestration/author-presentation.js';
+import {createAuthorRecoveryInput,createAuthorPatchInput,authorWireInput,type AuthorRecoveryFeedback} from '../orchestration/author-presentation.js';
 import {assertAuthorWireProof} from '../orchestration/author-presentation-proofs.js';
 import {readAuthorReviewRejection} from './author-review-rejection.js';
 import {createHash} from 'node:crypto';
@@ -101,7 +103,7 @@ export class AuthorRoutingRepository {
   let parsed:unknown;try{parsed=JSON.parse(raw);}catch{throw Error('Author raw JSON is incomplete; not a schema rejection');}
   let schemaError:ReasonerSchemaError|undefined;try{parseReasonerOutput(raw,input.outputSchema);}catch(e){if(!(e instanceof ReasonerSchemaError))throw e;schemaError=e;}
   let kind:AuthorRejection['kind'],message:string;let review:AuthorRejection['review'];
-  if(reviewRebuild){ensure(!schemaError&&job.error===null&&same(result.value,parsed)&&same(job.result,parsed)&&result.outputRejection===undefined&&!diagnoseAcceptanceAuthoringResult(parsed,input.context.acceptance),'Review rebuild requires a complete valid original author');review=readAuthorReviewRejection(this.db,this.dataDir,loop,job,input.context.acceptance,run);kind='review';message=review.classification+': '+review.review.error;}
+  if(reviewRebuild){ensure(!schemaError&&job.error===null&&same(result.value,parsed)&&same(job.result,parsed)&&result.outputRejection===undefined&&!diagnoseAcceptanceAuthoringResult(resolveAuthorBundle(job,id=>this.supervision.job(id),this.dataDir).bundle,input.context.acceptance),'Review rebuild requires a complete valid original author');review=readAuthorReviewRejection(this.db,this.dataDir,loop,job,input.context.acceptance,run);kind='review';message=review.classification+': '+review.review.error;}
   else if(schemaError){const marker={schemaVersion:1,kind:'schema',rawOutputDigest:sha(raw),message:schemaError.message},error=JSON.parse(read('error.json'));ensure(job.error===schemaError.message&&job.result===null&&result.value===null&&same(result.outputRejection,marker)&&error.name==='ReasonerSchemaError'&&error.message===schemaError.message,'Author schema failure lacks typed transport classification');kind='schema';message=schemaError.message;}
   else {ensure(job.error===null&&same(result.value,parsed)&&same(job.result,parsed)&&result.outputRejection===undefined,'Author failed for a non-schema reason');let diagnostic:{message:string}|null;try{diagnostic=diagnoseAcceptanceAuthoringResult(parsed,input.context.acceptance);}catch(error){if(!(error instanceof ReasonerSchemaError))throw error;diagnostic={message:error.message};}ensure(diagnostic,'Author result is not rejected');kind='semantic';message=diagnostic.message;}
   const rejection:AuthorRejection={schemaVersion:1,kind,previousJobId:job.id,jobDigest:hash(job),inputDigest:job.inputDigest,schemaDigest:hash(input.outputSchema),rawOutputPath:join(logs,'output.txt'),rawOutputDigest:sha(raw),message,raw:parsed,proofsDigest:hash(job.proofs),workspaceBoundaryDigest:hash(workspaceBoundary),...(review?{review}:{})};
@@ -142,7 +144,18 @@ export class AuthorRoutingRepository {
   const rejectionFeedback=bound?{schemaVersion:1,kind:'review',message:input.rejection.message,raw:input.rejection.raw,rawOutputDigest:input.rejection.rawOutputDigest,authorProofsDigest:input.rejection.proofsDigest,review:{classification:bound.classification,proposalId:bound.proposalId,proposalDigest:bound.proposalDigest,baseDigest:bound.baseDigest,candidateDigest:bound.candidateDigest,definitionDigest:bound.definitionDigest,reviewId:bound.review.id,reviewDigest:hash(bound.review),proofsDigest:hash(bound.review.proofs),usage:bound.review.usage,stopConfirmed:bound.review.stopConfirmed,controls:bound.review.controls.map(c=>({id:c.id,passed:c.passed,results:c.results.map(({proofFiles:_paths,...result})=>result)})),diagnostics:bound.diagnostics,independentReview:bound.independentReview?{verdict:bound.independentReview.verdict,reason:bound.independentReview.reason,observations:bound.independentReview.observations,usage:bound.independentReview.usage,threadId:bound.independentReview.threadId,turnId:bound.independentReview.turnId}:null}}:input.rejection;
   const feedback={schemaVersion:1,attempt:1,previousJobId:value.job.id,inputDigest:value.job.inputDigest,rejection:rejectionFeedback,references:acceptanceReferenceDiagnostic(input.rejection.raw)};
   const context={...structuredClone(value.input.context),authorFeedback:feedback};
-  const nextInput=createAuthorRecoveryInput({...context,authorFeedback:feedback as AuthorRecoveryFeedback},acceptanceAuthoringSchema(context.acceptance));
+  // Presentation metadata belongs to the previous request, never to the new one.
+  delete (context as Record<string,unknown>).authorPresentation;
+  delete (context as Record<string,unknown>).authorPatch;
+  if(patchInput(value.job.input))feedback.references={...feedback.references,previousFeedback:value.input.context.authorFeedback} as typeof feedback.references;
+  let nextInput=createAuthorRecoveryInput({...context,authorFeedback:feedback as AuthorRecoveryFeedback},acceptanceAuthoringSchema(context.acceptance));
+  if(v2&&input.rejection.kind!=='schema'&&!context.acceptance.workflowMode&&isCommandOnlyAuthorContext(context.acceptance)){
+    const resolved=resolveAuthorBundle(value.job,id=>this.supervision.job(id),this.dataDir);
+    // Complete schema validity is required; semantic rejection is allowed here.
+    parseReasonerOutput(JSON.stringify(resolved.bundle),acceptanceAuthoringSchema(context.acceptance));
+    const authorPatch={schemaVersion:1 as const,base:authorPatchBinding(value.job,resolved.bundle),...(patchInput(value.job.input)?{expandedBase:resolved.bundle}:{})};
+    nextInput=createAuthorPatchInput({...context,authorFeedback:feedback as AuthorRecoveryFeedback,authorPatch});
+  }
   ensure(canonical(nextInput).length+6000<=value.loop.limits.maxContextChars,'Author recovery exceeds complete context capacity; no truncation');
   let authorization:AuthorRouteAuthorizationV2|undefined;
   if(v2){

@@ -1,3 +1,5 @@
+import {patchInput,resolveAuthorBundle} from '../../packages/orchestration/author-result-patch.js';
+import {authorRouteDispatch} from '../../packages/orchestration/author-route-binding.js';
 import type {TestContext} from 'node:test';
 import type {ReasonerResult} from '../../packages/orchestration/reasoner.js';
 import type {SupervisionJob} from '../../packages/contracts/p6-supervision.js';
@@ -55,11 +57,13 @@ export async function fixture(t:TestContext,options:{limit?:number;calls?:number
   if(kind==='semantic')rawValue.spec.obligations[0]!.id='declared-but-not-referenced';
   if(kind==='semantic')for(let i=1;i<rawValue.spec.obligations.length;i++)rawValue.spec.obligations[i]!.id=rawValue.spec.cases[0]!.obligationIds[i]!;
   const job=existing??store.supervision.beginJob({commandId:randomUUID(),loopId:loop.id,expectedRevision:store.supervision.get(loop.id).revision,purpose:'acceptance-authoring',context:input});if(existing)input=existing.input as typeof input;
-  const dir=join(data,'supervision-reasoning',sha(job.id));mkdirSync(dir,{recursive:true});const raw=JSON.stringify(rawValue),eventsPath=join(dir,'events.jsonl'),outputPath=join(dir,'output.txt');
+  const dir=join(data,'supervision-reasoning',sha(job.id));mkdirSync(dir,{recursive:true});const patch=patchInput(input);const raw=JSON.stringify(patch?{protocol:'acceptance-replace-v1',baseJobId:patch.context.authorPatch!.base.jobId,baseResultDigest:patch.context.authorPatch!.base.resultDigest,replacements:[{path:'/verifierFiles',replacementJSON:JSON.stringify(rawValue.verifierFiles)}]}:rawValue),eventsPath=join(dir,'events.jsonl'),outputPath=join(dir,'output.txt');
   const save=(kind:string,value:unknown)=>appendFileSync(eventsPath,JSON.stringify({kind,value})+'\n');
   const wire=authorWireInput(input,job.purpose),wireReceipt=authorWireReceipt(job);
   if(wireReceipt)writeFileSync(join(dir,'author-wire.json'),JSON.stringify(wireReceipt));
-  save('reasoner-input',{id:job.id,prompt:wire.prompt,outputSchema:input.outputSchema,model:job.config.model,effort:job.config.effort});
+  const route=repo.forJob(job.id),dispatch=route?.schemaVersion===2?authorRouteDispatch(route,job):null;
+  if(dispatch)writeFileSync(join(dir,'author-route-dispatch.json'),JSON.stringify(dispatch));
+  save('reasoner-input',{id:job.id,prompt:wire.prompt,outputSchema:input.outputSchema,model:job.config.model,effort:job.config.effort,...(dispatch?{timeoutMs:dispatch.timeoutMs,absoluteDeadlineMs:dispatch.absoluteDeadlineMs}:{})});
   store.supervision.observeJob(job.id,{modelStarted:true,observedUsage:7});
   const notification={method:'turn/completed',params:{threadId:'fixture-'+job.id,turn:{id:'turn-'+job.id,status:kind==='transport'?'failed':'completed',items:[{type:'agentMessage',text:raw}]}}};
   const child=await spawnManagedProcess({operationId:job.id+'-reasoner',command:process.execPath,args:['-e','console.log(process.argv[1])',JSON.stringify(notification)],cwd:workspace,timeoutMs:5000,onBeforeSpawn:intent=>{const current=store.supervision.job(job.id);store.supervision.observeJob(job.id,{intents:[...current.intents,intent]});},onIdentity:identity=>{const current=store.supervision.job(job.id);store.supervision.observeJob(job.id,{identities:[...current.identities,identity]});}});
@@ -70,7 +74,8 @@ export async function fixture(t:TestContext,options:{limit?:number;calls?:number
   try{result.value=parseFinalReasonerOutput(raw,input.outputSchema,result);}catch(caught){const e=caught as Error;error=e.message;writeFileSync(join(dir,'error.json'),JSON.stringify({name:e.name,message:e.message}));}
   if(kind==='transport'){error='Explicit transport failure fixture';delete result.outputRejection;}
   if(kind==='unknown')error='Explicit unknown usage fixture';
-  writeFileSync(join(dir,'result.json'),JSON.stringify(result));const proofs=Object.fromEntries(['events.jsonl','output.txt','result.json',...(wireReceipt?['author-wire.json']:[]),...(error&&kind!=='transport'?['error.json']:[])].map(name=>[join(dir,name),sha(readFileSync(join(dir,name)))]));
+  if(patch&&result.value!==null){const derived=resolveAuthorBundle({...store.supervision.job(job.id),result:result.value},id=>store.supervision.job(id),data);writeFileSync(join(dir,'author-expansion.json'),JSON.stringify(derived.receipt));}
+  writeFileSync(join(dir,'result.json'),JSON.stringify(result));const proofs=Object.fromEntries(['events.jsonl','output.txt','result.json',...(wireReceipt?['author-wire.json']:[]),...(dispatch?['author-route-dispatch.json']:[]),...(patch&&result.value!==null?['author-expansion.json']:[]),...(error&&kind!=='transport'?['error.json']:[])].map(name=>[join(dir,name),sha(readFileSync(join(dir,name)))]));
   const done=store.supervision.finishJob(job.id,{usage:result.usage,stopConfirmed:true,error,proofs,threadId:result.threadId,result:error?null:result.value});const l=store.supervision.get(loop.id);store.supervision.update(l.id,l.revision,{phase:'authoring',references:{authorJobId:job.id}});return done;
  }
  const old=await create(options.kind??'schema');

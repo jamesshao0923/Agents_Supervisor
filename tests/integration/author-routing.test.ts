@@ -1,3 +1,5 @@
+import {resolveAuthorBundle,assertAuthorExpansionProof,AUTHOR_PATCH_PROMPT,authorPatchDigest,authorExpansionRecord} from '../../packages/orchestration/author-result-patch.js';
+import {materializeAcceptanceBundle,validateAcceptanceBundle} from '../../packages/orchestration/acceptance-authoring.js';
 import {setTimeout as delay} from 'node:timers/promises';
 import {SupervisionReasoningRunner} from '../../packages/orchestration/supervision-reasoning.js';
 import {ReasonerError,type ReasonerInput} from '../../packages/orchestration/reasoner.js';
@@ -44,10 +46,10 @@ async function capabilities(data:string,efforts=['low','high']){
  try{await adapter.initialize();await adapter.listModels();const value={version:'synthetic-node',schemaDigest:sha('fixture'),models:models.map(m=>({id:m.model,label:m.displayName,inputModalities:m.inputModalities,reasoningEfforts:efforts,defaultEffort:'low'})),imageInput:false,checkedAt:new Date().toISOString()};writeFileSync(snapshotPath,JSON.stringify(value));adapter.dispose();const stop=await child.terminate();await child.completion;save({kind:'stop',stop});const proofDigest=sha(readFileSync(proofPath)),snapshotDigest=sha(readFileSync(snapshotPath));const receipt={id:'routing-capabilities-'+sha(proofDigest+snapshotDigest).slice(0,24),capabilities:value,proofPath,proofDigest,snapshotPath,snapshotDigest,identity:child.identity};assert.deepEqual(readRoutingCapabilities(data,receipt),value);return receipt;}finally{adapter.dispose();await child.terminate();await child.completion;}
 }
 /** Synthetic protocol/accounting with actual managed Node lifecycle, never live Codex. */
-function nodeAuthorTransport(hold=false){
+function nodeAuthorTransport(hold=false,returned?:unknown){
  return {calls:0,requested:null as ReasonerInput|null,async request(input:ReasonerInput):Promise<ReasonerResult>{
   this.calls++;this.requested=input;input.assertEligible?.();await input.onTurnIntent?.();
-  const value=fixtureBundle((input.outputSchema as any).properties.contextDigest.const);value.spec.obligations[0]!.id='value-check';
+  const value=returned??fixtureBundle((input.outputSchema as any).properties.contextDigest.const);if(!returned)(value as AcceptanceBundle).spec.obligations[0]!.id='value-check';
   const raw=JSON.stringify(value),threadId='actual-node-thread-'+input.id,turnId='actual-node-turn';
   const result:ReasonerResult={value:null,usage:null,threadId,turnId,proofFiles:[],modelStarted:true,stopConfirmed:false};
   const events=join(input.logDir,'events.jsonl'),output=join(input.logDir,'output.txt');
@@ -127,7 +129,33 @@ test('schema rejection: actual stopped Node, SQLite rollback, bounded route and 
  assert.equal(canonical(v2.store.supervision.job(v2.old.id)),oldBytes);
  await runner.close();v2.reopen();const restored=new SupervisionReasoningRunner(v2.store,v2.data,transport);await restored.run(done.id);assert.equal(transport.calls,1);await restored.close();
 });
-test('semantic rejection uses the exact schema-valid raw bundle and never returns approved assets',async t=>{const f=await fixture(t,{kind:'semantic'}),request=await f.request();assert.equal(request.rejection.kind,'semantic');assert.equal(f.old.error,null);assert.match(request.rejection.message,/unknown obligation/);const result=f.repo.begin(request);assert.equal(result.job.result,null);assert.deepEqual(f.store.runtime.inspect(f.runtime.id).run.contract,f.context.contract);});
+test('semantic rejection uses the exact schema-valid raw bundle and never returns approved assets',async t=>{
+ const f=await fixture(t,{kind:'semantic'}),request=await f.request();assert.equal(request.rejection.kind,'semantic');assert.equal(f.old.error,null);assert.match(request.rejection.message,/unknown obligation/);
+ const old=String(f.db.prepare('SELECT record FROM supervision_jobs WHERE id=?').get(f.old.id)!.record);
+ const patch={protocol:'acceptance-replace-v1',baseJobId:f.old.id,baseResultDigest:authorPatchDigest(f.old.result),replacements:[{path:'/spec/obligations/0/id',replacementJSON:JSON.stringify('value-check')}]};
+ const transport=nodeAuthorTransport(false,patch),runner=new SupervisionReasoningRunner(f.store,f.data,transport);await runner.initialize();
+ const result=f.repo.beginV2(request);assert.equal(result.job.result,null);assert.deepEqual(f.store.runtime.inspect(f.runtime.id).run.contract,f.context.contract);
+ const input=result.job.input as any;assert.equal(input.prompt,AUTHOR_PATCH_PROMPT);assert.deepEqual(input.context.authorFeedback.rejection.raw,f.old.result);
+ assert.equal(JSON.stringify(input).split(JSON.stringify((f.old.result as AcceptanceBundle).verifierFiles[0]!.content)).length,2,'Original complete checker stored once');
+ try{const done=await runner.run(result.job.id);assert.deepEqual(done.result,patch);assert.equal(done.error,null);assert.equal(done.usage,7);assert.equal(done.stopConfirmed,true);
+  const resolved=resolveAuthorBundle(done,id=>f.store.supervision.job(id),f.data);assert.ok(resolved.receipt);assert.equal(validateAcceptanceBundle(resolved.bundle,f.context).spec.obligations[0]!.id,'value-check');
+  assert.deepEqual(JSON.parse(readFileSync(join(f.data,'supervision-reasoning',sha(done.id),'output.txt'),'utf8')),patch);
+  assertAuthorExpansionProof(done,id=>f.store.supervision.job(id),f.data);
+  // Pure derived-input negatives; never change the actual job, archive or receipt.
+  const invalid={...done,result:{...patch,replacements:[{path:'/contextDigest',replacementJSON:'"unchanged-is-still-forbidden"'}]}};
+  assert.equal(authorExpansionRecord(invalid,id=>f.store.supervision.job(id),f.data)!.kind,'acceptance-patch-expansion-rejected');
+  assert.throws(()=>resolveAuthorBundle(invalid,id=>f.store.supervision.job(id),f.data),/contextDigest/);
+  const stale=structuredClone(done) as any;stale.input.context.authorPatch.base.jobDigest='0'.repeat(64);
+  assert.throws(()=>resolveAuthorBundle(stale,id=>f.store.supervision.job(id),f.data),/stale actual base/);
+  assert.deepEqual(f.store.supervision.job(done.id).result,patch);
+
+  const assets=await materializeAcceptanceBundle({privateRoot:join(f.data,'supervision','authoring'),jobId:done.id,context:f.context,bundle:resolved.bundle});assert.equal(assets.status,'proposed');
+  assert.equal(f.store.verification.list('proposal').length,0,'Expanded assets alone grant no P4 proposal or approval');
+  assert.equal(String(f.db.prepare('SELECT record FROM supervision_jobs WHERE id=?').get(f.old.id)!.record),old);assert.equal(f.store.runtime.inspect(f.runtime.id).run.budget.spent,14);
+ }finally{await runner.close();}
+ f.reopen();assert.deepEqual(f.repo.beginV2(request),{receipt:result.receipt,job:f.store.supervision.job(result.job.id)});
+ const recovered=new SupervisionReasoningRunner(f.store,f.data,transport);await recovered.initialize();try{const reread=await recovered.run(result.job.id);assert.deepEqual(reread.result,patch);assert.equal(transport.calls,1);assertAuthorExpansionProof(reread,id=>f.store.supervision.job(id),f.data);}finally{await recovered.close();}
+});
 test('tampered raw proof, changed candidate and forged advertised models cannot reserve replacement',async t=>{const f=await fixture(t),request=await f.request();const forged=structuredClone(request);forged.capabilities.capabilities.models.push({id:'gpt-6.1-sol',label:'forged',inputModalities:['text'],reasoningEfforts:['high'],defaultEffort:'high'});assert.throws(()=>f.repo.begin(forged),/snapshot changed/);appendFileSync(request.rejection.rawOutputPath,' ');assert.throws(()=>f.repo.begin(request),/proof changed/);assert.equal(f.repo.routes(f.loop.id).length,0);writeFileSync(request.rejection.rawOutputPath,JSON.stringify(request.rejection.raw));writeFileSync(join(f.workspace,'value.mjs'),'changed');assert.throws(()=>f.repo.begin(request),/candidate changed/);});
 test('transport failure and unknown usage remain blocked rather than typed author recovery',async t=>{for(const kind of ['transport','unknown']){const f=await fixture(t,{kind});await assert.rejects(f.repo.assess(f.loop.id,f.old.id),kind==='transport'?/not completed/:/unresolved/);assert.equal(f.repo.routes(f.loop.id).length,0);assert.equal(f.store.supervision.jobs(f.loop.id).length,1);}
  // Prepare all actual prior-author/capability evidence before entering the

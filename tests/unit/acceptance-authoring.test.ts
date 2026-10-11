@@ -1,3 +1,5 @@
+import {applyAuthorReplacements,authorPatchBinding,authorPatchSchema,expandAuthorPatch,patchInput,AUTHOR_PATCH_PROMPT} from '../../packages/orchestration/author-result-patch.js';
+import {createAuthorPatchInput,authorWireInput} from '../../packages/orchestration/author-presentation.js';
 import {isCommandOnlyAuthorContext,renderAcceptanceAuthoringPromptV3,renderAcceptanceAuthoringPromptV4} from '../../packages/orchestration/acceptance-authoring-presentation.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -88,6 +90,25 @@ test('P6-AUTH-U02 semantic checks reject weakened necessity coverage controls an
     assert.equal(mapped.contract.criteria[0]!.required, required);
   }
   const c = context();
+  const original=bundle(c),before=JSON.stringify(original);
+  const base={jobId:'unit-base-only',jobDigest:'a'.repeat(64),inputDigest:'b'.repeat(64),resultDigest:authorPatchBinding({id:'unit-base-only',inputDigest:'b'.repeat(64),result:original} as never,original).resultDigest,bundleDigest:authorPatchBinding({id:'unit-base-only',inputDigest:'b'.repeat(64),result:original} as never,original).bundleDigest};
+  const frozen=createAuthorPatchInput({acceptance:c,candidate:{frozen:true},authorFeedback:{schemaVersion:1,attempt:1,previousJobId:base.jobId,inputDigest:base.inputDigest,rejection:{schemaVersion:1,kind:'semantic',raw:original},references:{}},authorPatch:{schemaVersion:1,base}});
+  const patch={protocol:'acceptance-replace-v1',baseJobId:base.jobId,baseResultDigest:base.resultDigest,replacements:[{path:'/spec/cases/0/verifier/files',replacementJSON:JSON.stringify(['check.mjs'])}]};
+  assert.equal(frozen.prompt,AUTHOR_PATCH_PROMPT);assert.deepEqual(frozen.outputSchema,authorPatchSchema(base));
+  assert.deepEqual(validateAcceptanceBundle(expandAuthorPatch(frozen,patch),c),original);
+  assert.equal(JSON.stringify(original),before,'Replacement leaves the immutable original untouched');
+  assert.ok(authorWireInput(frozen,'acceptance-authoring').prompt.includes(JSON.stringify(original.verifierFiles[0]!.content).slice(1,-1)));
+  for(const path of ['', '/', '/contextDigest','/spec/no-such-field','/spec/cases/00/verifier','/spec/cases/-/verifier','/spec/cases/1','/__proto__/x','/spec/constructor','/spec/prototype','/bad~2escape'])assert.throws(()=>applyAuthorReplacements(original,[{path,replacementJSON:'null'}]));
+  for(const pair of [['/spec','/spec/cases'],['/controls','/controls'],['/spec/cases/0','/spec/cases/0/verifier']])assert.throws(()=>applyAuthorReplacements(original,pair.map(path=>({path,replacementJSON:'[]'}))),/overlapping/);
+  assert.throws(()=>applyAuthorReplacements(original,[{path:'/spec',replacementJSON:'{"__proto__":{}}'}]),/Unsafe/);
+  assert.throws(()=>expandAuthorPatch(frozen,{...patch,baseResultDigest:'0'.repeat(64)}),/const/);
+  assert.throws(()=>expandAuthorPatch(frozen,{...patch,replacements:[{path:'/spec/controls',replacementJSON:'[]'}]}));
+  const weak=expandAuthorPatch(frozen,{...patch,replacements:[{path:'/spec/obligations/0/required',replacementJSON:'false'}]});
+  assert.throws(()=>validateAcceptanceBundle(weak,c),/necessary obligation|necessity/);
+  const expanded=expandAuthorPatch(frozen,{...patch,replacements:[{path:'/verifierFiles',replacementJSON:JSON.stringify([...original.verifierFiles,{path:'helper.mjs',content:'export const shared=1;'}])},{path:'/spec/cases/0/verifier/files',replacementJSON:JSON.stringify(['check.mjs','helper.mjs'])}]});
+  assert.deepEqual(validateAcceptanceBundle(expanded,c),expanded,'Whole parent array replacement supports complete shared checker assets');
+  for(const version of [null,false,0,4,6])assert.throws(()=>patchInput({...frozen,context:{...(frozen.context as object),authorPresentation:{schemaVersion:version,kind:'acceptance-patch'}}}),/protocol/);
+  assert.throws(()=>patchInput({...frozen,context:{...(frozen.context as object),acceptance:{...c,criteria:[]}}}),/ordinary command/);
   const shared=bundle(c);
   shared.spec.obligations.push({...shared.spec.obligations[0]!,id:'sum.exceptions',expectation:'Invalid operands rejected independently'});
   shared.spec.cases[0]!.obligationIds.push('sum.exceptions');

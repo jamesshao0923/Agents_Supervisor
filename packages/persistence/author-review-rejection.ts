@@ -1,3 +1,5 @@
+import {resolveAuthorBundle,assertAuthorExpansionProof} from '../orchestration/author-result-patch.js';
+import {SupervisionRepository} from './supervision.js';
 import {verificationDirectory,parseEnvironmentScope} from '../verification/scoped-environment.js';
 import {lstatSync,readFileSync,realpathSync,readdirSync} from 'node:fs';
 import {basename,dirname,isAbsolute,join,relative,resolve,sep} from 'node:path';
@@ -36,7 +38,9 @@ export function readAuthorReviewRejection(db:DatabaseSync,dataDir:string,loop:Su
  for(const identity of job.identities){const intent=job.intents.find(i=>i.operationId===identity.operationId&&i.ownerToken===identity.ownerToken),stop=stops.find(s=>same(s.value.identity,identity));ensure(intent&&stop,'actual process ownership/stop missing');const result=stop.value.result??stop.value;ensure(result.stopped&&(result.stop?.status??result.status)==='stopped'&&(result.stop?.members??result.members)?.length===0,'actual review process stop unresolved');ensure(stop.value.result?result.reason!=='timeout':result.reason==='completed','timeout/cancelled command review cannot grant author reconstruction');if(stop.value.result)ensure(same(stop.value.intent,intent),'model intent differs');else{ensure(same(JSON.parse(proof(join(dirname(stop.path),'intent.json')).toString()),intent)&&same(JSON.parse(proof(join(dirname(stop.path),'identity.json')).toString()),identity),'command identity differs');}}
  const candidate=(c:Candidate)=>{ensure(digest(canonical(c.files))===c.digest,'candidate manifest changed');const files:Record<string,string>={};const walk=(dir:string)=>{for(const name of readdirSync(dir)){if(exclusions.includes(name))continue;const path=join(dir,name),st=lstatSync(path);ensure(!st.isSymbolicLink(),'candidate symlink');if(st.isDirectory())walk(path);else{const raw=read(path);files[relative(c.tree,path).split(sep).join('/')]=digest(Buffer.concat([raw,Buffer.from('\0executable:'+String(st.mode&0o111))]));}}};walk(c.tree);ensure(same(files,c.files),'actual control/candidate bytes changed');};
  candidate(proposal.candidate);ensure(proposal.candidate.digest===context.candidate.digest,'reviewed candidate differs from author');
- const assets=author.result as AcceptanceBundle,symbolic=structuredClone(proposal.spec);for(const control of symbolic.controls)control.workspace=control.id;
+ const authors=new SupervisionRepository(db);
+ assertAuthorExpansionProof(author,id=>authors.job(id),dataDir);
+ const assets=resolveAuthorBundle(author,id=>authors.job(id),dataDir).bundle,symbolic=structuredClone(proposal.spec);for(const control of symbolic.controls)control.workspace=control.id;
  ensure(same(symbolic,assets.spec),'proposal differs from actual author result');
  ensure(assets.verifierFiles.length===Object.keys(proposal.bundle.files).length,'detector inventory differs');
  for(const file of assets.verifierFiles)ensure(proposal.bundle.files[file.path]===digest(file.content)&&read(join(proposal.bundle.directory,file.path)).equals(Buffer.from(file.content)),'actual verifier differs from author bytes');

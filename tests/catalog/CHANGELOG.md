@@ -359,3 +359,8 @@ Add p8.integration-source-refresh-nochange-delivery.001 for actual reacquisition
 ## v48 indexed consumer and author runtime context
 
 Add two distinct indexed consumer/lifecycle cases; retain all prior stable IDs. Extend existing author/presentation assertions for explicit new v2 runtime ABI and byte-exact legacy v1 rendering; do not duplicate suites or rewrite historical evidence. Indexed support remains single current view; grouped/historical views are not accepted by this checkpoint.
+
+
+## v57 — 有界验收恢复协议
+
+保留全部稳定用例 ID，扩展现有 authoring/routing/review 用例覆盖原始 patch、真实基底约束、完整展开、不可修改基底与二次拒绝上限。15 个不同用例分批通过，原三项开发失败及复用映射保留；组件中的模型输出显式为合成输入，尚无真实供应商闭环通过。独立审查绑定 450 源文件及 835 编译文件。旧自主修复 live 驱动需版本化读取，未以组件检查替代阶段门禁。
