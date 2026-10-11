@@ -77,13 +77,22 @@ test('P7-EXPLORE-L01 real P5 candidates traverse four tiers retain active work a
   assert.equal(proposal.decision,'ready');assert.equal(proposal.iteration,null);assert.equal(proposal.steps.length,1);assert.equal(proposal.steps[0]!.id,'core');
   assert.deepEqual(proposal.criteria.map(c=>({id:c.id,kind:c.kind,target:c.target})),[{id:'math',kind:'command',target:'math.test.mjs'}]);
   assert.ok(!ready.session.research);const candidates=proposal.exploration??[];assertFourTierStimulus(candidates);
-  for(const candidate of candidates){assert.deepEqual(candidate.dependencies,[]);assert.deepEqual(candidate.relatedCriterionIds,['math']);assert.ok(candidate.qualityReason.trim()&&candidate.valueReason.trim());for(const source of candidate.sources){const message=ready.session.messages.find(m=>m.id===source.messageId);assert.ok(message&&source.quote&&message.text.includes(source.quote));}}
+  const requiredStepIds=new Set(proposal.steps.map(step=>step.id));
+  for(const candidate of candidates){
+    assert.equal(new Set(candidate.dependencies).size,candidate.dependencies.length,'Optional dependencies must be unique');
+    for(const dependency of candidate.dependencies){assert.notEqual(dependency,candidate.id,'Optional task cannot depend on itself');assert.ok(requiredStepIds.has(dependency),'Optional dependencies may name only actual required P5 steps');}
+    assert.deepEqual(candidate.relatedCriterionIds,['math']);assert.ok(candidate.qualityReason.trim()&&candidate.valueReason.trim());for(const source of candidate.sources){const message=ready.session.messages.find(m=>m.id===source.messageId);assert.ok(message&&source.quote&&message.text.includes(source.quote));}}
   for(const job of ready.session.jobs){assert.equal(job.status,'finished');assert.equal(job.error,null);assert.equal(job.stopConfirmed,true);assert.ok(job.usage!==null&&job.usage>0&&job.usage<=job.config.reservation);const actual=await actualModelCompletion(job.proofs);assert.deepEqual(actual.output,job.proposal);assert.deepEqual(actual.result.value,job.proposal);assert.equal(actual.result.threadId,job.threadId);assert.equal(actual.result.usage,job.usage);await proofs(job.proofs);for(const identity of job.identities)assert.equal((await inspectProcess(identity)).status,'stopped');}
   const originalProposal=canonical(proposal),admitted=await orchestration.dispatch({type:'admit',commandId:randomUUID(),sessionId,expectedRevision:ready.session.revision,explorationTier:'low'}) as GoalInspection;
   runtimeId=admitted.session.runtimeId!;schedulerId=admitted.session.graphAdmission!.policy.schedulerId;assert.ok(runtimeId&&schedulerId);
   const plan=store.scheduler.get(schedulerId).plan,planBytes=canonical(plan),contractBytes=canonical(admitted.run.contract),criteriaBytes=canonical(proposal.criteria);
   assert.equal(plan.limits.maxActive,2);assert.equal(plan.limits.maxNodes,8);assert.equal(plan.limits.maxDepth,1);assert.equal(plan.limits.deadlineMs-Date.parse(admitted.session.graphAdmission!.preparation.request.seed.createdAt),1_320_000);
   assert.equal(plan.tasks.filter(task=>task.node.required).length,1);assert.equal(plan.tasks.find(task=>task.node.required)!.node.id,'core');assert.equal(plan.tasks.filter(task=>!task.node.required).length,candidates.length);
+  for(const task of plan.tasks.filter(task=>!task.node.required)){
+    assert.ok(task.node.dependencies.includes('core'),'Every installed optional task must retain the actual required core input');
+    assert.equal(new Set(task.node.dependencies).size,task.node.dependencies.length,'Installed dependencies must be unique');
+    for(const dependency of task.node.dependencies){assert.notEqual(dependency,task.node.id);assert.ok(requiredStepIds.has(dependency),'Installed optional tasks cannot depend on optional or unknown nodes');}
+  }
   for(const task of plan.tasks){assert.equal(task.step.model,config.model);assert.equal(task.step.effort,config.effort);assert.equal(task.step.reservation,150_000);assert.equal(task.step.timeoutMs,600_000);}
   const sets=Object.fromEntries((['low','medium','high','unlimited'] as const).map(tier=>[tier,tierCandidateIds(plan,candidates,tier)])) as Record<ExplorationTier,string[]>;
   assert.ok(sets.low.length<sets.medium.length&&sets.medium.length<sets.high.length&&sets.high.length<sets.unlimited.length,'Real frozen candidate dependency closure must actually exercise all four boundaries');

@@ -1,3 +1,9 @@
+## v52 — 修正四档驱动依赖范围，保留真实覆盖失败
+
+- 不新增或删除稳定 ID：全局仍为 969 项。`p7.live-exploration-tier.001` 原目标允许候选依赖必需核心步骤；驱动改为仅接受实际 required step IDs，同时拒绝重复、自依赖、未知或可选节点依赖，并核对安装后仍持有核心输入。
+- 这是测试驱动对既有目标的纠错，不改变产品评分、四档差异断言、预算、期限或验收标准。原驱动失败（19,644 token）保留；修正后的真实运行因最低档位集合为 `[0,2,3]` 而失败（19,414 token），不能报为策略通过。
+- 当前真实监控单项通过及费用/停止/冻结证据见 README v52。单项通过不改变 P6–P8 developing 状态。
+
 ## v51 four-tier engineering exploration live candidate (not executed)
 
 - Add only `p7.live-exploration-tier.001`; preserve all 968 v50 IDs and metadata (969 total). Real P5 supplies candidates, then same-input public IPC CAS tier changes, actual in-flight lowering, submitted outputs and complete independent P4 delivery.
