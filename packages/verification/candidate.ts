@@ -73,6 +73,10 @@ export async function environmentFingerprint(scope?:VerificationEnvironmentScope
   if(codex)dependencies.codex=digest(await readFile(codex));else dependencies.codex='unavailable';
   const config=join(process.env.CODEX_HOME??join(homedir(),'.codex'),'config.toml');if(scope){dependencies.codexConfig=digest(canonical(await scopedConfiguration(config,scope)));await tree(dirname(await realpath(require.resolve('smol-toml'))));}else try{dependencies.codexConfig=digest(await readFile(config));}catch{dependencies.codexConfig='absent';}
   // Persist hashes, never environment values or account credentials.
-  dependencies.environment=digest(canonical(process.env));
+  // Managed-process ownership changes on every spawn; it is checked by process-control,
+  // not part of verifier semantics. Every other environment field remains binding.
+  const environment = { ...process.env };
+  delete environment.SUPERVISOR_PROCESS_OWNER;
+  dependencies.environment=digest(canonical(environment));
   return { ...value, digest: digest(canonical({value,dependencies})) };
 }

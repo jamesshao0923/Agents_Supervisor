@@ -1,14 +1,14 @@
 import {publishLegacyControlReviewFixture} from '../helpers/legacy-control-review-fixture.js';
 import test,{type TestContext} from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,mkdir,writeFile,realpath,rm} from 'node:fs/promises';
+import {mkdtemp,mkdir,writeFile,readFile,lstat,chmod,realpath,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {SupervisorStore} from '../../packages/persistence/store.js';
 import {LocalRuntimeAdapter} from '../../packages/runtime/index.js';
 import {VerificationController} from '../../packages/verification/controller.js';
-import {SupervisionController} from '../../packages/orchestration/supervision-controller.js';
+import {SupervisionController,buildSupervisionDiagnosisPrompt} from '../../packages/orchestration/supervision-controller.js';
 import type {GoalProposal} from '../../packages/contracts/p5.js';
 import type {SupervisionInspection} from '../../packages/contracts/p6-supervision-actions.js';
 import type {VerificationSpec} from '../../packages/contracts/p4.js';
@@ -45,6 +45,32 @@ test('P6-SCTL-I01 attach is payload idempotent and restart preserves a waiting r
   await assert.rejects(f.attach({maxRepairs:1}),/Conflicting supervision commandId/);
   await f.restart();const after=f.controller.inspect(first.loop.id);assert.equal(after.loop.phase,'executing');assert.equal(after.jobs.length,0);assert.equal(after.runtime.runtime.phase,'waiting-input');assert.equal(after.capabilities.modelMonitoring,true);assert.ok(after.monitor?.envelope);assert.equal(after.monitor.jobs.length,0);
   const listed=await f.controller.dispatch({type:'list'}) as SupervisionInspection[];assert.equal(listed[0]!.loop.id,first.loop.id);
+  // Actual file and permission digests are different domains, not inconsistent
+  // snapshots. Exercise the exact production diagnosis renderer without a model.
+  const run=f.store.runtime.inspect(f.runtimeId).run;
+  const criteria=f.store.goals.list().find(value=>value.id===run.id)!.proposal!.criteria;
+  for(const mode of [0o600,0o700]){
+    await chmod(join(f.workspace,'result.mjs'),mode);
+    const candidate=await captureCandidate(f.workspace,join(f.root,'hash-domain-'+mode));
+    const bytes=await readFile(join(candidate.tree,'result.mjs'));
+    const executable=(await lstat(join(candidate.tree,'result.mjs'))).mode&0o111;
+    assert.equal(executable,mode&0o111);
+    assert.equal(candidate.files['result.mjs'],digest(Buffer.concat([bytes,Buffer.from('\0executable:'+executable)])));
+    const content=new TextDecoder('utf-8',{fatal:true}).decode(bytes),contentSHA=digest(bytes);
+    assert.notEqual(contentSHA,candidate.files['result.mjs']);
+    const acceptance={contract:run.contract,criteria,candidate:{workspace:f.workspace,digest:candidate.digest,files:[{path:'result.mjs',content,sha256:contentSHA}]},environment:{node:process.version},failureContext:null,previousSpec:null};
+    const context={acceptance,candidate,failure:{kind:'verification' as const,jobId:'ordinary-render-only',planId:'ordinary-render-only',failedObligationIds:['value'],results:[],proofs:{}}};
+    const before=canonical(context),prompt=buildSupervisionDiagnosisPrompt(context);
+    assert.equal(canonical(context),before,'Rendering cannot rewrite original snapshot or context');
+    assert.match(prompt,/context\.candidate\.files\[path\].*mode & 0o111/);
+    assert.match(prompt,/context\.acceptance\.candidate\.files\[\]\.sha256.*content only/);
+    assert.match(prompt,/host strictly recomputes.*assertCandidate before model dispatch/);
+    assert.match(prompt,/do not attempt an unavailable SHA recomputation/);
+    assert.match(prompt,/actual same-domain content contradiction.*still requires block/);
+    assert.equal(prompt.slice(prompt.lastIndexOf('\n\n')+2),before,'Both full original objects remain in the actual model input');
+    assert.equal(acceptance.candidate.files[0]!.sha256,digest(acceptance.candidate.files[0]!.content));
+  }
+
 });
 test('P6-SCTL-I02 pending user requirements fence supervision without allocating or revising the task',async t=>{
   const f=await fixture(t),before=f.store.runtime.inspect(f.runtimeId);f.store.conversations.receive({conversationId:f.conversationId,commandId:'change',kind:'change',source:'user',text:'Please add another required result'});

@@ -23,7 +23,7 @@ Supervisor 的需求理解与计划已由模型驱动，P6 自动监督控制器
 - 跟进 core v6 已完成重启/追加实现、独立审核、最终验证和一次真实交付，但最后重开检查发现交付不再 current。197,769已知token、0未知、668份证明一致、52个所属进程停止。只读定位发现环境指纹包括每次spawn变化的 `SUPERVISOR_PROCESS_OWNER`；原断言前未保存status.reason，不能声称已取得当时原因原文。证据 `.supervisor-dev/p6-followup-core-v6-live-work/final-audit.json`。
 - 修复场景已完成真实初始审核/发布，并实际拒绝 +2 业务错误；诊断随后把两种不同口径的哈希当成冲突而选择阻塞，未进入修复/维护/交付。132,047已知token、0未知、652份证明一致、43进程停止。两份字段分别为内容加可执行权限摘要与纯内容SHA，按各自算法重算均正确。证据 `.supervisor-dev/p6-loop-supplied-1cc1f8b-live-work/final-result.json` 与 `hash-provenance.json`。
 
-下一步只修环境指纹的易变所有权字段和诊断的哈希语义呈现，保留重开、业务修复、维护及交付断言，不继续缩小这些核心要求。既有138项限定通过证据及所有旧FAIL保留。
+两处窄修已完成并经独审：环境指纹仅排除每次启动变化的进程所有权字段，其它环境和真实身份校验不变；新诊断明确两种hash口径及宿主实际校验，不让模型因未呈现内部执行位而误报冲突。既有ENV-I05真实四进程回归通过（不同owner稳定，TZ和其它环境变更仍失效），SCTL-I01真实文件600/700权限与上下文检查通过。没有增加测试ID，原失败不追认。真实重开、业务修复、维护及交付仍须复验。证据 `.supervisor-dev/p6-owner-fingerprint-work/final-audit.json` 和 `.supervisor-dev/p6-diagnosis-hash-semantics-r2-work/component-result.json`。
 
 ## 先前开发检查点（2026-10-12，精简必要集尚未通过）
 

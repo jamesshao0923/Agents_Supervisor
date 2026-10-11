@@ -1,3 +1,9 @@
+## 2026-10-12 — Environment ownership and diagnosis digest semantics
+
+Update existing ENV-I05 with actual separately owned processes: owner-only restarts preserve both fingerprints; real TZ and another environment field still invalidate. The only excluded field is SUPERVISOR_PROCESS_OWNER; all ownership/proof checks remain. Original owner failure and two fixture preparation failures retained.
+
+Update existing SCTL-I01 with actual chmod600/700 snapshots and the exact new diagnosis renderer. Explain content-only versus content-plus-executable hashes and retained host verification; do not require the model to recompute SHA from unavailable mode data. One selected case per change actually passed; no new IDs, no history rewrite or live pass claim.
+
 ## 2026-10-12 — Minimal functional followup and supplied initial loop assets
 
 Core v6 defers the sample-specific dependency/framework policy and removes its external-dependency control. Seven controls retain API positives, arithmetic/type negatives and missing-module; wrong-API controls have successful CLI entries so actual P4 reaches the independent detector. All 154 followup lifecycle assertions remain.
