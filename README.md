@@ -20,6 +20,8 @@ P7 手写检查器现在捕获真实 Promise 的异步断言拒绝：归属固�
 
 合入前独立审查和正常构建通过。证据 `.supervisor-dev/p7-parallel-checker-promise-work/actual-report.json`、`p7-parallel-checker-promise-r2-work/ready.json` 与 `root-independent-review.json`。真实并行门禁仍需另行通过，原模型拒绝及费用记录不变。
 
+原自主修复 L01 也已实际执行并失败：它走旧的完整方案作者路径，三次作者返回完整结果，但两次 P4 正例均为 unknown，最终耗尽一次重建额度并正确阻塞，未修复代码、未发布或交付。已知194,973 token全部结算，156份证明一致、22个所属进程停止。第三次作者只修改覆盖说明，没有修改失败检查器。证据 `.supervisor-dev/p6-original-autoloop-live-work/final-result.json`。当前桌面默认分步作者路径的600秒跟进场景仍在运行；旧路径失败不能替代对当前默认路径的实际验证。
+
 ## 先前开发检查点（2026-10-11，有界验收调用配置）
 
 presentation9 真实在途跟进仍失败：定义完成，正例/检查器生成在原 240 秒截止，0 P4/交付。该步约 184 秒才开始可见正文，没有日志积压或上下文超限证据；最终已知 214,678 token，另 157,032 为未知用量预留，不当作零或已知消耗。162 份证明一致、25 个所属进程停止。证据 `.supervisor-dev/p6-presentation9-live-work/final-result.json` 与 `DIAGNOSIS.md`。
