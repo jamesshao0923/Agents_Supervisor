@@ -3,7 +3,7 @@
   "date": "2026-10-12",
   "authorization": "User explicitly requested reduced P6-P8 acceptance tests with a record of omissions and potential risks for later field validation.",
   "scope": "Personal field-trial gate; source tests and original failures retained. Exclusion is not a pass or a claim of duplicate coverage.",
-  "catalogRevision": "dev-p6-stage-recovery-per-stage-20261012",
+  "catalogRevision": "dev-p6-followup-supplied-verifier-v2-20261012",
   "reason": "Deferred from default stage gate to shorten personal-trial delivery. Run when affected by changes, field failures, or before broader release.",
   "stages": {
     "P6": {
@@ -2554,6 +2554,63 @@
       "risk": "A later full rebuild might lose the rejected fragment or paused attempt linkage, miscalculate remaining allowance, or reject valid recovery despite each part working separately.",
       "revisitWhen": "A real task or the retained L01 naturally reaches fragment regeneration followed by full rebuild; modification of this charged ancestry; broader release. Add the minimal same-case check if needed; no automatic full historical rerun.",
       "evidenceScope": "No claim this combination has passed; future actual observation may close the gap only with its own bound evidence."
+    },
+    {
+      "id": "revised-contract-dynamic-author-through-p4",
+      "kind": "scope-revision-not-a-new-test-case-id",
+      "relatedCaseIds": [
+        "p6.live-running-followup.001",
+        "p6.live-supervision-loop.001"
+      ],
+      "status": "deferred-not-demonstrated",
+      "scope": "Automatic dynamic acceptance author and bounded author recovery on a revised contract after active followup and service restart, followed by independent P4 and delivery.",
+      "currentEvidence": "Original running-followup provider failures and unknown reservations remain unchanged. New scope v3 supplies frozen verifier assets and still requires actual independent P4 qualification/final delivery. L01 remains independently required and its failures/pending state are not pass evidence.",
+      "reason": "User-authorized reduced personal-trial scope separates followup control from dynamic author generation. It is not complete assertion equivalence.",
+      "risk": "Revised-context reference, schema, author-recovery and automatic asset generation combinations lack end-to-end provider coverage.",
+      "revisitWhen": "Broader release or real changed-contract author failure; no automatic historical rerun.",
+      "evidenceScope": "No P6 full-stage certification or autonomous-author claim from this revised live case."
+    },
+    {
+      "id": "delivered-then-followup-second-delivery",
+      "kind": "scenario-gap-not-a-new-test-case-id",
+      "relatedCaseIds": [
+        "p6.live-running-followup.001"
+      ],
+      "status": "deferred-not-demonstrated",
+      "scope": "A real already-sealed delivery becomes historical after changed requirements, followed by a second independent delivery.",
+      "currentEvidence": "This active-followup case sends the change before its first delivery; neither original nor revised case instantiates an old delivered receipt.",
+      "reason": "Do not invent an old delivery or claim stale receipt coverage from execution snapshots.",
+      "risk": "Delivered-history invalidation and second-delivery lifecycle remain unverified by this case.",
+      "revisitWhen": "Dedicated terminal followup gate or actual field scenario.",
+      "evidenceScope": "Only one independently sealed delivery is required here."
+    },
+    {
+      "id": "followup-node-test-and-async-checker-combinations",
+      "kind": "scope-revision-not-a-new-test-case-id",
+      "relatedCaseIds": [
+        "p6.live-running-followup.001"
+      ],
+      "status": "deferred-not-demonstrated",
+      "scope": "Legal node:test registration/runners including top-level await test and asynchronous assert.rejects combinations. New initial goal explicitly requires synchronous top-level assert/strict; followup inherits that scope.",
+      "currentEvidence": "Original legal sample SHA90cb7e71a9e7a6a04843b47ef571eb32bbd8fd9af98cf348905a55fe62a0c4ea and preflight FAIL audit SHA162aab84f2a71f64d80c21e97dfed789b3aa22106ca0d73c178f76f7905d5b28 retained in p6-running-followup-supplied-verifier-work. Ordinary native entry passed while checker timed out. Diagnostic reports 2dc2f56a/2f39cd9f preserve exact input and actual stopped evidence; not provider/P4 success.",
+      "reason": "User-authorized narrower personal-trial scenario avoids a new Node execution API or custom scheduling framework. Not equivalent to old wide scenario.",
+      "risk": "Fixed checker cannot qualify legitimate framework/async tests; it must report unknown and block rather than falsely reject business semantics or count as a qualified negative.",
+      "revisitWhen": "Actual broader project or release requires framework/asynchronous test support.",
+      "evidenceScope": "Only synchronous script followup and real independent P4 delivery; original failures and unknown provider accounting remain unchanged."
+    },
+    {
+      "id": "author-process-artifact-obligation-distinction",
+      "kind": "known-risk-not-a-new-test-case-id",
+      "relatedCaseIds": [
+        "p6.live-supervision-loop.001"
+      ],
+      "status": "known-failure-not-resolved-generally",
+      "scope": "Author distinguishes implementation process instructions from current artifact qualification without an explicit scenario hint.",
+      "currentEvidence": "caf9b5f real L01 FAIL: definition author added implementation-time authenticated receipts absent from original current-execution criterion. Typed recovery expanded but still returned unknown; original actual implementation exit0/exit1/exit0 logs exist. final-result SHA fdc281f5f3c226de05bd904a4ff2c7f27498b2ab0b7c37d38d6687b2a5a889d0; root-cause SHA d17427d6021a603961e245b01eda1ee366879883fe48554ea74bee6d8ef00792.",
+      "reason": "Next single scenario explicitly separates process actions from current artifact criteria; this is not deletion of an original business requirement or a general author fix.",
+      "risk": "Additional invented or impossible obligations may block valid projects; qualification controls cannot possess an unrelated historical execution receipt.",
+      "revisitWhen": "First field task without explicit distinction, or changes to author semantic mapping; compare original criteria and derived obligations.",
+      "evidenceScope": "Old failure retained; no original business assertion or product acceptance policy relaxed."
     }
   ]
 }

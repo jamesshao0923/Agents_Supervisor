@@ -1,8 +1,16 @@
-## 2026-10-12 — Typed replacement recovery, same necessary selection
+## 2026-10-12 — Clarify current-artifact L01 criterion
 
-- New presentation11 / acceptance-replace-v2 uses schema-bound typed values; legacy v1 rendering and application remain available. Closed path inventory sorts before schema grouping so persisted canonical inputs reconstruct identically.
-- Reused U02, author-stages I01 and author-review-rebuild I03; 3/3 actual component checks passed, zero skipped. Synthetic model protocol is explicit; not real-provider acceptance. No added stable IDs or expanded default matrix.
-- Original fixture-feedback failure and subsequent canonical-order failure are retained. Full validation, shared costs, call limits, deadlines and P4 review were not relaxed.
+Only append goal wording separating implementation actions from current artifact/control qualification; all original goal text, business assertions, fault injection and caps remain. The observed author-added historical obligation was absent from the original criterion. Preserve caf9b5f FAIL and record general obligation-expansion risk; no new stable ID, production policy or claimed live pass.
+
+## 2026-10-12 — running-followup scope v3: synchronous script, supplied verifier
+
+User-authorized scope revision of existing p6.live-running-followup.001, not assertion-equivalent replacement. Initial goal now explicitly requires synchronous top-level assert/strict without node:test or asynchronous test combinations; followup inherits it. All arithmetic/invalid-input, original criterion preservation, actual active writer/restart/exact-once/two P2 executions, independent full P4/delivery/accounting/stops remain. The original pre-author block is no longer claimed byte-exact: only the two goal-text insertions change it.
+
+The fixed checker returns unknown for unsupported node:test/framework or asynchronous entry syntax. Original legal async/computed sample and 30s timeout FAIL162aab plus two 5s diagnoses remain; not rewritten as a failed business control. New valid additive/computed control is synchronous. Ten qualification controls remain; the preparatory selection also checks the original async sample returns unknown outside the qualification inventory. No production API, permissions, business limits, stable IDs or suites change. Revised-contract autonomous author→P4 and delivered-then-followup second delivery remain explicitly deferred. No new provider/component PASS claimed.
+
+## 2026-10-12 — Running-followup scope v2: supplied verifier, real independent P4
+
+User-authorized reduction retains the stable ID and all pre-author active writer/restart/exact-once/criterion-preservation/two-execution assertions. The later dynamic-author/stage/route assertions are explicitly removed from this case and recorded as a deferred revised-contract author combination, not equivalent or passed coverage. Frozen supplied checker/controls must still pass actual independent P4 model review, publication, full final execution, sealed delivery and reopen over the same Run and complete revised contract. L01 remains a separate necessary autonomous-author/repair/maintenance gate; its failures do not certify this omitted combination. No previous delivery existed in the old case, so stale-delivery/second-delivery coverage is separately deferred. Original failures/unknown charges and original provider/output evidence are retained. No stable IDs, case counts, production limits or business standards changed. Preparation/build only; no new test or provider pass claim.
 
 ## 2026-10-12 — Prepared versioned per-stage fragment recovery
 

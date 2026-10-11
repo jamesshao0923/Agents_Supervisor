@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-p6-stage-recovery-per-stage-20261012",
+  "revision": "dev-p6-followup-supplied-verifier-sync-v3-20261012",
   "modules": [
     {
       "id": "dev-contracts",
@@ -11251,20 +11251,20 @@
     },
     {
       "id": "p6.integration-supervision-monitor-controller.007",
-      "name": "P6-MCTL-I07 one real wake timer records four consecutive 10\u201315-second health intervals and pause/resume without model allocation",
+      "name": "P6-MCTL-I07 one real wake timer records four consecutive 10–15-second health intervals and pause/resume without model allocation",
       "suiteId": "integration-supervision-monitor-controller",
       "module": "orchestration",
       "layer": "integration",
       "covers": [
         "p6-monitor-controller"
       ],
-      "scenario": "P6-MCTL-I07 one real wake timer records four consecutive 10\u201315-second health intervals and pause/resume without model allocation",
+      "scenario": "P6-MCTL-I07 one real wake timer records four consecutive 10–15-second health intervals and pause/resume without model allocation",
       "impactTags": [
         "p6-monitor-foundation",
         "v38-combined-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
-      "assertions": "tests/integration/supervision-monitor-controller.test.ts :: P6-MCTL-I07 one real wake timer records four consecutive 10\u201315-second health intervals and pause/resume without model allocation",
+      "assertions": "tests/integration/supervision-monitor-controller.test.ts :: P6-MCTL-I07 one real wake timer records four consecutive 10–15-second health intervals and pause/resume without model allocation",
       "cleanup": "Stop owned processes and preserve formal evidence including failures",
       "status": "active"
     },
@@ -21396,11 +21396,11 @@
       "covers": [
         "p6-running-followup-live"
       ],
-      "scenario": "Actual public IPC change while a physical model writer is active; service restart retains worker; exact-once independent revision preserves original criteria; automatic full P4 delivery",
+      "scenario": "Scope v3: explicit synchronous top-level assert/strict math script (no node:test or asynchronous test combinations); actual active writer and service restart; exact-once real followup preserves original criteria and executes additive requirement; supplied frozen checker/controls through independent actual P4 IPC review, complete final verification, delivery and reopen. Revised-contract automatic authoring explicitly deferred.",
       "impactTags": [
         "p6-running-followup-live"
       ],
-      "prerequisites": "Authenticated installed Codex; advertised inherited model and effort; frozen exact selection; actual supplier execution required, no injected protocol fixture",
+      "prerequisites": "Authenticated installed Codex; advertised inherited model and effort; frozen exact selection; actual supplier execution required, no injected protocol fixture; supplied verifier is not autonomous test generation; independent reviewer must reject any unsupported admitted requirement; scope v3 is not equivalent to the old wider framework scenario; unsupported framework observations are unknown, never qualified negatives",
       "assertions": "tests/live/running-followup.test.ts :: P6 running followup survives real service restart applies once and independently delivers original plus additive requirements",
       "cleanup": "Cancel unfinished actual runtime, stop owned service/worker/model identities, preserve all DB/raw output/usage/unknown reservations and failure archives",
       "status": "active"
