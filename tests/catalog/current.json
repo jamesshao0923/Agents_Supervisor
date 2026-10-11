@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-v48-indexed-consumer-author-abi",
+  "revision": "dev-v49-live-gate-entries",
   "modules": [
     {
       "id": "dev-contracts",
@@ -1041,6 +1041,24 @@
       "layer": "integration",
       "file": "dist/tests/integration/indexed-schema-lifecycle.test.js",
       "timeoutMs": 120000
+    },
+    {
+      "id": "live-scheduled-loop",
+      "layer": "live",
+      "file": "dist/tests/live/scheduled-loop.test.js",
+      "timeoutMs": 3420000
+    },
+    {
+      "id": "live-scheduled-loop-cap",
+      "layer": "live",
+      "file": "dist/tests/live/scheduled-loop-cap.test.js",
+      "timeoutMs": 1800000
+    },
+    {
+      "id": "live-running-followup",
+      "layer": "live",
+      "file": "dist/tests/live/running-followup.test.js",
+      "timeoutMs": 3420000
     }
   ],
   "cases": [
@@ -21189,6 +21207,60 @@
       "prerequisites": "Real SQLite/FS and owned Node. Protocol judgments/usage are explicitly synthetic, no provider/native acceptance.",
       "assertions": "tests/integration/indexed-schema-lifecycle.test.ts :: P8-IDXC-I02 actual managed schema cancel close restart deadline and per-execution private directories preserve owned stop receipts",
       "cleanup": "Stop exact owned processes, close SQLite and retain original roots and evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p7.live-scheduled-loop.001",
+      "name": "P7-LOOP-L01 ordinary P5 admits real three iterations report branches integrates and independently delivers",
+      "suiteId": "live-scheduled-loop",
+      "module": "orchestration",
+      "layer": "live",
+      "covers": [
+        "p7-auto-loop-real"
+      ],
+      "scenario": "P7-LOOP-L01 ordinary P5 admits real three iterations report branches integrates and independently delivers",
+      "impactTags": [
+        "p7-auto-loop-live"
+      ],
+      "prerequisites": "Real Codex planning/implementations/author/review, ordinary admission, original 1.6M token ledger and bounded product deadlines",
+      "assertions": "tests/live/scheduled-loop.test.ts :: P7-LOOP-L01 ordinary P5 admits real three iterations report branches integrates and independently delivers",
+      "cleanup": "Retain all failures and costs, stop owned processes, never seed plan or P4 approval",
+      "status": "active"
+    },
+    {
+      "id": "p7.live-scheduled-loop-cap.001",
+      "name": "P7-LOOP-L02 actual nested Codex iterations reach original cap without fourth dispatch or false delivery and remain stopped after reopen",
+      "suiteId": "live-scheduled-loop-cap",
+      "module": "orchestration",
+      "layer": "live",
+      "covers": [
+        "p7-nested-loop-cap-live"
+      ],
+      "scenario": "P7-LOOP-L02 actual nested Codex iterations reach original cap without fourth dispatch or false delivery and remain stopped after reopen",
+      "impactTags": [
+        "p7-nested-loop-cap-live"
+      ],
+      "prerequisites": "Authenticated actual Codex; actual P5 nested strategy, three sealed increment packages, known shared fees and physical stop; no synthetic provider output",
+      "assertions": "tests/live/scheduled-loop-cap.test.ts :: P7-LOOP-L02 actual nested Codex iterations reach original cap without fourth dispatch or false delivery and remain stopped after reopen",
+      "cleanup": "Retain all failures and costs, stop owned processes, never seed plan or P4 approval",
+      "status": "active"
+    },
+    {
+      "id": "p6.live-running-followup.001",
+      "name": "P6 running followup survives real service restart applies once and independently delivers original plus additive requirements",
+      "suiteId": "live-running-followup",
+      "module": "orchestration",
+      "layer": "live",
+      "covers": [
+        "p6-running-followup-live"
+      ],
+      "scenario": "Actual public IPC change while a physical model writer is active; service restart retains worker; exact-once independent revision preserves original criteria; automatic full P4 delivery",
+      "impactTags": [
+        "p6-running-followup-live"
+      ],
+      "prerequisites": "Authenticated installed Codex; advertised inherited model and effort; frozen exact selection; actual supplier execution required, no injected protocol fixture",
+      "assertions": "tests/live/running-followup.test.ts :: P6 running followup survives real service restart applies once and independently delivers original plus additive requirements",
+      "cleanup": "Cancel unfinished actual runtime, stop owned service/worker/model identities, preserve all DB/raw output/usage/unknown reservations and failure archives",
       "status": "active"
     }
   ]
