@@ -14,7 +14,13 @@ Supervisor 的需求理解与计划已由模型驱动，P6 自动监督控制器
 
 本轮精简验证已取得 40 个不同核心单元检查通过、零跳过。P6 V2 实跑已知用量 261,465 token，全部结算，207 份证明哈希匹配、30 个所属进程停止，0 交付。终态证据 `.supervisor-dev/p6-v2-personal-live-work/final-result.json`；状态读取阻塞修复已通过独立审查并合入：只读查询不再等待变更队列；没有提高客户端超时。presentation9 的一次真实闭环仍因正例生成期限失败，不能将组件结果算作阶段通过。
 
-## 当前开发检查点（2026-10-11，有界验收调用配置）
+## 当前开发检查点（2026-10-11，异步断言回归）
+
+P7 手写检查器现在捕获真实 Promise 的异步断言拒绝：归属固定在调用时，只记录原有真实 AssertionError，再抛回同一错误；同步行为不改。原检查器对合法 `await assert.rejects()` 的实际误判已保留，修后15项相关真实组件检查通过。为长期回归，既有 live 用例保留原10个控制并新增此正例；新增控制独立复验1项通过、九个变体均检出，其他14项按不变检查器与输入复用，没有整批再跑或新增稳定ID。
+
+合入前独立审查和正常构建通过。证据 `.supervisor-dev/p7-parallel-checker-promise-work/actual-report.json`、`p7-parallel-checker-promise-r2-work/ready.json` 与 `root-independent-review.json`。真实并行门禁仍需另行通过，原模型拒绝及费用记录不变。
+
+## 先前开发检查点（2026-10-11，有界验收调用配置）
 
 presentation9 真实在途跟进仍失败：定义完成，正例/检查器生成在原 240 秒截止，0 P4/交付。该步约 184 秒才开始可见正文，没有日志积压或上下文超限证据；最终已知 214,678 token，另 157,032 为未知用量预留，不当作零或已知消耗。162 份证明一致、25 个所属进程停止。证据 `.supervisor-dev/p6-presentation9-live-work/final-result.json` 与 `DIAGNOSIS.md`。
 
