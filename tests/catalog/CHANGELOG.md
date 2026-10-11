@@ -1,3 +1,10 @@
+## 2026-10-12 — Prepared versioned per-stage fragment recovery
+
+- Added `p6.integration-author-stages.004` for two actual semantic fragment rejections and five charged calls, with original max4 denial retained. Pending execution; no pass claim.
+- Policy1 or mixed ancestry retains one session recovery; new policy2 permits one immutable rejection root per frozen stage. Known0 resumptions preserve the same root and remain charged attempts.
+- L01 observation follows the versioned policy; all delivery, maintenance, cost and time assertions remain.
+- P6 personal gate 49 → 50; P7/P8 remain 47/51, deduplicated union 139 → 140. No deferred scenario is marked passed. Integration author-stages suite observation 300 → 420s accommodates the added 120s test; product limits unchanged.
+
 ## 2026-10-12：真实失败对应的最小回归
 
 V2最后片段在成功落库前应用原完整组装校验；作者U01与片段I03实际2/2通过。I03以现场删空负例替代旧overlap失败输入，其余恢复/收费/停止/重开/P4/次数上限断言保持；overlap纯解析仍在U02，旧r3实际恢复链通过单独保留。审核重建I02扩当前生产输入源码绑定与旧格式兼容；真实组件1/1通过，模型判断为显式合成协议，不是模型业务验收。其两次测试配置/对象顺序失败留存，生产修复未随之放宽。无新增ID，默认精简范围不变；审核提示/控制源码格式变化按影响复验I02。

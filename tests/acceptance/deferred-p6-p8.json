@@ -3,14 +3,14 @@
   "date": "2026-10-12",
   "authorization": "User explicitly requested reduced P6-P8 acceptance tests with a record of omissions and potential risks for later field validation.",
   "scope": "Personal field-trial gate; source tests and original failures retained. Exclusion is not a pass or a claim of duplicate coverage.",
-  "catalogRevision": "dev-p6-stage-recovery-separated-20261012",
+  "catalogRevision": "dev-p6-stage-recovery-per-stage-20261012",
   "reason": "Deferred from default stage gate to shorten personal-trial delivery. Run when affected by changes, field failures, or before broader release.",
   "stages": {
     "P6": {
       "originalProfile": "tests/acceptance/extended/p6.json",
       "originalProfileSHA256": "b64e9b588d473bb0eea7644a4efa5124db9787b86b6233045fb2247067b38393",
       "previousDefaultCount": 656,
-      "newDefaultCount": 49,
+      "newDefaultCount": 50,
       "keptCaseIds": [
         "dev.unit-boundaries.001",
         "dev.unit-boundaries.002",
@@ -19,6 +19,7 @@
         "p6.integration-author-stages.001",
         "p6.integration-author-stages.002",
         "p6.integration-author-stages.003",
+        "p6.integration-author-stages.004",
         "p6.integration-runtime-cancellation-sync.001",
         "p6.integration-runtime-cancellation-sync.002",
         "p6.integration-runtime-cancellation-sync.003",

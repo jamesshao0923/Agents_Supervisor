@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "stage": "P6",
-  "revision": "p6-personal-trial-stage-recovery-developing",
+  "revision": "p6-personal-trial-per-stage-recovery-developing",
   "caseIds": [
     "p6.unit-loop-policy.001",
     "p6.unit-loop-policy.002",
@@ -47,7 +47,8 @@
     "p6.live-running-followup.001",
     "p6.integration-author-stages.001",
     "p6.integration-author-stages.002",
-    "p6.integration-author-stages.003"
+    "p6.integration-author-stages.003",
+    "p6.integration-author-stages.004"
   ],
   "requiredRisks": [
     "p0.unit-boundaries.001",

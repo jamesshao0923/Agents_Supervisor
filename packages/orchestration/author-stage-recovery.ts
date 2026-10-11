@@ -6,7 +6,7 @@ import {assertCandidate} from '../verification/candidate.js';
 import {inspectProcess,type ProcessIdentity} from '../process-control/index.js';
 import {authorStageDigest,parseAuthorStageInput} from './author-stage-protocol.js';
 import {authorStageChargePrefix,assertAuthorStagePolicy,assertAuthorStageParents,readRejectedAuthorStage,stageAttemptRef} from './author-stage-proofs.js';
-import {parseStageRecoveryInput,renderStageRecoveryInput} from './author-stage-recovery-presentation.js';
+import {assertStageRecoveryRootPolicy,parseStageRecoveryInput,renderStageRecoveryInput} from './author-stage-recovery-presentation.js';
 
 function ensure(value:unknown,message:string):asserts value {if(!value)throw Error('Author stage recovery: '+message);}
 const hash=(value:string)=>createHash('sha256').update(value).digest('hex');
@@ -36,7 +36,10 @@ function actual(store:SupervisorStore,dataDir:string,failedJobId:string){
   const rejected=readRejectedAuthorStage(job,dataDir);
   assertAuthorStageParents(job,id=>repo.job(id),dataDir);
   const prior=authorStageChargePrefix(job,id=>repo.job(id),dataDir);
-  ensure(!prior.some(p=>parseStageRecoveryInput(p.input)),'stage-local regeneration already used');
+  assertStageRecoveryRootPolicy([...prior.flatMap(job=>{const recovery=parseStageRecoveryInput(job.input);return recovery?[{
+  schemaVersion:recovery.context.stageRecovery.schemaVersion,sessionId:recovery.context.authorStage.sessionId,
+  index:recovery.context.authorStage.index,rejectionJobId:recovery.context.stageRecovery.rejection.jobId}]:[];}),{
+  schemaVersion:2,sessionId:input.context.authorStage.sessionId,index:input.context.authorStage.index,rejectionJobId:job.id}]);
   const charged=[...prior,job];assertStageAttemptLedger(store,job,charged);
   ensure(run.attempts.every(a=>a.settled)&&run.operations.every(o=>o.status==='confirmed')&&run.leases.every(l=>l.released),'quiet settled boundary required');
   const workspaceBoundary=store.authorRouting.workspaceBoundary(runtime.workspace);
@@ -46,7 +49,7 @@ function actual(store:SupervisorStore,dataDir:string,failedJobId:string){
   const reservation=binding.sessionTokenCeiling-charged.reduce((sum,j)=>sum+j.usage!,0);
   ensure(Number.isSafeInteger(reservation)&&reservation>0,'shared session budget exhausted');
   const next=renderStageRecoveryInput({acceptance:input.context.acceptance,candidate:input.context.candidate,binding:binding as import('../contracts/p6-author-stages.js').HostAuthorStageBindingV2,parents:input.context.authorStageParents},
-    {schemaVersion:1,rejection:rejected.ref,raw:rejected.raw,previousAttempt:null});
+    {schemaVersion:2,rejection:rejected.ref,raw:rejected.raw,previousAttempt:null});
   return {job,loop,run,input:next,reservation,charged,workspaceBoundary};
 }
 /** Complete raw rejection + actual stop outside, exact re-read and reservation inside the original transaction. */

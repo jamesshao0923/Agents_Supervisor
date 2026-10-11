@@ -1,6 +1,6 @@
 import {parseAuthorStageInput,parseAuthorStageOutput} from '../../packages/orchestration/author-stage-protocol.js';
 import {assertStoredAuthorStage,assertAuthorStageParents,assertAuthorStageAssemblyProof,authorStageChargePrefix,readRejectedAuthorStage,stageAttemptRef} from '../../packages/orchestration/author-stage-proofs.js';
-import {parseStageRecoveryInput} from '../../packages/orchestration/author-stage-recovery-presentation.js';
+import {assertStageRecoveryRootPolicy,parseStageRecoveryInput} from '../../packages/orchestration/author-stage-recovery-presentation.js';
 import {assertStageAttemptLedger} from '../../packages/orchestration/author-stage-recovery.js';
 import {resolveAuthorBundle,assertAuthorExpansionProof,patchInput,authorPatchSchema} from '../../packages/orchestration/author-result-patch.js';
 import {assertLiveMaintenance} from './supervision-loop-maintenance-checker.js';
@@ -148,7 +148,8 @@ test('P6-LOOP-L01 real autonomous supervision authors reviews rejects repairs an
   const chargedStages=[...authorStageChargePrefix(assembly,readAuthor,data),assembly];
   assertStageAttemptLedger(store,assembly,chargedStages);
   const stageRejections=chargedStages.filter(job=>job.error&&job.modelStarted);
-  assert.ok(stageRejections.length<=1,'One typed fragment rejection may be regenerated within the original session');
+  const recoveryRoots=chargedStages.map(job=>parseStageRecoveryInput(job.input)).filter(input=>input!==null);
+  assertStageRecoveryRootPolicy(recoveryRoots.map(input=>({schemaVersion:input.context.stageRecovery.schemaVersion,sessionId:input.context.authorStage.sessionId,index:input.context.authorStage.index,rejectionJobId:input.context.stageRecovery.rejection.jobId})));
   const rejectedIds=new Set<string>();
   for(const job of stageRejections){const rejected=readRejectedAuthorStage(job,data);rejectedIds.add(job.id);await save('retained-stage-rejection-'+job.id,{job,rejected});}
   for(const job of chargedStages){

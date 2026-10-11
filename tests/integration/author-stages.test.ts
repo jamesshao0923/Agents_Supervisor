@@ -269,6 +269,74 @@ test('P6-AUTH-STAGE-I03 rejected fragment is regenerated once with charged ances
 
 });
 
+test('P6-AUTH-STAGE-I04 policy2 recovers distinct frozen stages once with all five calls charged and original max4 still blocks',{timeout:120000},async t=>{
+ for(const calls of [5,4]){
+  const f=await fixture(t,{protocol:AUTHOR_STAGE_PROTOCOL_V2,calls});
+  const badPositive=structuredClone(f.fragments[1]!) as AuthorPositiveStageV2;
+  badPositive.verifierFiles[0]!.path='not-the-frozen-detector.mjs';
+  const badNegative=structuredClone(f.fragments[2]!) as AuthorNegativeStage;
+  badNegative.controls[0]!.fileChanges=[{operation:'delete',path:'value.mjs'}];
+  const transport=new NodeFragments(request=>{
+   const job=f.store.supervision.job(request.id),input=parseAuthorStageInput(job.input)!;
+   if(!parseStageRecoveryInput(job.input)&&input.context.authorStage.index===1)return badPositive;
+   if(!parseStageRecoveryInput(job.input)&&input.context.authorStage.index===2)return badNegative;
+   return f.fragments[input.context.authorStage.index];
+  },{usage:5});
+  let runner=f.runner(transport),job=f.begin();
+  const definition=await runner.run(job.id);await assertProofs(f,definition);
+  job=advanceAuthorStage(f.store,f.data,definition)!;
+  await assert.rejects(runner.run(job.id),/Supervision job has no applicable result/);
+  const failedPositive=f.store.supervision.job(job.id);
+  assert.equal(failedPositive.error,'Author stage: verifier inventory differs from definition');
+  assert.deepEqual(readRejectedAuthorStage(failedPositive,f.data).raw,badPositive);
+  const positiveReplacement=await beginAuthorStageRecovery(f.store,f.data,failedPositive.id);
+  assert.equal(parseStageRecoveryInput(positiveReplacement.input)!.context.stageRecovery.schemaVersion,2);
+  assert.equal(positiveReplacement.config.reservation,20);
+  const positive=await runner.run(positiveReplacement.id);await assertProofs(f,positive);
+  assert.deepEqual(await beginAuthorStageRecovery(f.store,f.data,failedPositive.id),positive);
+  await assert.rejects(beginAuthorStageRecovery(f.store,f.data,positive.id),/original V2 fragment/);
+  job=advanceAuthorStage(f.store,f.data,positive)!;
+  await assert.rejects(runner.run(job.id),/Supervision job has no applicable result/);
+  const failedNegative=f.store.supervision.job(job.id);
+  assert.equal(failedNegative.error,'$output.controls[1].files: array length outside schema');
+  assert.deepEqual(readRejectedAuthorStage(failedNegative,f.data).raw,badNegative);
+  const retained=[definition,failedPositive,positive,failedNegative];
+  assert.equal(transport.calls,4);assert.equal(f.store.runtime.inspect(f.runtime.id).run.budget.spent,20);
+  await runner.close();f.reopen();runner=f.runner(transport);await runner.initialize();
+  const before=f.store.runtime.inspect(f.runtime.id);
+  if(calls===4){
+   await assert.rejects(beginAuthorStageRecovery(f.store,f.data,failedNegative.id),/not enough calls/);
+   assert.deepEqual(f.store.runtime.inspect(f.runtime.id),before);
+   assert.equal(f.store.supervision.get(f.loop.id).reasoningCount,4);assert.equal(transport.calls,4);
+  }else{
+   const negativeReplacement=await beginAuthorStageRecovery(f.store,f.data,failedNegative.id);
+   assert.equal(parseStageRecoveryInput(negativeReplacement.input)!.context.stageRecovery.schemaVersion,2);
+   assert.equal(negativeReplacement.config.reservation,10);
+   assert.deepEqual(authorStageChargePrefix(negativeReplacement,id=>f.store.supervision.job(id),f.data).map(job=>job.id),retained.map(job=>job.id));
+   const completed=await runner.run(negativeReplacement.id);await assertProofs(f,completed);
+   assertAuthorStageAssemblyProof(completed,id=>f.store.supervision.job(id),f.data);
+   assert.deepEqual(resolveAuthorBundle(completed,id=>f.store.supervision.job(id),f.data).bundle,f.bundle);
+   assert.equal(transport.calls,5);assert.equal(f.store.supervision.get(f.loop.id).reasoningCount,5);
+   assert.equal(f.store.runtime.inspect(f.runtime.id).run.budget.spent,25);
+   await assert.rejects(beginAuthorStageRecovery(f.store,f.data,completed.id),/original V2 fragment/);
+   assert.deepEqual(await beginAuthorStageRecovery(f.store,f.data,failedNegative.id),completed);
+   assert.equal(transport.calls,5);
+   await runner.close();f.reopen();runner=f.runner(transport);await runner.initialize();
+   assert.deepEqual(await runner.run(completed.id),completed);assert.equal(transport.calls,5);
+   assertAuthorStageAssemblyProof(completed,id=>f.store.supervision.job(id),f.data);
+  }
+  for(const original of retained){
+   assert.deepEqual(f.store.supervision.job(original.id),original);
+   for(const [path,digest]of Object.entries(original.proofs))assert.equal(sha(readFileSync(path)),digest);
+   for(const identity of original.identities)assert.equal((await inspectProcess(identity)).status,'stopped');
+  }
+  const run=f.store.runtime.inspect(f.runtime.id).run;
+  assert.ok(run.attempts.every(attempt=>attempt.settled));assert.ok(run.operations.every(operation=>operation.status==='confirmed'));
+  assert.ok(run.leases.every(lease=>lease.released));
+  assert.equal(f.store.authorRouting.routes(f.loop.id).length,0);assert.equal(f.store.verification.list('delivery').length,0);
+ }
+});
+
 test('P6-AUTH-STAGE-I02 stage preflight and interrupted accounting reject without extra calls or fabricated progress',{timeout:60000},async t=>{
   for(const protocol of [AUTHOR_STAGE_PROTOCOL,AUTHOR_STAGE_PROTOCOL_V2]) {
   for(const options of [{calls:2},{limit:49}]) {

@@ -1,4 +1,4 @@
-import {parseStageRecoveryInput,type StageAttemptRef,type StageRejectionRef} from './author-stage-recovery-presentation.js';
+import {assertStageRecoveryRootPolicy,parseStageRecoveryInput,type StageAttemptRef,type StageRejectionRef} from './author-stage-recovery-presentation.js';
 import {createHash} from 'node:crypto';
 import {lstatSync,readFileSync,realpathSync} from 'node:fs';
 import {isAbsolute,join,relative,sep} from 'node:path';
@@ -162,9 +162,9 @@ export function authorStageChargePrefix(job:SupervisionJob,readJob:ReadJob,dataD
     }
   };
   visit(job,false);
-  const recoveryRoots=new Set(result.map(x=>parseStageRecoveryInput(x.input)?.context.stageRecovery.rejection.jobId).filter(Boolean));
-  const current=parseStageRecoveryInput(job.input);if(current)recoveryRoots.add(current.context.stageRecovery.rejection.jobId);
-  ensure(recoveryRoots.size<=1,'stage-local regeneration exhausted');
+  const recoveries=[...result.map(x=>parseStageRecoveryInput(x.input)),parseStageRecoveryInput(job.input)].filter(x=>x!==null);
+  assertStageRecoveryRootPolicy(recoveries.map(input=>({schemaVersion:input.context.stageRecovery.schemaVersion,
+    sessionId:input.context.authorStage.sessionId,index:input.context.authorStage.index,rejectionJobId:input.context.stageRecovery.rejection.jobId})));
   return result;
 }
 
