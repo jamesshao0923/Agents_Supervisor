@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-v44-source-refresh-delivery",
+  "revision": "dev-v45-indexed-reader-integrity",
   "modules": [
     {
       "id": "dev-contracts",
@@ -993,6 +993,18 @@
       "layer": "integration",
       "file": "dist/tests/integration/source-refresh-delivery.test.js",
       "timeoutMs": 300000
+    },
+    {
+      "id": "unit-research-reader",
+      "layer": "unit",
+      "file": "dist/tests/unit/research-reader.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "integration-material-reader-session",
+      "layer": "integration",
+      "file": "dist/tests/integration/material-reader-session.test.js",
+      "timeoutMs": 120000
     }
   ],
   "cases": [
@@ -1939,7 +1951,8 @@
         "v38-combined-impact",
         "v39-completion-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime; see tests/unit/boundaries.test.ts",
       "assertions": "tests/unit/boundaries.test.ts: boundaries allow pure domain and contract imports",
@@ -1963,7 +1976,8 @@
         "v38-combined-impact",
         "v39-completion-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime; see tests/unit/boundaries.test.ts",
       "assertions": "tests/unit/boundaries.test.ts: boundaries reject product and external effects inside domain",
@@ -1987,7 +2001,8 @@
         "v38-combined-impact",
         "v39-completion-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime; see tests/unit/boundaries.test.ts",
       "assertions": "tests/unit/boundaries.test.ts: boundaries keep development verifier independent from product",
@@ -2011,7 +2026,8 @@
         "v38-combined-impact",
         "v39-completion-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime; see tests/unit/boundaries.test.ts",
       "assertions": "tests/unit/boundaries.test.ts: boundaries reject import equals and import types across TypeScript extensions",
@@ -2575,7 +2591,8 @@
         "v39-completion-impact",
         "v40-research-groups-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: catalog registers stable IDs and validates execution metadata without sharing product code",
@@ -2601,7 +2618,8 @@
         "v39-completion-impact",
         "v40-research-groups-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: catalog rejects missing malformed empty and conflicting stable registrations",
@@ -2627,7 +2645,8 @@
         "v39-completion-impact",
         "v40-research-groups-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: catalog rejects unsafe suite files duplicate files and conflicting layers or modules",
@@ -2653,7 +2672,8 @@
         "v39-completion-impact",
         "v40-research-groups-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: catalog rejects duplicate active names but permits equal names in separate suites",
@@ -2679,7 +2699,8 @@
         "v39-completion-impact",
         "v40-research-groups-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: catalog rejects retirement without reason and assertion fault coverage review",
@@ -2705,7 +2726,8 @@
         "v39-completion-impact",
         "v40-research-groups-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: catalog resolves reviewed replacement chains and preserves every necessary risk",
@@ -2731,7 +2753,8 @@
         "v39-completion-impact",
         "v40-research-groups-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: catalog rejects dangling replacement references and replacement cycles",
@@ -2757,7 +2780,8 @@
         "v39-completion-impact",
         "v40-research-groups-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: catalog permits explained removed scope but refuses loss of necessary profile coverage",
@@ -2783,7 +2807,8 @@
         "v39-completion-impact",
         "v40-research-groups-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: profiles reject unknown stages stale references empty selection and uncovered necessary risks",
@@ -2809,7 +2834,8 @@
         "v39-completion-impact",
         "v40-research-groups-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: profiles deduplicate repeated stable IDs across stage requirements and core regressions",
@@ -2835,7 +2861,8 @@
         "v39-completion-impact",
         "v40-research-groups-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: impact selection expands transitive modules and conservatively deduplicates full suites",
@@ -2861,7 +2888,8 @@
         "v39-completion-impact",
         "v40-research-groups-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: impact selection broadens unknown impact and retains necessary core regressions",
@@ -2887,7 +2915,8 @@
         "v39-completion-impact",
         "v40-research-groups-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: layer and impact selections never claim stage completion even when all suites expand",
@@ -2913,7 +2942,8 @@
         "v39-completion-impact",
         "v40-research-groups-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: catalog validates actual registered source declarations without reconstructing expected lists",
@@ -2939,7 +2969,8 @@
         "v39-completion-impact",
         "v40-research-groups-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: catalog rejects missing registered sources and unregistered real suite files before freeze",
@@ -2965,7 +2996,8 @@
         "v39-completion-impact",
         "v40-research-groups-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: catalog rejects real source symlinks and wrong profile stage bindings",
@@ -2991,7 +3023,8 @@
         "v39-completion-impact",
         "v40-research-groups-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: catalog preserves immutable legacy manifest parsing alongside current profiles",
@@ -3017,7 +3050,8 @@
         "v39-completion-impact",
         "v40-research-groups-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: catalog recheck resolves current frozen profile and rejects changed standards without overwriting evidence",
@@ -3043,7 +3077,8 @@
         "v39-completion-impact",
         "v40-research-groups-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime and writable isolated temporary directory",
       "assertions": "tests/unit/catalog.test.ts: catalog recheck rejects forged final stage scope and missing current registry",
@@ -4410,7 +4445,8 @@
         "v39-completion-impact",
         "v40-research-groups-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime and isolated writable temporary root; this fixture exercises metadata, not a Codex provider",
       "assertions": "tests/unit/catalog.test.ts: full P2 includes live; live-only runs preserve selection/digests and stagePassed=false; missing or unregistered live source cannot freeze",
@@ -4591,7 +4627,8 @@
         "executor-codex",
         "execution",
         "protocol",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
       "assertions": "tests/unit/executor-codex.test.ts: exact version/schema baseline accepts supported protocol and rejects drift",
@@ -4612,7 +4649,8 @@
         "executor-codex",
         "execution",
         "protocol",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
       "assertions": "tests/unit/executor-codex.test.ts: handshake required; correlated out-of-order RPC replies; model text/image capabilities and unknown fields retained",
@@ -4633,7 +4671,8 @@
         "executor-codex",
         "execution",
         "protocol",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
       "assertions": "tests/unit/executor-codex.test.ts: fresh independent thread, read/resume, text/image turn and interrupt serialization; invalid inputs refused",
@@ -4654,7 +4693,8 @@
         "executor-codex",
         "execution",
         "protocol",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
       "assertions": "tests/unit/executor-codex.test.ts: waiting/error/willRetry classification and terminal status without inventing provider live coverage",
@@ -4675,7 +4715,8 @@
         "executor-codex",
         "execution",
         "protocol",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
       "assertions": "tests/unit/executor-codex.test.ts: usage, diffs, messages and unknown fields retained; invalid token counts refused",
@@ -4696,7 +4737,8 @@
         "executor-codex",
         "execution",
         "protocol",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
       "assertions": "tests/unit/executor-codex.test.ts: raw event persistence precedes ordered reduction; legitimate repeated deltas retained",
@@ -4717,7 +4759,8 @@
         "executor-codex",
         "execution",
         "protocol",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
       "assertions": "tests/unit/executor-codex.test.ts: server approvals/user-input requests require explicit response or unsupported rejection; deferred reply does not block interrupt",
@@ -4738,7 +4781,8 @@
         "executor-codex",
         "execution",
         "protocol",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
       "assertions": "tests/unit/executor-codex.test.ts: timeout/disconnect return unknown outcomes; late replies retained with no automatic resend",
@@ -4759,7 +4803,8 @@
         "executor-codex",
         "execution",
         "protocol",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
       "assertions": "tests/unit/executor-codex.test.ts: RPC errors, malformed JSON and persistence failure fail closed and retain raw evidence",
@@ -4872,7 +4917,8 @@
         "schema13-startup",
         "v38-combined-impact",
         "v40-research-groups-impact",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: canonical and reordered execution receipt replay once; durable reservation, lease, operation and event cursor match after SQLite reopen",
@@ -4897,7 +4943,8 @@
         "schema13-startup",
         "v38-combined-impact",
         "v40-research-groups-impact",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: parent, child and exact workspace overlaps rejected without state/events change; sibling allowed; unknown writer retains exclusion until confirmed stop",
@@ -4922,7 +4969,8 @@
         "schema13-startup",
         "v38-combined-impact",
         "v40-research-groups-impact",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: insufficient reserve rejected before actual executable marker writes and before SQLite project or execution creation",
@@ -4947,7 +4995,8 @@
         "schema13-startup",
         "v38-combined-impact",
         "v40-research-groups-impact",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: durable real managed writer stops after reopen and manager initialize, no replay executable invoked, lost usage remains unsettled, real Git diff/artifact captured and repeated reconcile unchanged",
@@ -4972,7 +5021,8 @@
         "schema13-startup",
         "v38-combined-impact",
         "v40-research-groups-impact",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: actual Unix socket rejects P1 complete/settle/cancel and artifact mutation of managed run; run and events remain queryable after service restart",
@@ -4997,7 +5047,8 @@
         "schema13-startup",
         "v38-combined-impact",
         "v40-research-groups-impact",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: actual slow failing version executable keeps lease and launch fenced while cancelled, no target/thread/turn invocation, actual zero settled only after launch resolves",
@@ -5023,7 +5074,8 @@
         "schema13-startup",
         "v38-combined-impact",
         "v40-research-groups-impact",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: Omitted and blank paths allocate the same stable command directory; independent requests get distinct directories; real files and durable receipt survive manager/store close and reopen without replay",
@@ -5049,7 +5101,8 @@
         "schema13-startup",
         "v38-combined-impact",
         "v40-research-groups-impact",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: Invalid budgets, ownership injection and images are rejected before directory creation; a generated symlink leaf cannot redirect a task into another project",
@@ -5075,7 +5128,8 @@
         "schema13-startup",
         "v38-combined-impact",
         "v40-research-groups-impact",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: A real symlink alias resolves to the same project and command receipt; overlapping writers remain rejected; later tasks reuse project without creating a managed root",
@@ -5101,7 +5155,8 @@
         "schema13-startup",
         "v38-combined-impact",
         "v40-research-groups-impact",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime, macOS/Linux real Unix sockets and ps, isolated writable workspace/SQLite/git, actual managed writers or deliberately failing local executable; no Codex or model substitute launched",
       "assertions": "tests/integration/execution.test.ts: Legacy SQLite records without workspace kind read as project; same command replay remains idempotent without rewriting stored requests or receipts",
@@ -6485,7 +6540,8 @@
       "impactTags": [
         "orchestration",
         "p5",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.structured-proposal-parses-and-schema-is-detached",
@@ -6505,7 +6561,8 @@
       "impactTags": [
         "orchestration",
         "p5",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.final-json-rejects-extra-fields-missing-constraints-and-prose",
@@ -6525,7 +6582,8 @@
       "impactTags": [
         "orchestration",
         "p5",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.schema-rejects-unsupported-and-malformed-constraints-before-inference",
@@ -6545,7 +6603,8 @@
       "impactTags": [
         "orchestration",
         "p5",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.nested-schema-unions-numeric-bounds-and-canonical-uniqueness",
@@ -6565,7 +6624,8 @@
       "impactTags": [
         "orchestration",
         "p5",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.untrusted-schema-and-output-reject-accessors-prototypes-and-unsafe-keys",
@@ -6585,7 +6645,8 @@
       "impactTags": [
         "orchestration",
         "p5",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.context-and-output-capacity-is-bounded-without-truncation",
@@ -6605,7 +6666,8 @@
       "impactTags": [
         "orchestration",
         "p5",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.event-identities-are-isolated-and-cannot-cross-threads-or-turns",
@@ -6625,7 +6687,8 @@
       "impactTags": [
         "orchestration",
         "p5",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.usage-preserves-unknown-zero-and-monotonic-cumulative-tokens",
@@ -6645,7 +6708,8 @@
       "impactTags": [
         "orchestration",
         "p5",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.partial-usage-remains-observed-until-authoritative-terminal-accounting",
@@ -6665,7 +6729,8 @@
       "impactTags": [
         "orchestration",
         "p5",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.durable-turn-intent-precedes-send-and-cancellation-remains-conservative",
@@ -6685,7 +6750,8 @@
       "impactTags": [
         "orchestration",
         "p5",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.reasoning-role-rejects-tools-approvals-input-and-unknown-actions",
@@ -6705,7 +6771,8 @@
       "impactTags": [
         "orchestration",
         "p5",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.only-authoritative-terminal-event-completes-and-deltas-are-not-final-output",
@@ -6725,7 +6792,8 @@
       "impactTags": [
         "orchestration",
         "p5",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.invalid-or-cancelled-request-never-starts-model-and-preserves-unknown-usage",
@@ -9649,7 +9717,8 @@
       "impactTags": [
         "p6-autoloop-foundation",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I01 frozen prompt schema context and one real process settle once without completing the Run",
@@ -9669,7 +9738,8 @@
       "impactTags": [
         "p6-autoloop-foundation",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I02 tampered frozen input digest is rejected before any process with zero known cost",
@@ -9689,7 +9759,8 @@
       "impactTags": [
         "p6-autoloop-foundation",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I03 missing context and unsupported output schema fail before model transport",
@@ -9709,7 +9780,8 @@
       "impactTags": [
         "p6-autoloop-foundation",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I04 finished result rechecks actual proof bytes across reopen without replay",
@@ -9729,7 +9801,8 @@
       "impactTags": [
         "p6-autoloop-foundation",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I05 pause after actual process stop preserves cost and rejects the late result",
@@ -9749,7 +9822,8 @@
       "impactTags": [
         "p6-autoloop-foundation",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I06 cancel stops a real child and unknown authoritative usage remains reserved",
@@ -9769,7 +9843,8 @@
       "impactTags": [
         "p6-autoloop-foundation",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I07 restart terminates persisted real orphan and never replays an interrupted turn",
@@ -9789,7 +9864,8 @@
       "impactTags": [
         "p6-autoloop-foundation",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I08 restart before process intent settles zero and no transport is requested",
@@ -9809,7 +9885,8 @@
       "impactTags": [
         "p6-autoloop-foundation",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I09 claimed stopped live process is independently rejected and terminated",
@@ -9829,7 +9906,8 @@
       "impactTags": [
         "p6-autoloop-foundation",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I10 malformed output or absent actual proof cannot become an applicable result",
@@ -9849,7 +9927,8 @@
       "impactTags": [
         "p6-autoloop-foundation",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I11 underreported usage retains observed cost unresolved and overrun is charged without result",
@@ -9869,7 +9948,8 @@
       "impactTags": [
         "p6-autoloop-foundation",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I12 exact reserved usage permits current completion and rejects another turn intent",
@@ -9889,7 +9969,8 @@
       "impactTags": [
         "p6-autoloop-foundation",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I13 close during result await blocks publication and retains unknown final usage",
@@ -9909,7 +9990,8 @@
       "impactTags": [
         "p6-autoloop-foundation",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I14 finished proof cannot bypass a newer pause or changed immutable contract",
@@ -9929,7 +10011,8 @@
       "impactTags": [
         "p6-autoloop-foundation",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I15 finished result mutation is rejected even when proof files remain unchanged",
@@ -9949,7 +10032,8 @@
       "impactTags": [
         "p6-autoloop-foundation",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I16 saved process intent without matching identity keeps stop unknown across recovery",
@@ -9969,7 +10053,8 @@
       "impactTags": [
         "p6-autoloop-foundation",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I17 close settles unclaimed prelaunch jobs without a model request",
@@ -9989,7 +10074,8 @@
       "impactTags": [
         "p6-autoloop-foundation",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I18 contradictory transport start flag cannot turn durable turn intent into known zero cost",
@@ -10009,7 +10095,8 @@
       "impactTags": [
         "p6-autoloop-foundation",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite/filesystem/managed processes; transport and repository fixtures do not prove real Codex output or review approval",
       "assertions": "tests/integration/supervision-reasoning.test.ts :: P6-SRR-I19 runtime cancellation after stopped process retains real cost without applying late output",
@@ -15583,7 +15670,8 @@
       ],
       "scenario": "P8-MAT-I01 real bounded parallel HTTP raw snapshots redirects duplicates failure and original quote remain exact",
       "impactTags": [
-        "p8-materials"
+        "p8-materials",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Actual bounded local HTTP and files; not public research semantic verification.",
       "assertions": "tests/integration/material-intake.test.ts :: P8-MAT-I01 real bounded parallel HTTP raw snapshots redirects duplicates failure and original quote remain exact",
@@ -15601,7 +15689,8 @@
       ],
       "scenario": "P8-MAT-I02 real local Markdown UTF8 unsupported PDF invalid text and symlink all retain explicit index dispositions",
       "impactTags": [
-        "p8-materials"
+        "p8-materials",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Actual bounded local HTTP and files; not public research semantic verification.",
       "assertions": "tests/integration/material-intake.test.ts :: P8-MAT-I02 real local Markdown UTF8 unsupported PDF invalid text and symlink all retain explicit index dispositions",
@@ -15619,7 +15708,8 @@
       ],
       "scenario": "P8-MAT-I03 count byte deadline cancellation redirect limits and pending directory never become successful acquisition",
       "impactTags": [
-        "p8-materials"
+        "p8-materials",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Actual bounded local HTTP and files; not public research semantic verification.",
       "assertions": "tests/integration/material-intake.test.ts :: P8-MAT-I03 count byte deadline cancellation redirect limits and pending directory never become successful acquisition",
@@ -15637,7 +15727,8 @@
       ],
       "scenario": "P8-MAT-I04 quote bytes remain bound to their exact digest under atomic replacement and valid UTF8 quotes stay exact",
       "impactTags": [
-        "p8-materials"
+        "p8-materials",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Actual bounded local HTTP and files; not public research semantic verification.",
       "assertions": "tests/integration/material-intake.test.ts :: P8-MAT-I04 quote bytes remain bound to their exact digest under atomic replacement and valid UTF8 quotes stay exact",
@@ -16345,7 +16436,8 @@
         "v38-combined-impact",
         "v40-research-groups-impact",
         "v41-source-refresh-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
       "assertions": "tests/integration/research-binding.test.ts :: P8-RBIND-I01 real five-material snapshots schema projection span digests and dependent sources remain proposed with explicit partial coverage",
@@ -16368,7 +16460,8 @@
         "v38-combined-impact",
         "v40-research-groups-impact",
         "v41-source-refresh-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
       "assertions": "tests/integration/research-binding.test.ts :: P8-RBIND-I02 wrong literal outside span split surrogate unknown source and invented authority are rejected by actual schema and byte binding",
@@ -16391,7 +16484,8 @@
         "v38-combined-impact",
         "v40-research-groups-impact",
         "v41-source-refresh-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
       "assertions": "tests/integration/research-binding.test.ts :: P8-RBIND-I03 actual snapshot corruption and self-rehashed metadata cannot authorize a citation or redirect its material scope",
@@ -16414,7 +16508,8 @@
         "v38-combined-impact",
         "v40-research-groups-impact",
         "v41-source-refresh-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
       "assertions": "tests/integration/research-binding.test.ts :: P8-RBIND-I04 context request and model objects freeze before async material reads and never inherit late caller metadata",
@@ -16437,7 +16532,8 @@
         "v38-combined-impact",
         "v40-research-groups-impact",
         "v41-source-refresh-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
       "assertions": "tests/integration/research-binding.test.ts :: P8-RBIND-I05 typed schema bounds and safe JSON reject executable accessors sparse arrays duplicate references and empty answers",
@@ -16460,7 +16556,8 @@
         "v38-combined-impact",
         "v40-research-groups-impact",
         "v41-source-refresh-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
       "assertions": "tests/integration/research-binding.test.ts :: P8-RBIND-I06 missing unsupported and cancelled material coverage cannot become a complete answer or erase required criteria",
@@ -16483,7 +16580,8 @@
         "v38-combined-impact",
         "v40-research-groups-impact",
         "v41-source-refresh-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "v45-indexed-reader-impact"
       ],
       "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
       "assertions": "tests/integration/research-binding.test.ts :: P8-RBIND-I07 actual refresh changed and unknown preserve immutable historical research evidence without granting revalidation",
@@ -20477,7 +20575,7 @@
       "covers": [
         "p8-source-refresh-delivery"
       ],
-      "scenario": "Already delivered configured report \u2192 explicit unchanged-input refresh \u2192 new acquisition/producer \u2192 frozen historical/current adapted V2 rows \u2192 original ALL-OF final sealed second delivery and SQLite reopen. Synthetic model transport only.",
+      "scenario": "Already delivered configured report → explicit unchanged-input refresh → new acquisition/producer → frozen historical/current adapted V2 rows → original ALL-OF final sealed second delivery and SQLite reopen. Synthetic model transport only.",
       "impactTags": [
         "p8-source-refresh-delivery",
         "v44-source-refresh-delivery-impact"
@@ -20485,6 +20583,253 @@
       "prerequisites": "Pinned Node, actual SQLite/local files and owned managed Node; explicit synthetic semantic protocol/usage, no provider/native call.",
       "assertions": "tests/integration/source-refresh-delivery.test.ts :: P8-REFRESH-DELIVERY-I01 actual authorized research continuation new producer full V2 original-witness replay and ALL-OF sealed second delivery preserve original scope history and total budget",
       "cleanup": "Physically stop owned processes and close DB; retain original immutable absolute proof roots and archive for independent replay; never alter global config.",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-research-reader.001",
+      "name": "P8-READER-U01 complete raw HTML Unicode page index and global UTF16 range preserve every original byte",
+      "suiteId": "unit-research-reader",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p8-indexed-reader-integrity"
+      ],
+      "scenario": "P8-READER-U01 complete raw HTML Unicode page index and global UTF16 range preserve every original byte",
+      "impactTags": [
+        "p8-indexed-reader-integrity",
+        "v45-indexed-reader-impact"
+      ],
+      "prerequisites": "Actual MaterialIntake, archived filesystem bytes and owned Node transport. Supplier protocol fixtures are synthetic; no real provider or semantic acceptance.",
+      "assertions": "tests/unit/research-reader.test.ts :: P8-READER-U01 complete raw HTML Unicode page index and global UTF16 range preserve every original byte",
+      "cleanup": "Stop exact owned processes, close files, preserve failures and immutable reader audit.",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-research-reader.002",
+      "name": "P8-READER-U02 literal search reports total matches truncation context neighborhoods and no-match without a verdict",
+      "suiteId": "unit-research-reader",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p8-indexed-reader-integrity"
+      ],
+      "scenario": "P8-READER-U02 literal search reports total matches truncation context neighborhoods and no-match without a verdict",
+      "impactTags": [
+        "p8-indexed-reader-integrity",
+        "v45-indexed-reader-impact"
+      ],
+      "prerequisites": "Actual MaterialIntake, archived filesystem bytes and owned Node transport. Supplier protocol fixtures are synthetic; no real provider or semantic acceptance.",
+      "assertions": "tests/unit/research-reader.test.ts :: P8-READER-U02 literal search reports total matches truncation context neighborhoods and no-match without a verdict",
+      "cleanup": "Stop exact owned processes, close files, preserve failures and immutable reader audit.",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-research-reader.003",
+      "name": "P8-READER-U03 selection and strict typed bounds reject unauthorized source split-surrogate oversized and extra arguments",
+      "suiteId": "unit-research-reader",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p8-indexed-reader-integrity"
+      ],
+      "scenario": "P8-READER-U03 selection and strict typed bounds reject unauthorized source split-surrogate oversized and extra arguments",
+      "impactTags": [
+        "p8-indexed-reader-integrity",
+        "v45-indexed-reader-impact"
+      ],
+      "prerequisites": "Actual MaterialIntake, archived filesystem bytes and owned Node transport. Supplier protocol fixtures are synthetic; no real provider or semantic acceptance.",
+      "assertions": "tests/unit/research-reader.test.ts :: P8-READER-U03 selection and strict typed bounds reject unauthorized source split-surrogate oversized and extra arguments",
+      "cleanup": "Stop exact owned processes, close files, preserve failures and immutable reader audit.",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-research-reader.004",
+      "name": "P8-READER-U04 actual archive tamper alias rehashed metadata and accessor host input cannot become readable evidence",
+      "suiteId": "unit-research-reader",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p8-indexed-reader-integrity"
+      ],
+      "scenario": "P8-READER-U04 actual archive tamper alias rehashed metadata and accessor host input cannot become readable evidence",
+      "impactTags": [
+        "p8-indexed-reader-integrity",
+        "v45-indexed-reader-impact"
+      ],
+      "prerequisites": "Actual MaterialIntake, archived filesystem bytes and owned Node transport. Supplier protocol fixtures are synthetic; no real provider or semantic acceptance.",
+      "assertions": "tests/unit/research-reader.test.ts :: P8-READER-U04 actual archive tamper alias rehashed metadata and accessor host input cannot become readable evidence",
+      "cleanup": "Stop exact owned processes, close files, preserve failures and immutable reader audit.",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-research-reader.005",
+      "name": "P8-READER-U05 full response capacity rejects rather than silently truncating and caller mutation freezes before await",
+      "suiteId": "unit-research-reader",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "p8-indexed-reader-integrity"
+      ],
+      "scenario": "P8-READER-U05 full response capacity rejects rather than silently truncating and caller mutation freezes before await",
+      "impactTags": [
+        "p8-indexed-reader-integrity",
+        "v45-indexed-reader-impact"
+      ],
+      "prerequisites": "Actual MaterialIntake, archived filesystem bytes and owned Node transport. Supplier protocol fixtures are synthetic; no real provider or semantic acceptance.",
+      "assertions": "tests/unit/research-reader.test.ts :: P8-READER-U05 full response capacity rejects rather than silently truncating and caller mutation freezes before await",
+      "cleanup": "Stop exact owned processes, close files, preserve failures and immutable reader audit.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-material-reader-session.001",
+      "name": "P8-READER-I01 actual Node early tool request waits real acknowledgements and exact independent item completion before closing",
+      "suiteId": "integration-material-reader-session",
+      "module": "executor-codex",
+      "layer": "integration",
+      "covers": [
+        "p8-indexed-reader-integrity"
+      ],
+      "scenario": "P8-READER-I01 actual Node early tool request waits real acknowledgements and exact independent item completion before closing",
+      "impactTags": [
+        "p8-indexed-reader-integrity",
+        "v45-indexed-reader-impact"
+      ],
+      "prerequisites": "Actual MaterialIntake, archived filesystem bytes and owned Node transport. Supplier protocol fixtures are synthetic; no real provider or semantic acceptance.",
+      "assertions": "tests/integration/material-reader-session.test.ts :: P8-READER-I01 actual Node early tool request waits real acknowledgements and exact independent item completion before closing",
+      "cleanup": "Stop exact owned processes, close files, preserve failures and immutable reader audit.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-material-reader-session.002",
+      "name": "P8-READER-I02 actual Node cross-thread and duplicate same-args requests reject without arbitrary correlation or replies",
+      "suiteId": "integration-material-reader-session",
+      "module": "executor-codex",
+      "layer": "integration",
+      "covers": [
+        "p8-indexed-reader-integrity"
+      ],
+      "scenario": "P8-READER-I02 actual Node cross-thread and duplicate same-args requests reject without arbitrary correlation or replies",
+      "impactTags": [
+        "p8-indexed-reader-integrity",
+        "v45-indexed-reader-impact"
+      ],
+      "prerequisites": "Actual MaterialIntake, archived filesystem bytes and owned Node transport. Supplier protocol fixtures are synthetic; no real provider or semantic acceptance.",
+      "assertions": "tests/integration/material-reader-session.test.ts :: P8-READER-I02 actual Node cross-thread and duplicate same-args requests reject without arbitrary correlation or replies",
+      "cleanup": "Stop exact owned processes, close files, preserve failures and immutable reader audit.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-material-reader-session.003",
+      "name": "P8-READER-I03 actual Node command items and changed completed response cannot qualify the registered reader turn",
+      "suiteId": "integration-material-reader-session",
+      "module": "executor-codex",
+      "layer": "integration",
+      "covers": [
+        "p8-indexed-reader-integrity"
+      ],
+      "scenario": "P8-READER-I03 actual Node command items and changed completed response cannot qualify the registered reader turn",
+      "impactTags": [
+        "p8-indexed-reader-integrity",
+        "v45-indexed-reader-impact"
+      ],
+      "prerequisites": "Actual MaterialIntake, archived filesystem bytes and owned Node transport. Supplier protocol fixtures are synthetic; no real provider or semantic acceptance.",
+      "assertions": "tests/integration/material-reader-session.test.ts :: P8-READER-I03 actual Node command items and changed completed response cannot qualify the registered reader turn",
+      "cleanup": "Stop exact owned processes, close files, preserve failures and immutable reader audit.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-material-reader-session.004",
+      "name": "P8-READER-I04 actual Node terminal before response or without observed completion remains incomplete",
+      "suiteId": "integration-material-reader-session",
+      "module": "executor-codex",
+      "layer": "integration",
+      "covers": [
+        "p8-indexed-reader-integrity"
+      ],
+      "scenario": "P8-READER-I04 actual Node terminal before response or without observed completion remains incomplete",
+      "impactTags": [
+        "p8-indexed-reader-integrity",
+        "v45-indexed-reader-impact"
+      ],
+      "prerequisites": "Actual MaterialIntake, archived filesystem bytes and owned Node transport. Supplier protocol fixtures are synthetic; no real provider or semantic acceptance.",
+      "assertions": "tests/integration/material-reader-session.test.ts :: P8-READER-I04 actual Node terminal before response or without observed completion remains incomplete",
+      "cleanup": "Stop exact owned processes, close files, preserve failures and immutable reader audit.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-material-reader-session.005",
+      "name": "P8-READER-I05 cancel drains a pre-ack actual-process request with no late reply and exact aborted audit",
+      "suiteId": "integration-material-reader-session",
+      "module": "executor-codex",
+      "layer": "integration",
+      "covers": [
+        "p8-indexed-reader-integrity"
+      ],
+      "scenario": "P8-READER-I05 cancel drains a pre-ack actual-process request with no late reply and exact aborted audit",
+      "impactTags": [
+        "p8-indexed-reader-integrity",
+        "v45-indexed-reader-impact"
+      ],
+      "prerequisites": "Actual MaterialIntake, archived filesystem bytes and owned Node transport. Supplier protocol fixtures are synthetic; no real provider or semantic acceptance.",
+      "assertions": "tests/integration/material-reader-session.test.ts :: P8-READER-I05 cancel drains a pre-ack actual-process request with no late reply and exact aborted audit",
+      "cleanup": "Stop exact owned processes, close files, preserve failures and immutable reader audit.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-material-reader-session.006",
+      "name": "P8-READER-I06 actual response write followed by real journal conflict remains incomplete and cannot replay on reopen",
+      "suiteId": "integration-material-reader-session",
+      "module": "executor-codex",
+      "layer": "integration",
+      "covers": [
+        "p8-indexed-reader-integrity"
+      ],
+      "scenario": "P8-READER-I06 actual response write followed by real journal conflict remains incomplete and cannot replay on reopen",
+      "impactTags": [
+        "p8-indexed-reader-integrity",
+        "v45-indexed-reader-impact"
+      ],
+      "prerequisites": "Actual MaterialIntake, archived filesystem bytes and owned Node transport. Supplier protocol fixtures are synthetic; no real provider or semantic acceptance.",
+      "assertions": "tests/integration/material-reader-session.test.ts :: P8-READER-I06 actual response write followed by real journal conflict remains incomplete and cannot replay on reopen",
+      "cleanup": "Stop exact owned processes, close files, preserve failures and immutable reader audit.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-material-reader-session.007",
+      "name": "P8-READER-I07 version schema drift writable sandbox host revocation and fake sessions reject before tool transport authority",
+      "suiteId": "integration-material-reader-session",
+      "module": "executor-codex",
+      "layer": "integration",
+      "covers": [
+        "p8-indexed-reader-integrity"
+      ],
+      "scenario": "P8-READER-I07 version schema drift writable sandbox host revocation and fake sessions reject before tool transport authority",
+      "impactTags": [
+        "p8-indexed-reader-integrity",
+        "v45-indexed-reader-impact"
+      ],
+      "prerequisites": "Actual MaterialIntake, archived filesystem bytes and owned Node transport. Supplier protocol fixtures are synthetic; no real provider or semantic acceptance.",
+      "assertions": "tests/integration/material-reader-session.test.ts :: P8-READER-I07 version schema drift writable sandbox host revocation and fake sessions reject before tool transport authority",
+      "cleanup": "Stop exact owned processes, close files, preserve failures and immutable reader audit.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-material-reader-session.008",
+      "name": "P8-READER-I08 actual audit tamper after observed completion rejects clean closure without rewriting history",
+      "suiteId": "integration-material-reader-session",
+      "module": "executor-codex",
+      "layer": "integration",
+      "covers": [
+        "p8-indexed-reader-integrity"
+      ],
+      "scenario": "P8-READER-I08 actual audit tamper after observed completion rejects clean closure without rewriting history",
+      "impactTags": [
+        "p8-indexed-reader-integrity",
+        "v45-indexed-reader-impact"
+      ],
+      "prerequisites": "Actual MaterialIntake, archived filesystem bytes and owned Node transport. Supplier protocol fixtures are synthetic; no real provider or semantic acceptance.",
+      "assertions": "tests/integration/material-reader-session.test.ts :: P8-READER-I08 actual audit tamper after observed completion rejects clean closure without rewriting history",
+      "cleanup": "Stop exact owned processes, close files, preserve failures and immutable reader audit.",
       "status": "active"
     }
   ]

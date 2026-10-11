@@ -1,3 +1,4 @@
+import {isMaterialReaderSession, type MaterialReaderSession} from './material-reader-session.js';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
@@ -35,6 +36,8 @@ export interface AdapterOptions {
   /** Return a result to reply immediately; undefined explicitly defers to respond(). */
   onServerRequest?(request: ServerRequest): unknown | Promise<unknown>;
   requestTimeoutMs?: number;
+  /** Host-bound integrity reader only; ordinary adapters remain non-experimental. */
+  materialReader?: MaterialReaderSession;
 }
 export interface ModelCapability extends JsonObject {
   id: string; model: string; inputModalities: string[]; isDefault: boolean;
@@ -176,7 +179,12 @@ export class CodexAdapter {
   private initializing = false;
   private readonly unsubscribe: (() => void)[];
   private readonly timeoutMs: number;
+  private readonly readerHandlers = new Set<Promise<void>>();
+  private readonly materialReader: MaterialReaderSession | undefined;
   constructor(private readonly options: AdapterOptions) {
+    this.materialReader = options.materialReader;
+    if (this.materialReader && !isMaterialReaderSession(this.materialReader)) throw new ProtocolError('Actual host reader session required');
+    if (this.materialReader && options.onServerRequest) throw new ProtocolError('Reader cannot combine arbitrary server callbacks');
     this.timeoutMs = options.requestTimeoutMs ?? 30_000;
     if (!Number.isSafeInteger(this.timeoutMs) || this.timeoutMs <= 0 || this.timeoutMs > 2_147_483_647) throw new ProtocolError('Invalid request timeout');
     this.unsubscribe = [options.transport.onLine(line => {
@@ -206,7 +214,7 @@ export class CodexAdapter {
   async initialize(): Promise<JsonObject> {
     if (this.initialized || this.initializing) throw new ProtocolError('Initialize can be called only once per connection');
     this.initializing = true;
-    const result = object(await this.request('initialize', { clientInfo: { name: 'agents_supervisor', title: 'Agents Supervisor', version: '0.0.0' }, capabilities: { experimentalApi: false } }), 'initialize result');
+    const result = object(await this.request('initialize', { clientInfo: { name: 'agents_supervisor', title: 'Agents Supervisor', version: '0.0.0' }, capabilities: { experimentalApi: !!this.materialReader } }), 'initialize result');
     for (const key of ['userAgent', 'codexHome', 'platformFamily', 'platformOs']) string(result[key], `initialize ${key}`);
     this.send({ method: 'initialized' });
     this.initialized = true;
@@ -228,12 +236,24 @@ export class CodexAdapter {
   }
   async startThread(options: ThreadOptions): Promise<ThreadResult> {
     if (!isAbsolute(options.cwd)) throw new ProtocolError('Thread cwd must be absolute');
-    return this.threadResult(await this.request('thread/start', { ...options }));
+    if (this.materialReader && Object.hasOwn(options, 'dynamicTools')) throw new ProtocolError('Tool registration belongs to host reader');
+    const reader = this.materialReader;
+    if (reader && (options.sandbox !== 'read-only' || options.approvalPolicy !== 'never')) {
+      throw new ProtocolError('Indexed material tools require read-only/never');
+    }
+    reader?.beginThread();
+    const result = this.threadResult(await this.request('thread/start', { ...options,
+      ...(reader ? {dynamicTools: reader.tools(), config: {...options.config,
+        'features.apps': false, 'features.plugins': false, 'features.multi_agent': false, web_search: 'disabled'}} : {}),
+    }));
+    reader?.acknowledgeThread(result.thread.id);
+    return result;
   }
   async readThread(threadId: string, includeTurns = true): Promise<ThreadResult> {
     return this.threadResult(await this.request('thread/read', { threadId: string(threadId, 'thread id'), includeTurns }));
   }
   async resumeThread(threadId: string, options: Partial<ThreadOptions> = {}): Promise<ThreadResult> {
+    if (this.materialReader) throw new ProtocolError('Indexed reader sessions cannot resume an old model');
     if (options.cwd !== undefined && !isAbsolute(options.cwd)) throw new ProtocolError('Thread cwd must be absolute');
     return this.threadResult(await this.request('thread/resume', { ...options, threadId: string(threadId, 'thread id') }));
   }
@@ -250,9 +270,11 @@ export class CodexAdapter {
       else if (part.type === 'localImage') { if (!isAbsolute(string(part.path, 'image path'))) throw new ProtocolError('Image path must be absolute'); }
       else throw new ProtocolError('Unsupported input type');
     }
+    this.materialReader?.beginTurn(threadId);
     const result = object(await this.request('turn/start', { ...options, threadId: string(threadId, 'thread id'), input }), 'turn response');
     const turn = object(result.turn, 'turn'); string(turn.id, 'turn id'); string(turn.status, 'turn status');
     if (!Array.isArray(turn.items)) throw new ProtocolError('Turn missing items');
+    if (this.materialReader) await this.materialReader.acknowledgeTurn(threadId, turn.id as string);
     return result as TurnResult;
   }
   async interruptTurn(threadId: string, turnId: string): Promise<JsonObject> {
@@ -261,15 +283,26 @@ export class CodexAdapter {
   }
   respond(id: RequestId, result: unknown): void {
     if (!this.serverRequests.has(id)) throw new ProtocolError('Unknown or already answered server request');
+    this.materialReader?.assertPreparedResponse(id, result);
     this.send({ id, result }); this.serverRequests.delete(id);
   }
   rejectServerRequest(id: RequestId, message = 'Supervisor does not support this request'): void {
+    if (this.materialReader) throw new ProtocolError('Scoped reader replies require their exact durable response lifecycle');
     if (!this.serverRequests.has(id)) throw new ProtocolError('Unknown or already answered server request');
     this.send({ id, error: { code: -32601, message } }); this.serverRequests.delete(id);
   }
   /** Wait for received lines already queued; does not wait for future server activity. */
-  async drain(): Promise<void> { await this.queue; }
-  dispose(): void { this.disconnect('disposed'); for (const unsubscribe of this.unsubscribe) unsubscribe(); }
+  async drain(): Promise<void> {
+    await this.queue;
+    if (this.materialReader) {
+      await Promise.allSettled([...this.readerHandlers]);
+      await this.queue;
+      await this.materialReader.drain();
+    }
+  }
+  dispose(): void {
+    if (this.materialReader) void this.materialReader.cancel('Adapter disposed').catch(() => {});
+    this.disconnect('disposed'); for (const unsubscribe of this.unsubscribe) unsubscribe(); }
   private disconnect(reason: 'disconnected' | 'protocol' | 'disposed'): void {
     this.connected = false;
     for (const [id, entry] of this.pending) { clearTimeout(entry.timer); entry.reject(new UnknownOutcomeError(entry.method, id, reason)); }
@@ -289,12 +322,17 @@ export class CodexAdapter {
     const data = object(message, 'RPC message');
     if (typeof data.method === 'string') {
       const event = normalizeNotification(data, sequence);
+      if (this.materialReader) await this.materialReader.observe(event);
       await this.options.onEvent(event);
       if (requestId(data.id)) {
         const request: ServerRequest = { id: data.id, method: data.method, params: object(data.params ?? {}), raw: data };
         if (this.serverRequests.has(data.id)) throw new ProtocolError('Duplicate active server request id');
         this.serverRequests.set(data.id, request);
-        if (this.options.onServerRequest === undefined) this.rejectServerRequest(data.id);
+        if (this.materialReader) {
+          const work = this.materialReader.handle(request, (id, response) => this.respond(id, response));
+          this.readerHandlers.add(work);
+          void work.catch(error => this.failProtocol(error)).finally(() => this.readerHandlers.delete(work));
+        } else if (this.options.onServerRequest === undefined) this.rejectServerRequest(data.id);
         else {
           // A deferred approval must not block inbound turn status or interrupt replies.
           const result = this.options.onServerRequest(request);

@@ -1,3 +1,9 @@
+## v45 — 索引读取完整性及默认执行器兼容（开发中）
+
+- 新增 `unit-research-reader` 5 项和 `integration-material-reader-session` 8 项；旧 945 项 ID、断言及风险要求保留，总数 958。accessor 反例并入同一 I07，不另建重复用例。
+- 冻结影响范围含新资料范围/搜索、实际请求/响应/取消与审计，以及旧 executor、reasoner、真实 execution/supervision runner、MaterialIntake、research binding 和清单/边界。P8 核心 runner 18 项只选一次；单元 51/51、集成 66/66、零跳过。
+- 独立实际检查 8/8；原 accessor 错误准入、原开发失败均留存。正式证据见 `.supervisor-dev/v45-indexed-reader-integration/formal-summary.json`。新工具只有完整性权限，未接入 P2/P4 消费者；合成供应商协议不能放行真实模型业务或阶段，P8 仍 developing。
+
 ## v44 — 首次来源刷新完整交付组件回归（开发中）
 
 - 保留原944个稳定ID和必要风险；仅新增 `p8.integration-source-refresh-delivery.001`，全局945项，P8保持developing。旧条款/断言不删；原用例只增加影响选择标签。
