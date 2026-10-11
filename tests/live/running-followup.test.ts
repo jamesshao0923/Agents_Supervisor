@@ -152,8 +152,11 @@ test('P6 running followup survives real service restart applies once and indepen
 
  const executed=await until(()=>rpc<any>('runtime',{type:'inspect',runtimeId}),v=>['awaiting-verification','blocked','cancelled'].includes(v.runtime.phase),'revised execution');assert.equal(executed.runtime.phase,'awaiting-verification',executed.runtime.error??'');
  await exec(process.execPath,['math.test.mjs'],{cwd:workspace,timeout:10_000});await exec(process.execPath,['--input-type=module','-e',`import assert from 'node:assert/strict';import {sum,multiply} from './math.mjs';assert.equal(sum(7,9),16);assert.equal(sum(-1,1),0);assert.equal(multiply(6,7),42);assert.equal(multiply(-2,3),-6);for(const f of [sum,multiply])for(const x of [NaN,Infinity,-Infinity,'2',null,undefined]){assert.throws(()=>f(x,1),TypeError);assert.throws(()=>f(1,x),TypeError);}`],{cwd:workspace,timeout:10_000});
- const beforeDeliveryContract=JSON.stringify(executed.run.contract);const attached=await rpc<SupervisionInspection>('supervision',{type:'attach',commandId:randomUUID(),runtimeId,authoringProtocol:'acceptance-stages-v2',config:{...config,reservation:180_000},limits:{maxRepairs:0,maxReasoningCalls:4,maxDurationMs:1_320_000,maxContextChars:200_000}});loopId=attached.loop.id;
- const delivered=await until(()=>rpc<SupervisionInspection>('supervision',{type:'inspect',loopId}),v=>['complete','blocked'].includes(v.loop.phase)||v.loop.stopped,'independent delivery');assert.equal(delivered.loop.phase,'complete',delivered.loop.reason??'');assert.equal(JSON.stringify(delivered.runtime.run.contract),beforeDeliveryContract);assert.equal(delivered.runtime.run.status,'succeeded');assert.deepEqual(delivered.loop.config,{...config,reservation:180_000});assert.equal(delivered.verification.deliveries.length,1);
+ // Personal-trial v2: separate author/review allowance from planning/execution.
+ // A new call may use 600s, still capped by the original 1320s Loop deadline.
+ const authorConfig={...config,reservation:180_000,timeoutMs:600_000};
+ const beforeDeliveryContract=JSON.stringify(executed.run.contract);const attached=await rpc<SupervisionInspection>('supervision',{type:'attach',commandId:randomUUID(),runtimeId,authoringProtocol:'acceptance-stages-v2',config:authorConfig,limits:{maxRepairs:0,maxReasoningCalls:4,maxDurationMs:1_320_000,maxContextChars:200_000}});loopId=attached.loop.id;
+ const delivered=await until(()=>rpc<SupervisionInspection>('supervision',{type:'inspect',loopId}),v=>['complete','blocked'].includes(v.loop.phase)||v.loop.stopped,'independent delivery');assert.equal(delivered.loop.phase,'complete',delivered.loop.reason??'');assert.equal(JSON.stringify(delivered.runtime.run.contract),beforeDeliveryContract);assert.equal(delivered.runtime.run.status,'succeeded');assert.deepEqual(delivered.loop.config,authorConfig);assert.equal(delivered.verification.deliveries.length,1);
  const delivery=delivered.verification.deliveries[0]!;
  const final=delivered.verification.jobs.find(j=>j.id===delivery.jobId)!;assert.equal(final.kind,'verification');
  const plan=delivered.verification.plans.find(p=>p.id===delivery.planId)!;assert.equal(final.planId,plan.id);assert.equal(plan.selection.mode,'final');assert.equal(plan.selection.completeScope,true);assert.equal(plan.runId,delivered.runtime.run.id);assert.equal(delivery.runtimeId,runtimeId);assert.equal(delivery.candidateDigest,plan.candidate.digest);assert.equal(delivery.definitionDigest,plan.definitionDigest);
@@ -167,7 +170,7 @@ test('P6 running followup survives real service restart applies once and indepen
  assert.deepEqual(stages.map(job=>parseAuthorStageInput(job.input)!.context.authorStage.index).sort(),[0,1,2]);
  for(const job of stages){
   const binding=parseAuthorStageInput(job.input)!.context.authorStage;
-  assert.equal(binding.sessionTokenCeiling,180_000);assert.equal(binding.perCallTimeoutMs,240_000);
+  assert.equal(binding.sessionTokenCeiling,180_000);assert.equal(binding.perCallTimeoutMs,authorConfig.timeoutMs);
   assert.equal(binding.loopDeadlineMs,Date.parse(delivered.loop.createdAt)+delivered.loop.limits.maxDurationMs);
   assertStoredAuthorStage(job,data);assertAuthorStageParents(job,readAuthor,data);assertAuthorStageAssemblyProof(job,readAuthor,data);
   const raw=await modelProof(job.proofs,'/result.json');assert.deepEqual(raw.output,job.result);
@@ -184,22 +187,22 @@ test('P6 running followup survives real service restart applies once and indepen
    assert.ok(capabilities.models.some((m:any)=>m.id===job.config.model&&m.reasoningEfforts.includes(job.config.effort)));
    const route=routes.forJob(job.id);
    if(!route||route.schemaVersion===1){
-    assert.equal(job.config.timeoutMs,240_000);
+    assert.equal(job.config.timeoutMs,authorConfig.timeoutMs);
    }else{
     assert.equal(route.schemaVersion,2);
     assertAuthorRouteJob(route,job,delivered.loop);
     const advertised=readRoutingCapabilities(data,route.capabilities);
     assert.deepEqual(job.config,expectedAuthorRouteConfig({...route,capabilities:{...route.capabilities,capabilities:advertised}}));
-    assert.equal(route.baseline.timeoutMs,240_000);
+    assert.equal(route.baseline.timeoutMs,authorConfig.timeoutMs);
     if(route.authorization.authorSession){
      const budget=route.authorization.authorSession;
      assert.equal(job.config.reservation,budget.remaining);
      assert.ok(job.config.reservation<route.baseline.reservation,'Charged prior stages cannot receive a refreshed allowance');
     }else assert.equal(job.config.reservation,route.baseline.reservation);
     assert.equal(route.authorization.absoluteDeadlineMs,Date.parse(delivered.loop.createdAt)+delivered.loop.limits.maxDurationMs);
-    assert.equal(route.authorization.originalTimeoutMs,240_000);
-    assert.equal(job.config.timeoutMs,Math.min(240_000,route.authorization.absoluteDeadlineMs-Date.parse(route.authorization.observedAt)));
-    assert.ok(job.config.timeoutMs>=1000&&job.config.timeoutMs<=240_000);
+    assert.equal(route.authorization.originalTimeoutMs,authorConfig.timeoutMs);
+    assert.equal(job.config.timeoutMs,Math.min(authorConfig.timeoutMs,route.authorization.absoluteDeadlineMs-Date.parse(route.authorization.observedAt)));
+    assert.ok(job.config.timeoutMs>=1000&&job.config.timeoutMs<=authorConfig.timeoutMs);
     // A known-zero pre-dispatch failure has no invented request proof. Every
     // actual V2 model turn must bind its frozen deadline to the actual wire.
     if(job.modelStarted)assertAuthorRouteProof(route,job,join(data,'supervision-reasoning',sha(Buffer.from(job.id))));
