@@ -364,3 +364,5 @@ Add two distinct indexed consumer/lifecycle cases; retain all prior stable IDs. 
 ## v57 — 有界验收恢复协议
 
 保留全部稳定用例 ID，扩展现有 authoring/routing/review 用例覆盖原始 patch、真实基底约束、完整展开、不可修改基底与二次拒绝上限。15 个不同用例分批通过，原三项开发失败及复用映射保留；组件中的模型输出显式为合成输入，尚无真实供应商闭环通过。独立审查绑定 450 源文件及 835 编译文件。旧自主修复 live 驱动改为版本化读取原始 patch 与完整方案，独立审查确认旧断言保留；未运行新真实 gate，未以组件检查替代阶段门禁。
+
+V5 原在途跟进真实运行失败：missing good control→实际patch240秒超时；没有P4或交付，未知费用保留。原driver及标准未变；后继只提升实际可用初始模型为Astra/low，单独冻结和记录，不覆写失败、不增加稳定用例。
