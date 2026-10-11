@@ -32,6 +32,11 @@ export interface AdapterOptions {
   transport: LineTransport;
   /** Must durably preserve the raw line. Reduction starts only after this resolves. */
   onRawEvent(event: RawEvent): void | Promise<void>;
+  /** Opt-in bounded journal: the complete batch must be durable before reduction. */
+  rawJournal?: {
+    persist(events: readonly RawEvent[]): Promise<void>;
+    flush(): Promise<void>;
+  };
   onEvent(event: NormalizedEvent): void | Promise<void>;
   /** Return a result to reply immediately; undefined explicitly defers to respond(). */
   onServerRequest?(request: ServerRequest): unknown | Promise<unknown>;
@@ -175,6 +180,12 @@ export class CodexAdapter {
   private readonly serverRequests = new Map<RequestId, ServerRequest>();
   private queue: Promise<void> = Promise.resolve();
   private connected = true;
+  private reductionFailed = false;
+  private receiving = true;
+  private inbox: RawEvent[] = [];
+  private queuedBytes = 0;
+  private rawBytes = 0;
+  private pumping = false;
   private initialized = false;
   private initializing = false;
   private readonly unsubscribe: (() => void)[];
@@ -188,10 +199,35 @@ export class CodexAdapter {
     this.timeoutMs = options.requestTimeoutMs ?? 30_000;
     if (!Number.isSafeInteger(this.timeoutMs) || this.timeoutMs <= 0 || this.timeoutMs > 2_147_483_647) throw new ProtocolError('Invalid request timeout');
     this.unsubscribe = [options.transport.onLine(line => {
-      this.queue = this.queue.then(() => this.receive(line)).catch(error => this.failProtocol(error));
+      const receivedAt = new Date().toISOString();
+      if (options.rawJournal) {
+        if (!this.receiving) return; // EOF closes ingress; already captured input is drained.
+        const bytes = Buffer.byteLength(line);
+        this.rawBytes += bytes;
+        if (this.rawBytes > 8 * 1024 * 1024 || this.queuedBytes + bytes > 8 * 1024 * 1024 || this.inbox.length >= 65536) {
+          this.receiving = false;
+          this.reductionFailed = true;
+          this.queue = this.queue.then(() => this.failProtocol(new Error('Reasoner raw event evidence limit exceeded')));
+          return;
+        }
+        let message: unknown;
+        try { message = JSON.parse(line) as unknown; } catch { message = null; }
+        this.inbox.push({sequence: ++this.sequence, receivedAt, line, message});
+        this.queuedBytes += bytes;
+        if (!this.pumping) {
+          this.pumping = true;
+          this.queue = this.queue.then(() => this.pump()).catch(error => this.failProtocol(error));
+        }
+      } else {
+        this.queue = this.queue.then(() => this.receive(line, receivedAt)).catch(error => this.failProtocol(error));
+      }
     }), options.transport.onClose(reason => {
+      this.receiving = false;
       this.disconnect('disconnected');
-      this.queue = this.queue.then(async () => { await this.options.onEvent({ sequence: ++this.sequence, method: 'transport/closed', kind: 'disconnected', raw: { reason: String(reason ?? 'closed') } }); }).catch(() => {});
+      this.queue = this.queue.then(async () => {
+        await options.rawJournal?.flush();
+        await this.options.onEvent({ sequence: ++this.sequence, method: 'transport/closed', kind: 'disconnected', raw: { reason: String(reason ?? 'closed') } });
+      }).catch(error => this.failProtocol(error));
     })];
   }
   private send(value: JsonObject): void {
@@ -302,6 +338,7 @@ export class CodexAdapter {
   }
   dispose(): void {
     if (this.materialReader) void this.materialReader.cancel('Adapter disposed').catch(() => {});
+    this.receiving = false; this.reductionFailed = true;
     this.disconnect('disposed'); for (const unsubscribe of this.unsubscribe) unsubscribe(); }
   private disconnect(reason: 'disconnected' | 'protocol' | 'disposed'): void {
     this.connected = false;
@@ -309,15 +346,36 @@ export class CodexAdapter {
     this.pending.clear(); this.serverRequests.clear();
   }
   private async failProtocol(error: unknown): Promise<void> {
+    this.reductionFailed = true;
     this.disconnect('protocol');
     try { await this.options.onEvent({ sequence: ++this.sequence, method: 'protocol/error', kind: 'protocol-error', raw: { message: error instanceof Error ? error.message : String(error) } }); } catch { /* Already fail-closed. */ }
   }
-  private async receive(line: string): Promise<void> {
+  private async pump(): Promise<void> {
+    try {
+      while (this.inbox.length) {
+        const batch = this.inbox.splice(0, 256);
+        // Keep in-flight bytes charged until their complete raw journal is durable.
+        await this.options.rawJournal!.persist(batch);
+        for (const event of batch) {
+          if (!this.reductionFailed) {
+            try { await this.reduce(event.message, event.sequence); }
+            catch (error) { await this.failProtocol(error); }
+          }
+        }
+        await this.options.rawJournal!.flush();
+        this.queuedBytes -= batch.reduce((sum, event) => sum + Buffer.byteLength(event.line), 0);
+      }
+    } finally { this.pumping = false; }
+  }
+  private async receive(line: string, receivedAt: string): Promise<void> {
     let message: unknown;
     try { message = JSON.parse(line) as unknown; } catch { message = null; }
     const sequence = ++this.sequence;
-    await this.options.onRawEvent({ sequence, receivedAt: new Date().toISOString(), line, message });
-    if (!this.connected) return; // Preserve late input, but never revive a failed connection.
+    await this.options.onRawEvent({ sequence, receivedAt, line, message });
+    if (!this.connected) return; // Legacy consumers retain their original reduction policy.
+    await this.reduce(message, sequence);
+  }
+  private async reduce(message: unknown, sequence: number): Promise<void> {
     if (message === null) throw new ProtocolError('Invalid JSON line from Codex');
     const data = object(message, 'RPC message');
     if (typeof data.method === 'string') {
@@ -325,6 +383,8 @@ export class CodexAdapter {
       if (this.materialReader) await this.materialReader.observe(event);
       await this.options.onEvent(event);
       if (requestId(data.id)) {
+        // Draining captured notifications cannot revive RPC or tool responses after EOF.
+        if (!this.connected) return;
         const request: ServerRequest = { id: data.id, method: data.method, params: object(data.params ?? {}), raw: data };
         if (this.serverRequests.has(data.id)) throw new ProtocolError('Duplicate active server request id');
         this.serverRequests.set(data.id, request);

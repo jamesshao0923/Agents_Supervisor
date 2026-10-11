@@ -52,7 +52,8 @@ export async function runModelReview(input: ModelReviewInput): Promise<ModelRevi
   let adapter: CodexAdapter | undefined;
   let readerSession:MaterialReaderSession|undefined;
   let fatal: Error | undefined;
-  let finishing = false;let rawBytes=0;
+  let finishing = false;
+  let normalRecords: string[] = [];
   let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
   let finishEvent!: () => void;
   const eventFinished = new Promise<void>(resolve => { finishEvent = resolve; });
@@ -87,7 +88,15 @@ export async function runModelReview(input: ModelReviewInput): Promise<ModelRevi
     queue = work.catch(error => { fail(error); });
     return work;
   }
-  function record(kind: string, value: unknown): Promise<void> { return persist('events.jsonl', JSON.stringify({ kind, at: new Date().toISOString(), value }) + '\n'); }
+  function flushNormal(): Promise<void> {
+    if (!normalRecords.length) return Promise.resolve();
+    const bytes = normalRecords.join(''); normalRecords = [];
+    return persist('events.jsonl', bytes);
+  }
+  async function record(kind: string, value: unknown): Promise<void> {
+    await flushNormal();
+    await persist('events.jsonl', JSON.stringify({ kind, at: new Date().toISOString(), value }) + '\n');
+  }
   const abort = (): void => fail(new Error('Model review cancelled'));
 
   async function spawn(kind: string, args: string[], timeoutMs: number): Promise<ManagedProcess> {
@@ -131,7 +140,12 @@ export async function runModelReview(input: ModelReviewInput): Promise<ModelRevi
   }
   function onEvent(event: NormalizedEvent): Promise<void> {
     return (async () => {
-      await record('codex-event', event);
+      if (['item/agentMessage/delta', 'model/safetyBuffering/updated'].includes(event.method)) {
+        normalRecords.push(JSON.stringify({kind: 'codex-event', at: new Date().toISOString(), value: event}) + '\n');
+      } else {
+        // All authority/reader boundaries sync the complete preceding prefix.
+        await record('codex-event', event);
+      }
       if (event.threadId) {
         if (result.threadId && event.threadId !== result.threadId) throw new Error('Review event belongs to another thread');
         result.threadId = event.threadId;
@@ -210,7 +224,15 @@ export async function runModelReview(input: ModelReviewInput): Promise<ModelRevi
     };
     managed.stderr.on('data', (chunk: Buffer) => { void persist('review.stderr.log', chunk).catch(fail); });
     adapter = new CodexAdapter({ transport,...(readerSession?{materialReader:readerSession}:{}), requestTimeoutMs: remaining(20_000),
-      onRawEvent: async event => { if(readerSession){rawBytes+=Buffer.byteLength(event.line);if(rawBytes>8*1024*1024)throw Error('Review raw evidence exceeds original 8MiB capacity');}await persist('review.stdout.log', event.line + '\n'); await record('codex-raw', event); }, onEvent,
+      onRawEvent: () => { throw new Error('Review requires its bounded raw journal'); },
+      rawJournal: {
+        persist: async events => {
+          await flushNormal();
+          await persist('review.stdout.log', events.map(event => event.line + '\n').join(''));
+          await persist('events.jsonl', events.map(event => JSON.stringify({kind: 'codex-raw', at: new Date().toISOString(), value: event}) + '\n').join(''));
+        },
+        flush: flushNormal,
+      }, onEvent,
       ...(readerSession?{}:{onServerRequest: request => { adapter!.rejectServerRequest(request.id, 'Independent review rejects all approvals, input requests and unsupported server actions'); fail(new Error(`Review requested unsupported interaction: ${request.method}`)); }}),
     });
     void managed.completion.then(async stop => {
@@ -278,7 +300,7 @@ export async function runModelReview(input: ModelReviewInput): Promise<ModelRevi
     if (result.modelStarted && result.usage === null) fatal ??= new Error('Started review has no confirmed token usage');
     if (fatal) { result.verdict = 'unknown'; result.reason = message(fatal); }
     try {
-      await queue;
+      await flushNormal(); await queue;
       for (const [kind, proof] of processes) await persist(`${kind}.process.json`, JSON.stringify(proof, null, 2) + '\n');
       if (fatal) await persist('error.json', JSON.stringify({ name: fatal.name, message: fatal.message, stack: fatal.stack }, null, 2) + '\n');
       await file('result.json');

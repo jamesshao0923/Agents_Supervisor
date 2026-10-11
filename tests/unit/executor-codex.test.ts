@@ -139,6 +139,29 @@ test('p2.executor-codex.unit.protocol-raw-persistence-precedes-reduction-and-ret
     // Repeated deltas can be legitimate; absence of vendor event IDs means no content-based dedup.
     transport.receive(notification('item/agentMessage/delta', { delta: 'second' })); await adapter.drain(); assert.equal(events.length, 3);
   } finally { release(); adapter.dispose(); }
+  // Explicit batch opt-in: ingress is timestamped before any durable I/O wait.
+  const incoming = new ProtocolLines(), batches: RawEvent[][] = [], reduced: NormalizedEvent[] = [];
+  let unblock!: () => void; const gate = new Promise<void>(resolve => { unblock = resolve; });
+  let flushed = 0;
+  const journal = new CodexAdapter({transport: incoming, onRawEvent: () => { throw Error('legacy callback must not run'); },
+    rawJournal: {persist: async values => { batches.push([...values]); await gate; }, flush: async () => { flushed++; }},
+    onEvent: event => { if (event.kind !== 'disconnected') assert.ok(batches.flat().some(raw => raw.sequence === event.sequence)); reduced.push(event); }});
+  try {
+    const capturedBefore = Date.now();
+    for (let i = 0; i < 600; i++) incoming.receive(notification('item/agentMessage/delta', {threadId:'t',turnId:'u',delta:String(i)}));
+    incoming.receive(notification('turn/completed', {threadId:'t',turn:{id:'u',status:'completed',items:[]}}));
+    const capturedAfter = Date.now();
+    incoming.close();
+    await Promise.resolve(); assert.equal(reduced.length, 0);
+    unblock(); await journal.drain();
+    const raw = batches.flat(); assert.equal(raw.length, 601); assert.ok(batches.every(batch => batch.length <= 256));
+    assert.ok(raw.every(event => Date.parse(event.receivedAt) >= capturedBefore && Date.parse(event.receivedAt) <= capturedAfter));
+    assert.deepEqual(raw.map(event => event.sequence), Array.from({length:601}, (_,i)=>i+1));
+    assert.deepEqual(reduced.filter(event => event.method==='item/agentMessage/delta').map(event=>event.text),Array.from({length:600},(_,i)=>String(i)));
+    assert.equal(reduced.filter(event=>event.terminal).length,1); assert.equal(reduced.at(-1)?.kind,'disconnected');
+    assert.ok(flushed >= batches.length); await assert.rejects(journal.listModels(), /disconnected/);
+    incoming.receive(notification('item/agentMessage/delta',{delta:'after EOF'})); await journal.drain(); assert.equal(batches.flat().length,601);
+  } finally {unblock();journal.dispose();}
 });
 
 test('p2.executor-codex.unit.protocol-server-requests-explicit-response-or-unsupported-rejection', async () => {
@@ -218,4 +241,17 @@ test('p2.executor-codex.unit.protocol-rpc-errors-malformed-lines-and-persistence
     await adapter.drain(); assert.equal(events.length, 1); assert.equal(events[0]?.kind, 'protocol-error');
     assert.equal(events[0]?.raw.message, 'disk full');
   } finally { adapter.dispose(); }
+  for (const mode of ['journal-failure','malformed','capacity'] as const) {
+    const lines = new ProtocolLines(), journalEvents:NormalizedEvent[]=[]; let persisted=0;
+    const journal=new CodexAdapter({transport:lines,onRawEvent:()=>{throw Error('unexpected legacy');},
+      rawJournal:{persist:async values=>{persisted+=values.length;if(mode==='journal-failure')throw Error('second raw journal sync failed');},flush:async()=>{}},
+      onEvent:event=>{journalEvents.push(event);}});
+    try {
+      if(mode==='capacity')lines.receiveLine('x'.repeat(8*1024*1024+1));
+      else if(mode==='malformed')lines.receiveLine('{invalid');
+      lines.receive(notification('turn/completed',{threadId:'t',turn:{id:'u',status:'completed',items:[]}}));
+      await journal.drain();assert.equal(journalEvents.some(event=>event.terminal),false);assert.ok(journalEvents.some(event=>event.kind==='protocol-error'));
+      await assert.rejects(journal.listModels(),/disconnected/);if(mode==='capacity')assert.equal(persisted,0);
+    }finally{journal.dispose();}
+  }
 });

@@ -2,7 +2,7 @@ import test, {type TestContext} from 'node:test';
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
 import {createInterface} from 'node:readline';
-import {writeFile, readFile, readdir, mkdir, cp} from 'node:fs/promises';
+import {writeFile, readFile, readdir, mkdir, cp, open} from 'node:fs/promises';
 import {join, basename} from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
 import {researchReaderFixture} from '../helpers/research-reader-fixture.js';
@@ -14,7 +14,7 @@ import type {ResearchReaderAudit} from '../../packages/contracts/p8-research-rea
 
 // Real managed Node stdin/stdout + actual archive/schema/identity/audit files.
 // JSON server events are explicit synthetic transport input; no Codex model is run.
-async function fixture(t: TestContext, mode = 'normal', maxTranscriptBytes?: number) {
+async function fixture(t: TestContext, mode = 'normal', maxTranscriptBytes?: number, batchJournal = false) {
   const f = await researchReaderFixture(t), schemas = join(f.root, 'schemas');
   const version = execFileSync('codex', ['--version'], {encoding: 'utf8', timeout: 15000}).trim();
   execFileSync('codex', ['app-server', 'generate-json-schema', '--experimental', '--out', schemas], {timeout: 15000, stdio: 'pipe'});
@@ -71,6 +71,18 @@ require('node:readline').createInterface({input:process.stdin}).on('line',line=>
   const session = await MaterialReaderSession.create(options);
   const adapterOptions: AdapterOptions = {transport, materialReader: session, requestTimeoutMs: 2000,
     onRawEvent: event => {raw.push(event); if (event.line.includes('turn/completed')) terminalRaw?.();}, onEvent: event => {events.push(event);}};
+  if (batchJournal) {
+    const stdout = await open(join(f.root, 'captured-stdout.jsonl'), 'wx'), journal = await open(join(f.root, 'captured-raw.jsonl'), 'wx');
+    f.addCleanup(async () => { await stdout.close(); await journal.close(); });
+    adapterOptions.rawJournal = {
+      persist: async batch => {
+        await stdout.writeFile(batch.map(event => event.line + '\n').join('')); await stdout.sync();
+        await journal.writeFile(batch.map(event => JSON.stringify(event) + '\n').join('')); await journal.sync();
+        for (const event of batch) { raw.push(event); if (event.line.includes('turn/completed')) terminalRaw?.(); }
+      },
+      flush: async () => {}, // This fixture has no secondary normalized file; reader audit remains actual durable FS.
+    };
+  }
   const adapter = new CodexAdapter(adapterOptions);
   f.addCleanup(async () => {adapter.dispose(); await session.cancel().catch(() => {}); lines.close();});
   async function start() {await adapter.initialize(); await adapter.startThread({cwd: f.root, sandbox: 'read-only', approvalPolicy: 'never'});
@@ -99,7 +111,8 @@ async function audits(directory: string): Promise<ResearchReaderAudit[]> {
 }
 
 test('P8-READER-I01 actual Node early tool request waits real acknowledgements and exact independent item completion before closing', async t => {
-  const f = await fixture(t); f.clearCallerScope(); await f.start();
+  for (const batchJournal of [false, true]) {
+  const f = await fixture(t, 'normal', undefined, batchJournal); f.clearCallerScope(); await f.start();
   await waitFor(() => f.events.some(event => event.kind === 'turn-status' && event.terminal));
   await f.adapter.drain(); await f.session.finish();
   assert.ok(f.processReceipt.intent && f.processReceipt.identity);
@@ -125,6 +138,7 @@ test('P8-READER-I01 actual Node early tool request waits real acknowledgements a
   const count = f.writes.length;
   await assert.rejects(f.adapter.startTurn('actual-thread', [{type: 'text', text: 'Forbidden second model turn'}]), /closed/);
   assert.equal(f.writes.length, count, 'Second turn must reject before any dispatch');
+  }
 });
 
 test('P8-READER-I02 actual Node cross-thread and duplicate same-args requests reject without arbitrary correlation or replies', async t => {
@@ -148,14 +162,14 @@ test('P8-READER-I03 actual Node command items and changed completed response can
 });
 
 test('P8-READER-I04 actual Node terminal before response or without observed completion remains incomplete', async t => {
-  const valid = await fixture(t); valid.delayWrittenAudit(); await valid.start();
+  const valid = await fixture(t, 'normal', undefined, true); valid.delayWrittenAudit(); await valid.start();
   await waitFor(() => valid.raw.some(event => event.line.includes('turn/completed')));
   await valid.adapter.drain(); await valid.session.finish();
   assert.equal(valid.auditDelayed(), true);
   assert.deepEqual((await audits(valid.session.directory)).map(record => record.stage), ['prepared', 'write-attempt', 'written', 'observed', 'closed']);
   assert.ok(valid.raw.some(event => event.line.includes('item/completed')));
   for (const mode of ['terminal', 'missingobserved', 'failedterminal', 'badcompletion']) {
-    const f = await fixture(t, mode); await f.start().catch(() => {});
+    const f = await fixture(t, mode, undefined, true); await f.start().catch(() => {});
     await waitFor(() => f.events.some(event => event.kind === 'protocol-error'));
     await assert.rejects(f.adapter.drain()); await assert.rejects(f.session.finish());
     assert.equal((await audits(f.session.directory)).some(record => record.stage === 'closed'), false);
@@ -163,7 +177,7 @@ test('P8-READER-I04 actual Node terminal before response or without observed com
 });
 
 test('P8-READER-I05 cancel drains a pre-ack actual-process request with no late reply and exact aborted audit', async t => {
-  const f = await fixture(t, 'noack');
+  const f = await fixture(t, 'noack', undefined, true);
   const start = f.start().catch(() => {});
   await waitFor(() => f.events.some(event => event.kind === 'server-request'));
   await f.session.cancel('Actual consumer cancelled before turn acknowledgement');

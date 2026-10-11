@@ -89,7 +89,7 @@ export async function runReasonerRequest(input: ReasonerInput): Promise<Reasoner
   const eventFinished = new Promise<void>(resolve => { finishEvent = resolve; });
   const deadline = Math.min(Date.now() + input.timeoutMs,input.absoluteDeadlineMs??Infinity);
   const observation = createReasonerEventState();
-  let rawBytes = 0;
+  let normalRecords: string[] = [];
   let streamsClosed: Promise<void> = Promise.resolve();
   const codex = process.env.SUPERVISOR_CODEX_PATH ?? 'codex';
 
@@ -118,7 +118,15 @@ export async function runReasonerRequest(input: ReasonerInput): Promise<Reasoner
     queue = work.catch(error => { fail(error); });
     return work;
   }
-  function record(kind: string, value: unknown): Promise<void> { return persist('events.jsonl', JSON.stringify({ kind, at: new Date().toISOString(), value }) + '\n'); }
+  function flushNormal(): Promise<void> {
+    if (!normalRecords.length) return Promise.resolve();
+    const bytes = normalRecords.join(''); normalRecords = [];
+    return persist('events.jsonl', bytes);
+  }
+  async function record(kind: string, value: unknown): Promise<void> {
+    await flushNormal();
+    await persist('events.jsonl', JSON.stringify({ kind, at: new Date().toISOString(), value }) + '\n');
+  }
   const abort = (): void => fail(new Error('Model reasoner cancelled'));
 
   async function spawn(kind: string, args: string[], timeoutMs: number): Promise<ManagedProcess> {
@@ -164,7 +172,15 @@ export async function runReasonerRequest(input: ReasonerInput): Promise<Reasoner
   }
   function onEvent(event: NormalizedEvent): Promise<void> {
     return (async () => {
-      await record('codex-event', event);
+      if (['item/agentMessage/delta', 'model/safetyBuffering/updated'].includes(event.method)) {
+        // Raw data is already durable. These two passive notifications grant no
+        // authority; their complete normalized records flush at the batch boundary.
+        normalRecords.push(JSON.stringify({kind: 'codex-event', at: new Date().toISOString(), value: event}) + '\n');
+      } else {
+        // Usage, final messages, terminal/reader items and all other boundaries
+        // sync the entire preceding prefix before callbacks or state reduction.
+        await record('codex-event', event);
+      }
       // Expected transport closure during explicit cleanup is not model completion.
       if (event.kind === 'disconnected' && finishing) return;
       const item=(event.raw.params as {item?:{type?:string}}|undefined)?.item;
@@ -228,10 +244,14 @@ export async function runReasonerRequest(input: ReasonerInput): Promise<Reasoner
     };
     managed.stderr.on('data', (chunk: Buffer) => { void persist('reasoner.stderr.log', chunk).catch(fail); });
     adapter = new CodexAdapter({ transport,...(readerSession?{materialReader:readerSession}:{}), requestTimeoutMs: remaining(20_000),
-      onRawEvent: async event => {
-        rawBytes += Buffer.byteLength(event.line);
-        if (rawBytes > 8 * 1024 * 1024) throw new Error('Reasoner raw event evidence limit exceeded');
-        await persist('reasoner.stdout.log', event.line + '\n'); await record('codex-raw', event);
+      onRawEvent: () => { throw new Error('Reasoner requires its bounded raw journal'); },
+      rawJournal: {
+        persist: async events => {
+          await flushNormal();
+          await persist('reasoner.stdout.log', events.map(event => event.line + '\n').join(''));
+          await persist('events.jsonl', events.map(event => JSON.stringify({kind: 'codex-raw', at: new Date().toISOString(), value: event}) + '\n').join(''));
+        },
+        flush: flushNormal,
       }, onEvent,
       ...(readerSession?{}:{onServerRequest: request => { adapter!.rejectServerRequest(request.id, 'Independent reasoner rejects all approvals, input requests and unsupported server actions'); fail(new Error(`Reasoner requested unsupported interaction: ${request.method}`)); }}),
     });
@@ -297,7 +317,7 @@ export async function runReasonerRequest(input: ReasonerInput): Promise<Reasoner
     if (fatal) result.value = null;
     if (!(fatal instanceof ReasonerSchemaError) || !result.stopConfirmed || result.usage === null || observation.terminalStatus !== 'completed') delete result.outputRejection;
     try {
-      await queue;
+      await flushNormal(); await queue;
       for (const [kind, proof] of processes) await persist(`${kind}.process.json`, JSON.stringify(proof, null, 2) + '\n');
       if (fatal) await persist('error.json', JSON.stringify({ name: fatal.name, message: fatal.message, stack: fatal.stack }, null, 2) + '\n');
       await file('result.json');

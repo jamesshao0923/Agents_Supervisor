@@ -4787,7 +4787,8 @@
         "execution",
         "protocol",
         "v40-research-groups-impact",
-        "v45-indexed-reader-impact"
+        "v45-indexed-reader-impact",
+        "model-event-journal"
       ],
       "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
       "assertions": "tests/unit/executor-codex.test.ts: exact version/schema baseline accepts supported protocol and rejects drift",
@@ -4809,7 +4810,8 @@
         "execution",
         "protocol",
         "v40-research-groups-impact",
-        "v45-indexed-reader-impact"
+        "v45-indexed-reader-impact",
+        "model-event-journal"
       ],
       "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
       "assertions": "tests/unit/executor-codex.test.ts: handshake required; correlated out-of-order RPC replies; model text/image capabilities and unknown fields retained",
@@ -4831,7 +4833,8 @@
         "execution",
         "protocol",
         "v40-research-groups-impact",
-        "v45-indexed-reader-impact"
+        "v45-indexed-reader-impact",
+        "model-event-journal"
       ],
       "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
       "assertions": "tests/unit/executor-codex.test.ts: fresh independent thread, read/resume, text/image turn and interrupt serialization; invalid inputs refused",
@@ -4853,7 +4856,8 @@
         "execution",
         "protocol",
         "v40-research-groups-impact",
-        "v45-indexed-reader-impact"
+        "v45-indexed-reader-impact",
+        "model-event-journal"
       ],
       "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
       "assertions": "tests/unit/executor-codex.test.ts: waiting/error/willRetry classification and terminal status without inventing provider live coverage",
@@ -4875,7 +4879,8 @@
         "execution",
         "protocol",
         "v40-research-groups-impact",
-        "v45-indexed-reader-impact"
+        "v45-indexed-reader-impact",
+        "model-event-journal"
       ],
       "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
       "assertions": "tests/unit/executor-codex.test.ts: usage, diffs, messages and unknown fields retained; invalid token counts refused",
@@ -4897,7 +4902,8 @@
         "execution",
         "protocol",
         "v40-research-groups-impact",
-        "v45-indexed-reader-impact"
+        "v45-indexed-reader-impact",
+        "model-event-journal"
       ],
       "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
       "assertions": "tests/unit/executor-codex.test.ts: raw event persistence precedes ordered reduction; legitimate repeated deltas retained",
@@ -4919,7 +4925,8 @@
         "execution",
         "protocol",
         "v40-research-groups-impact",
-        "v45-indexed-reader-impact"
+        "v45-indexed-reader-impact",
+        "model-event-journal"
       ],
       "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
       "assertions": "tests/unit/executor-codex.test.ts: server approvals/user-input requests require explicit response or unsupported rejection; deferred reply does not block interrupt",
@@ -4941,7 +4948,8 @@
         "execution",
         "protocol",
         "v40-research-groups-impact",
-        "v45-indexed-reader-impact"
+        "v45-indexed-reader-impact",
+        "model-event-journal"
       ],
       "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
       "assertions": "tests/unit/executor-codex.test.ts: timeout/disconnect return unknown outcomes; late replies retained with no automatic resend",
@@ -4963,7 +4971,8 @@
         "execution",
         "protocol",
         "v40-research-groups-impact",
-        "v45-indexed-reader-impact"
+        "v45-indexed-reader-impact",
+        "model-event-journal"
       ],
       "prerequisites": "Pinned Node runtime; real adapter protocol logic with explicit boundary inputs (not provider-live evidence)",
       "assertions": "tests/unit/executor-codex.test.ts: RPC errors, malformed JSON and persistence failure fail closed and retain raw evidence",
@@ -6710,7 +6719,8 @@
         "p5",
         "v42-research-group-entry-impact",
         "v45-indexed-reader-impact",
-        "v53-author-route-v2-impact"
+        "v53-author-route-v2-impact",
+        "model-event-journal"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.structured-proposal-parses-and-schema-is-detached",
@@ -6732,7 +6742,8 @@
         "p5",
         "v42-research-group-entry-impact",
         "v45-indexed-reader-impact",
-        "v53-author-route-v2-impact"
+        "v53-author-route-v2-impact",
+        "model-event-journal"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.final-json-rejects-extra-fields-missing-constraints-and-prose",
@@ -6754,7 +6765,8 @@
         "p5",
         "v42-research-group-entry-impact",
         "v45-indexed-reader-impact",
-        "v53-author-route-v2-impact"
+        "v53-author-route-v2-impact",
+        "model-event-journal"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.schema-rejects-unsupported-and-malformed-constraints-before-inference",
@@ -6776,7 +6788,8 @@
         "p5",
         "v42-research-group-entry-impact",
         "v45-indexed-reader-impact",
-        "v53-author-route-v2-impact"
+        "v53-author-route-v2-impact",
+        "model-event-journal"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.nested-schema-unions-numeric-bounds-and-canonical-uniqueness",
@@ -6798,7 +6811,8 @@
         "p5",
         "v42-research-group-entry-impact",
         "v45-indexed-reader-impact",
-        "v53-author-route-v2-impact"
+        "v53-author-route-v2-impact",
+        "model-event-journal"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.untrusted-schema-and-output-reject-accessors-prototypes-and-unsafe-keys",
@@ -6820,7 +6834,8 @@
         "p5",
         "v42-research-group-entry-impact",
         "v45-indexed-reader-impact",
-        "v53-author-route-v2-impact"
+        "v53-author-route-v2-impact",
+        "model-event-journal"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.context-and-output-capacity-is-bounded-without-truncation",
@@ -6842,7 +6857,8 @@
         "p5",
         "v42-research-group-entry-impact",
         "v45-indexed-reader-impact",
-        "v53-author-route-v2-impact"
+        "v53-author-route-v2-impact",
+        "model-event-journal"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.event-identities-are-isolated-and-cannot-cross-threads-or-turns",
@@ -6864,7 +6880,8 @@
         "p5",
         "v42-research-group-entry-impact",
         "v45-indexed-reader-impact",
-        "v53-author-route-v2-impact"
+        "v53-author-route-v2-impact",
+        "model-event-journal"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.usage-preserves-unknown-zero-and-monotonic-cumulative-tokens",
@@ -6886,7 +6903,8 @@
         "p5",
         "v42-research-group-entry-impact",
         "v45-indexed-reader-impact",
-        "v53-author-route-v2-impact"
+        "v53-author-route-v2-impact",
+        "model-event-journal"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.partial-usage-remains-observed-until-authoritative-terminal-accounting",
@@ -6908,7 +6926,8 @@
         "p5",
         "v42-research-group-entry-impact",
         "v45-indexed-reader-impact",
-        "v53-author-route-v2-impact"
+        "v53-author-route-v2-impact",
+        "model-event-journal"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.durable-turn-intent-precedes-send-and-cancellation-remains-conservative",
@@ -6930,7 +6949,8 @@
         "p5",
         "v42-research-group-entry-impact",
         "v45-indexed-reader-impact",
-        "v53-author-route-v2-impact"
+        "v53-author-route-v2-impact",
+        "model-event-journal"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.reasoning-role-rejects-tools-approvals-input-and-unknown-actions",
@@ -6952,7 +6972,8 @@
         "p5",
         "v42-research-group-entry-impact",
         "v45-indexed-reader-impact",
-        "v53-author-route-v2-impact"
+        "v53-author-route-v2-impact",
+        "model-event-journal"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.only-authoritative-terminal-event-completes-and-deltas-are-not-final-output",
@@ -6974,7 +6995,8 @@
         "p5",
         "v42-research-group-entry-impact",
         "v45-indexed-reader-impact",
-        "v53-author-route-v2-impact"
+        "v53-author-route-v2-impact",
+        "model-event-journal"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.invalid-or-cancelled-request-never-starts-model-and-preserves-unknown-usage",
@@ -19308,7 +19330,8 @@
       "scenario": "P8-ENV-I07 actual synthetic review transport uses stable scoped workspace and preserves legacy cwd and current trust gate",
       "impactTags": [
         "p8-scoped-environment",
-        "v33-union"
+        "v33-union",
+        "model-event-journal"
       ],
       "prerequisites": "Pinned Node; real modules/FS/SQLite/managed processes; synthetic transport/accounting explicitly labelled, no provider/native claim",
       "assertions": "tests/integration/scoped-environment.test.ts :: P8-ENV-I07 actual synthetic review transport uses stable scoped workspace and preserves legacy cwd and current trust gate",
@@ -21039,7 +21062,8 @@
       "impactTags": [
         "p8-indexed-reader-integrity",
         "v45-indexed-reader-impact",
-        "v46-final-impact"
+        "v46-final-impact",
+        "model-event-journal"
       ],
       "prerequisites": "Actual MaterialIntake, archived filesystem bytes and owned Node transport. Supplier protocol fixtures are synthetic; no real provider or semantic acceptance.",
       "assertions": "tests/integration/material-reader-session.test.ts :: P8-READER-I01 actual Node early tool request waits real acknowledgements and exact independent item completion before closing",
@@ -21099,7 +21123,8 @@
       "impactTags": [
         "p8-indexed-reader-integrity",
         "v45-indexed-reader-impact",
-        "v46-final-impact"
+        "v46-final-impact",
+        "model-event-journal"
       ],
       "prerequisites": "Actual MaterialIntake, archived filesystem bytes and owned Node transport. Supplier protocol fixtures are synthetic; no real provider or semantic acceptance.",
       "assertions": "tests/integration/material-reader-session.test.ts :: P8-READER-I04 actual Node terminal before response or without observed completion remains incomplete",
@@ -21119,7 +21144,8 @@
       "impactTags": [
         "p8-indexed-reader-integrity",
         "v45-indexed-reader-impact",
-        "v46-final-impact"
+        "v46-final-impact",
+        "model-event-journal"
       ],
       "prerequisites": "Actual MaterialIntake, archived filesystem bytes and owned Node transport. Supplier protocol fixtures are synthetic; no real provider or semantic acceptance.",
       "assertions": "tests/integration/material-reader-session.test.ts :: P8-READER-I05 cancel drains a pre-ack actual-process request with no late reply and exact aborted audit",
