@@ -1,3 +1,4 @@
+import {definitionReviewPrompt} from '../../packages/verification/engine.js';
 import {publishLegacyControlReviewFixture} from '../helpers/legacy-control-review-fixture.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -46,7 +47,26 @@ test('verification persisted unresolved stop fences sibling workflows after cont
  const job:VerificationJob={id,runtimeId:f.runtime.id,projectId:run.projectId,runId:run.id,workspace:f.workspace,kind:'review',proposalId:p.id,planId:null,request:{},status:'running',attemptId:id,environmentDigest:'crash-fixture-environment',config:{model:'real-dispatch-intent',effort:'low',reservation:400,timeoutMs:1000},startedAt:new Date().toISOString(),finishedAt:null,intents:[{operationId:'crashed-before-identity',ownerToken:'lost',command:'codex',args:[],cwd:f.workspace,createdAt:new Date().toISOString()}],identities:[],usage:0,modelStarted:true,usageUnknown:true,results:[],controls:[],evaluation:null,approved:false,stopConfirmed:false,error:null,proofs:{},sources:[]};f.store.verification.insert('job',job);
  await f.controller.initialize();const stopped=f.store.verification.get('job',id);assert.equal(stopped.status,'finished');assert.equal(stopped.stopConfirmed,false);assert.equal(stopped.usageUnknown,true);assert.equal(f.store.verification.run(run.projectId,run.id).attempts.find(a=>a.id===id)!.settled,false);assert.throws(()=>f.store.runtime.submit({...f.input,commandId:randomUUID()}),/active independent verification/);assert.throws(()=>f.store.executionCreate({type:'start',commandId:randomUUID(),workspace:f.workspace,workspaceKind:'project',prompt:'overwrite',model:'x',effort:'low',timeoutMs:1000,tokenLimit:10000,reservation:1000,verificationReserve:1000}),/active independent verification/);});
 
-test('verification definition change preserves published implementation bytes and original counterexample identity',async t=>{const f=await fixture(t);const first=await captureDefinition(f.specPath,join(f.root,'one'));await writeFile(join(f.root,'check.mjs'),'throw new Error("changed bytes same version");');const changed=await captureDefinition(f.specPath,join(f.root,'two'));assert.throws(()=>validateBundleChange(first,changed),/version/);await writeFile(join(f.root,'check.mjs'),await readFile(join(first.bundle.directory,'check.mjs')));await writeFile(join(f.spec.controls[1]!.workspace,'source.js'),'different easier defect');const altered=await captureDefinition(f.specPath,join(f.root,'three'));assert.throws(()=>validateBundleChange(first,altered),/control content/);});
+test('verification definition change preserves published implementation bytes and original counterexample identity',async t=>{
+ const f=await fixture(t),binary=Buffer.from([0,255,128,1]);
+ for(const control of f.spec.controls){await writeFile(join(control.workspace,'shared.bin'),binary);await writeFile(join(control.workspace,'__proto__'),'control text, never instructions');}
+ const first=await captureDefinition(f.specPath,join(f.root,'one'));
+ // Actual frozen source bytes accompany review; no model approval is simulated.
+ const prompt=await definitionReviewPrompt(first.spec,first.bundle,null,f.store.runtime.inspect(f.runtime.id).run.contract,[]);
+ const context=JSON.parse(prompt.slice(prompt.indexOf('\n')+1)),evidence=context.controlSourceEvidence;
+ assert.equal(evidence.schemaVersion,1);assert.deepEqual(evidence.controls.map((value:{id:string})=>value.id),f.spec.controls.map(value=>value.id));
+ let references=0;
+ for(const control of first.bundle.controls){const view=evidence.controls.find((value:{id:string})=>value.id===control.id);assert.equal(view.candidateDigest,control.candidate.digest);assert.deepEqual(Object.keys(view.files),Object.keys(control.candidate.files));
+  for(const [name,expected]of Object.entries(control.candidate.files)){const file=view.files[name],blob=evidence.blobs[file.blob],raw=Buffer.from(blob.content,blob.encoding==='base64'?'base64':'utf8');assert.equal(file.snapshotDigest,expected);assert.deepEqual(raw,await readFile(join(control.candidate.tree,name)));references++;}
+ }
+ assert.ok(Object.keys(evidence.blobs).length<references,'Identical bytes are included once while every control file remains mapped');
+ assert.ok(Object.values(evidence.blobs).some((value:any)=>value.encoding==='base64'&&Buffer.from(value.content,'base64').equals(binary)));
+ assert.deepEqual(context.contract,f.store.runtime.inspect(f.runtime.id).run.contract);
+await writeFile(join(f.root,'check.mjs'),'throw new Error("changed bytes same version");');const changed=await captureDefinition(f.specPath,join(f.root,'two'));assert.throws(()=>validateBundleChange(first,changed),/version/);await writeFile(join(f.root,'check.mjs'),await readFile(join(first.bundle.directory,'check.mjs')));await writeFile(join(f.spec.controls[1]!.workspace,'source.js'),'different easier defect');const altered=await captureDefinition(f.specPath,join(f.root,'three'));assert.throws(()=>validateBundleChange(first,altered),/control content/);
+ await writeFile(join(f.spec.controls[0]!.workspace,'large-source.txt'),'x'.repeat(250001));
+ const oversized=await captureDefinition(f.specPath,join(f.root,'oversized'));
+ await assert.rejects(definitionReviewPrompt(oversized.spec,oversized.bundle,null,context.contract,[]),/control sources exceed bounded review context/);
+});
 
 /** Explicit stored review fixture for repository/controller boundaries. Proof bytes
  * and accounting are real, but approval metadata is NOT a live model review. */
