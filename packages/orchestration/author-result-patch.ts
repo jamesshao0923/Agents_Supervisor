@@ -1,3 +1,4 @@
+import {typedPatchInput,expandTypedAuthorPatch,type TypedAuthorPatchContext} from './author-typed-patch.js';
 import {parseAuthorStageInput} from './author-stage-protocol.js';
 import {resolveStagedAuthor,assertAuthorStageAssemblyProof} from './author-stage-proofs.js';
 import {createHash} from 'node:crypto';
@@ -32,8 +33,8 @@ export interface AuthorPatchContext {
 }
 interface PatchInput {
   prompt:string;outputSchema:Record<string,unknown>;
-  context:{acceptance:AcceptanceAuthoringContext;candidate:unknown;authorPresentation?:unknown;authorPatch?:AuthorPatchContext;
-    authorFeedback:{previousJobId:string;inputDigest:string;rejection:{kind:string;raw:unknown};[key:string]:unknown};evolution?:unknown};
+  context:{acceptance:AcceptanceAuthoringContext;candidate:unknown;authorPresentation?:unknown;authorPatch?:AuthorPatchContext|TypedAuthorPatchContext;
+    authorFeedback:{previousJobId:string;inputDigest:string;rejection:{kind:string;raw:unknown}};evolution?:unknown};
 }
 export interface AuthorReplacement {path:string;replacementJSON:string}
 export interface AuthorPatch {protocol:typeof AUTHOR_PATCH_PROTOCOL;baseJobId:string;baseResultDigest:string;replacements:AuthorReplacement[]}
@@ -44,6 +45,7 @@ export function authorPatchSchema(base:AuthorPatchBase):Record<string,unknown> {
 }
 /** Unknown/nontruthy markers never fall back to a complete-bundle protocol. */
 export function patchInput(value:unknown):PatchInput|null {
+  const typed=typedPatchInput(value);if(typed)return typed;
   const input=value as PatchInput,context=input?.context;
   const marker=context?.authorPresentation as {schemaVersion?:unknown;kind?:unknown}|undefined;
   const claimsPatch=input?.prompt===AUTHOR_PATCH_PROMPT || context && Object.hasOwn(context,'authorPatch') || marker?.kind==='acceptance-patch' || marker?.schemaVersion===5;
@@ -102,6 +104,7 @@ export function applyAuthorReplacements(base:unknown,replacements:AuthorReplacem
   return result;
 }
 export function expandAuthorPatch(input:unknown,raw:unknown):AcceptanceBundle {
+  const typed=typedPatchInput(input);if(typed)return expandTypedAuthorPatch(typed,raw);
   const frozen=patchInput(input);ensure(frozen,'patch input required');safeControlJSON(raw);
   const parsed=parseReasonerOutput(JSON.stringify(raw),frozen.outputSchema) as AuthorPatch;
   const bundle=applyAuthorReplacements(frozen.context.authorPatch!.expandedBase??frozen.context.authorFeedback.rejection.raw,parsed.replacements);

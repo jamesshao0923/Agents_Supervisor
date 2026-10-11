@@ -185,9 +185,11 @@ test('P6-AUTH-STAGE-I01 actual three-stage author retains raw fragments and shar
   assert.deepEqual(f.store.authorRouting.forJob(route.job.id),route.receipt);
   assert.ok(patch);assert.equal(route.job.config.reservation,9,'Recovery shares original 30-token author ceiling after 21 spent');
   assert.deepEqual(patch.context.authorPatch!.expandedBase,f.bundle);
-  const repair=new NodeFragments(()=>({protocol:'acceptance-replace-v1',baseJobId:patch.context.authorPatch!.base.jobId,baseResultDigest:patch.context.authorPatch!.base.resultDigest,replacements:[{path:'/verifierFiles',replacementJSON:JSON.stringify([{path:'check.mjs',content:'// Fresh raw patch fixture; still requires future independent P4.\n'}])}]}));
+  const repair=new NodeFragments(()=>({protocol:'acceptance-replace-v2',baseJobId:patch.context.authorPatch!.base.jobId,baseResultDigest:patch.context.authorPatch!.base.resultDigest,replacements:[{path:'/verifierFiles',value:[{path:'check.mjs',content:'// Fresh raw patch fixture; still requires future independent P4.\n'}]}]}));
   const recoveryRunner=f.runner(repair),recovered=await recoveryRunner.run(route.job.id);
-  assert.equal((recovered.result as {protocol:string}).protocol,'acceptance-replace-v1');
+  assert.equal((recovered.result as {protocol:string}).protocol,'acceptance-replace-v2');
+  assert.deepEqual((recovered.input as any).context.authorPresentation,{schemaVersion:11,kind:'acceptance-patch-values'});
+  assert.equal((recovered.input as any).context.authorPatch.schemaVersion,2);
   assertAuthorExpansionProof(recovered,id=>f.store.supervision.job(id),f.data);await assertProofs(f,recovered);
   const resolved=resolveAuthorBundle(recovered,id=>f.store.supervision.job(id),f.data).bundle;
   assert.deepEqual(resolved.spec,f.bundle.spec);assert.deepEqual(resolved.controls,f.bundle.controls);assert.notDeepEqual(resolved.verifierFiles,f.bundle.verifierFiles);

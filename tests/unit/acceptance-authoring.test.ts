@@ -1,3 +1,5 @@
+import {runtimeCanonical} from '../../packages/persistence/runtime.js';
+import {createTypedAuthorPatchInput,typedPatchInput,AUTHOR_TYPED_PATCH_PROMPT} from '../../packages/orchestration/author-typed-patch.js';
 import {describeAuthorStageAssetFeedback} from '../../packages/orchestration/author-stage-asset-feedback.js';
 import {renderStageRecoveryInput,parseStageRecoveryInput,AUTHOR_STAGE_RECOVERY_PROMPT,assertStageRecoveryRootPolicy} from '../../packages/orchestration/author-stage-recovery-presentation.js';
 import {authorWireReceipt} from '../../packages/orchestration/author-presentation-proofs.js';
@@ -346,6 +348,29 @@ test('P6-AUTH-U02 semantic checks reject weakened necessity coverage controls an
   assert.deepEqual(validateAcceptanceBundle(expanded,c),expanded,'Whole parent array replacement supports complete shared checker assets');
   for(const version of [null,false,0,4,6])assert.throws(()=>patchInput({...frozen,context:{...(frozen.context as object),authorPresentation:{schemaVersion:version,kind:'acceptance-patch'}}}),/protocol/);
   assert.throws(()=>patchInput({...frozen,context:{...(frozen.context as object),acceptance:{...c,criteria:[]}}}),/ordinary command/);
+  // New direct-value protocol has a closed, complete path inventory; legacy v5 above stays exact.
+  const typedContext={acceptance:c,candidate:{frozen:true},authorFeedback:structuredClone(patchInput(frozen)!.context.authorFeedback),authorPatch:{schemaVersion:2 as const,base}};
+  const typed=createTypedAuthorPatchInput(typedContext);
+  assert.equal(typed.prompt,AUTHOR_TYPED_PATCH_PROMPT);
+  assert.deepEqual(typed.context.authorPresentation,{schemaVersion:11,kind:'acceptance-patch-values'});
+  const persistedTyped=JSON.parse(runtimeCanonical(typed));
+  assert.deepEqual(typedPatchInput(persistedTyped),persistedTyped,'Actual persistence serialization preserves the complete typed input');
+  assert.deepEqual(createTypedAuthorPatchInput(JSON.parse(runtimeCanonical(typedContext))),typed,'Schema/group/path order is stable through actual runtimeCanonical and parse');
+  const direct={protocol:'acceptance-replace-v2',baseJobId:base.jobId,baseResultDigest:base.resultDigest,replacements:[{path:'/verifierFiles/0/content',value:'// "quotes" and \\ slash\nexport const exact="line";\n'}]};
+  const directBundle=expandAuthorPatch(typed,direct);
+  assert.equal(directBundle.verifierFiles[0]!.content,direct.replacements[0]!.value,'LF/quotes/backslash decoded once by outer JSON');
+  assert.equal(JSON.stringify(original),before);
+  assert.ok(authorWireInput(typed,'acceptance-authoring').prompt.includes('complete typed top-level parent'));
+  for(const value of [null,12,{},[]])assert.throws(()=>expandAuthorPatch(typed,{...direct,replacements:[{path:'/verifierFiles/0/content',value}]}));
+  for(const path of ['/contextDigest','/spec/cases/0/verifier/files','/verifierFiles/00/content','/verifierFiles/0/path','/__proto__/x'])assert.throws(()=>expandAuthorPatch(typed,{...direct,replacements:[{path,value:'x'}]}));
+  assert.throws(()=>expandAuthorPatch(typed,{...direct,replacements:[{path:'/verifierFiles',value:original.verifierFiles},{path:'/verifierFiles/0/content',value:'x'}]}),/overlapping/);
+  assert.throws(()=>expandAuthorPatch(typed,{...direct,replacements:[{path:'/controls',value:[]}]}));
+  const typedWeak=structuredClone(original.spec);typedWeak.obligations[0]!.required=false;
+  assert.throws(()=>validateAcceptanceBundle(expandAuthorPatch(typed,{...direct,replacements:[{path:'/spec',value:typedWeak}]}),c),/necessary obligation|necessity/);
+  assert.deepEqual(expandAuthorPatch(typed,{...direct,replacements:[{path:'/verifierFiles',value:original.verifierFiles}]}),original);
+  for(const version of [null,false,0,5,6,10,12])assert.throws(()=>typedPatchInput({...typed,context:{...typed.context,authorPresentation:{schemaVersion:version,kind:'acceptance-patch-values'}}}));
+  assert.throws(()=>typedPatchInput({...typed,context:{...typed.context,authorPatch:{...typed.context.authorPatch!,schemaVersion:1}}}));
+  assert.throws(()=>expandAuthorPatch(typed,{...direct,replacements:[{path:'/verifierFiles/0/content',value:'x'.repeat(200001)}]}));
   const shared=bundle(c);
   shared.spec.obligations.push({...shared.spec.obligations[0]!,id:'sum.exceptions',expectation:'Invalid operands rejected independently'});
   shared.spec.cases[0]!.obligationIds.push('sum.exceptions');

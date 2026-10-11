@@ -1,3 +1,9 @@
+## 2026-10-12 — Typed replacement recovery, same necessary selection
+
+- New presentation11 / acceptance-replace-v2 uses schema-bound typed values; legacy v1 rendering and application remain available. Closed path inventory sorts before schema grouping so persisted canonical inputs reconstruct identically.
+- Reused U02, author-stages I01 and author-review-rebuild I03; 3/3 actual component checks passed, zero skipped. Synthetic model protocol is explicit; not real-provider acceptance. No added stable IDs or expanded default matrix.
+- Original fixture-feedback failure and subsequent canonical-order failure are retained. Full validation, shared costs, call limits, deadlines and P4 review were not relaxed.
+
 ## 2026-10-12 — Prepared versioned per-stage fragment recovery
 
 - Added `p6.integration-author-stages.004` for two actual semantic fragment rejections and five charged calls, with original max4 denial retained. Pending execution; no pass claim.

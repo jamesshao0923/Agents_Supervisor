@@ -1,3 +1,4 @@
+import {typedPatchInput,renderTypedAuthorPatchPrompt} from './author-typed-patch.js';
 import {parseStageRecoveryInput,renderStageRecoveryPrompt} from './author-stage-recovery-presentation.js';
 import {parseAuthorStageInput,renderAuthorStagePrompt} from './author-stage-protocol.js';
 import {isIndexedCompact,expandIndexedHistoryContext,renderIndexedHistoryReferences,INDEXED_COMPACT_PROMPT} from './indexed-history-presentation.js';
@@ -34,11 +35,14 @@ export function authorWireInput(input: PresentedAuthorInput, purpose: string): P
   const stage=parseAuthorStageInput(input);
   if(stage){ensure(purpose==='acceptance-authoring','Only acceptance authors support stages');return {...input,prompt:renderAuthorStagePrompt(stage.context.acceptance,stage.context.authorStage,stage.context.authorStageParents,stage.context.authorPresentation.schemaVersion as 6|8|9),presented:true};}
   if(isIndexedCompact(input.context)){ensure(purpose==='acceptance-authoring'&&input.prompt===INDEXED_COMPACT_PROMPT,'Referenced author marker/purpose changed');const expanded=expandIndexedHistoryContext(input.context);return {...input,context:expanded,prompt:renderIndexedHistoryReferences(input.context,renderIndexedHistoryEvolutionPromptV4(expanded.evolution)),presented:true};}
+  const typedPatch=typedPatchInput(input);
+  if(typedPatch){ensure(purpose==='acceptance-authoring','Only acceptance authors support typed replacement');assertRecoveryFeedback(typedPatch.context.authorFeedback);return {...input,prompt:renderTypedAuthorPatchPrompt(typedPatch),presented:true};}
   const patch=patchInput(input);
   if(patch){
     ensure(purpose==='acceptance-authoring','Only acceptance authors support replacement');
     assertRecoveryFeedback(patch.context.authorFeedback);
-    return {...input,prompt:renderAuthorPatchPrompt({...patch.context,authorFeedback:patch.context.authorFeedback}),presented:true};
+    ensure(patch.context.authorPatch?.schemaVersion===1,'Legacy patch context changed');
+    return {...input,prompt:renderAuthorPatchPrompt({acceptance:patch.context.acceptance,authorFeedback:patch.context.authorFeedback,authorPatch:patch.context.authorPatch}),presented:true};
   }
   const context = input.context as {authorPresentation?: unknown; acceptance?: AcceptanceAuthoringContext; candidate?: unknown; authorFeedback?: AuthorRecoveryFeedback; evolution?: ControlEvolutionAuthoringContext} | null;
   const version = context && typeof context === 'object' && !Array.isArray(context) ? context.authorPresentation : undefined;

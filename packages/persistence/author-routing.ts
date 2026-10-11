@@ -1,3 +1,4 @@
+import {createTypedAuthorPatchInput} from '../orchestration/author-typed-patch.js';
 import {authorStageChargePrefix,readRejectedAuthorStage} from '../orchestration/author-stage-proofs.js';
 import {parseStageRecoveryInput} from '../orchestration/author-stage-recovery-presentation.js';
 import {parseAuthorStageInput} from '../orchestration/author-stage-protocol.js';
@@ -6,7 +7,7 @@ import {authorPatchBinding,resolveAuthorBundle,patchInput,assertAuthorPatchBase,
 import {isCommandOnlyAuthorContext} from '../orchestration/acceptance-authoring-presentation.js';
 import {futureVerificationFloor,futureExecutionFloor} from '../domain/index.js';
 import {parseAuthorRouteReceipt,assertAuthorRouteJob,assertAuthorRouteProof} from '../orchestration/author-route-binding.js';
-import {createAuthorRecoveryInput,createAuthorPatchInput,authorWireInput,type AuthorRecoveryFeedback} from '../orchestration/author-presentation.js';
+import {createAuthorRecoveryInput,authorWireInput,type AuthorRecoveryFeedback} from '../orchestration/author-presentation.js';
 import {assertAuthorWireProof} from '../orchestration/author-presentation-proofs.js';
 import {readAuthorReviewRejection} from './author-review-rejection.js';
 import {createHash} from 'node:crypto';
@@ -214,8 +215,8 @@ export class AuthorRoutingRepository {
     const resolved=resolveAuthorBundle(value.job,id=>this.supervision.job(id),this.dataDir);
     // Complete schema validity is required; semantic rejection is allowed here.
     parseReasonerOutput(JSON.stringify(resolved.bundle),acceptanceAuthoringSchema(context.acceptance));
-    const authorPatch={schemaVersion:1 as const,base:authorPatchBinding(value.job,resolved.bundle),...((patchInput(value.job.input)||parseAuthorStageInput(value.job.input))?{expandedBase:resolved.bundle}:{})};
-    nextInput=createAuthorPatchInput({...context,authorFeedback:feedback as AuthorRecoveryFeedback,authorPatch});
+    const authorPatch={schemaVersion:2 as const,base:authorPatchBinding(value.job,resolved.bundle),...((patchInput(value.job.input)||parseAuthorStageInput(value.job.input))?{expandedBase:resolved.bundle}:{})};
+    nextInput=createTypedAuthorPatchInput({...context,authorFeedback:feedback as AuthorRecoveryFeedback,authorPatch});
   }
   ensure(canonical(nextInput).length+6000<=value.loop.limits.maxContextChars,'Author recovery exceeds complete context capacity; no truncation');
   let authorization:AuthorRouteAuthorizationV2|undefined;

@@ -118,7 +118,7 @@ test('P6-AUTHREVIEW-I02 changed actual review proof and changed original candida
 });
 test('P6-AUTHREVIEW-I03 second actually rejected rebuilt author remains retained and cannot regenerate again',async t=>{
  const f=await fixture(t,{kind:'valid',calls:5});await review(f);const next=f.repo.beginV2(await request(f));await f.create('valid',next.job);await review(f,f.store.supervision.job(next.job.id));
- const patched=f.store.supervision.job(next.job.id);assert.equal((patched.result as any).protocol,'acceptance-replace-v1');assertAuthorExpansionProof(patched,id=>f.store.supervision.job(id),f.data);
+ const patched=f.store.supervision.job(next.job.id);assert.equal((patched.result as any).protocol,'acceptance-replace-v2');assert.deepEqual((patched.input as any).context.authorPresentation,{schemaVersion:11,kind:'acceptance-patch-values'});assertAuthorExpansionProof(patched,id=>f.store.supervision.job(id),f.data);
  const actual=readAuthorReviewRejection(f.db,f.data,f.store.supervision.get(f.loop.id),patched,f.context,f.store.runtime.inspect(f.runtime.id).run);assert.equal(actual.classification,'control-rejected');assert.equal(actual.review.id,f.store.supervision.get(f.loop.id).references.reviewId);
  f.reopen();assert.deepEqual(readAuthorReviewRejection(f.db,f.data,f.store.supervision.get(f.loop.id),f.store.supervision.job(next.job.id),f.context,f.store.runtime.inspect(f.runtime.id).run),actual);
  await assert.rejects(f.repo.assess(f.loop.id,next.job.id,true),/Review reconstruction limit exhausted/);assert.equal(f.repo.routes(f.loop.id).length,1);assert.equal(f.store.supervision.jobs(f.loop.id).length,2);assert.equal(f.store.runtime.inspect(f.runtime.id).run.budget.spent,14);assert.equal(f.store.verification.list('job').length,2);
