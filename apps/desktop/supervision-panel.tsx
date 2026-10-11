@@ -52,7 +52,7 @@ export function SupervisionPanel({api,runtime,config,maxContextChars,online,term
     {!online&&<p className="notice compact">后台未连接，当前监督状态待核对。</p>}
     {loop?<>
       <p role="status"><strong>{loop.stopped?'监督已停止':loop.paused?'监督已暂停':phases[loop.phase]}</strong></p>
-      <p className="form-hint">已修复 {loop.repairCount} / {loop.limits.maxRepairs} 次 · 主控分析 {loop.reasoningCount} / {loop.limits.maxReasoningCalls} 次<br/>每 15 秒核对状态；{view?.capabilities?.modelMonitoring?'执行期间每 5 分钟按进展变化巡检，阶段切换时另行分析。':'模型分析在阶段切换时触发。'}</p>
+      <p className="form-hint">已修复 {loop.repairCount} / {loop.limits.maxRepairs} 次 · 主控分析 {loop.reasoningCount} / {loop.limits.maxReasoningCalls} 次<br/>目标每 10–15 秒核对状态（忙时可能延后）；{view?.capabilities?.modelMonitoring?'执行期间每 5 分钟按进展变化巡检，阶段切换时另行分析。':'模型分析在阶段切换时触发。'}</p>
       {view?.capabilities?.modelMonitoring&&<div className="notice compact" aria-label="运行巡检"><p><strong>{monitorStatus}</strong></p>{summary&&<><p>{summary}</p><p className="form-hint">最近有效观察 · {new Date(applied!.record.observedAt).toLocaleString()}。巡检结论不代替独立验收。</p></>}</div>}
       {!!monitor?.concerns?.length&&<div className="notice compact" aria-label="巡检后续核对">{monitor.concerns.map(item=>{
         const job=item.binding?view?.verification?.jobs.find(job=>job.id===item.binding!.verificationJobId):null;

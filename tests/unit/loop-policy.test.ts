@@ -39,6 +39,15 @@ test('P6-POL-U01 health scans use real supplied times at default15s and configur
   assert.equal(decideMonitoring(afterDelay.state, { nowMs: 90_001, lifecycle: 'active', evidenceCursor: '' }).healthScan, false);
   assert.equal(decideMonitoring(initial, { nowMs: 11_000, lifecycle: 'active', evidenceCursor: '', healthIntervalMs: 10_000 }).healthScan, true);
   assert.equal(initial.lastHealthAtMs, 1_000, 'decisions cannot mutate the persisted source');
+  // The legacy 15-second policy still explains the original two-gate miss.
+  let old=createMonitorState(0);const legacy=[];
+  for(const nowMs of [15003,30002,45004]){const next=decideMonitoring(old,{nowMs,lifecycle:'active',evidenceCursor:''});legacy.push(next.healthScan);old=next.state;}
+  assert.deepEqual(legacy,[true,false,true]);
+  let current=createMonitorState(0);const observed=[];
+  for(let nowMs=2000;nowMs<=60000;nowMs+=2000){const next=decideMonitoring(current,{nowMs,lifecycle:'active',evidenceCursor:'',healthIntervalMs:10000});if(next.healthScan)observed.push(next.state.lastHealthAtMs);current=next.state;}
+  assert.deepEqual(observed,[10000,20000,30000,40000,50000,60000]);
+  let jittered=createMonitorState(0);for(const nowMs of [15003,30002,45004]){const next=decideMonitoring(jittered,{nowMs,lifecycle:'active',evidenceCursor:'',healthIntervalMs:10000});assert.equal(next.healthScan,true);jittered=next.state;}
+
 });
 
 test('P6-POL-U02 changed evidence waits for its five-minute window and unchanged evidence skips the next window', () => {

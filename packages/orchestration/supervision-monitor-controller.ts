@@ -12,7 +12,7 @@ export interface SupervisionMonitorInspection {
   envelope:MonitorEnvelopeV1|null;events:MonitorEvent[];jobs:SupervisionJob[];
   diagnosisRequests:{jobId:string;summary:string}[];
 }
-/** No independent timer. The owner invokes tick from its existing 15-second scan.
+/** No independent timer. The owner invokes tick from its single short wake scan.
  * Only the inspection runner owns model processes; this layer reads durable DB
  * facts and serializes monitor policy transitions through the existing ledger. */
 export class SupervisionMonitorController {
@@ -78,7 +78,7 @@ export class SupervisionMonitorController {
       if(current.activeJobId){const saved=this.store.supervision.job(current.activeJobId);ensure(!this.repo.events(loopId).some(event=>event.jobId===saved.id&&event.record.disposition==='unknown')&&(saved.status!=='finished'||saved.usage!==null&&saved.stopConfirmed),'Inspection usage or process stop is unknown; its shared budget reservation remains blocked.');if(saved.status==='running')this.launch(saved);}
     }
     const refs=this.evidenceRefs(loopId),cursor=this.repo.cursor(loopId,refs);loop=this.store.supervision.get(loopId);
-    this.repo.observe({commandId:randomUUID(),loopId,expectedRevision:loop.revision,input:{nowMs:Date.now(),lifecycle:this.lifecycle(loopId),evidenceCursor:cursor},evidenceRefs:refs});
+    this.repo.observe({commandId:randomUUID(),loopId,expectedRevision:loop.revision,input:{nowMs:Date.now(),lifecycle:this.lifecycle(loopId),evidenceCursor:cursor,healthIntervalMs:10000},evidenceRefs:refs});
     envelope=this.repo.envelope(loopId)!;loop=this.store.supervision.get(loopId);
     if(envelope.state.inFlight&&!envelope.activeJobId){
       const changed=this.repo.cursor(loopId,refs)!==envelope.state.inFlight.evidenceCursor;

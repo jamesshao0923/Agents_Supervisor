@@ -14,7 +14,7 @@ export interface SupervisionInspection {
   verification:{proposals:Proposal[];plans:FrozenPlan[];jobs:VerificationJob[];deliveries:Delivery[]};
   monitor?:{envelope:MonitorEnvelopeV1|null;events:MonitorEvent[];jobs:SupervisionJob[];diagnosisRequests:{jobId:string;summary:string}[];concerns?:ConcernState[];concernDiscards?:ConcernDiscard[]};
   routing?:{rounds:SupervisionProgressRound[];routes:SupervisionRouteReceipt[]};
-  capabilities:{scanIntervalMs:15000;modelMonitoring:boolean;automaticControlEvolution:false};
+  capabilities:{scanIntervalMs:2000;healthIntervalMs:10000;modelMonitoring:boolean;automaticControlEvolution:false};
 }
 export type SupervisionAction=
   | {type:'list'}

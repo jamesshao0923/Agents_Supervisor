@@ -39,10 +39,11 @@ interface DiagnosisContext extends SnapshotContext {
     | {kind:'execution';operationId:string;executionId:string;error:string;failedObligationIds:[]};
 }
 interface Diagnosis {decision:'repair'|'block';reason:string;repairPrompt:string;failedObligationIds:string[]}
+interface ScanPass {promise:Promise<void>;resolve:()=>void;reject:(error:unknown)=>void;started:boolean}
 interface RepairIntent {type:'supervision-repair';allocation:RuntimeFutureVerification;append:RuntimeAppendRepair|null;retry:RuntimeRetryFailure|null}
 const modelInput=(job:SupervisionJob)=>job.input as {prompt:string;outputSchema:Record<string,unknown>;context:SnapshotContext|DiagnosisContext};
 
-/** Durable engineering supervision. The existing fifteen-second scan reads
+/** Durable engineering supervision. The single short wake timer reads
  * records and composes the separate five-minute private-context model monitor. */
 export class SupervisionController {
   private readonly runner:SupervisionReasoningRunner;
@@ -53,14 +54,16 @@ export class SupervisionController {
   private queue:Promise<unknown>=Promise.resolve();
   private readonly running=new Map<string,Promise<unknown>>();
   private timer:ReturnType<typeof setInterval>|null=null;
+  private currentScan:ScanPass|null=null;
+  private nextScan:ScanPass|null=null;
   private readonly deadlines=new Map<string,ReturnType<typeof setTimeout>>();
   private closed=false;
   constructor(private readonly store:SupervisorStore,private readonly dataDir:string,private readonly runtime:LocalRuntimeAdapter,private readonly verification:VerificationController,runner?:SupervisionReasoningRunner){this.authorRecovery=new AcceptanceAuthorRecovery(store,store.authorRouting,dataDir);this.runner=runner??new SupervisionReasoningRunner(store,dataDir);this.concerns=new SupervisionConcernAdapter(store.supervisionConcerns);this.routing=new SupervisionRoutingAdapter(store,store.supervisionRouting,dataDir);this.monitor=new SupervisionMonitorController(store,dataDir,undefined,()=>{if(!this.closed)void this.scan();});}
   private get repo(){return this.store.supervision;}
   private serial<T>(work:()=>Promise<T>):Promise<T>{const result=this.queue.then(work);this.queue=result.catch(()=>{});return result;}
-  async initialize():Promise<void>{ensure(!this.closed,'Supervision controller closed');await this.runner.initialize();await this.monitor.initialize();await this.scan();this.timer??=setInterval(()=>{void this.scan();},15000);this.timer.unref();}
+  async initialize():Promise<void>{ensure(!this.closed,'Supervision controller closed');await this.runner.initialize();await this.monitor.initialize();await this.scan();this.timer??=setInterval(()=>{void this.scan();},2000);this.timer.unref();}
   inspect(loopId:string):SupervisionInspection {
-    const loop=this.repo.get(loopId),monitor=this.monitor.inspect(loopId),pending=new Set(this.store.supervisionConcerns.candidates(loopId));return {loop,controlMaintenance:this.store.controlMaintenance.forLoop(loopId),jobs:this.repo.jobs(loopId),routing:{rounds:this.store.supervisionRouting.rounds(loopId),routes:this.store.supervisionRouting.routes(loopId)},runtime:this.store.runtime.inspect(loop.runtimeId),verification:{proposals:this.store.verification.list('proposal',loop.runtimeId),plans:this.store.verification.list('plan',loop.runtimeId),jobs:this.store.verification.list('job',loop.runtimeId),deliveries:this.store.verification.list('delivery',loop.runtimeId)},monitor:{...monitor,diagnosisRequests:monitor.diagnosisRequests.filter(request=>pending.has(request.jobId)),concerns:this.store.supervisionConcerns.list(loopId),concernDiscards:this.store.supervisionConcerns.discards(loopId)},capabilities:{scanIntervalMs:15000,modelMonitoring:true,automaticControlEvolution:false}};
+    const loop=this.repo.get(loopId),monitor=this.monitor.inspect(loopId),pending=new Set(this.store.supervisionConcerns.candidates(loopId));return {loop,controlMaintenance:this.store.controlMaintenance.forLoop(loopId),jobs:this.repo.jobs(loopId),routing:{rounds:this.store.supervisionRouting.rounds(loopId),routes:this.store.supervisionRouting.routes(loopId)},runtime:this.store.runtime.inspect(loop.runtimeId),verification:{proposals:this.store.verification.list('proposal',loop.runtimeId),plans:this.store.verification.list('plan',loop.runtimeId),jobs:this.store.verification.list('job',loop.runtimeId),deliveries:this.store.verification.list('delivery',loop.runtimeId)},monitor:{...monitor,diagnosisRequests:monitor.diagnosisRequests.filter(request=>pending.has(request.jobId)),concerns:this.store.supervisionConcerns.list(loopId),concernDiscards:this.store.supervisionConcerns.discards(loopId)},capabilities:{scanIntervalMs:2000,healthIntervalMs:10000,modelMonitoring:true,automaticControlEvolution:false}};
   }
   async dispatch(value:unknown):Promise<SupervisionInspection|SupervisionInspection[]>{const action=parseSupervisionAction(value);return this.serial(async()=>{
     ensure(!this.closed,'Supervision controller closed');
@@ -156,7 +159,42 @@ export class SupervisionController {
     }
     for(const id of ids){const job=this.store.verification.get('job',id);if(job.runtimeId===loop.runtimeId&&job.status==='running')await this.verification.dispatch({type:'cancel',jobId:id});}
   }
-  scan():Promise<void>{return this.serial(async()=>{if(this.closed)return;for(const loop of this.repo.list())await this.tickSafely(loop.id);});}
+  /** Queued requests can share their not-yet-started observation. A request made
+   * during a pass waits for a distinct next pass, never the already-running one.
+   * That pass takes a new serial slot so public actions are not starved. */
+  scan():Promise<void>{
+    if(this.closed)return Promise.resolve();
+    if(this.currentScan){
+      if(!this.currentScan.started)return this.currentScan.promise;
+      this.nextScan??=this.createScanPass();
+      return this.nextScan.promise;
+    }
+    const pass=this.createScanPass();
+    this.scheduleScan(pass);
+    return pass.promise;
+  }
+  private createScanPass():ScanPass {
+    let resolve!:()=>void,reject!:(error:unknown)=>void;
+    const promise=new Promise<void>((yes,no)=>{resolve=yes;reject=no;});
+    return {promise,resolve,reject,started:false};
+  }
+  private scheduleScan(pass:ScanPass):void {
+    this.currentScan=pass;
+    const pending=this.serial(async()=>{
+      if(this.closed)return;
+      pass.started=true;
+      for(const loop of this.repo.list())await this.tickSafely(loop.id);
+    });
+    void pending.then(()=>{pass.resolve();this.advanceScan();},error=>{pass.reject(error);this.advanceScan();});
+  }
+  private advanceScan():void {
+    this.currentScan=null;
+    const next=this.nextScan;
+    this.nextScan=null;
+    if(!next)return;
+    if(this.closed)next.resolve();
+    else this.scheduleScan(next);
+  }
   private update(loopId:string,patch:Parameters<SupervisorStore['supervision']['update']>[2]):SupervisionRecord{const loop=this.repo.get(loopId);return this.repo.update(loopId,loop.revision,patch);}
   private block(loopId:string,error:unknown):void{const loop=this.repo.get(loopId);if(loop.phase==='complete')return;const reason=error instanceof Error?error.message:String(error);this.store.controlMaintenance.fail(loopId,reason);if(loop.phase!=='blocked'||loop.reason!==reason)this.repo.update(loop.id,loop.revision,{phase:'blocked',reason});}
   private async expire(loopId:string):Promise<boolean>{

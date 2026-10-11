@@ -48,9 +48,52 @@ async function fixture(t:TestContext,options:{historical?:boolean;structured?:bo
 }
 async function waitFor(predicate:()=>boolean,timeout:number){const deadline=Date.now()+timeout;while(Date.now()<deadline){if(predicate())return;await new Promise(resolve=>setTimeout(resolve,25));}assert.fail('Expected real asynchronous state before deadline');}
 
-test('P6-MCTL-I01 attach baseline and service monitor restart retain the real epoch without model allocation',async t=>{
+test('P6-MCTL-I01 attach baseline and service monitor restart retain the real epoch without model allocation',{timeout:15000},async t=>{
   const f=await fixture(t),before=f.store.supervisionMonitor.envelope(f.loop.id)!;await f.monitor.tick(f.loop.id);await f.reopenMonitor();await f.monitor.tick(f.loop.id);const after=f.store.supervisionMonitor.envelope(f.loop.id)!;
   assert.equal(after.state.startedAtMs,before.state.startedAtMs);assert.equal(after.state.lastCheckedEvidenceCursor,before.state.lastCheckedEvidenceCursor);assert.equal(after.activeJobId,null);assert.equal(f.store.supervision.jobs(f.loop.id).length,0);assert.equal(f.store.supervision.get(f.loop.id).reasoningCount,0);
+
+  // Hold only the return of the actual monitor tick after its SQLite observation;
+  // the controller, dependency reads and all effects still run normally. No fake
+  // time, transport or successful business outcome is introduced by this barrier.
+  const live=await fixture(t,{structured:true}),main=live.main();
+  const actual=(main as unknown as {monitor:SupervisionMonitorController}).monitor;
+  const original=actual.tick.bind(actual);
+  function barrier(){let release!:()=>void;const promise=new Promise<void>(yes=>{release=yes;});return {promise,release};}
+  const firstEntered=barrier(),firstRelease=barrier(),nextEntered=barrier(),nextRelease=barrier(),closingEntered=barrier(),closingRelease=barrier();
+  let calls=0,nextObservedCursor:string|null=null,actionFinished=false;
+  actual.tick=async loopId=>{
+    const result=await original(loopId);calls++;
+    if(calls===1){firstEntered.release();await firstRelease.promise;}
+    else if(calls===2){nextObservedCursor=live.store.supervisionMonitor.cursor(loopId,actual.evidenceRefs(loopId));nextEntered.release();await nextRelease.promise;}
+    else if(calls===3){closingEntered.release();await closingRelease.promise;}
+    return result;
+  };
+  let current:Promise<void>|undefined,next:Promise<void>|undefined,action:Promise<unknown>|undefined;
+  try{
+    current=main.scan();assert.equal(main.scan(),current,'Not-yet-started requests share one actual pass');
+    await firstEntered.promise;
+    const priorCursor=live.store.supervisionMonitor.cursor(live.loop.id,actual.evidenceRefs(live.loop.id));
+    live.store.runtime.control({type:'input',runtimeId:live.runtime.id,commandId:randomUUID(),stepId:'input',text:'Actual user input received while the first observation is held'});
+    const expectedCursor=live.store.supervisionMonitor.cursor(live.loop.id,actual.evidenceRefs(live.loop.id));
+    assert.notEqual(expectedCursor,priorCursor,'Actual input updates the durable runtime phase and observation cursor');
+    next=main.scan();assert.notEqual(next,current,'A request during a running pass waits for a fresh pass');
+    assert.equal(main.scan(),next,'Requests during a running pass share only the dedicated next observation');
+    let nextFinished=false;void next.then(()=>{nextFinished=true;});
+    action=main.dispatch({type:'inspect',loopId:live.loop.id}).then(value=>{actionFinished=true;return value;});
+    firstRelease.release();await current;await action;await nextEntered.promise;
+    assert.equal(actionFinished,true,'An already queued public action runs before the next scan slot');
+    assert.equal(nextObservedCursor,expectedCursor,'The next real observation sees the updated runtime input');
+    assert.equal(nextFinished,false,'Next-pass promise cannot settle while its own actual tick is held');
+    nextRelease.release();await next;assert.equal(nextFinished,true);
+    assert.equal(calls,2,'The queued burst is exactly two real observations');
+    assert.equal(live.store.supervision.jobs(live.loop.id).length,0);
+    current=main.scan();await closingEntered.promise;next=main.scan();
+    action=main.close();closingRelease.release();await Promise.all([current,next,action]);
+    assert.equal(calls,3,'Close settles a retained next request without running another pass');
+  }finally{
+    firstRelease.release();nextRelease.release();closingRelease.release();actual.tick=original;
+    await Promise.allSettled([current,next,action].filter((value):value is Promise<unknown>=>value!==undefined));
+  }
 });
 
 test('P6-MCTL-I02 database evidence excludes paginated token noise but includes distinct normalized diffs and rejects capacity overflow',async t=>{
@@ -87,7 +130,37 @@ test('P6-MCTL-I06 a future persisted observation explicitly blocks the main loop
   f.store.supervision.update(loop.id,loop.revision,{monitor});await f.main().scan();const blocked=f.store.supervision.get(loop.id);assert.equal(blocked.phase,'blocked');assert.match(blocked.reason!,/time moved backwards/);assert.equal(f.store.supervision.jobs(loop.id).length,0);assert.equal(f.store.runtime.get(f.runtime.id).phase,'waiting-input');
 });
 
-test('P6-MCTL-I07 the existing real fifteen-second main timer records health without a second monitor timer or model request',async t=>{
-  const f=await fixture(t,{structured:true}),epoch=f.store.supervisionMonitor.envelope(f.loop.id)!.state.startedAtMs;await f.main().initialize();await waitFor(()=>f.store.supervisionMonitor.events(f.loop.id).some(event=>event.kind==='health'),18000);
-  const health=f.store.supervisionMonitor.events(f.loop.id).filter(event=>event.kind==='health');assert.ok(Date.parse(health[0]!.record.observedAt)-epoch>=15000);assert.equal(f.store.supervisionMonitor.events(f.loop.id).filter(event=>event.kind==='window').length,0);assert.equal(f.store.supervision.jobs(f.loop.id).length,0);assert.equal(f.store.runtime.get(f.runtime.id).phase,'waiting-input');assert.equal(f.main().inspect(f.loop.id).capabilities.modelMonitoring,true);assert.equal(f.main().inspect(f.loop.id).monitor!.envelope!.state.startedAtMs,epoch);
+test('P6-MCTL-I07 one real wake timer records four consecutive 10–15-second health intervals and pause/resume without model allocation',{timeout:110000},async t=>{
+  const f=await fixture(t,{structured:true}),epoch=f.store.supervisionMonitor.envelope(f.loop.id)!.state.startedAtMs;
+  const health=()=>{const events=f.store.supervisionMonitor.events(f.loop.id).filter(event=>event.kind==='health');evidence.observed=events.map(event=>Date.parse(event.record.observedAt));return events;};
+  const observed=()=>health().map(event=>Date.parse(event.record.observedAt));
+  const evidence:{epoch:number;began:number;pauseAt?:number;resumeAt?:number;finishedAt?:number;observed?:number[];gaps?:number[]}={epoch,began:Date.now()};
+  t.after(()=>{evidence.finishedAt=Date.now();console.log(JSON.stringify({healthCadence:evidence}));});
+  await f.main().initialize();
+  await waitFor(()=>health().length>=5,75000);
+  const first=observed(),gaps=first.slice(1).map((at,index)=>at-first[index]!);evidence.gaps=gaps;
+  assert.ok(first[0]!-epoch>=10000&&first[0]!-epoch<=15000,'The first real health observation meets the new 10-second target with bounded wake slack');
+  assert.ok(gaps.length>=4,'At least four consecutive real automatic timer intervals are required');
+  for(const gap of gaps)assert.ok(gap>=10000&&gap<=15000,'Every unpaused real health interval must remain within 10–15 seconds: '+gap);
+  assert.equal(f.store.supervisionMonitor.events(f.loop.id).filter(event=>event.kind==='window').length,0);
+  assert.equal(f.store.supervision.jobs(f.loop.id).length,0);
+  assert.equal(f.store.runtime.get(f.runtime.id).phase,'waiting-input');
+  assert.equal(f.main().inspect(f.loop.id).capabilities.modelMonitoring,true);
+  assert.equal(f.main().inspect(f.loop.id).capabilities.scanIntervalMs,2000);
+  assert.equal(f.main().inspect(f.loop.id).capabilities.healthIntervalMs,10000);
+  assert.equal(f.main().inspect(f.loop.id).monitor!.envelope!.state.startedAtMs,epoch);
+  evidence.pauseAt=Date.now();await f.main().dispatch({type:'pause',loopId:f.loop.id});const pausedCount=health().length;
+  await new Promise(resolve=>setTimeout(resolve,12000));
+  assert.equal(health().length,pausedCount,'The actual timer does not record health while paused');
+  evidence.resumeAt=Date.now();await f.main().dispatch({type:'resume',loopId:f.loop.id});
+  assert.equal(health().length,pausedCount+1,'Resume records one actual due observation, never replays missed wakes');
+  assert.ok(observed().at(-1)!>=evidence.resumeAt);
+  await waitFor(()=>health().length>=pausedCount+2,15000);
+  const after=observed();assert.equal(after.length,pausedCount+2);
+  assert.ok(after.at(-1)!-after.at(-2)!>=10000&&after.at(-1)!-after.at(-2)!<=15000,'Automatic health resumes without a burst');
+  assert.equal(f.store.supervisionMonitor.envelope(f.loop.id)!.state.startedAtMs,epoch);
+  assert.equal(f.store.supervisionMonitor.events(f.loop.id).filter(event=>event.kind==='window').length,0);
+  assert.equal(f.store.supervision.jobs(f.loop.id).length,0);
+  assert.equal(f.store.supervision.get(f.loop.id).reasoningCount,0);
+  assert.equal(f.store.runtime.get(f.runtime.id).phase,'waiting-input');
 });

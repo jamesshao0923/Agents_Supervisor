@@ -11227,20 +11227,20 @@
     },
     {
       "id": "p6.integration-supervision-monitor-controller.007",
-      "name": "P6-MCTL-I07 the existing real fifteen-second main timer records health without a second monitor timer or model request",
+      "name": "P6-MCTL-I07 one real wake timer records four consecutive 10–15-second health intervals and pause/resume without model allocation",
       "suiteId": "integration-supervision-monitor-controller",
       "module": "orchestration",
       "layer": "integration",
       "covers": [
         "p6-monitor-controller"
       ],
-      "scenario": "P6-MCTL-I07 the existing real fifteen-second main timer records health without a second monitor timer or model request",
+      "scenario": "P6-MCTL-I07 one real wake timer records four consecutive 10–15-second health intervals and pause/resume without model allocation",
       "impactTags": [
         "p6-monitor-foundation",
         "v38-combined-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, files and managed Node processes. Ledger/transport fixtures are mechanism evidence, not live model or three-window acceptance.",
-      "assertions": "tests/integration/supervision-monitor-controller.test.ts :: P6-MCTL-I07 the existing real fifteen-second main timer records health without a second monitor timer or model request",
+      "assertions": "tests/integration/supervision-monitor-controller.test.ts :: P6-MCTL-I07 one real wake timer records four consecutive 10–15-second health intervals and pause/resume without model allocation",
       "cleanup": "Stop owned processes and preserve formal evidence including failures",
       "status": "active"
     },
