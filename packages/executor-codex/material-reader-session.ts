@@ -55,6 +55,7 @@ export class MaterialReaderSession {
   private readonly calls: Call[] = [];
   private readonly requests = new Map<RequestId, {sequence: number; digest: string}>();
   private readonly early: NormalizedEvent[] = [];
+  private readonly receivedCompletions = new Map<number, {threadId: string | null; turnId: string | null}>();
   private readonly active = new Set<Promise<void>>();
   private threadId: string | null = null;
   private threadStarting = false;
@@ -254,10 +255,16 @@ export class MaterialReaderSession {
       }
       if (event.kind === 'turn-status' && event.terminal) {
         ensure(event.threadId === this.threadId && event.turnId === this.turnId, 'terminal belongs to another actual turn');
-        this.terminal = true; this.acknowledge();
         const params = event.raw.params as Record<string, unknown>;
         const turn = params.turn as Record<string, unknown>;
         ensure(event.status === 'completed' && turn && turn.error == null, 'reader terminal is failed/cancelled/unknown');
+        // The ordered transport has already received a completion for this turn.
+        // Its existing serve work may still be writing/replaying durable audit.
+        // Drain only that existing work; missing/future events never cause a wait.
+        if (this.threadId && this.turnId && this.active.size && this.calls.some(call => call.state !== 'observed') &&
+          [...this.receivedCompletions].some(([sequence, prior]) => sequence < event.sequence &&
+            prior.threadId === this.threadId && prior.turnId === this.turnId)) await this.drain();
+        this.terminal = true; this.acknowledge();
         ensure(this.calls.every(call => call.state === 'observed'), 'terminal outran unresolved reader response');
         return;
       }
@@ -267,6 +274,10 @@ export class MaterialReaderSession {
       if (['userMessage', 'reasoning', 'agentMessage', 'contextCompaction'].includes(item.type)) return;
       ensure(item.type === 'dynamicToolCall', 'external tool/command forbidden');
       this.eligible();
+      if (event.method === 'item/completed' && !this.receivedCompletions.has(event.sequence)) {
+        ensure(this.receivedCompletions.size < this.options.maxCalls!, 'completion event capacity exceeded');
+        this.receivedCompletions.set(event.sequence, {threadId: event.threadId ?? null, turnId: event.turnId ?? null});
+      }
       if (!this.threadId || !this.turnId || !this.calls.some(c => c.state === 'written')) {
         ensure(this.early.length < 4, 'early tool buffer exceeded'); this.early.push(structuredClone(event)); return;
       }

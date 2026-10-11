@@ -25,7 +25,7 @@ import { assertCandidate,captureCandidate,canonical,digest,environmentFingerprin
 import { evaluateVerification } from '../verification/rules.js';
 import { inspectProcess,type ProcessIdentity } from '../process-control/index.js';
 import { acceptanceAuthoringSchema,buildAcceptanceAuthoringPrompt,diagnoseAcceptanceAuthoringResult,materializeAcceptanceBundle,type AcceptanceAuthoringContext } from './acceptance-authoring.js';
-import { captureControlEvolutionContext, controlEvolutionAuthoringSchema, buildControlEvolutionAuthoringPrompt, materializeControlEvolutionBundle, type ControlEvolutionAuthoringContext } from './acceptance-authoring-v2.js';
+import { captureControlEvolutionContext, controlEvolutionAuthoringSchema, buildControlEvolutionAuthoringPrompt, controlEvolutionAuthorInput, materializeControlEvolutionBundle, type ControlEvolutionAuthoringContext } from './acceptance-authoring-v2.js';
 import { parseReasonerOutput,validateReasonerSchema } from './reasoner-schema.js';
 import { SupervisionReasoningRunner } from './supervision-reasoning.js';
 import { SupervisionMonitorController } from './supervision-monitor-controller.js';
@@ -307,11 +307,9 @@ export class SupervisionController {
           ? { regression: await captureRegressionContext({ sources: inherited, passingCandidate: context.candidate }) } : {})
       });
     }
-    const input = {
-      prompt: context.evolution ? buildControlEvolutionAuthoringPrompt(context.evolution) : buildAcceptanceAuthoringPrompt(context.acceptance),
-      outputSchema: context.evolution ? controlEvolutionAuthoringSchema(context.evolution) : acceptanceAuthoringSchema(context.acceptance),
-      context
-    };
+    const input = context.evolution
+      ? controlEvolutionAuthorInput({...context, evolution:context.evolution})
+      : {prompt:buildAcceptanceAuthoringPrompt(context.acceptance),outputSchema:acceptanceAuthoringSchema(context.acceptance),context};
     await assertCandidate(context.candidate);
     if (maintenance)
       ensure(context.acceptance.environment.digest === maintenance.environmentDigest,

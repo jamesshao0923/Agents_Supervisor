@@ -2,8 +2,8 @@ import test, {type TestContext} from 'node:test';
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
 import {createInterface} from 'node:readline';
-import {writeFile, readFile, readdir} from 'node:fs/promises';
-import {join} from 'node:path';
+import {writeFile, readFile, readdir, mkdir, cp} from 'node:fs/promises';
+import {join, basename} from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
 import {researchReaderFixture} from '../helpers/research-reader-fixture.js';
 import {spawnManagedProcess, inspectProcess, type ManagedProcess} from '../../packages/process-control/index.js';
@@ -47,8 +47,17 @@ require('node:readline').createInterface({input:process.stdin}).on('line',line=>
   const child = await spawnManagedProcess({operationId: 'indexed-reader-' + mode, command: process.execPath,
     args: [script], cwd: f.root, timeoutMs: 20000, onBeforeSpawn: intent => {processReceipt.intent = intent;},
     onIdentity: identity => {processReceipt.identity = identity;}});
+  if (process.env.SUPERVISOR_EVIDENCE_DIR) f.addCleanup(async () => {
+    // Runs after the real managed stop, before the original fixture removes its root.
+    await writeFile(join(f.root, 'actual-cleanup.json'), JSON.stringify({mode, identity: child.identity,
+      processReceipt, completion: await child.completion, inspection: await inspectProcess(child.identity)}, null, 2));
+    await mkdir(process.env.SUPERVISOR_EVIDENCE_DIR!, {recursive: true});
+    await cp(f.root, join(process.env.SUPERVISOR_EVIDENCE_DIR!, basename(f.root)), {recursive: true, errorOnExist: true, force: false});
+  });
   f.addCleanup(async () => {const result = await child.terminate(); assert.equal(result.stopped, true);});
   const lines = createInterface({input: child.stdout}), writes: JsonObject[] = [], raw: RawEvent[] = [], events: NormalizedEvent[] = [];
+  let terminalRaw: (() => void) | undefined;
+  let auditDelayed = false;
   let afterWrite: ((line: JsonObject) => void) | undefined;
   const transport: LineTransport = {
     write(line) {const value = JSON.parse(line) as JsonObject; writes.push(value); child.writeLine(line.trimEnd()); afterWrite?.(value);},
@@ -61,12 +70,22 @@ require('node:readline').createInterface({input:process.stdin}).on('line',line=>
     protocolDirectory: schemas, version, ...(maxTranscriptBytes ? {maxTranscriptBytes} : {}), assertEligible() {assert.ok(eligible, 'Actual consumer eligibility revoked');}};
   const session = await MaterialReaderSession.create(options);
   const adapterOptions: AdapterOptions = {transport, materialReader: session, requestTimeoutMs: 2000,
-    onRawEvent: event => {raw.push(event);}, onEvent: event => {events.push(event);}};
+    onRawEvent: event => {raw.push(event); if (event.line.includes('turn/completed')) terminalRaw?.();}, onEvent: event => {events.push(event);}};
   const adapter = new CodexAdapter(adapterOptions);
   f.addCleanup(async () => {adapter.dispose(); await session.cancel().catch(() => {}); lines.close();});
   async function start() {await adapter.initialize(); await adapter.startThread({cwd: f.root, sandbox: 'read-only', approvalPolicy: 'never'});
     return adapter.startTurn('actual-thread', [{type: 'text', text: 'Explicit synthetic protocol fixture, not semantic approval.'}]);}
   return {...f, child, log, processReceipt, options, session, adapter, writes, raw, events, start,
+    delayWrittenAudit() {
+      // Scheduling injection only: the real written file and real Node output
+      // remain unchanged. Hold this existing audit await until terminal raw is
+      // actually received, so the completion replay is deterministically pending.
+      const gate = new Promise<void>(resolve => {terminalRaw = () => {setTimeout(resolve, 25);};});
+      type Audit = (stage: ResearchReaderAudit['stage'], call: unknown, sequence: number | null, detail: string) => Promise<void>;
+      const internal = session as unknown as {audit: Audit};
+      const actualAudit = internal.audit.bind(session);
+      internal.audit = async (...args) => {await actualAudit(...args); if (args[0] === 'written') {auditDelayed = true; await gate;}};
+    }, auditDelayed() {return auditDelayed;},
     clearCallerScope() {delete adapterOptions.materialReader;}, revoke() {eligible = false;}, setAfterWrite(callback: (line: JsonObject) => void) {afterWrite = callback;}};
 }
 async function waitFor(condition: () => boolean) {
@@ -129,7 +148,13 @@ test('P8-READER-I03 actual Node command items and changed completed response can
 });
 
 test('P8-READER-I04 actual Node terminal before response or without observed completion remains incomplete', async t => {
-  for (const mode of ['terminal', 'missingobserved', 'failedterminal']) {
+  const valid = await fixture(t); valid.delayWrittenAudit(); await valid.start();
+  await waitFor(() => valid.raw.some(event => event.line.includes('turn/completed')));
+  await valid.adapter.drain(); await valid.session.finish();
+  assert.equal(valid.auditDelayed(), true);
+  assert.deepEqual((await audits(valid.session.directory)).map(record => record.stage), ['prepared', 'write-attempt', 'written', 'observed', 'closed']);
+  assert.ok(valid.raw.some(event => event.line.includes('item/completed')));
+  for (const mode of ['terminal', 'missingobserved', 'failedterminal', 'badcompletion']) {
     const f = await fixture(t, mode); await f.start().catch(() => {});
     await waitFor(() => f.events.some(event => event.kind === 'protocol-error'));
     await assert.rejects(f.adapter.drain()); await assert.rejects(f.session.finish());

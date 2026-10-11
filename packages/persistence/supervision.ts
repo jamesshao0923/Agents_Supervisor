@@ -1,3 +1,4 @@
+import {assertAuthorWireCapacity,type PresentedAuthorInput} from '../orchestration/author-presentation.js';
 import { acceptanceReferenceDiagnostic } from '../orchestration/acceptance-authoring-feedback.js';
 import { createHash } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
@@ -93,6 +94,7 @@ export class SupervisionRepository {
     ensure(loop.reasoningCount<loop.limits.maxReasoningCalls,'Supervision reasoning limit exhausted');ensure(['acceptance-authoring','diagnosis'].includes(input.purpose),'Unknown supervision purpose');
     ensure(!this.jobs(loop.id).some(job=>job.status==='running'||!job.stopConfirmed||job.usage===null),'Unresolved supervision reasoning');
     const config=structuredClone(input.config??loop.config);configValid(config);const context=serializable(input.context);ensure(context.length+6000<=loop.limits.maxContextChars,'Supervision context exceeds capacity');
+    assertAuthorWireCapacity(JSON.parse(context) as PresentedAuthorInput,input.purpose,loop.limits.maxContextChars);
     // Assets and diagnoses are built only at a settled boundary. Concurrent read-only
     // inspection requires its own domain reservation capability; do not bypass this.
     ensure(run.attempts.every(a=>a.settled)&&run.operations.every(o=>o.status==='confirmed')&&run.leases.every(l=>l.released),'Supervision requires a settled execution boundary');

@@ -99,6 +99,17 @@ test('P6-QUAL-I02 staged review enforces exact running ownership sequence and pa
 test('P6-QUAL-I03 caller rehashed draft or altered frozen author bytes cannot enter immutable persistence', async t => {
   const f = await fixture(t), altered = structuredClone(f.draft); altered.bootstrapPlan = []; const { digest: _, ...body } = altered; altered.digest = controlDigest(body);
   assert.throws(() => f.repo.insertDraft({ commandId: 'forged', proposalId: 'proposal', draft: altered }), /draft changed|binding changed|freeze/i);
+  // Stored-record integrity negatives only: no fake semantic success or model request.
+  // The reader must parse explicit versions before any truthiness branch.
+  const originalAuthor = String(f.db.prepare('SELECT record FROM supervision_jobs WHERE id=?').get(f.author.id)!.record);
+  for (const version of [false, 0, null]) {
+    const corrupted = structuredClone(f.author);
+    (corrupted.input as {context:Record<string,unknown>}).context.authorPresentation = version;
+    f.db.prepare('UPDATE supervision_jobs SET record=? WHERE id=?').run(canonical(corrupted), f.author.id);
+    assert.throws(() => f.repo.insertDraft({commandId:'malformed-version-'+String(version),proposalId:'proposal',draft:f.draft}), /Unknown author presentation version/);
+    assert.equal(f.db.prepare('SELECT count(*) n FROM verification_control_drafts').get()!.n, 0);
+    f.db.prepare('UPDATE supervision_jobs SET record=? WHERE id=?').run(originalAuthor, f.author.id);
+  }
   await writeFile(Object.keys(f.author.proofs)[0]!, 'tamper'); assert.throws(() => f.repo.insertDraft({ commandId: 'tamper', proposalId: 'proposal', draft: f.draft }), /proof bytes changed/);
   assert.equal(f.db.prepare('SELECT count(*) n FROM verification_control_drafts').get()!.n, 0);
 });

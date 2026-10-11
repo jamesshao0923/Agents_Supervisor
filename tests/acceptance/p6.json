@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "stage": "P6",
-  "revision": "p6-v36-authority-developing",
+  "revision": "p6-v46-author-presentation-developing",
   "caseIds": [
     "dev.unit-contracts.001",
     "dev.unit-contracts.002",
@@ -650,7 +650,10 @@
     "p6.p6-maint-u04",
     "p6.p6-maint-u05",
     "p6.p6-maint-u06",
-    "p6.p6-maint-i09"
+    "p6.p6-maint-i09",
+    "p6.integration-author-presentation.001",
+    "p6.integration-author-presentation.002",
+    "p6.integration-author-presentation.003"
   ],
   "requiredRisks": [
     "p0.unit-contracts.001",
@@ -953,7 +956,8 @@
     "p6-maint-u04",
     "p6-maint-u05",
     "p6-maint-u06",
-    "p6-maint-i09"
+    "p6-maint-i09",
+    "p6-author-presentation"
   ],
   "coreRegression": [
     "dev.integration-runner.003",

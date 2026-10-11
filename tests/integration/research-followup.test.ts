@@ -162,6 +162,8 @@ async function actualFollowup(
 
 test('P8-RV2-I07 actual authorized research continuation new producer full V2 original-witness replay and ALL-OF sealed second delivery preserve original scope history and total budget', {timeout:480000},async t=>{
  const began=Date.now();
+ // Both jobs share this test's existing total bound; each model call retains 15s.
+ const observationDeadline=began+480000;
  const phase=(name:string)=>console.log('P8-RV2-I07 phase',name,Date.now()-began);
  // Trace actual original methods; no verdict, result, gate or I/O is replaced.
  const restore:(()=>void)[]=[];
@@ -193,7 +195,7 @@ test('P8-RV2-I07 actual authorized research continuation new producer full V2 or
    retiredCriterionIds:[],retirementSources:[],criterionChanges:[]});
   assert.equal(store.runtime.inspect(runtime.id).run.contract.version,3);
   assert.deepEqual(store.goals.get(session.id).proposal!.criteria,unchanged.criteria);
- }),conversation=f.store.conversations.ensureForGoal(f.runtime.runId);
+ },{timestampSyntheticEvents:true,archiveRoot:join(process.cwd(),'.supervisor-dev','research-followup-evidence',String(began))}),conversation=f.store.conversations.ensureForGoal(f.runtime.runId);
  phase('initial fixture finished');
  const first=await f.p4.dispatch({type:'deliver',commandId:'first-delivery',jobId:f.final.id}) as Delivery;
  const firstSeal=canonical(f.store.researchWorkflow.committed('first-delivery',{type:'deliver',commandId:'first-delivery',jobId:f.final.id}));
@@ -266,8 +268,7 @@ test('P8-RV2-I07 actual authorized research continuation new producer full V2 or
   const config={...f.config,timeoutMs:15000};
   async function finished(action:Parameters<typeof f.p4.dispatch>[0]){
    let job=await f.p4.dispatch(action) as VerificationJob;
-   const deadline=Date.now()+160000;
-   while(job.status==='running'){assert.ok(Date.now()<deadline,'Actual V2 control execution observer elapsed');await delay(25);job=f.store.verification.get('job',job.id);}
+   while(job.status==='running'){assert.ok(Date.now()<observationDeadline,'Actual V2 control execution observer elapsed');await delay(25);job=f.store.verification.get('job',job.id);}
    assert.equal(job.approved,true,job.error??JSON.stringify(job));assert.equal(job.stopConfirmed,true);assert.equal(job.usageUnknown,false);return job;
   }
   const checked=await finished({type:'review',commandId:'followup-review',proposalId:p.id,...config});

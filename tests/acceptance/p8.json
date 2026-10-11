@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "stage": "P8",
-  "revision": "p8-v45-indexed-reader-developing",
+  "revision": "p8-v46-author-presentation-developing",
   "caseIds": [
     "dev.unit-contracts.001",
     "dev.unit-contracts.002",
@@ -938,7 +938,10 @@
     "p8.integration-material-reader-session.005",
     "p8.integration-material-reader-session.006",
     "p8.integration-material-reader-session.007",
-    "p8.integration-material-reader-session.008"
+    "p8.integration-material-reader-session.008",
+    "p6.integration-author-presentation.001",
+    "p6.integration-author-presentation.002",
+    "p6.integration-author-presentation.003"
   ],
   "requiredRisks": [
     "p0.unit-contracts.001",
@@ -1282,7 +1285,8 @@
     "p8-source-refresh-foundation",
     "p8-research-group-admission",
     "p8-source-refresh-delivery",
-    "p8-indexed-reader-integrity"
+    "p8-indexed-reader-integrity",
+    "p6-author-presentation"
   ],
   "coreRegression": [
     "dev.integration-runner.003",

@@ -124,13 +124,17 @@ async function assertRejectedCheck(candidate: Fixture, dir: string, pattern: Reg
 }
 
 test('runner records passing real child execution and complete hashed evidence', async (context) => {
-  const candidate = await fixture(context);
+  // Exercise the integration observer declaration above the unchanged unit
+  // ceiling with an actual short child, without sleeping through that limit.
+  const candidate = await fixture(context, successfulSource, 540_000);
   const run = await runFixture(context, candidate, 'pass');
   assert.equal(run.result.passed, true, json(run.result));
   assert.equal(run.result.scope, 'stage');
   const metadata = await record(run.dir);
   assert.equal(metadata.reason, 'gate-self-test pass');
   assert.equal(metadata.executions.length, 1);
+  const frozenInput = JSON.parse(await readFile(join(run.dir, 'input.json'), 'utf8')) as RunManifest;
+  assert.equal(frozenInput.manifest.suites[0]!.timeoutMs, 540_000);
   assert.equal(metadata.candidateFiles['dist/tests/fixture.test.js'], sha256(successfulSource));
   assert.match(metadata.candidateDigest, /^[a-f0-9]{64}$/);
   assert.match(metadata.manifestDigest, /^[a-f0-9]{64}$/);

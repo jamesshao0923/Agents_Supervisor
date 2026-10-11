@@ -1,0 +1,113 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { readFile, writeFile, symlink, mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
+import { bootstrapFixture } from '../helpers/control-bootstrap-fixture.js';
+import { acceptanceAuthoringContextDigest } from '../../packages/orchestration/acceptance-authoring.js';
+import { buildControlEvolutionAuthoringPrompt, captureControlEvolutionContext, controlEvolutionContextDigest, controlEvolutionAuthoringSchema, materializeControlEvolutionBundle, validateControlEvolutionBundle } from '../../packages/orchestration/acceptance-authoring-v2.js';
+import type { ControlEvolutionAuthoringContext, ControlEvolutionBundle } from '../../packages/orchestration/acceptance-authoring-v2.js';
+import { controlDigest } from '../../packages/verification/control-rules.js';
+import { digest } from '../../packages/verification/candidate.js';
+import { prepareControlDraft, executeControlBootstrap, assembleQualification } from '../../packages/verification/control-bootstrap.js';
+import { parseReasonerOutput } from '../../packages/orchestration/reasoner-schema.js';
+import type { TestContext } from 'node:test';
+
+async function setup(t: TestContext) {
+  const f = await bootstrapFixture(t), item = { id: 'math', description: 'Exact addition', kind: 'command' as const, target: 'data.json', checks: ['Sum is exactly 3'] };
+  const contract = { version: 1, goal: 'Exact sum', criteria: [{ id: item.id, required: true, description: [item.description, 'Acceptance kind: command; target: data.json', ...item.checks].join('\n') }] };
+  f.input.target.definition.contract = contract; f.input.base.target.contractDigest = controlDigest(contract);
+  const content = await readFile(join(f.root, 'good/data.json'), 'utf8');
+  const current = { contract, criteria: [item], previousSpec: null, candidate: { workspace: join(f.root, 'good'), digest: f.input.target.bundle.controls[0]!.candidate.digest, files: [{ path: 'data.json', content, sha256: digest(content) }] }, environment: { node: process.version }, failureContext: null };
+  const context = await captureControlEvolutionContext({ current, base: f.input.base, transitions: [], history: f.input.history });
+  const spec = structuredClone(f.input.target.definition.spec); spec.moduleDependencies = { math: [] };
+  for (const c of spec.controls) c.workspace = c.id;
+  for (const c of spec.cases) c.status = 'active';
+  const bundle: ControlEvolutionBundle = { contextDigest: controlEvolutionContextDigest(context), plan: f.input.authoredPlan, assets: { contextDigest: acceptanceAuthoringContextDigest(current), spec, verifierFiles: [{ path: 'check.mjs', content: await readFile(join(f.root, 'defs/check.mjs'), 'utf8') }], controls: await Promise.all(['good', 'bad'].map(async id => ({ id, files: [{ path: 'data.json', content: await readFile(join(f.root, id, 'data.json'), 'utf8') }] }))), coverageExplanation: [{ criterionId: 'math', check: item.checks[0]!, caseIds: ['sum-detector'], explanation: 'Real independent checker reads sum and compares to three.' }] } };
+  return { ...f, engineContext: f.context, context, bundle };
+}
+
+import {CONTROL_EVOLUTION_PRESENTATION_PROMPT,authorWireInput,assertAuthorWireCapacity} from '../../packages/orchestration/author-presentation.js';
+import {controlEvolutionAuthorInput} from '../../packages/orchestration/acceptance-authoring-v2.js';
+import {authorWireReceipt,assertAuthorWireProof} from '../../packages/orchestration/author-presentation-proofs.js';
+import {SupervisorStore} from '../../packages/persistence/store.js';
+import {SupervisionReasoningRunner} from '../../packages/orchestration/supervision-reasoning.js';
+import {prepareReasonerTurn} from '../../packages/orchestration/reasoner.js';
+import type {ReasonerInput,ReasonerResult,SupervisorReasoner} from '../../packages/orchestration/reasoner.js';
+import {spawnManagedProcess,inspectProcess} from '../../packages/process-control/index.js';
+import {runtimeCanonical} from '../../packages/persistence/runtime.js';
+
+// Real SQLite, actual managed Node process, complete actual request transcripts.
+// Output and seven tokens are explicit protocol fixtures, not provider approval.
+async function runtimeFixture(t:TestContext,maxContextChars=200000){
+  const f=await setup(t),workspace=join(f.root,'runtime');await mkdir(workspace);
+  const data=join(f.root,'store');let store=new SupervisorStore(data);
+  const runtime=store.runtime.submit({type:'submit',commandId:'runtime',workspace,workspaceKind:'project',goal:'Frozen standard',tokenLimit:100,verificationReserve:20,steps:[{id:'input',kind:'input',prompt:'Original input'}]});
+  store.runtime.control({type:'input',runtimeId:runtime.id,commandId:'answer',stepId:'input',text:'Ready'});
+  const operation=store.runtime.claim(runtime.id,'fixture')!;assert.ok(operation);
+  store.runtime.report(operation.id,'fixture',{messageId:'ready',outcome:'confirmed',result:'Ready'});
+  const loop=store.supervision.attach({commandId:'loop',runtimeId:runtime.id,config:{model:'explicit-node-protocol-fixture',effort:'low',reservation:30,timeoutMs:5000},limits:{maxRepairs:1,maxReasoningCalls:4,maxDurationMs:60000,maxContextChars}});
+  t.after(()=>store.close());
+  const input=controlEvolutionAuthorInput({acceptance:f.context.current,candidate:{fixture:'complete candidate already in evolution'},evolution:f.context});
+  return {...f,data,runtime,loop,input,get store(){return store;},reopen(){store.close();store=new SupervisorStore(data);},begin(value:unknown=input,commandId='author'){return store.supervision.beginJob({commandId,loopId:loop.id,expectedRevision:store.supervision.get(loop.id).revision,purpose:'acceptance-authoring',context:value});}};
+}
+class NodeWireTransport implements SupervisorReasoner{
+  calls=0;
+  constructor(readonly value:unknown){}
+  async request(request:ReasonerInput):Promise<ReasonerResult>{
+    this.calls++;
+    const result:ReasonerResult={value:this.value,usage:7,threadId:'actual-node-fixture-thread',turnId:'actual-node-fixture-turn',proofFiles:[],stopConfirmed:false,modelStarted:false};
+    await prepareReasonerTurn(request,result,()=>request.assertEligible?.());
+    const path=join(request.logDir,'events.jsonl');
+    const events=[{kind:'reasoner-input',value:{id:request.id,prompt:request.prompt,outputSchema:request.outputSchema,model:request.model,effort:request.effort}},
+      {kind:'reasoner-turn-intent',value:{threadId:result.threadId,input:[{type:'text',text:request.prompt}],model:request.model,effort:request.effort}},
+      {kind:'reasoner-turn-started',value:{turn:{id:result.turnId}}},
+      {kind:'codex-event',value:{method:'turn/completed',threadId:result.threadId,raw:{params:{threadId:result.threadId,turn:{id:result.turnId,status:'completed'}}}}}];
+    const inputPath=join(request.logDir,'node-request.json');await writeFile(inputPath,JSON.stringify(events));
+    const child=await spawnManagedProcess({operationId:request.id+'-actual-node',command:process.execPath,args:['-e',"require('node:fs').writeFileSync(process.argv[2],JSON.parse(require('node:fs').readFileSync(process.argv[1],'utf8')).map(JSON.stringify).join('\\n'))",inputPath,path],cwd:request.cwd,timeoutMs:5000,onBeforeSpawn:i=>request.onIntent?.(i),onIdentity:i=>request.onIdentity?.(i)});
+    const stopped=await child.completion;result.stopConfirmed=stopped.stopped;assert.equal((await inspectProcess(child.identity)).status,'stopped');await request.onUsage?.(7);result.proofFiles=[path,inputPath];return result;
+  }
+}
+
+test('P6-AUTH-PRESENT-I01 explicit presentation preserves complete context and exact legacy wire text',async t=>{
+  const f=await runtimeFixture(t),legacy=buildControlEvolutionAuthoringPrompt(f.context),wire=authorWireInput(f.input,'acceptance-authoring');
+  assert.equal(wire.prompt,legacy);assert.deepEqual(f.input.context.evolution,f.context);assert.deepEqual(f.input.context.acceptance,f.context.current);
+  assert.ok(JSON.stringify(f.input).length<JSON.stringify({...f.input,prompt:legacy}).length);
+  assert.equal(authorWireInput({prompt:'historical prompt byte exact\n',outputSchema:{},context:{}},'diagnosis').prompt,'historical prompt byte exact\n');
+  assert.equal(authorWireReceipt({id:'legacy',input:{prompt:legacy,outputSchema:{},context:{}},inputDigest:'x',purpose:'acceptance-authoring'}),null);
+  for(const change of [()=>({...f.input,prompt:'caller rendered replacement'}),()=>({...f.input,context:{...f.input.context,authorPresentation:{schemaVersion:2,kind:'control-evolution'}}}),()=>({...f.input,context:{...f.input.context,acceptance:{}}})])assert.throws(()=>authorWireInput(change(),'acceptance-authoring'));
+  assert.throws(()=>authorWireInput(f.input,'diagnosis'),/Only acceptance/);
+  assert.throws(()=>authorWireInput({prompt:CONTROL_EVOLUTION_PRESENTATION_PROMPT,outputSchema:{},context:{}},'acceptance-authoring'),/Missing/);
+  assert.ok(legacy.includes('contextDigest='+controlEvolutionContextDigest(f.context)));assert.ok(legacy.includes('assets.contextDigest='+acceptanceAuthoringContextDigest(f.context.current)));
+});
+
+test('P6-AUTH-PRESENT-I02 both unchanged capacity ceilings reject before reservation and leave the ledger intact',async t=>{
+  const f=await runtimeFixture(t),before=f.store.runtime.inspect(f.runtime.id),loop=f.store.supervision.get(f.loop.id);
+  const wire=authorWireInput(f.input,'acceptance-authoring');
+  const wireLimit=wire.prompt.length+JSON.stringify(wire.outputSchema).length+6000-1;
+  assert.throws(()=>assertAuthorWireCapacity(f.input,'acceptance-authoring',wireLimit),/Rendered/);
+  const huge=structuredClone(f.input);(huge.context as any).retainedProof='x'.repeat(200000);
+  assert.throws(()=>f.begin(huge),/context exceeds capacity/);
+  const minimal={prompt:CONTROL_EVOLUTION_PRESENTATION_PROMPT,outputSchema:{},context:{authorPresentation:{schemaVersion:1,kind:'control-evolution'},acceptance:{},evolution:{schemaVersion:1,current:{},history:{},historyText:{},base:{},transitions:[]}}};
+  const length=runtimeCanonical(minimal).length+6000;assert.ok(length<8000);
+  const small=await runtimeFixture(t,8000),smallBefore=small.store.runtime.inspect(small.runtime.id);
+  assert.throws(()=>small.begin(minimal),/Rendered author input exceeds capacity/);
+  assert.deepEqual(small.store.runtime.inspect(small.runtime.id),smallBefore);
+  const frozen=f.store.runtime.inspect(f.runtime.id);
+  assert.deepEqual(f.store.runtime.inspect(f.runtime.id),frozen);assert.deepEqual(frozen,before);assert.equal(f.store.supervision.jobs(f.loop.id).length,0);assert.equal(f.store.supervision.get(f.loop.id).reasoningCount,0);
+});
+
+test('P6-AUTH-PRESENT-I03 actual Node dispatch stores wire binding and finished reopen never dispatches again',async t=>{
+  const f=await runtimeFixture(t),transport=new NodeWireTransport(f.bundle);let runner=new SupervisionReasoningRunner(f.store,f.data,transport);
+  const job=f.begin(),done=await runner.run(job.id),directory=join(f.data,'supervision-reasoning',digest(job.id));
+  assert.equal(done.error,null);assert.equal(done.usage,7);assert.equal(done.stopConfirmed,true);assert.equal(done.inputDigest,digest(runtimeCanonical(f.input)));
+  assertAuthorWireProof(done,directory);assert.deepEqual(JSON.parse(await readFile(join(directory,'author-wire.json'),'utf8')),authorWireReceipt(done));
+  await runner.close();f.reopen();runner=new SupervisionReasoningRunner(f.store,f.data,transport);assert.deepEqual(await runner.run(job.id),done);assert.equal(transport.calls,1);assert.equal(f.store.runtime.inspect(f.runtime.id).run.budget.spent,7);
+  const path=join(directory,'events.jsonl'),original=await readFile(path,'utf8'),events=original.trim().split('\n').map(line=>JSON.parse(line));events.find(e=>e.kind==='reasoner-turn-intent').value.input[0].text+=' altered';await writeFile(path,events.map(e=>JSON.stringify(e)).join('\n'));
+  const forged={...done,proofs:{...done.proofs,[path]:digest(await readFile(path))}};
+  assert.throws(()=>assertAuthorWireProof(forged,directory),/complete rendered prompt/);
+  await assert.rejects(runner.run(job.id),/proof digest changed/);assert.equal(transport.calls,1);
+  await writeFile(path,original);events.find(e=>e.kind==='reasoner-turn-intent').value.input[0].text=authorWireInput(f.input,'acceptance-authoring').prompt;events.find(e=>e.kind==='codex-event').value.raw.params.turn.id='unrelated';await writeFile(path,events.map(e=>JSON.stringify(e)).join('\n'));
+  const changedHash=digest(await readFile(path));
+  assert.throws(()=>assertAuthorWireProof({...done,proofs:{...done.proofs,[path]:changedHash}},directory),/actual completed turn/);
+  await runner.close();
+});

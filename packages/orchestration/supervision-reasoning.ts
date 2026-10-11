@@ -1,7 +1,9 @@
+import {assertAuthorWireCapacity} from './author-presentation.js';
+import {authorWireReceipt,assertAuthorWireProof} from './author-presentation-proofs.js';
 import {assertEnvironmentCwd,parseEnvironmentScope} from '../verification/scoped-environment.js';
 import {environmentFingerprint} from '../verification/candidate.js';
 import { createHash } from 'node:crypto';
-import { lstat, mkdir, readFile, realpath } from 'node:fs/promises';
+import { lstat, mkdir, readFile, realpath, writeFile } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import type { SupervisionJob } from '../contracts/p6-supervision.js';
 import type { SupervisorStore } from '../persistence/store.js';
@@ -56,7 +58,7 @@ function frozenInput(job: SupervisionJob, capacity: number): FrozenSupervisionRe
   ensure(Object.keys(input).length === 3 && ['prompt', 'outputSchema', 'context'].every(key => Object.hasOwn(input, key)), 'Frozen supervision input requires prompt, outputSchema and context only');
   ensure(typeof input.prompt === 'string' && input.prompt.trim().length > 0, 'Empty supervision prompt');
   ensure(input.outputSchema !== null && typeof input.outputSchema === 'object' && !Array.isArray(input.outputSchema), 'Invalid supervision output schema');
-  return { prompt: input.prompt, outputSchema: validateReasonerSchema(input.outputSchema as Record<string, unknown>), context: structuredClone(input.context) };
+  return assertAuthorWireCapacity({ prompt: input.prompt, outputSchema: validateReasonerSchema(input.outputSchema as Record<string, unknown>), context: structuredClone(input.context) },job.purpose,capacity);
 }
 interface Pending { controller: AbortController; promise: Promise<SupervisionJob> }
 
@@ -156,6 +158,7 @@ export class SupervisionReasoningRunner {
       ensure(job.usage >= job.observedUsage && job.usage <= job.config.reservation, 'Invalid supervision result accounting');
       const actual = await this.proofs(job, Object.keys(job.proofs));
       ensure(runtimeCanonical(actual) === runtimeCanonical(job.proofs), 'Supervision proof digest changed');
+      assertAuthorWireProof(job,this.directory(job.id));
       ensure(await this.stopped(job, false), 'Supervision process has not actually stopped');
       await this.writersStopped(job);
       this.boundary(this.store.supervision.job(job.id));
@@ -176,6 +179,7 @@ export class SupervisionReasoningRunner {
   }
   private async execute(initial: SupervisionJob, controller: AbortController): Promise<SupervisionJob> {
     let result: ReasonerResult | undefined, failure: string | null = null, proofs: Record<string, string> = {};
+    let wirePath:string|undefined;
     const original = runtimeCanonical({ input: initial.input, inputDigest: initial.inputDigest, config: initial.config, contractVersion: initial.contractVersion, contractDigest: initial.contractDigest });
     const current = (): SupervisionJob => {
       const job = this.store.supervision.job(initial.id);
@@ -191,6 +195,8 @@ export class SupervisionReasoningRunner {
       await this.writersStopped(job); current();
       const cwd = await realpath(this.store.runtime.get(job.runtimeId).workspace), logDir = await this.prepareDirectory(job.id);
       current();
+      const receipt=authorWireReceipt(job);
+      if(receipt){wirePath=join(logDir,'author-wire.json');await writeFile(wirePath,JSON.stringify(receipt),{flag:'wx',mode:0o600});current();}
       result = await this.reasoner.request({ id: job.id, cwd, logDir, prompt: input.prompt, outputSchema: input.outputSchema, model: job.config.model, effort: job.config.effort, timeoutMs: job.config.timeoutMs, signal: controller.signal,
         assertEligible: () => { current(); },
         onIntent: intent => { const value = current(); this.boundary(value, true); ensure(!value.intents.some(item => item.operationId === intent.operationId), 'Duplicate supervision process intent'); ensure(intent.cwd === cwd && intent.operationId.startsWith(job.id + '-'), 'Unbound supervision process intent'); this.store.supervision.observeJob(job.id, { intents: [...value.intents, intent] }); current(); },
@@ -203,7 +209,9 @@ export class SupervisionReasoningRunner {
       ensure(result.stopConfirmed && await this.stopped(observed, false), 'Supervision result lacks actual stopped process');
       ensure(result.usage !== null && Number.isSafeInteger(result.usage) && result.usage >= observed.observedUsage && result.usage <= observed.config.reservation, 'Supervision usage is unknown, underreported or over reservation');
       ensure(result.value !== null, 'Empty supervision model result'); safeJSON(result.value); result.value = parseReasonerOutput(JSON.stringify(result.value), input.outputSchema);
-      proofs = await this.proofs(observed, result.proofFiles); await this.writersStopped(observed); current();
+      proofs = await this.proofs(observed, [...result.proofFiles,...(wirePath?[wirePath]:[])]);
+      assertAuthorWireProof({...observed,proofs,threadId:result.threadId},this.directory(job.id));
+      await this.writersStopped(observed); current();
     } catch (error) { if (error instanceof ReasonerError) result = error.result; failure = message(error); }
     let latest = this.store.supervision.job(initial.id);
     // A transport reporting start without its callback cannot erase uncertain cost.
@@ -214,7 +222,7 @@ export class SupervisionReasoningRunner {
     let usage: number | null = result?.usage ?? (latest.modelStarted || !stopConfirmed ? null : 0);
     if (latest.modelStarted && result && !result.modelStarted) { usage = null; failure ??= 'Transport model-start evidence contradicts durable turn intent'; }
     if (usage !== null && (!Number.isSafeInteger(usage) || usage < 0)) { usage = null; failure ??= 'Invalid final supervision usage'; }
-    if (failure && result?.proofFiles.length) { try { proofs = await this.proofs(latest, result.proofFiles); } catch { /* Invalid proofs never authorize application; accounting remains durable. */ } }
+    if (failure && result?.proofFiles.length) { try { proofs = await this.proofs(latest, [...result.proofFiles,...(wirePath?[wirePath]:[])]); } catch { /* Invalid proofs never authorize application; accounting remains durable. */ } }
     // Process/proof awaits may cross pause, cancel or close; recheck immediately before the synchronous settlement.
     if (!failure) { try { current(); } catch (error) { failure = message(error); } }
     const finished = this.store.supervision.finishJob(latest.id, { usage, stopConfirmed, error: failure, proofs, threadId: result?.threadId ?? null, result: failure ? null : result!.value });

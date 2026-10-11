@@ -1,3 +1,4 @@
+import {authorWireReceipt,assertAuthorWireProof} from '../orchestration/author-presentation-proofs.js';
 import {captureSourceRefreshControlContext,sourceRefreshReviewEvidence} from '../verification/source-refresh-controls.js';
 import {ControlMaintenanceRepository} from './control-maintenance.js';
 import {FrozenReader} from '../verification/frozen-reader.js';
@@ -98,6 +99,8 @@ export class ControlQualificationRepository {
   }
   private author(draft: FrozenControlDraft): SupervisionJob {
     const row = this.db.prepare('SELECT record FROM supervision_jobs WHERE id=?').get(draft.authorBinding.jobId); ensure(row, 'Control draft lacks actual author job'); const job = JSON.parse(String(row.record)) as SupervisionJob;
+    // Parse the persisted version even when its value is falsy or malformed.
+    const wireReceipt = authorWireReceipt(job);
     const run = this.run(job.projectId, job.runId), attempt = run.attempts.find(a => a.id === job.attemptId);
     ensure(job.purpose === 'acceptance-authoring'
         && job.projectId === draft.base.target.projectId
@@ -127,6 +130,11 @@ export class ControlQualificationRepository {
     ensure(digest(runtimeCanonical(job.input)) === job.inputDigest
         && digest(runtimeCanonical({ usage: job.usage, stopConfirmed: job.stopConfirmed, error: job.error, proofs: job.proofs, threadId: job.threadId, result: job.result })) === job.completionDigest, 'Author input or completion record changed');
     const reader = new FrozenReader(this.dataDir); reader.proofs(job.proofs); this.recordedStops(job);
+    if (wireReceipt !== null) {
+      const database = this.db.prepare('PRAGMA database_list').all().find(row => row.name === 'main');
+      ensure(this.dataDir || database?.file, 'Presented author requires its actual host data root');
+      assertAuthorWireProof(job, join(this.dataDir ?? dirname(String(database!.file)), 'supervision-reasoning', digest(job.id)));
+    }
     ensure((input.context?.acceptance as { previousSpec?: unknown })?.previousSpec === null, 'V2 author must use separate exact historical context');
     const assets = result.assets; ensure(assets && Array.isArray(assets.verifierFiles) && Array.isArray(assets.controls), 'Actual author assets missing');
     const symbolic = structuredClone(draft.target.definition.spec); for (const control of symbolic.controls) control.workspace = control.id;

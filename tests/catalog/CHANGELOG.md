@@ -4,6 +4,13 @@
 - 冻结影响范围含新资料范围/搜索、实际请求/响应/取消与审计，以及旧 executor、reasoner、真实 execution/supervision runner、MaterialIntake、research binding 和清单/边界。P8 核心 runner 18 项只选一次；单元 51/51、集成 66/66、零跳过。
 - 独立实际检查 8/8；原 accessor 错误准入、原开发失败均留存。正式证据见 `.supervisor-dev/v45-indexed-reader-integration/formal-summary.json`。新工具只有完整性权限，未接入 P2/P4 消费者；合成供应商协议不能放行真实模型业务或阶段，P8 仍 developing。
 
+## v46 — 持续作者单份上下文、读取终态与有界集成观察
+
+- 保留旧958项稳定ID及必要断言，新增3项author-presentation用例至961；P6/P7/P8继续developing。
+- 原P6-QUAL-I03增加false/0/null未知展示版本拒绝；原P8-READER-I04增加真实日志延迟时正常完成、伪造响应及原缺失完成反例，保留其他读取取消/身份/完整性检查。
+- 原research-followup测试480000ms未改，review/final共用该总观察期限，原内部160000ms失败留存并补单任务原件归档。正式外层300000ms截断FAIL留存，核对78个原进程已停止；独审后仅该套件声明540000ms，integration声明上限600000ms，unit/live/产品限额不变。原contracts/runner用例扩充，无新ID。
+- v46-observer-impact冻结4unit/19integration通过，复用原字节及影响仍有效159项（合计182不同ID）；v46-author-presentation-impact保留可重放。原失败不回填通过，未重跑的真实模型/原生门禁仍未通过。
+
 ## v44 — 首次来源刷新完整交付组件回归（开发中）
 
 - 保留原944个稳定ID和必要风险；仅新增 `p8.integration-source-refresh-delivery.001`，全局945项，P8保持developing。旧条款/断言不删；原用例只增加影响选择标签。
