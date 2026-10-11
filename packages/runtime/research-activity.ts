@@ -1,3 +1,6 @@
+import {assertIndexedProducerReceipt} from './indexed-research-consumer.js';
+import {prepareResearchReader,assertResearchReader} from '../workspace/research-reader.js';
+import {indexedResearchPrompt} from '../workspace/research-runtime-files.js';
 import {researchGroupsPromptSuffix} from '../orchestration/research-group-output.js';
 import {publishResearchRoundReports,researchReportContents,type ResearchRoundPublicationHooks} from './research-round-publication.js';
 import {inspectProcess,type ProcessIdentity} from '../process-control/index.js';
@@ -42,15 +45,18 @@ export class ResearchRuntimeActivity {
   assertTrue(source?.state==='confirmed'&&source.step.kind==='materials','Research needs actual completed materials step');const receipt=(source.result as {kind:string;receipt:MaterialsReceipt}).receipt;
   const context=await captureResearchEvidence({intake:this.intake,material:receipt.material,contract:this.store.runtime.inspect(runtime.id).run.contract,requirements:binding.requirements,limits:binding.limits});
   const groups=this.store.researchGroups.aggregate(runtime.id);
-  const outputSchema=researchProposalSchema(context),prompt=researchExecutionPrompt(op.step.prompt,context)+(groups?researchGroupsPromptSuffix(groups):'');
+  assertTrue(binding.representation!=='indexed-material-v1'||!groups,'Indexed grouped analysis not yet supported');
+  const indexed=binding.representation==='indexed-material-v1'?await prepareResearchReader({intake:this.intake,context,materialIds:context.index.inputs.map(i=>i.id),role:'current',dataRoot:this.dataRoot}):undefined;
+  const outputSchema=researchProposalSchema(context),prompt=(indexed?indexedResearchPrompt(op.step.prompt,context,indexed):researchExecutionPrompt(op.step.prompt,context))+(groups?researchGroupsPromptSuffix(groups):'');
   assertTrue(prompt.length<=context.limits.maxContextChars&&prompt.length<=200000,'Complete research prompt with actual groups exceeds capacity; no input was truncated');
-  const body={schemaVersion:1 as const,operationId:op.id,acquisitionOperationId:source.id,contractVersion:op.contractVersion,context,...(groups?{groups}:{}),outputSchema,prompt,reportDirectory:binding.reportDirectory};const input:ResearchExecutionPackage={...body,digest:researchDigest(body)};
+  const body={schemaVersion:(indexed?2:1) as 1|2,...(indexed?{indexed}:{}),operationId:op.id,acquisitionOperationId:source.id,contractVersion:op.contractVersion,context,...(groups?{groups}:{}),outputSchema,prompt,reportDirectory:binding.reportDirectory};const input:ResearchExecutionPackage={...body,digest:researchDigest(body)};
   const directory=await privateDirectory(this.dataRoot,'research-inputs',op.id),path=join(directory,'input.json');await exclusiveJSON(path,input);this.store.runtime.setResearchInput(op.id,owner,{kind:'research-input',path,digest:input.digest,package:input});
  }
  async materialize(record:ExecutionRecord):Promise<ResearchCompletionReceipt> {
   record=this.store.executionGet(record.id);assertTrue(record.identity&&(await inspectProcess(record.identity as ProcessIdentity)).status==='stopped','Research writer physical stop is unresolved');const completionEvents=researchCompletionEvents(record,after=>this.store.executionEvents(record.id,after));
   assertTrue(record.runtimeBinding&&record.threadId&&record.turnId&&record.usageStatus==='reported'&&record.usage!==null&&!record.cancelRequested,'Research completion needs actual known same-turn accounting');const op=this.store.runtime.getOperation(record.runtimeBinding.operationId),runtime=this.store.runtime.get(op.runtimeId);assertTrue(!runtime.cancelled&&!runtime.paused,'Research completion cannot publish while paused/cancelled');
   const input=this.store.runtime.researchInput(op.id);assertTrue(input,'Research input missing');assertResearchInput(input,op.id,op.contractVersion,this.dataRoot);
+  if(input.package.indexed){await assertResearchReader(input.package.indexed);let after=0,closed;while(after<record.lastEventSeq){const page=this.store.executionEvents(record.id,after);assertTrue(page.length>0,'Reader completion event missing');for(const e of page){after=e.seq;if(e.kind==='indexed-reader-closed')closed=e.payload;if(after>=record.lastEventSeq)break;}}const receipt=closed as {readerDigest:string;inputDigest:string;proofs:Record<string,string>}|undefined;assertTrue(receipt?.readerDigest===input.package.indexed.digest&&receipt.inputDigest===input.digest,'Actual closed reader receipt missing');await assertIndexedProducerReceipt(join(this.dataRoot,'execution-indexed-proof',bytesDigest(record.id),'indexed-reader','binding.json'),receipt.proofs,{jobId:record.id,attemptId:record.id,identity:record.identity as ProcessIdentity,inputDigest:input.digest,readerDigest:input.package.indexed.digest});}
   const draft=await validateResearchProposal({intake:this.intake,context:input.package.context,output:record.message});
   this.store.runtime.verifyResearchInputs(op.id);assertTrue(!this.store.runtime.get(runtime.id).cancelled&&!this.store.runtime.get(runtime.id).paused,'Research boundary changed during validation');
   const directory=reportPath(runtime.workspace,input.package.reportDirectory);

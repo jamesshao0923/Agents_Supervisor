@@ -1,3 +1,4 @@
+import {assertResearchReader} from '../workspace/research-reader.js';
 import {assertHistoricalMaterialEpoch} from './source-refresh-controls.js';
 import type {HistoricalMaterialEpoch} from '../contracts/p4-source-refresh.js';
 import {join} from 'node:path';
@@ -40,6 +41,7 @@ export function readMaterialBindingSync(binding:MaterialVerifierBinding):{input:
 export async function readMaterialBinding(binding:MaterialVerifierBinding):Promise<{input:ResearchExecutionPackage;completion:ResearchCompletionReceipt;intake:MaterialIntake}>{
  const actual=readMaterialBindingSync(binding);
  await assertResearchEvidenceSnapshot(actual.intake,actual.input.context);
+ if(actual.input.indexed){assertTrue(actual.input.schemaVersion===2,'Indexed input requires explicit version');await assertResearchReader(actual.input.indexed);}else assertTrue(actual.input.schemaVersion===1,'Legacy input representation mismatch');
  return actual;
 }
 /** Host-only capture from actual current Run/operation, known cost and physical stop. */
@@ -108,10 +110,11 @@ export async function acquireMaterialEvidence(
  }
  // All source bytes and the unchanged entire current report remain available.
  // A deterministic projection never supplies a semantic verdict.
- const sources=input.context.sources.map(source=>({materialId:source.materialId,
+ if(input.indexed){assertTrue(!historical&&!basisProjection,'Indexed historical/projection review requires separate multi-view protocol');await assertResearchReader(input.indexed);}
+ const sources=input.indexed?undefined:input.context.sources.map(source=>({materialId:source.materialId,
   rawDigest:source.rawDigest,textDigest:source.textDigest,
   text:new TextDecoder('utf-8',{fatal:true,ignoreBOM:true}).decode(readBounded(source.textPath,input.context.index.limits.maxItemBytes))}));
- const payload={schemaVersion:1,binding:frozenVerifier.binding,context:input.context,completion,proposed,sources,
+ const payload={schemaVersion:input.indexed?2:1,binding:frozenVerifier.binding,context:input.context,completion,proposed,sources,...(input.indexed?{representation:'indexed-material-v1',indexed:input.indexed}:{}),
   ...(basisProjection?{basisProjection}:{})};
  assertTrue(JSON.stringify(payload).length<=200000,'Native material review exceeds capacity without truncation');
  signal.throwIfAborted();

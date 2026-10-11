@@ -1,3 +1,6 @@
+import {assertIndexedToolCorrelation,assertIndexedCall} from './indexed-call-proof.js';
+import {assertIndexedConsumerArchiveSync} from '../runtime/indexed-research-consumer.js';
+import {researchDigest} from '../workspace/research-materials.js';
 import {prepareResearchWorkflowEvolution} from './research-evolution.js';
 import {assertControlQualificationPublication} from '../persistence/control-qualification.js';
 import type {TaskContract} from '../contracts/p1.js';
@@ -148,12 +151,30 @@ export function assertResearchMappingApproval(db: DatabaseSync, p: Proposal, j: 
     ensure(completed
         && completed.text === readBounded(paths[1]!).toString()
         && canonical(JSON.parse(completed.text)) === canonical(raw), 'mapping approval is not the actual completed same-turn message');
+    const permitted = new Set<number>();
+    const readerPath = join(root, 'indexed-reader', 'binding.json');
+    if (j.proofs[readerPath]) {
+        const actual = assertIndexedConsumerArchiveSync(readerPath, {jobId:j.id,attemptId:j.attemptId,identities:j.identities});
+        for (const [path,hash] of Object.entries(actual.proof.files)) ensure(j.proofs[path]===hash && digest(readBounded(path,6*1024*1024))===hash, 'reader journal is not actual job proof');
+        ensure(digest(readBounded(readerPath))===j.proofs[readerPath], 'actual reader binding changed');
+        const material = p.spec.cases.filter(c=>c.verifier.kind==='material').map(c=>(c.verifier as import('../contracts/p4-material.js').MaterialVerifier).binding);
+        ensure(material.length>0&&material.every(binding=>{
+            const input=JSON.parse(readBounded(binding.inputPath).toString('utf8')) as import('../contracts/p8-research-runtime.js').ResearchExecutionPackage;
+            const {digest:inputDigest,...body}=input;
+            return input.schemaVersion===2&&input.indexed&&researchDigest(body)===inputDigest&&inputDigest===binding.inputDigest&&researchDigest(input.indexed)===researchDigest(actual.proof.reader)&&
+                actual.proof.owner.inputDigest===researchDigest({request:j.request,proposal:p.id,definition:p.bundle.digest,detectorDigest:digest(prompt),binding,reader:input.indexed.digest,callRoot:root});
+        }), 'mapping reader is not the actual complete producer grant');
+        ensure(actual.proof.reader.view.role==='current' && canonical(actual.proof.reader.view.allowedMaterialIds)===canonical(actual.proof.reader.context.index.inputs.map(input=>input.id)), 'mapping reader source selection changed');
+        assertIndexedCall(j,p,root);
+        for(const seq of assertIndexedToolCorrelation(actual.records,normalized,result.threadId,result.turnId))permitted.add(seq);
+    }
     ensure(!normalized.some(e => ['protocol-error', 'waiting'].includes(e.kind)
         || e.kind === 'error'
         && e.willRetry !== true
         || e.kind === 'turn-status'
         && e.terminal
         && e.status !== 'completed'
+        || e.kind==='server-request' && !permitted.has(e.sequence)
         || ['item/started', 'item/completed'].includes(e.method)
-        && !['userMessage', 'reasoning', 'agentMessage', 'contextCompaction'].includes(e.raw?.params?.item?.type)), 'mapping approval retains fatal or unauthorized tool evidence');
+        && !permitted.has(e.sequence) && !['userMessage', 'reasoning', 'agentMessage', 'contextCompaction'].includes(e.raw?.params?.item?.type)), 'mapping approval retains fatal or unauthorized tool evidence');
 }

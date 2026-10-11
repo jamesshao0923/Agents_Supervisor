@@ -1,6 +1,6 @@
 import {createHash} from 'node:crypto';
 import type {ControlEvolutionAuthoringContext} from './acceptance-authoring-v2.js';
-import {ACCEPTANCE_RUNTIME_GUIDANCE} from './acceptance-runtime-guidance.js';
+import {ACCEPTANCE_RUNTIME_GUIDANCE,COMMAND_AUTHOR_RUNTIME_CONTEXT} from './acceptance-runtime-guidance.js';
 import {safeControlJSON} from '../contracts/p4-controls.js';
 
 // No repository, runner, filesystem or authority import: safe at DB startup.
@@ -14,6 +14,7 @@ function canonical(value: unknown): string {
 const hash = (value: unknown): string => createHash('sha256').update(canonical(value)).digest('hex');
 function ensure(value: unknown, message: string): asserts value { if (!value) throw new Error(message); }
 export const CONTROL_EVOLUTION_PRESENTATION_PROMPT = 'Supervisor control-evolution author presentation v1';
+export const CONTROL_EVOLUTION_PRESENTATION_PROMPT_V2 = 'Supervisor control-evolution author presentation v2';
 export interface PresentedAuthorInput { prompt: string; outputSchema: Record<string, unknown>; context: unknown }
 
 /** A version selects a deterministic presentation, never grants authority. */
@@ -21,17 +22,19 @@ export function authorWireInput(input: PresentedAuthorInput, purpose: string): P
   const context = input.context as {authorPresentation?: unknown; acceptance?: unknown; evolution?: ControlEvolutionAuthoringContext} | null;
   const version = context && typeof context === 'object' && !Array.isArray(context) ? context.authorPresentation : undefined;
   if (version === undefined) {
-    ensure(input.prompt !== CONTROL_EVOLUTION_PRESENTATION_PROMPT, 'Missing author presentation version');
+    ensure(input.prompt !== CONTROL_EVOLUTION_PRESENTATION_PROMPT && input.prompt !== CONTROL_EVOLUTION_PRESENTATION_PROMPT_V2, 'Missing author presentation version');
     return {...input, presented: false};
   }
   ensure(purpose === 'acceptance-authoring', 'Only acceptance authors support this presentation');
-  ensure(canonical(version) === canonical({schemaVersion: 1, kind: 'control-evolution'}), 'Unknown author presentation version');
-  ensure(input.prompt === CONTROL_EVOLUTION_PRESENTATION_PROMPT, 'Author presentation prompt marker changed');
+  const v1 = canonical(version) === canonical({schemaVersion: 1, kind: 'control-evolution'});
+  const v2 = canonical(version) === canonical({schemaVersion: 2, kind: 'control-evolution'});
+  ensure(v1 || v2, 'Unknown author presentation version');
+  ensure(input.prompt === (v1 ? CONTROL_EVOLUTION_PRESENTATION_PROMPT : CONTROL_EVOLUTION_PRESENTATION_PROMPT_V2), 'Author presentation prompt marker changed');
   safeControlJSON(input);
   ensure(context?.evolution?.schemaVersion === 1 && context.evolution.history && context.evolution.historyText
     && context.evolution.base && Array.isArray(context.evolution.transitions), 'Incomplete complete control-evolution context');
   ensure(canonical(context.acceptance) === canonical(context.evolution.current), 'Author presentation acceptance differs from evolution');
-  return {...input, prompt: renderControlEvolutionPrompt(context.evolution), presented: true};
+  return {...input, prompt: v1 ? renderControlEvolutionPrompt(context.evolution) : renderControlEvolutionPromptV2(context.evolution), presented: true};
 }
 
 /** Storage and actual prompt+schema retain the same configured hard ceiling. */
@@ -57,4 +60,9 @@ export function renderControlEvolutionPrompt(context: ControlEvolutionAuthoringC
     ...((context.maintenance||context.regression)?['This is bounded same-contract regression maintenance after real repair already passed the ORIGINAL complete final definition. Preserve all obligations and business expectations exactly. Maintain every original case revision, parameter and defect reference; add an immutable case/revision binding each supplied actual defectRef to an exact final instance. A retained detector may gain a new revision with the actual defect reference; do not fabricate an unrelated extra requirement. The host replays each mapped detector on the original bad snapshot and known-good snapshot in this review job. Only that obligation actually failing/passing counts; tool errors are not fault witnesses. Each mapped regression must use a command verifier without build. Candidate entries, if present, must pass on both snapshots so the independent command report performs the specific fault check; an early entry exit cannot substitute for an obligation-specific report. Unsupported regression detector types block maintenance; preserve existing non-regression cases unchanged. Optional deduplication is allowed only through replaces mappings with actual instance-specific original failure witnesses and complete good passes. Never remove a necessary check or old control to obtain green. maintenance.regressions covers every supplied fault exactly once.']:[]),
     `contextDigest=${hash(context)}`, `assets.contextDigest=${hash(context.current)}`, canonical(context),
   ].join('\n\n');
+}
+
+/** Explicit new presentation; the v1 renderer above remains byte-for-byte stable. */
+export function renderControlEvolutionPromptV2(context: ControlEvolutionAuthoringContext): string {
+  return renderControlEvolutionPrompt(context) + '\n\n' + COMMAND_AUTHOR_RUNTIME_CONTEXT;
 }

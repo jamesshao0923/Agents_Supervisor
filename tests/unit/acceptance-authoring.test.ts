@@ -28,6 +28,17 @@ test('P6-AUTH-U01 strict proposed assets bind complete contract source environme
   const prompt = buildAcceptanceAuthoringPrompt(c);
   for (const text of [c.candidate.files[0]!.content, c.contract.criteria[0]!.description, 'Invalid input accepted', process.version]) assert.ok(prompt.includes(JSON.stringify(text).slice(1, -1)));
   assert.match(prompt, /untrusted project data/); assert.match(prompt, /PROPOSALS/);
+  // Generic checker ABI, not a task-specific detector or permission expansion.
+  assert.match(prompt, /SUPERVISOR_VERIFY_TYPESCRIPT_MODULE: an absolute path/);
+  assert.match(prompt, /TypeScript 6\.0\.3 parser module/);
+  assert.match(prompt, /not supplied to candidateEntries/);
+  assert.match(prompt, /does not supply an assertion trace, mutation detector or precomputed control observations/);
+  assert.match(prompt, /synchronous node:module registerHooks/);
+  assert.match(prompt, /does not authorize workers, subprocesses, candidate writes/);
+  assert.match(prompt, /do not require their future observations to be present in the author input/);
+  assert.match(prompt, /report unknown\/failure on unavailable evidence/);
+  assert.equal(acceptanceAuthoringContextDigest(c), b.contextDigest);
+  assert.deepEqual(validateAcceptanceBundle(b, c), b, 'Runtime explanation does not change contract or asset semantics');
   assert.throws(() => validateAcceptanceBundle({ ...b, passed: true }, c));
   const modified = context(); modified.candidate.files[0]!.content += 'changed'; assert.throws(() => acceptanceAuthoringSchema(modified), /source hash/);
   modified.candidate.files[0]!.sha256 = hash(modified.candidate.files[0]!.content); assert.throws(() => validateAcceptanceBundle(b, modified), /const/);

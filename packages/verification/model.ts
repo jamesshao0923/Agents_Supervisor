@@ -1,3 +1,6 @@
+import {IndexedResearchConsumer,isIndexedResearchConsumer} from '../runtime/indexed-research-consumer.js';
+import {MATERIAL_READER_SCHEMA_FILES} from '../executor-codex/material-reader-baseline.js';
+import type {MaterialReaderSession} from '../executor-codex/material-reader-session.js';
 import { mkdir, open, realpath, stat } from 'node:fs/promises';
 import type { FileHandle } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
@@ -6,6 +9,7 @@ import { CodexAdapter, inspectProtocol, PROTOCOL_SCHEMA_FILES, type LineTranspor
 import { spawnManagedProcess, terminateProcess, type ManagedProcess, type ProcessIdentity, type ProcessIntent, type ProcessResult, type StopEvidence } from '../process-control/index.js';
 
 export interface ModelReviewInput {
+  indexed?: IndexedResearchConsumer;
   id: string; cwd: string; logDir: string; prompt: string; images?: string[];
   model: string; effort: string; timeoutMs: number; signal?: AbortSignal;
   onIntent?: (intent: ProcessIntent) => void | Promise<void>;
@@ -37,6 +41,8 @@ interface ProcessProof { intent?: ProcessIntent; identity?: ProcessIdentity; res
 
 /** No Run is created here: the caller reserves and settles its existing budget. */
 export async function runModelReview(input: ModelReviewInput): Promise<ModelReviewResult> {
+  const indexed = input.indexed, captured = {...input}; delete captured.indexed;
+  if (indexed !== undefined) captured.indexed = indexed; input = captured; // capture once; action data cannot construct the brand
   const result: ModelReviewResult = { verdict: 'unknown', reason: 'Review not completed', observations: [], usage: null, threadId: null, turnId: null, proofFiles: [], stopConfirmed: false, modelStarted: false };
   const handles = new Map<string, FileHandle>();
   const processes = new Map<string, ProcessProof>();
@@ -44,8 +50,9 @@ export async function runModelReview(input: ModelReviewInput): Promise<ModelRevi
   let child: ManagedProcess | undefined;
   let childKind: string | undefined;
   let adapter: CodexAdapter | undefined;
+  let readerSession:MaterialReaderSession|undefined;
   let fatal: Error | undefined;
-  let finishing = false;
+  let finishing = false;let rawBytes=0;
   let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
   let finishEvent!: () => void;
   const eventFinished = new Promise<void>(resolve => { finishEvent = resolve; });
@@ -140,7 +147,7 @@ export async function runModelReview(input: ModelReviewInput): Promise<ModelRevi
       }
       if (event.method === 'item/started' || event.method === 'item/completed') {
         const item=(event.raw.params as {item?:{type?:unknown}}|undefined)?.item;
-        if (!item || typeof item.type!=='string' || !['userMessage','reasoning','agentMessage','contextCompaction'].includes(item.type)) throw new Error('Independent review rejects tool or unsupported item: '+String(item?.type));
+        if (!item || typeof item.type!=='string' || !['userMessage','reasoning','agentMessage','contextCompaction',...(readerSession?['dynamicToolCall']:[])].includes(item.type)) throw new Error('Independent review rejects tool or unsupported item: '+String(item?.type));
       }
       if (event.method === 'item/completed' && event.text !== undefined) completedMessages.push(event.text);
       if (event.kind === 'waiting') throw new Error('Independent review cannot wait for approval or user input');
@@ -152,6 +159,7 @@ export async function runModelReview(input: ModelReviewInput): Promise<ModelRevi
   }
 
   try {
+    if (input.indexed !== undefined && !isIndexedResearchConsumer(input.indexed)) throw new Error('Actual host indexed grant required');
     if (!/^[A-Za-z0-9._-]{1,160}$/.test(input.id) || !isAbsolute(input.cwd) || !isAbsolute(input.logDir) || !input.prompt.trim() || !input.model.trim() || !input.effort.trim()
       || !Number.isSafeInteger(input.timeoutMs) || input.timeoutMs < 1 || input.timeoutMs > 3_600_000) throw new Error('Invalid model review input');
     input = { ...input, cwd: await realpath(input.cwd), logDir: input.logDir };
@@ -176,6 +184,12 @@ export async function runModelReview(input: ModelReviewInput): Promise<ModelRevi
     for (const name of PROTOCOL_SCHEMA_FILES) result.proofFiles.push(join(schemaDir, name));
     const protocol = await inspectProtocol(version.trim(), schemaDir);
     await persist('protocol.json', JSON.stringify(protocol, null, 2) + '\n');
+    let readerSchemaDir = schemaDir;
+    if (input.indexed) {
+      readerSchemaDir = join(input.logDir, 'indexed-protocol'); await mkdir(readerSchemaDir, {mode: 0o700});
+      await probe('indexed-schema', ['app-server', 'generate-json-schema', '--experimental', '--out', readerSchemaDir], 15_000);
+      for (const name of MATERIAL_READER_SCHEMA_FILES) result.proofFiles.push(join(readerSchemaDir, name));
+    }
     const servers: unknown = JSON.parse(await probe('tools', ['-c', 'features.plugins=false', '-c', 'features.apps=false', 'mcp', 'list', '--json'], 10_000));
     if (!Array.isArray(servers)) throw new Error('Cannot establish isolated review tool configuration');
     const args = ['app-server', '--stdio', '-c', 'features.apps=false', '-c', 'features.plugins=false', '-c', 'features.multi_agent=false', '-c', 'web_search="disabled"'];
@@ -184,6 +198,7 @@ export async function runModelReview(input: ModelReviewInput): Promise<ModelRevi
       if (value.enabled !== false) args.push('-c', `mcp_servers.${value.name}.enabled=false`);
     }
     const managed = await spawn('review', args, remaining());
+    if(input.indexed)readerSession=await input.indexed.start(managed.identity,readerSchemaDir,version.trim(),eligible,input.signal);
     const lines = createInterface({ input: managed.stdout });
     streamsClosed = Promise.all([new Promise<void>(resolve => { lines.once('close', resolve); }), new Promise<void>(resolve => {
       managed.stderr.once('end', resolve); managed.stderr.once('close', resolve);
@@ -194,9 +209,9 @@ export async function runModelReview(input: ModelReviewInput): Promise<ModelRevi
       onClose: callback => { const closed = (): void => callback('managed stdout closed'); lines.on('close', closed); return () => { lines.off('close', closed); }; },
     };
     managed.stderr.on('data', (chunk: Buffer) => { void persist('review.stderr.log', chunk).catch(fail); });
-    adapter = new CodexAdapter({ transport, requestTimeoutMs: remaining(20_000),
-      onRawEvent: async event => { await persist('review.stdout.log', event.line + '\n'); await record('codex-raw', event); }, onEvent,
-      onServerRequest: request => { adapter!.rejectServerRequest(request.id, 'Independent review rejects all approvals, input requests and unsupported server actions'); fail(new Error(`Review requested unsupported interaction: ${request.method}`)); },
+    adapter = new CodexAdapter({ transport,...(readerSession?{materialReader:readerSession}:{}), requestTimeoutMs: remaining(20_000),
+      onRawEvent: async event => { if(readerSession){rawBytes+=Buffer.byteLength(event.line);if(rawBytes>8*1024*1024)throw Error('Review raw evidence exceeds original 8MiB capacity');}await persist('review.stdout.log', event.line + '\n'); await record('codex-raw', event); }, onEvent,
+      ...(readerSession?{}:{onServerRequest: request => { adapter!.rejectServerRequest(request.id, 'Independent review rejects all approvals, input requests and unsupported server actions'); fail(new Error(`Review requested unsupported interaction: ${request.method}`)); }}),
     });
     void managed.completion.then(async stop => {
       processes.get('review')!.result = stop;
@@ -215,7 +230,7 @@ export async function runModelReview(input: ModelReviewInput): Promise<ModelRevi
     if (!selected || !efforts.some(value => value && typeof value === 'object' && value.reasoningEffort === input.effort)) throw new Error('Review model or reasoning effort is not advertised');
     if (!Array.isArray(selected.inputModalities) || !selected.inputModalities.includes('text') || images.length && !selected.inputModalities.includes('image')) throw new Error('Review model input modality is not advertised');
     eligible();
-    const thread = await adapter.startThread({ cwd: input.cwd, model: input.model, approvalPolicy: 'never', sandbox: 'read-only', ephemeral: true, developerInstructions: instructions,
+    const thread = await adapter.startThread({ cwd: input.cwd, model: input.model, approvalPolicy: 'never', sandbox: 'read-only', ephemeral: true, developerInstructions: instructions+(readerSession?' Exception: use only the registered host range/search tools for original sources. These integrity reads are not verdicts.':''),
       config: { 'features.apps': false, 'features.plugins': false, 'features.multi_agent': false, web_search: 'disabled' },
     });
     if (result.threadId && result.threadId !== thread.thread.id) throw new Error('Review thread response mismatch');
@@ -230,6 +245,7 @@ export async function runModelReview(input: ModelReviewInput): Promise<ModelRevi
     await eventFinished; eligible();
     if (terminalStatus !== 'completed') throw new Error(`Review turn did not complete (${terminalStatus ?? 'unknown'})`);
     await adapter.drain();
+    if(input.indexed)await input.indexed.finish();
     const text = completedMessages.at(-1);
     await persist('output.txt', text ?? '');
     if (!text) throw new Error('Completed review has no final structured output');
@@ -242,6 +258,7 @@ export async function runModelReview(input: ModelReviewInput): Promise<ModelRevi
   } catch (error) { fatal ??= error instanceof Error ? error : new Error(message(error)); }
   finally {
     finishing = true;
+    if(fatal)try{await input.indexed?.cancel();}catch(error){fatal??=new Error(message(error));}
     if (deadlineTimer) clearTimeout(deadlineTimer);
     input.signal?.removeEventListener('abort', abort);
     if (child) {
@@ -254,6 +271,7 @@ export async function runModelReview(input: ModelReviewInput): Promise<ModelRevi
       finally { if (tailTimer) clearTimeout(tailTimer); }
       await adapter?.drain();
     } catch (error) { fatal ??= new Error(message(error)); }
+    try{result.proofFiles.push(...await input.indexed?.archive(input.logDir)??[]);}catch(error){fatal??=new Error(message(error));}
     adapter?.dispose();
     result.stopConfirmed = [...processes.values()].every(proof => !proof.identity || proof.result?.stopped === true);
     if (!result.stopConfirmed) fatal ??= new Error('Review process stop could not be verified');

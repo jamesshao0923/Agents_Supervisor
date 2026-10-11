@@ -6,6 +6,7 @@ import type {MaterialIndex,MaterialEntry,MaterialInput,MaterialRefresh} from '..
 import type {MaterialRef,ResearchRequirement,ResearchLimits,ResearchEvidenceContext,CitationRequest,BoundCitation} from '../contracts/p8-research.js';
 import {MaterialIntake} from './material-intake.js';
 const canonical=(v:unknown):string=>Array.isArray(v)?'['+v.map(canonical).join(',')+']':v&&typeof v==='object'?'{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+canonical((v as Record<string,unknown>)[k])).join(',')+'}':JSON.stringify(v);
+export const researchCanonical=canonical;
 export function researchDigest(value:unknown):string {safeResultJSON(value);return createHash('sha256').update(canonical(value)).digest('hex');}
 const shaText=(v:string)=>createHash('sha256').update(v,'utf8').digest('hex');
 function ensure(v:unknown,m:string):asserts v {if(!v)throw Error('Research materials: '+m);}

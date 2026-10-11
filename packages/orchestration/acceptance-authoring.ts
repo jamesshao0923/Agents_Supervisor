@@ -1,4 +1,4 @@
-import { ACCEPTANCE_RUNTIME_GUIDANCE } from './acceptance-runtime-guidance.js';
+import { ACCEPTANCE_RUNTIME_GUIDANCE, COMMAND_AUTHOR_RUNTIME_CONTEXT } from './acceptance-runtime-guidance.js';
 export { ACCEPTANCE_RUNTIME_GUIDANCE } from './acceptance-runtime-guidance.js';
 import {researchDeclarationSchema,prepareResearchProofPlan} from '../verification/research-workflow.js';
 import type {ResearchWorkflowDeclaration} from '../contracts/p4-research-workflow.js';
@@ -215,6 +215,7 @@ export function buildAcceptanceAuthoringPrompt(context: AcceptanceAuthoringConte
     ACCEPTANCE_RUNTIME_GUIDANCE[5]!,
     ACCEPTANCE_RUNTIME_GUIDANCE[6]!,
     ACCEPTANCE_RUNTIME_GUIDANCE[7]!,
+    COMMAND_AUTHOR_RUNTIME_CONTEXT,
     'coverageExplanation maps every frozen check exactly once to executable cases of its original kind. Explain how the assertions detect the defect; do not waive or replace requirements. Control projects must contain all sources required by every case.',
     `contextDigest=${hash(canonical(frozen))}`, 'Complete frozen context (candidate contents, authoritative contract, environment and prior failures):', canonical(frozen),
   ].join('\n\n');

@@ -301,3 +301,7 @@ P1 新业务场景由对应工作包的稳定测试登记追加到同一目录�
 ## v47 unchanged-source refresh
 
 Add p8.integration-source-refresh-nochange-delivery.001 for actual reacquisition with identical bytes and a distinct published generation, independent review and delivery. Preserve the changed-source case extended to three generations, all prior assertions and negative cases. Local protocol component evidence is not provider or stage acceptance.
+
+## v48 indexed consumer and author runtime context
+
+Add two distinct indexed consumer/lifecycle cases; retain all prior stable IDs. Extend existing author/presentation assertions for explicit new v2 runtime ABI and byte-exact legacy v1 rendering; do not duplicate suites or rewrite historical evidence. Indexed support remains single current view; grouped/historical views are not accepted by this checkpoint.

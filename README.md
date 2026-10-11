@@ -6,13 +6,25 @@
 
 Supervisor 的需求理解与计划已由模型驱动，P6 自动监督控制器正在集成验收。默认复用本机 Codex CLI 安装及已支持的登录方式，由 Supervisor 管理独立的 `codex app-server` 会话；P4 已实际使用它执行独立定义复核、图像验收和来源核验，P5 已接入需求澄清、计划提案和新会话恢复；P6 已接入自动验收作者、独立复核、验证与同契约修复的控制器，完整真实闭环尚未通过。模型提出结构化方案，控制器核对权限、预算和证据后执行，不能由模型一句“完成”直接放行。它不是本地离线模型或通用模型 HTTP 代理；其他代理端点接入需要单独验证协议。见 [主监督模型与本机 Codex 接入](docs/architecture.md#codex-接入和执行器契约)。
 
-## 最新开发检查点（v47，2026-10-11，连续研究更新与未变化来源）
+## 最新开发检查点（v48，2026-10-11，完整资料读取接线与验收作者能力说明）
+
+单次当前研究已将完整资料索引接入实际执行、验收作者和独立 P4；原文保留在归档中，按需读取，不能以摘要代替原材料。工具读取证明绑定本次作业、进程、输入及实际完成事件；资料清单必须完整。schema 探测纳入受管进程，取消、关闭、重启与期限届满均核对真实停止。分组、历史与混合代次索引尚不属于本检查点支持范围。
+
+验收作者现在明确获知已有的只读 TypeScript 解析器及进程内检测能力。新作业使用明确的展示版本 v2，旧 v1 记录保持原发送字节；原提示容量、权限、业务标准与预算不变。该修正针对真实失败中作者误认为缺少检查工具的问题，不保证模型一定产出有效验收器。
+
+冻结必要回归 **69/69 单元、153/153 集成**通过，零跳过；440 个源码、815 个构建文件无漂移。新增两项稳定用例，全局 **964 个 ID**，原作者检查扩展而不另建重复套件。独立 ABI 检查 14/14 通过，旧提示回放保持原字节。
+
+证据见 `.supervisor-dev/v48-consumer-author-integration/formal-summary.json`、`actual-audit-*.json` 与 `lifecycle-postflight.json`。三代更新形成 3 次交付、未变化重采集形成 2 次、索引当前研究形成 1 次；对应 4,815 / 2,245 / 3,013 次证明哈希核对无误，81 / 42 / 26 个已记录所属进程及 6 个生命周期探测进程均确认停止。复验：`node dist/tools/p0/cli.js run --stage P8 --layer integration --modules indexed-research-consumer,v46-author-presentation-impact,p8-nochange-refresh-impact,v45-indexed-reader-impact,p8-research-runtime,p8-material-obligation`。
+
+组件检查实际运行 Node、文件、SQLite、受管进程与验证器；模型判断为明确的合成协议输入，不能代替真实供应商或业务验收。P6–P8 保持 developing，真实双次交付、自动修复、分组研究、双平台移动与原生 UI 等原门禁均保留。`.gitignore` 持续排除本地证据、依赖、构建输出、运行数据和凭证。
+
+## 历史开发检查点（v47，2026-10-11，连续研究更新与未变化来源）
 
 连续三代研究更新现按每一代真实发布的定义、历史观察时点和已封存交付核对；后续项目头部或原文件变化，不会把旧交付错误地当成当前材料，也不会丢弃其原始证明。来源重新采集后字节相同时，仍绑定新的采集收据与代次，执行新的独立复核及交付，不复用旧通过冒充本轮结果。
 
 冻结必要回归 **117/117 单元、76/76 集成**通过，无跳过；433 个源码、801 个构建文件无漂移。原更新用例从两代扩展为三代，保留全部 55 条原断言，现 97 条断言实际执行成功；新增一项“内容未变但真实重采集”的完整交付场景，全局 **962 个稳定 ID**。三代套件的观察上限为 660 秒、外层 720 秒；仅研发集成声明上限同步为 720 秒，产品时限、预算、材料时效与业务标准不变。
 
-证据见 `.supervisor-dev/v47-refresh-integration/formal-summary.json` 和 `actual-audit-*.json`；三代实际形成 3 次交付、未变化场景形成 2 次，7,060 份证明哈希核对无误。复验：`node dist/tools/p0/cli.js run --stage P8 --layer integration --modules v47-refresh-continuity-impact,p8-nochange-refresh-impact`。上述实际运行文件、SQLite、受管进程及验证组件；模型判断为明确的合成协议输入，不能代替公开来源与供应商业务验收。
+证据见 `.supervisor-dev/v47-refresh-integration/formal-summary.json` 和 `actual-audit-*.json`；三代实际形成 3 次交付、未变化场景形成 2 次，7,060 次证明哈希核对无误。复验：`node dist/tools/p0/cli.js run --stage P8 --layer integration --modules v47-refresh-continuity-impact,p8-nochange-refresh-impact`。上述实际运行文件、SQLite、受管进程及验证组件；模型判断为明确的合成协议输入，不能代替公开来源与供应商业务验收。
 
 另一次真实 P6 跟进验收已通过现有系统代理完成规划、实施和首轮作者调用，但首作者缺少必要控制样例，自动升级后的作者达到原 240 秒期限，仍为失败且零交付。已知用量 93,760 token，另一次用量未知；15 个所属进程已停止，失败保留在 `.supervisor-dev/p6-terminal-proxy-live-work/`。原生 UI 仍受 Mac 锁定限制；大材料分组、真实业务与双平台移动交付等原门禁继续推进，P6–P8 保持 developing。`.gitignore` 继续排除本地证据、运行数据、构建产物和凭证。
 

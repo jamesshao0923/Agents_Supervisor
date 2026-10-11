@@ -1,3 +1,6 @@
+import {IndexedResearchConsumer,isIndexedResearchConsumer} from '../runtime/indexed-research-consumer.js';
+import {MATERIAL_READER_SCHEMA_FILES} from '../executor-codex/material-reader-baseline.js';
+import type {MaterialReaderSession} from '../executor-codex/material-reader-session.js';
 import { createHash } from 'node:crypto';
 import type { AuthorSchemaRejection } from '../contracts/p6-author-routing.js';
 import { ReasonerSchemaError } from './reasoner-schema.js';
@@ -13,6 +16,7 @@ import { CodexAdapter, inspectProtocol, PROTOCOL_SCHEMA_FILES, type LineTranspor
 import { spawnManagedProcess, terminateProcess, type ManagedProcess, type ProcessIdentity, type ProcessIntent, type ProcessResult, type StopEvidence } from '../process-control/index.js';
 
 export interface ReasonerInput {
+  indexed?: IndexedResearchConsumer;
   id: string; cwd: string; logDir: string; prompt: string; outputSchema: Record<string, unknown>;
   model: string; effort: string; timeoutMs: number; signal?: AbortSignal;
   onIntent?: (intent: ProcessIntent) => void | Promise<void>;
@@ -66,6 +70,8 @@ interface ProcessProof { intent?: ProcessIntent; identity?: ProcessIdentity; res
 
 /** No Run is created here: the caller reserves and settles its existing budget. */
 export async function runReasonerRequest(input: ReasonerInput): Promise<ReasonerResult> {
+  const indexed = input.indexed, captured = {...input}; delete captured.indexed;
+  if (indexed !== undefined) captured.indexed = indexed; input = captured; // capture once; action data cannot construct the brand
   const result: ReasonerResult = { value: null, usage: null, threadId: null, turnId: null, proofFiles: [], stopConfirmed: false, modelStarted: false };
   const handles = new Map<string, FileHandle>();
   const processes = new Map<string, ProcessProof>();
@@ -73,6 +79,7 @@ export async function runReasonerRequest(input: ReasonerInput): Promise<Reasoner
   let child: ManagedProcess | undefined;
   let childKind: string | undefined;
   let adapter: CodexAdapter | undefined;
+  let readerSession:MaterialReaderSession|undefined;
   let fatal: Error | undefined;
   let finishing = false;
   let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
@@ -158,6 +165,9 @@ export async function runReasonerRequest(input: ReasonerInput): Promise<Reasoner
       await record('codex-event', event);
       // Expected transport closure during explicit cleanup is not model completion.
       if (event.kind === 'disconnected' && finishing) return;
+      const item=(event.raw.params as {item?:{type?:string}}|undefined)?.item;
+      if(readerSession && event.kind==='server-request' && event.method==='item/tool/call')return;
+      if(readerSession&&['item/started','item/completed'].includes(event.method)&&item?.type==='dynamicToolCall')return;
       const reduced = reduceReasonerEvent(observation, event);
       result.threadId = observation.threadId; result.turnId = observation.turnId;
       if (reduced.usageChanged) await input.onUsage?.(observation.usage!);
@@ -166,6 +176,7 @@ export async function runReasonerRequest(input: ReasonerInput): Promise<Reasoner
   }
 
   try {
+    if (input.indexed !== undefined && !isIndexedResearchConsumer(input.indexed)) throw new Error('Actual host indexed grant required');
     if (!/^[A-Za-z0-9._-]{1,160}$/.test(input.id) || !isAbsolute(input.cwd) || !isAbsolute(input.logDir) || !input.prompt.trim() || !input.model.trim() || !input.effort.trim()
       || !Number.isSafeInteger(input.timeoutMs) || input.timeoutMs < 1 || input.timeoutMs > 3_600_000) throw new Error('Invalid model reasoner input');
     if (Buffer.byteLength(input.prompt) > 2 * 1024 * 1024) throw new Error('Reasoner prompt exceeds input capacity; never truncate silently');
@@ -187,6 +198,12 @@ export async function runReasonerRequest(input: ReasonerInput): Promise<Reasoner
     for (const name of PROTOCOL_SCHEMA_FILES) result.proofFiles.push(join(schemaDir, name));
     const protocol = await inspectProtocol(version.trim(), schemaDir);
     await persist('protocol.json', JSON.stringify(protocol, null, 2) + '\n');
+    let readerSchemaDir = schemaDir;
+    if (input.indexed) {
+      readerSchemaDir = join(input.logDir, 'indexed-protocol'); await mkdir(readerSchemaDir, {mode: 0o700});
+      await probe('indexed-schema', ['app-server', 'generate-json-schema', '--experimental', '--out', readerSchemaDir], 15_000);
+      for (const name of MATERIAL_READER_SCHEMA_FILES) result.proofFiles.push(join(readerSchemaDir, name));
+    }
     const servers: unknown = JSON.parse(await probe('tools', ['-c', 'features.plugins=false', '-c', 'features.apps=false', 'mcp', 'list', '--json'], 10_000));
     if (!Array.isArray(servers)) throw new Error('Cannot establish isolated reasoner tool configuration');
     const args = ['app-server', '--stdio', '-c', 'features.apps=false', '-c', 'features.plugins=false', '-c', 'features.multi_agent=false', '-c', 'web_search="disabled"'];
@@ -196,6 +213,7 @@ export async function runReasonerRequest(input: ReasonerInput): Promise<Reasoner
     }
     await record('disabled-tools', servers.map(value => ({ name: (value as { name: string }).name, enabled: false })));
     const managed = await spawn('reasoner', args, remaining());
+    if(input.indexed)readerSession=await input.indexed.start(managed.identity,readerSchemaDir,version.trim(),eligible,input.signal);
     const lines = createInterface({ input: managed.stdout });
     streamsClosed = Promise.all([new Promise<void>(resolve => { lines.once('close', resolve); }), new Promise<void>(resolve => {
       managed.stderr.once('end', resolve); managed.stderr.once('close', resolve);
@@ -206,13 +224,13 @@ export async function runReasonerRequest(input: ReasonerInput): Promise<Reasoner
       onClose: callback => { const closed = (): void => callback('managed stdout closed'); lines.on('close', closed); return () => { lines.off('close', closed); }; },
     };
     managed.stderr.on('data', (chunk: Buffer) => { void persist('reasoner.stderr.log', chunk).catch(fail); });
-    adapter = new CodexAdapter({ transport, requestTimeoutMs: remaining(20_000),
+    adapter = new CodexAdapter({ transport,...(readerSession?{materialReader:readerSession}:{}), requestTimeoutMs: remaining(20_000),
       onRawEvent: async event => {
         rawBytes += Buffer.byteLength(event.line);
         if (rawBytes > 8 * 1024 * 1024) throw new Error('Reasoner raw event evidence limit exceeded');
         await persist('reasoner.stdout.log', event.line + '\n'); await record('codex-raw', event);
       }, onEvent,
-      onServerRequest: request => { adapter!.rejectServerRequest(request.id, 'Independent reasoner rejects all approvals, input requests and unsupported server actions'); fail(new Error(`Reasoner requested unsupported interaction: ${request.method}`)); },
+      ...(readerSession?{}:{onServerRequest: request => { adapter!.rejectServerRequest(request.id, 'Independent reasoner rejects all approvals, input requests and unsupported server actions'); fail(new Error(`Reasoner requested unsupported interaction: ${request.method}`)); }}),
     });
     void managed.completion.then(async stop => {
       processes.get('reasoner')!.result = stop;
@@ -231,7 +249,7 @@ export async function runReasonerRequest(input: ReasonerInput): Promise<Reasoner
     if (!selected || !efforts.some(value => value && typeof value === 'object' && value.reasoningEffort === input.effort)) throw new Error('Reasoner model or reasoning effort is not advertised');
     if (!Array.isArray(selected.inputModalities) || !selected.inputModalities.includes('text')) throw new Error('Reasoner model input modality is not advertised');
     eligible();
-    const thread = await adapter.startThread({ cwd: input.cwd, model: input.model, approvalPolicy: 'never', sandbox: 'read-only', ephemeral: true, developerInstructions: instructions,
+    const thread = await adapter.startThread({ cwd: input.cwd, model: input.model, approvalPolicy: 'never', sandbox: 'read-only', ephemeral: true, developerInstructions: instructions+(readerSession?' Exception: use only the two registered host material range/search tools to inspect the original source evidence; these reads never grant authority.':''),
       config: { 'features.apps': false, 'features.plugins': false, 'features.multi_agent': false, web_search: 'disabled' },
     });
     if (result.threadId && result.threadId !== thread.thread.id) throw new Error('Reasoner thread response mismatch');
@@ -246,6 +264,7 @@ export async function runReasonerRequest(input: ReasonerInput): Promise<Reasoner
     await eventFinished; eligible();
     if (observation.terminalStatus !== 'completed') throw new Error(`Reasoner turn did not complete (${observation.terminalStatus ?? 'unknown'})`);
     await adapter.drain();
+    if(input.indexed)await input.indexed.finish();
     const text = observation.completedMessages.at(-1);
     await persist('output.txt', text ?? '');
     if (!text) throw new Error('Completed reasoner has no final structured output');
@@ -253,6 +272,7 @@ export async function runReasonerRequest(input: ReasonerInput): Promise<Reasoner
   } catch (error) { fatal ??= error instanceof Error ? error : new Error(message(error)); }
   finally {
     finishing = true;
+    if(fatal)try{await input.indexed?.cancel();}catch(error){fatal??=new Error(message(error));}
     if (deadlineTimer) clearTimeout(deadlineTimer);
     input.signal?.removeEventListener('abort', abort);
     if (child) {
@@ -265,6 +285,7 @@ export async function runReasonerRequest(input: ReasonerInput): Promise<Reasoner
       finally { if (tailTimer) clearTimeout(tailTimer); }
       await adapter?.drain();
     } catch (error) { fatal ??= new Error(message(error)); }
+    try{result.proofFiles.push(...await input.indexed?.archive(input.logDir)??[]);}catch(error){fatal??=new Error(message(error));}
     adapter?.dispose();
     result.usage = finalizeReasonerUsage(observation);
     result.stopConfirmed = [...processes.values()].every(proof => !proof.identity || proof.result?.stopped === true);

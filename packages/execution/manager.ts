@@ -1,3 +1,4 @@
+import {IndexedResearchConsumer} from '../runtime/indexed-research-consumer.js';
 import {ResearchGroupActivity} from '../runtime/research-group-activity.js';
 import {ResearchRuntimeActivity} from '../runtime/research-activity.js';
 import {scanCandidate} from '../verification/candidate.js';
@@ -50,9 +51,10 @@ function transport(child: ManagedProcess): LineTransport {
     onClose: callback => { const close = () => callback('managed stdout closed'); lines.on('close',close); return () => { lines.off('close',close); }; },
   };
 }
-interface Active { process: ManagedProcess; adapter: CodexAdapter; finishing?: Promise<void>; terminalStatus?: string; launchedTurn: boolean }
+interface Active { reader?:IndexedResearchConsumer;rawBytes?:number;process: ManagedProcess; adapter: CodexAdapter; finishing?: Promise<void>; terminalStatus?: string; launchedTurn: boolean }
 export interface ExecutionManagerOptions { managedWorkspaceRoot?: string; scope?: 'runtime'|'scheduled'|'legacy'; eligibility?: (id:string)=>void }
 export class ExecutionManager {
+  private readonly indexedProbes = new Map<string,ManagedProcess>();
   private readonly active = new Map<string, Active>();
   private readonly launches = new Map<string, Promise<void>>();
   private readonly reconciliations = new Map<string, Promise<ExecutionRecord>>();
@@ -68,7 +70,7 @@ export class ExecutionManager {
   async initialize(): Promise<void> {
     // A disconnected observation is never treated as success or blindly replayed.
     for (const record of this.store.executionList()) if (this.owns(record)&&!record.stopConfirmed) {
-      if((record.runtimeBinding||record.scheduledBinding)&&record.state==='queued'&&!record.identity&&!record.threadId)continue;
+      if((record.runtimeBinding||record.scheduledBinding)&&record.state==='queued'&&!record.identity&&!record.threadId&&!this.indexedProbeEvents(record.id).length)continue;
       await this.reconcile(record.id);
     }
   }
@@ -175,6 +177,45 @@ export class ExecutionManager {
     }
     return record;
   }
+  private indexedProbeEvents(id:string):ExecutionEvent[] {
+    const record=this.store.executionGet(id),selected:ExecutionEvent[]=[];let after=0;
+    while(after<record.lastEventSeq){const page=this.store.executionEvents(id,after);if(!page.length)throw Error('Indexed schema probe evidence prefix unavailable');let cursor=after;for(const event of page){if(event.seq>record.lastEventSeq)break;if(event.seq<=cursor)throw Error('Indexed schema probe event order changed');cursor=event.seq;if(event.kind.startsWith('indexed-schema-'))selected.push(event);}if(cursor===after)throw Error('Indexed schema probe evidence prefix stalled');after=cursor;}return selected;
+  }
+  /** Probe process ownership is durable independently of the billed appserver identity. */
+  private async indexedProtocol(id:string):Promise<string> {
+    const directory=join(this.dataDir,'execution-indexed-protocol',createHash('sha256').update(id).digest('hex'));
+    await mkdir(directory,{recursive:true,mode:0o700});if((await lstat(directory)).isSymbolicLink()||await realpath(directory)!==directory)throw Error('Indexed schema directory alias');
+    if(this.indexedProbeEvents(id).length)throw Error('Indexed schema probe replay prohibited; reconcile original ownership');
+    const remaining=()=>{this.assertLaunchEligible(id);const time=Date.parse(this.store.executionGet(id).deadline)-Date.now();if(time<=0)throw Error('Execution deadline reached during indexed schema probe');return Math.min(15000,time);};
+    let identity:ProcessIdentity|undefined,managed:ManagedProcess|undefined,bytes=0;const chunks:Buffer[]=[],errors:Buffer[]=[];
+    try {
+      managed=await spawnManagedProcess({operationId:id+':indexed-schema',command:this.codex,args:['app-server','generate-json-schema','--experimental','--out',directory],cwd:this.dataDir,timeoutMs:remaining(),
+        onBeforeSpawn:async intent=>{await this.awaitLaunchEligible(id);remaining();this.store.executionUpdate(id,{},'indexed-schema-intent',intent);},
+        onIdentity:actual=>{identity=actual;this.store.executionUpdate(id,{},'indexed-schema-identity',actual);remaining();}});
+      this.indexedProbes.set(id,managed);
+      const collect=(target:Buffer[])=> (chunk:Buffer)=>{const available=Math.max(0,65536-bytes);bytes+=chunk.length;if(available)target.push(Buffer.from(chunk.subarray(0,available)));if(bytes>65536)void managed!.terminate();};
+      managed.stdout.on('data',collect(chunks));managed.stderr.on('data',collect(errors));
+      if(this.store.executionGet(id).cancelRequested||this.closing)await managed.terminate();
+      const result=await managed.completion;
+      this.store.executionUpdate(id,{},'indexed-schema-stop',{identity,result,observedOutputBytes:bytes,outputCapacityExceeded:bytes>65536,stdout:Buffer.concat(chunks).toString('utf8'),stderr:Buffer.concat(errors).toString('utf8')});
+      if(!result.stopped||result.exitCode!==0||result.reason!=='completed'||bytes>65536)throw Error('Indexed schema probe did not complete within original bounds');
+      remaining();const files:Record<string,string>={};
+      for(const name of (await import('../executor-codex/material-reader-baseline.js')).MATERIAL_READER_SCHEMA_FILES){const path=join(directory,name);if((await lstat(path)).isSymbolicLink()||await realpath(path)!==path)throw Error('Indexed schema file alias');files[path]=createHash('sha256').update(await readFile(path)).digest('hex');}
+      this.store.executionUpdate(id,{},'indexed-schema-files',{directory,files});return directory;
+    } catch(error) {
+      let result:unknown=null;if(managed)result=await managed.terminate();else if(identity)result=await terminateProcess(identity);
+      this.store.executionUpdate(id,{},'indexed-schema-error',{identity:identity??null,result,error:errorText(error)});throw error;
+    } finally {this.indexedProbes.delete(id);}
+  }
+  private async reconcileIndexedProbe(id:string):Promise<boolean> {
+    const events=this.indexedProbeEvents(id);if(!events.length)return true;
+    const identities=events.filter(e=>e.kind==='indexed-schema-identity').map(e=>e.payload as ProcessIdentity);
+    // A persisted intent without a birth record is unknown, never a zero-cost successful release.
+    if(!identities.length)return false;
+    for(const identity of identities){const inspection=await inspectProcess(identity);if(inspection.status==='unverified')return false;
+      if(inspection.status==='verified'){const stop=await terminateProcess(identity);this.store.executionUpdate(id,{},'indexed-schema-recovery-stop',{identity,result:stop});if(!stop.stopped)return false;}
+    }return true;
+  }
   private async launch(id: string): Promise<void> {
     let record=this.store.executionGet(id);
     if(record.stopConfirmed)return;
@@ -187,14 +228,18 @@ export class ExecutionManager {
     if(record.stopConfirmed)return;
     if(record.cancelRequested){await this.finishWithoutProcess(id,'cancelled');return;}
     this.store.executionUpdate(id,{state:'starting',protocolVersion:capabilities.version,schemaDigest:capabilities.schemaDigest},'protocol-verified',capabilities);
+    const reader=await IndexedResearchConsumer.execution(this.store,id);
+    const directory=reader?await this.indexedProtocol(id):undefined;
+    record=this.store.executionGet(id);this.assertLaunchEligible(id);
     const remaining=Date.parse(record.deadline)-Date.now(); if(remaining<=0)throw new Error('Execution deadline reached before spawn');
     const child=await spawnManagedProcess({operationId:id,command:this.codex,args:await this.processArgs(),cwd:record.workspace,timeoutMs:remaining,
       onBeforeSpawn:async intent=>{await this.awaitLaunchEligible(id);this.store.executionUpdate(id,{},'process-intent',intent);},
       onIdentity:async identity=>{await this.awaitLaunchEligible(id);this.store.executionUpdate(id,{identity,pid:identity.pid},'process-identity',identity);}});
-    const adapter=new CodexAdapter({transport:transport(child),requestTimeoutMs:Math.min(20_000,remaining),
-      onRawEvent:event=>{this.store.executionUpdate(id,{},'codex-raw',event);},
+    const materialReader=reader?await reader.start(child.identity,directory!,capabilities.version,()=>{const e=this.store.executionGet(id);if(e.usage&&e.usage.totalTokens>=e.reservation)throw Error('Indexed execution reservation exhausted');}):undefined;
+    const adapter=new CodexAdapter({...(materialReader?{materialReader}:{}),transport:transport(child),requestTimeoutMs:Math.min(20_000,remaining),
+      onRawEvent:event=>{const a=this.active.get(id);if(a?.reader){a.rawBytes=(a.rawBytes??0)+Buffer.byteLength(event.line);if(a.rawBytes>8*1024*1024)throw Error('Indexed execution event capacity exceeded');}this.store.executionUpdate(id,{},'codex-raw',event);},
       onEvent:event=>this.onEvent(id,event)});
-    const active:Active={process:child,adapter,launchedTurn:false};this.active.set(id,active);
+    const active:Active={...(reader?{reader}:{}),process:child,adapter,launchedTurn:false};this.active.set(id,active);
     child.stderr.on('data',(chunk:Buffer)=>{this.store.executionUpdate(id,{},'codex-stderr',{text:chunk.toString('utf8').slice(0,65_536)});});
     void child.completion.then(result=>this.onProcessExit(id,result)).catch(error=>this.fail(id,error));
     await adapter.initialize();
@@ -255,6 +300,7 @@ export class ExecutionManager {
   async cancel(id:string,reason='User requested cancellation'): Promise<ExecutionRecord> {
     const record=this.store.executionGet(id);if(record.stopConfirmed)return record;
     if(!record.cancelRequested)this.store.executionUpdate(id,{cancelRequested:true,state:'cancelling',error:reason==='User requested cancellation'?record.error:reason},'cancel-requested',{reason,scope:record.scheduledBinding?'attempt':'run'},record.scheduledBinding?[]:[{type:'cancel'}]);
+    if(this.indexedProbes.has(id))await this.indexedProbes.get(id)!.terminate();
     if(this.active.has(id))void this.stop(id).catch(error=>this.fail(id,error));
     else if(!this.launches.has(id))await this.reconcile(id);
     return this.store.executionGet(id);
@@ -271,8 +317,11 @@ export class ExecutionManager {
   private finish(id:string): Promise<void> {
     const active=this.active.get(id);if(!active)return Promise.resolve();
     active.finishing??=(async()=>{
+      let readerClosed=false;
+      if(active.reader){try{const e=this.store.executionGet(id);if(active.terminalStatus==='completed'&&!e.cancelRequested&&!e.error){await active.adapter.drain();await active.reader.finish();readerClosed=true;}else await active.reader.cancel();}catch(error){this.store.executionUpdate(id,{error:errorText(error)},'indexed-reader-failure',{error:errorText(error)});await active.reader.cancel().catch(()=>{});}}
       const stop=await active.process.terminate();
-      await active.adapter.drain();active.adapter.dispose();
+      try{await active.adapter.drain();}catch(error){this.store.executionUpdate(id,{error:errorText(error)},'indexed-reader-drain-failed',{error:errorText(error)});}active.adapter.dispose();
+      if(active.reader){try{const dir=join(this.dataDir,'execution-indexed-proof',createHash('sha256').update(id).digest('hex'));await mkdir(dir,{recursive:true,mode:0o700});const paths=await active.reader.archive(dir),proofs=Object.fromEntries(await Promise.all(paths.map(async p=>[p,createHash('sha256').update(await readFile(p)).digest('hex')])));this.store.executionUpdate(id,{},readerClosed?'indexed-reader-closed':'indexed-reader-partial',{readerDigest:active.reader.reader.digest,inputDigest:active.reader.inputDigest,proofs});}catch(error){this.store.executionUpdate(id,{error:errorText(error)},'indexed-reader-archive-failed',{error:errorText(error)});}}
       const record=this.store.executionGet(id);
       let state:ExecutionState=record.cancelRequested?'cancelled':active.terminalStatus==='completed'?'completed':active.terminalStatus==='failed'?'failed':'interrupted';
       if(!stop.stopped)state='unknown';
@@ -282,7 +331,7 @@ export class ExecutionManager {
   }
   private async onProcessExit(id:string,result:ProcessResult): Promise<void> {
     const active=this.active.get(id);if(!active||active.finishing)return;
-    await active.adapter.drain();
+    try{await active.adapter.drain();}catch(error){this.store.executionUpdate(id,{error:errorText(error)},'indexed-reader-drain-failed',{error:errorText(error)});}
     if(result.reason==='timeout')this.store.executionUpdate(id,{error:'Execution deadline reached'},'deadline-reached',result);
     await this.finish(id);
   }
@@ -292,6 +341,7 @@ export class ExecutionManager {
     await this.finalize(id,state,true,{reason:'No target process was released'},false);
   }
   private async finalize(id:string,state:ExecutionState,stopped:boolean,evidence:unknown,launched:boolean,authoritativeTerminal=false) {
+    stopped=stopped&&await this.reconcileIndexedProbe(id);if(!stopped)state='unknown';
     let record=this.store.executionGet(id);
     // Stop observation is persisted immediately, but the workspace stays reserved
     // until candidate capture finishes. A later writer cannot contaminate it.

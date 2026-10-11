@@ -1,3 +1,4 @@
+import {IndexedResearchConsumer,assertIndexedConsumerArchive} from '../runtime/indexed-research-consumer.js';
 import {assertAuthorWireCapacity} from './author-presentation.js';
 import {authorWireReceipt,assertAuthorWireProof} from './author-presentation-proofs.js';
 import {assertEnvironmentCwd,parseEnvironmentScope} from '../verification/scoped-environment.js';
@@ -156,6 +157,7 @@ export class SupervisionReasoningRunner {
       const acceptance=(input.context as {acceptance?:{environment?:{scope?:unknown;digest?:string}}})?.acceptance;if(acceptance?.environment?.scope){const cwd=await realpath(this.store.runtime.get(job.runtimeId).workspace),scope=parseEnvironmentScope(acceptance.environment.scope,{...job,workspace:cwd,dataDir:this.dataDir});await assertEnvironmentCwd(scope,cwd);ensure(acceptance.environment.digest===(await environmentFingerprint(scope)).digest,'Frozen author environment changed');}
       safeJSON(job.result); parseReasonerOutput(JSON.stringify(job.result), input.outputSchema);
       ensure(job.usage >= job.observedUsage && job.usage <= job.config.reservation, 'Invalid supervision result accounting');
+      for(const path of Object.keys(job.proofs))if(path.endsWith('/indexed-reader/binding.json'))await assertIndexedConsumerArchive(path,{jobId:job.id,attemptId:job.attemptId,identities:job.identities});
       const actual = await this.proofs(job, Object.keys(job.proofs));
       ensure(runtimeCanonical(actual) === runtimeCanonical(job.proofs), 'Supervision proof digest changed');
       assertAuthorWireProof(job,this.directory(job.id));
@@ -197,7 +199,8 @@ export class SupervisionReasoningRunner {
       current();
       const receipt=authorWireReceipt(job);
       if(receipt){wirePath=join(logDir,'author-wire.json');await writeFile(wirePath,JSON.stringify(receipt),{flag:'wx',mode:0o600});current();}
-      result = await this.reasoner.request({ id: job.id, cwd, logDir, prompt: input.prompt, outputSchema: input.outputSchema, model: job.config.model, effort: job.config.effort, timeoutMs: job.config.timeoutMs, signal: controller.signal,
+      const indexed=await IndexedResearchConsumer.supervision(this.store,job.id);
+      result = await this.reasoner.request({ ...(indexed?{indexed}:{}),id: job.id, cwd, logDir, prompt: input.prompt, outputSchema: input.outputSchema, model: job.config.model, effort: job.config.effort, timeoutMs: job.config.timeoutMs, signal: controller.signal,
         assertEligible: () => { current(); },
         onIntent: intent => { const value = current(); this.boundary(value, true); ensure(!value.intents.some(item => item.operationId === intent.operationId), 'Duplicate supervision process intent'); ensure(intent.cwd === cwd && intent.operationId.startsWith(job.id + '-'), 'Unbound supervision process intent'); this.store.supervision.observeJob(job.id, { intents: [...value.intents, intent] }); current(); },
         onIdentity: identity => { const value = this.store.supervision.job(job.id); ensure(value.intents.some(intent => intent.operationId === identity.operationId && intent.ownerToken === identity.ownerToken) && !value.identities.some(item => item.operationId === identity.operationId), 'Unbound supervision process identity'); this.store.supervision.observeJob(job.id, { identities: [...value.identities, identity] }); current(); },

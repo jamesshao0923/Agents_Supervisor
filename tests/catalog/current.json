@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-v47-refresh-continuity-nochange",
+  "revision": "dev-v48-indexed-consumer-author-abi",
   "modules": [
     {
       "id": "dev-contracts",
@@ -140,6 +140,10 @@
     },
     {
       "id": "v46-observer-impact",
+      "affects": []
+    },
+    {
+      "id": "indexed-research-consumer",
       "affects": []
     }
   ],
@@ -1025,6 +1029,18 @@
       "layer": "integration",
       "file": "dist/tests/integration/source-refresh-nochange-delivery.test.js",
       "timeoutMs": 540000
+    },
+    {
+      "id": "integration-indexed-research-consumer",
+      "layer": "integration",
+      "file": "dist/tests/integration/indexed-research-consumer.test.js",
+      "timeoutMs": 300000
+    },
+    {
+      "id": "integration-indexed-schema-lifecycle",
+      "layer": "integration",
+      "file": "dist/tests/integration/indexed-schema-lifecycle.test.js",
+      "timeoutMs": 120000
     }
   ],
   "cases": [
@@ -21135,6 +21151,44 @@
       "prerequisites": "Pinned Node; actual SQLite/FS and managed Node. A r2 continuity prerequisite has not passed fresh three-chain. Semantic protocol/token fixture explicitly synthetic; no provider/native request.",
       "assertions": "tests/integration/source-refresh-nochange-delivery.test.ts :: P8-NOCHANGE-DELIVERY-I01 actual same-byte reacquisition new producer historical witnesses current controls independent V2 full final and ALL-OF second seal preserve original scope budget and reopen",
       "cleanup": "Actually stop owned processes and close DB, preserve exclusive root/archive/raw/ledger including failure; never change global config.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-indexed-research-consumer.001",
+      "name": "P8-IDXC-I01 explicit indexed single analysis automatic author actual controls full final seal and reopen preserve original sources and budget",
+      "suiteId": "integration-indexed-research-consumer",
+      "module": "indexed-research-consumer",
+      "layer": "integration",
+      "covers": [
+        "p8-indexed-consumer-complete"
+      ],
+      "scenario": "P8-IDXC-I01 explicit indexed single analysis automatic author actual controls full final seal and reopen preserve original sources and budget",
+      "impactTags": [
+        "p8-indexed-consumer-impact",
+        "p8-indexed-consumer-complete"
+      ],
+      "prerequisites": "Real SQLite/FS and owned Node. Protocol judgments/usage are explicitly synthetic, no provider/native acceptance.",
+      "assertions": "tests/integration/indexed-research-consumer.test.ts :: P8-IDXC-I01 explicit indexed single analysis automatic author actual controls full final seal and reopen preserve original sources and budget",
+      "cleanup": "Stop exact owned processes, close SQLite and retain original roots and evidence.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-indexed-schema-lifecycle.001",
+      "name": "P8-IDXC-I02 actual managed schema cancel close restart deadline and per-execution private directories preserve owned stop receipts",
+      "suiteId": "integration-indexed-schema-lifecycle",
+      "module": "indexed-research-consumer",
+      "layer": "integration",
+      "covers": [
+        "p8-indexed-schema-lifecycle"
+      ],
+      "scenario": "P8-IDXC-I02 actual managed schema cancel close restart deadline and per-execution private directories preserve owned stop receipts",
+      "impactTags": [
+        "p8-indexed-consumer-impact",
+        "p8-indexed-schema-lifecycle"
+      ],
+      "prerequisites": "Real SQLite/FS and owned Node. Protocol judgments/usage are explicitly synthetic, no provider/native acceptance.",
+      "assertions": "tests/integration/indexed-schema-lifecycle.test.ts :: P8-IDXC-I02 actual managed schema cancel close restart deadline and per-execution private directories preserve owned stop receipts",
+      "cleanup": "Stop exact owned processes, close SQLite and retain original roots and evidence.",
       "status": "active"
     }
   ]

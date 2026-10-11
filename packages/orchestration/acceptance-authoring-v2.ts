@@ -1,4 +1,4 @@
-import { renderControlEvolutionPrompt, CONTROL_EVOLUTION_PRESENTATION_PROMPT } from './author-presentation.js';
+import { renderControlEvolutionPrompt, CONTROL_EVOLUTION_PRESENTATION_PROMPT_V2 } from './author-presentation.js';
 import type {MaintenanceContext,MaintenancePlan,RegressionContext} from '../contracts/p6-control-maintenance.js';
 import {assertMaintenanceContext,assertRegressionContext} from '../verification/control-maintenance-replay.js';
 import {assertMaintenancePlan,maintenanceInstance} from '../verification/control-maintenance-rules.js';
@@ -156,8 +156,8 @@ export function buildControlEvolutionAuthoringPrompt(input: ControlEvolutionAuth
 /** New host presentation retains the complete audit context without embedding it twice. */
 export function controlEvolutionAuthorInput<T extends {acceptance: AcceptanceAuthoringContext; candidate: unknown; evolution: ControlEvolutionAuthoringContext}>(context:T) {
   frozen(context.evolution);
-  return {prompt: CONTROL_EVOLUTION_PRESENTATION_PROMPT, outputSchema: controlEvolutionAuthoringSchema(context.evolution),
-    context: {...structuredClone(context), authorPresentation: {schemaVersion:1 as const,kind:'control-evolution' as const}}};
+  return {prompt: CONTROL_EVOLUTION_PRESENTATION_PROMPT_V2, outputSchema: controlEvolutionAuthoringSchema(context.evolution),
+    context: {...structuredClone(context), authorPresentation: {schemaVersion:2 as const,kind:'control-evolution' as const}}};
 }
 /** Controller-owned location. Proposal import must independently verify this
  * declaration against persisted author job, exact base and actual frozen files. */

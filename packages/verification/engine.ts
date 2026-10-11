@@ -1,3 +1,6 @@
+import {IndexedResearchConsumer} from '../runtime/indexed-research-consumer.js';
+import type {SupervisorStore} from '../persistence/store.js';
+import {readMaterialBinding} from './material.js';
 import type {HistoricalMaterialEpoch} from '../contracts/p4-source-refresh.js';
 import {assertEnvironmentCwd,parseEnvironmentScope,reviewEnvironmentCwd} from './scoped-environment.js';
 import {mobileReviewObservations} from './mobile-review-context.js';
@@ -19,7 +22,7 @@ import type { ProcessIntent, ProcessIdentity } from '../process-control/index.js
 import { runUiVerification } from './ui.js';
 import { evaluateVerification, selectInstances } from './rules.js';
 import {assertLegacyControlQualification,legacyControlQualified} from './control-qualification-gates.js';
-export interface EngineContext {job:VerificationJob; signal:AbortSignal; save():void; eligible():void; output:string}
+export interface EngineContext {store?:SupervisorStore;job:VerificationJob; signal:AbortSignal; save():void; eligible():void; output:string}
 export function processHooks(context:EngineContext) { return {
   onIntent:(intent:ProcessIntent)=>{context.eligible();context.job.intents.push(intent);context.save();},
   onIdentity:(identity:ProcessIdentity)=>{context.job.identities.push(identity);context.save();},
@@ -28,7 +31,10 @@ export async function reviewModel(context:EngineContext,prompt:string,cwd:string
   context.eligible();cwd=await reviewEnvironmentCwd(context.job,cwd);if(context.job.environmentScope){await assertEnvironmentCwd(parseEnvironmentScope(context.job.environmentScope,context.job),cwd);if((await environmentFingerprint(context.job.environmentScope)).digest!==context.job.environmentDigest)throw Error('Verifier environment changed before model dispatch');} const job=context.job, base=job.usage, previousUnknown=job.usageUnknown; if(previousUnknown||base>=job.config.reservation)throw new Error('Verification budget exhausted or previous model usage unknown'); job.modelStarted=true;job.usageUnknown=true;context.save();
   const accept=(result:ModelReviewResult)=>{job.usage=Math.max(job.usage,base+(result.usage??0));job.usageUnknown=previousUnknown||(result.modelStarted&&result.usage===null);context.save();};
   try {
-    const result=await runModelReview({id:job.id+'-'+job.intents.length,cwd,logDir:output,prompt,...(images?.length?{images}:{}),model:job.config.model,effort:job.config.effort,timeoutMs:job.config.timeoutMs,signal:context.signal,assertEligible:context.eligible,...processHooks(context),onUsage:tokens=>{job.usage=base+tokens;context.save();if(job.usage>job.config.reservation)throw new Error('Verification token reservation exhausted');}});
+    const proposal=context.store?.verification.get('proposal',job.proposalId),bindings=proposal?.spec.cases.flatMap(c=>c.verifier.kind==='material'?[c.verifier.binding]:[])??[];
+    let indexed:IndexedResearchConsumer|undefined;
+    for(const binding of bindings){const actual=await readMaterialBinding(binding);if(actual.input.indexed){if(indexed&&indexed.reader.digest!==actual.input.indexed.digest)throw Error('Indexed review multi-view unsupported');indexed=await IndexedResearchConsumer.verification(context.store!,job.id,binding,actual.input.indexed,digest(prompt),output);}}
+    const result=await runModelReview({...(indexed?{indexed}:{}),id:job.id+'-'+job.intents.length,cwd,logDir:output,prompt,...(images?.length?{images}:{}),model:job.config.model,effort:job.config.effort,timeoutMs:job.config.timeoutMs,signal:context.signal,assertEligible:context.eligible,...processHooks(context),onUsage:tokens=>{job.usage=base+tokens;context.save();if(job.usage>job.config.reservation)throw new Error('Verification token reservation exhausted');}});
     accept(result);if(job.environmentScope)await assertEnvironmentCwd(job.environmentScope,cwd);if(!result.stopConfirmed||job.usage>job.config.reservation)throw new Error('Model stop or accounting gate failed');return result;
   }catch(error){if(error instanceof ModelReviewError)accept(error.result);throw error;}
 }

@@ -1,3 +1,5 @@
+import {assertIndexedVerificationCalls} from './indexed-call-proof.js';
+import {assertIndexedConsumerArchive} from '../runtime/indexed-research-consumer.js';
 import {assertLegacyControlReviewEvidence} from './legacy-review-evidence.js';
 import {parseEnvironmentScope,assertEnvironmentCwd} from './scoped-environment.js';
 import {assertMobileJob,assertMobileFinalBinding} from './mobile-proof-reader.js';
@@ -28,7 +30,8 @@ export class VerificationProofReader {
     ensure(job.environmentDigest===(await environmentFingerprint(job.environmentScope)).digest,'Verifier review or execution environment changed');
     ensure(job.status==='finished'&&job.stopConfirmed&&!job.usageUnknown&&Object.keys(job.proofs).length>0,'Missing completed verifier evidence');
     ensure(this.repo.run(job.projectId,job.runId).attempts.find(a=>a.id===job.attemptId)?.settled,'Verification usage unsettled');
-    for(const [path,hash]of Object.entries(job.proofs))ensure(digest(await readFile(path))===hash,'Verification evidence changed');
+    for(const [path,hash]of Object.entries(job.proofs)){ensure(digest(await readFile(path))===hash,'Verification evidence changed');if(path.endsWith('/indexed-reader/binding.json'))await assertIndexedConsumerArchive(path,{jobId:job.id,attemptId:job.attemptId,identities:job.identities});}
+    assertIndexedVerificationCalls(this.store,job);
     await assertMobileJob(job);
     const proposal=this.repo.get('proposal',job.proposalId),candidates=job.kind==='verification'?[this.repo.get('plan',job.planId!).candidate]:proposal.bundle.controls.map(c=>c.candidate);if(job.kind==='review')candidates.push(...this.store.controlQualification.maintenanceCandidatesForReview(job.id));await assertFullstackJob(job,proposal.spec,candidates);
     ensure(job.intents.length===job.identities.length,'Verifier intent has no stop identity');ensure(await allStopped(job.identities),'Old verification process is still active');
