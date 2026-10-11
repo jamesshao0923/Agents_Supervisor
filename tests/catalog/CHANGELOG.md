@@ -1,3 +1,11 @@
+## v42 — P5 用户研究分组入口整合（开发中）
+
+- 原 933 项保留，新增 10 个稳定用例（4 unit、6 integration），全局 943 项。P8 保持 developing，无旧用例退役或标准调整。
+- 初始 configured research 提案分组仅分配原来源/criteria；宿主实际预算与硬并发上限决定注册或有理由的完整单路分析。无效声明/未知费用/注册错误原子拒绝，不默默降级。原全来源、全文、全部问题及 P4 ALL-OF 保留。
+- 同 Run 授权修订按原 runtime.revise quiet/stop/usage/lease 边界退役旧组，保留费用与不可变历史。等待材料/已安装、晚 ACK rollback、重开及 failed/cancelled/unknown 区分均有实际组件回归；不支持 follow-up 重新分组。
+- v42-research-group-entry-impact 是窄整合建议，必要 runner 只登记一次，涵盖默认工程、单路研究、跟进退役、原组与 sourceRefresh 互操作，不机械堆叠全阶段。长 research V2 I07 原算法未改，不默认重跑；既有源更新/原单路测试保留。
+- 本候选仅正常构建、AST 与边界预检，未正式/付费测试。React 服务端渲染不是实际桌面点击；synthetic 规划/费用值不证明 provider 语义、公开五来源或完整分组验收交付。
+
 ## v41 — 显式同输入刷新完整性基础（开发中）
 
 - 保留 v40 全部 930 项，登记原已审 P8-REFRESH-I01/I02/I03 三个稳定 ID，合计 933 项；不新增重复测试，不改变其他阶段 profile。

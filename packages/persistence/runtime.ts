@@ -1,4 +1,4 @@
-import {ResearchGroupsRepository} from './research-groups.js';
+import {ResearchGroupsRepository,retireResearchGroupsForRevision} from './research-groups.js';
 import {researchGroupsAnalysisFenced} from './research-groups.js';
 import {assertResearchInput,assertResearchStepInput,assertMaterialsReceipt,assertMaterialsStepReceipt,readBounded} from '../workspace/research-runtime-files.js';
 import {researchDigest} from '../workspace/research-materials.js';
@@ -184,6 +184,7 @@ export class RuntimeRepository {
       const parent=this.checkpoint(r.id),previousDefinition=r.definition,previousInputs=r.inputs;
       this.action(r,{type:'revisePlan',contract:input.contract,nodes:input.nodes,reason:input.reason});
       this.retireScheduledForRevision(r,run.contract.version,input.contract.version,input.commandId);
+      retireResearchGroupsForRevision(this.db,r,run,this.run(r),input.commandId);
       for(const op of operations)if(op.state==='queued'){op.state='cancelled';op.error='Superseded by contract revision';this.saveOp(op);}
       r.definition=structuredClone(definition);r.cursor=0;r.error=null;r.inputs={};
       this.enqueue(r);this.checkpointWrite(r,parent);r.phase=this.phase(r);

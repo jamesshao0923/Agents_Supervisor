@@ -1,3 +1,5 @@
+import {ResearchGroupsRepository} from './research-groups.js';
+import {assessResearchGrouping} from '../orchestration/research-group-admission.js';
 import {ScheduledLoopRepository} from './scheduled-loops.js';
 import {assessGoalIteration} from '../orchestration/goal-loop-admission.js';
 import {readFileSync} from 'node:fs';
@@ -117,7 +119,14 @@ export class GoalRepository {
     const candidate={...s,messages:structuredClone(frozen.messages),proposal:job.proposal},plan=admittedPlan(candidate,run);
     ensure(run.budget.limit-run.budget.spent-run.budget.verificationReserve>=s.config.reservation,'Insufficient execution budget after follow-up reasoning');
     const nodes=plan.steps.map((step,i)=>({id:step.id,dependencies:i?[plan.steps[i-1]!.id]:[],required:true})),runtime=new RuntimeRepository(this.db);
-    const acknowledge=()=>{repository.applyProcessingGroup(frozen.messageId,frozen.relatedMessageIds,plan.contract.version,job.followupResult?.response);frozen.appliedContractVersion=plan.contract.version;s.proposal=structuredClone(job.proposal);s.phase='admitted';s.error=null;this.save(s);
+    const acknowledge=()=>{repository.applyProcessingGroup(frozen.messageId,frozen.relatedMessageIds,plan.contract.version,job.followupResult?.response);frozen.appliedContractVersion=plan.contract.version;s.proposal=structuredClone(job.proposal);s.phase='admitted';s.error=null;
+      if(s.research){
+        const grouping=assessResearchGrouping(s,this.run(s));
+        ensure(grouping.decision.mode==='single','Continuation cannot introduce a new grouping registration');
+        grouping.decision.reason='Authorized research follow-up uses the full single analysis. Prior group configuration, costs and evidence remain historical and are never reused for this generation.';
+        s.researchGrouping=grouping.decision;
+      }
+      this.save(s);
       if(evolution&&reviewed&&(run.admission==='admitted'||s.continuation)){
         const lineage=new VerificationLineageRepository(this.db),binding=lineage.resolveRun(s.projectId,s.id);
         const transition:AppliedContractTransition={id:'transition:'+job.id,lineageId:binding.lineageId,from:{projectId:s.projectId,runId:originalRun.id,contractDigest:lineageDigest(originalContract)},to:{projectId:s.projectId,runId:s.id,contractDigest:lineageDigest(plan.contract)},fromContract:originalContract,toContract:plan.contract,conversationId:frozen.conversationId,sessionId:s.id,reasoningJobId:job.id,messageId:frozen.messageId,messageSequence:frozen.messageSequence,processingAttempt:frozen.processingAttempt,relatedMessageIds:frozen.relatedMessageIds,changes:evolution.criterionChanges!,...(evolution.sourceRefresh?{sourceRefresh:evolution.sourceRefresh}:{}),review:reviewed as AppliedContractTransition['review'],proofs:job.proofs};
@@ -149,6 +158,7 @@ export class GoalRepository {
     ensure(s.jobs.every(j=>j.status==='finished'&&j.stopConfirmed&&j.usage!==null),'Unresolved model work prevents admission');
     const plan=admittedPlan(s,run);applyAction(run,{type:'admit',contract:plan.contract,nodes:plan.steps.map((step,i)=>({id:step.id,dependencies:i?[plan.steps[i-1]!.id]:[],required:true}))});
     ensure(run.budget.limit-run.budget.spent-run.budget.verificationReserve>=s.config.reservation,'Insufficient execution budget');
+    if(s.research)assessResearchGrouping(s,run);
   }
   /** One parent transaction owns admission, final execution protection and graph
    * installation. A durable filesystem preparation alone is not dispatchable. */
@@ -192,7 +202,21 @@ export class GoalRepository {
         ensure(s.jobs.every(j=>j.status==='finished'&&j.stopConfirmed&&j.usage!==null),'Unresolved model work prevents admission');
         this.act(s,{type:'admit',contract:plan.contract,nodes:plan.steps.map((step,i)=>({id:step.id,dependencies:i?[plan.steps[i-1]!.id]:[],required:true}))});
         const run=this.run(s);ensure(run.budget.limit-run.budget.spent-run.budget.verificationReserve>=s.config.reservation,'Insufficient execution budget');
-        const runtime=new RuntimeRepository(this.db).adoptGoal({type:'submit',commandId:a.commandId,workspace:s.workspace,workspaceKind:s.workspaceKind,goal:s.goal,tokenLimit:run.budget.limit,verificationReserve:run.budget.verificationReserve,steps:plan.steps},s.projectId,s.id);s.runtimeId=runtime.id;s.phase='admitted';
+        const runtime=new RuntimeRepository(this.db,this.dataDir).adoptGoal({type:'submit',commandId:a.commandId,workspace:s.workspace,workspaceKind:s.workspaceKind,goal:s.goal,tokenLimit:run.budget.limit,verificationReserve:run.budget.verificationReserve,steps:plan.steps},s.projectId,s.id);
+        if(s.research){
+          const grouping=assessResearchGrouping(s,this.run(s));
+          if(grouping.decision.mode==='grouped'){
+            ensure(this.dataDir,'Research grouping needs the actual Store data root');
+            const registration=new ResearchGroupsRepository(this.db,this.dataDir).register({
+              commandId:a.commandId+':research-groups',runtimeId:runtime.id,
+              expectedRunRevision:this.run(s).revision,groups:grouping.groups,
+              maxActive:grouping.decision.maxActive,tier:'low',
+            });
+            grouping.decision.registrationId=registration.id;
+          }
+          s.researchGrouping=grouping.decision;
+        }
+        s.runtimeId=runtime.id;s.phase='admitted';
       }else {
         const conversations=new ConversationRepository(this.db);
         ensure(!conversations.hasPendingForRun(s.projectId,s.id)&&!s.jobs.some(j=>j.followup&&conversations.message(j.followup.messageId).state==='processing'),'Pending follow-up prevents legacy answer or restore');

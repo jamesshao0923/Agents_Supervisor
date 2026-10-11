@@ -1,3 +1,4 @@
+import {validateResearchGroups} from './research-group-admission.js';
 import {validateExploration} from './exploration.js';
 import {assertGoalIterationProposal,goalIterationTaskFraming} from './goal-loop-admission.js';
 import {mobileSourceTarget} from '../contracts/p4-mobile.js';
@@ -7,6 +8,7 @@ import {projectDeclaredDependencies} from './decomposition.js';
 import { createRun } from '../domain/index.js';
 function ensure(ok:unknown,reason:string):asserts ok {if(!ok)throw new Error(reason);}
 export function validateProposal(p:GoalProposal,s:GoalSession):void {
+  validateResearchGroups(p,s);
   ensure(!s.research||p.iteration==null,'Configured bounded research does not support iteration; acquisition and analysis must remain one fixed dependency');
   assertGoalIterationProposal(p);
   validateExploration(p,s);

@@ -2,7 +2,7 @@ import {createHash} from 'node:crypto';
 import {mkdirSync, realpathSync, lstatSync, writeFileSync, readdirSync} from 'node:fs';
 import {join, resolve} from 'node:path';
 import type {DatabaseSync} from 'node:sqlite';
-import type {Run} from '../contracts/p1.js';
+import type {Run, TaskContract} from '../contracts/p1.js';
 import type {RuntimeRecord, RuntimeOperation} from '../contracts/p3.js';
 import type {MaterialsReceipt} from '../contracts/p8-research-runtime.js';
 import type {ResearchGroupsRequest, ResearchGroupsRecord, ResearchGroupsPrepared,
@@ -34,11 +34,64 @@ function exact(value: object, keys: string[]): void {
   ensure(Object.keys(value).length === keys.length && keys.every(key => Object.hasOwn(value, key)), 'unknown or missing fields');
 }
 function configuration(record: ResearchGroupsRecord) {
-  const {state: _state, prepared: _prepared, schedulerId: _schedulerId, configurationDigest: _digest, blockedReason: _blockedReason, ...body} = record;
+  const {state: _state, prepared: _prepared, schedulerId: _schedulerId, configurationDigest: _digest, blockedReason: _blockedReason, retirement: _retirement, ...body} = record;
   return body;
 }
 function tables(db: DatabaseSync): boolean {
   return !!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='research_group_registrations'").get();
+}
+/** Retirement is usable only after the original runtime revision receipt exists.
+ * A mutable state flag alone cannot remove a current analysis fence. */
+function assertRetired(db: DatabaseSync, record: ResearchGroupsRecord): void {
+  const retired = record.retirement;
+  ensure(record.state === 'retired' && retired, 'retirement receipt missing');
+  const row = db.prepare('SELECT request FROM runtime_receipts WHERE command_id=?').get(retired.commandId);
+  ensure(row, 'retirement is not committed by an actual runtime revision');
+  const request = JSON.parse(String(row.request)) as {runtimeId: string; expectedContractVersion: number; contract: TaskContract};
+  ensure(request.runtimeId === record.runtimeId && request.expectedContractVersion === record.contractVersion &&
+    retired.previousContractVersion === record.contractVersion && retired.previousContractDigest === record.contractDigest &&
+    retired.contractVersion > record.contractVersion && researchDigest(request.contract) === retired.contractDigest &&
+    request.contract.version === retired.contractVersion && Number.isSafeInteger(retired.runRevision) && retired.runRevision > 0,
+    'retirement differs from the actual revision receipt');
+  const events = db.prepare("SELECT record FROM research_group_events WHERE registration_id=? AND kind='contract-revision-retired'").all(record.id);
+  ensure(events.length === 1 && canonical(JSON.parse(String(events[0]!.record))) === canonical(retired), 'retirement audit changed');
+}
+/** Called only inside the existing host runtime.revise transaction, after its
+ * domain action and existing physical/usage/lease scheduler retirement checks. */
+export function retireResearchGroupsForRevision(db: DatabaseSync, runtime: RuntimeRecord,
+  previous: Run, next: Run, commandId: string): void {
+  ensure(db.isTransaction, 'group retirement must join the actual runtime revision');
+  if (!tables(db)) return;
+  const row = db.prepare('SELECT record FROM research_group_registrations WHERE runtime_id=?').get(runtime.id);
+  if (!row) return;
+  const record = JSON.parse(String(row.record)) as ResearchGroupsRecord;
+  ensure(researchDigest(configuration(record)) === record.configurationDigest, 'immutable configuration changed');
+  if (record.state === 'retired') {assertRetired(db, record); return;}
+  ensure(record.projectId === runtime.projectId && record.runId === runtime.runId &&
+    previous.id === runtime.runId && previous.projectId === runtime.projectId &&
+    record.contractVersion === previous.contract.version && record.contractDigest === researchDigest(previous.contract) &&
+    record.definitionDigest === researchDigest(runtime.definition), 'old group revision boundary changed');
+  const actualRow = db.prepare('SELECT snapshot FROM runs WHERE project_id=? AND id=?').get(runtime.projectId, runtime.runId);
+  ensure(actualRow && canonical(JSON.parse(String(actualRow.snapshot))) === canonical(next) &&
+    next.contract.version > previous.contract.version && next.budget.spent === previous.budget.spent &&
+    previous.attempts.every(attempt => attempt.settled && attempt.status !== 'running') &&
+    previous.operations.every(operation => operation.status === 'confirmed') && previous.leases.every(lease => lease.released),
+    'actual quiet Run revision required; unknown accounting cannot be retired');
+  if (record.schedulerId) {
+    const schedulerRow = db.prepare('SELECT record FROM scheduled_records WHERE id=?').get(record.schedulerId);
+    ensure(schedulerRow, 'old group scheduler missing');
+    const scheduler = JSON.parse(String(schedulerRow.record)) as ScheduledRecord;
+    ensure(scheduler.state === 'cancelled' && scheduler.fence === 'released' &&
+      scheduler.plan.contractVersion === previous.contract.version && scheduler.plan.contractDigest === record.contractDigest,
+      'existing runtime scheduler retirement has not completed');
+  }
+  const retirement = {commandId, previousContractVersion: previous.contract.version,
+    previousContractDigest: record.contractDigest, contractVersion: next.contract.version,
+    contractDigest: researchDigest(next.contract), runRevision: next.revision};
+  record.state = 'retired'; record.retirement = retirement;
+  db.prepare('UPDATE research_group_registrations SET record=? WHERE id=?').run(canonical(record), record.id);
+  db.prepare('INSERT INTO research_group_events(registration_id,kind,record) VALUES(?,?,?)')
+    .run(record.id, 'contract-revision-retired', canonical(retirement));
 }
 /** Separate pre-install fence blocks only the existing native analysis step.
  * With no registration ordinary runtimes retain their original behavior. */
@@ -50,6 +103,7 @@ export function researchGroupsAnalysisFenced(db: DatabaseSync, runtime: RuntimeR
   ensure(record.runtimeId === runtime.id && record.projectId === runtime.projectId &&
     record.runId === runtime.runId && researchDigest(configuration(record)) === record.configurationDigest,
     'registration scope or configuration changed');
+  if (record.state === 'retired') {assertRetired(db, record); return false;}
   if (stepId !== record.analysisStepId) return false;
   const runRow = db.prepare('SELECT snapshot FROM runs WHERE project_id=? AND id=?').get(runtime.projectId, runtime.runId);
   ensure(runRow, 'original Run missing');
@@ -110,17 +164,19 @@ export class ResearchGroupsRepository {
     ensure(row, 'unknown registration');
     const record = JSON.parse(String(row.record)) as ResearchGroupsRecord;
     ensure(record.id === id && researchDigest(configuration(record)) === record.configurationDigest, 'immutable configuration changed');
+    if (record.state === 'retired') assertRetired(this.db, record);
     return record;
   }
   byRuntime(runtimeId: string): ResearchGroupsRecord | null {
     const row = this.db.prepare('SELECT id FROM research_group_registrations WHERE runtime_id=?').get(runtimeId);
-    return row ? this.get(String(row.id)) : null;
+    const record = row ? this.get(String(row.id)) : null;
+    return record?.state === 'retired' ? null : record;
   }
   block(id: string, reason: string): void {
     text(reason, 12000);
     this.tx(() => {
       const record = this.get(id);
-      ensure(record.state !== 'installed', 'installed scheduler owns subsequent terminal state');
+      ensure(record.state !== 'installed' && record.state !== 'retired', 'installed or retired scheduler cannot change installation state');
       if (record.state === 'blocked' && record.blockedReason === reason) return;
       record.state = 'blocked'; record.blockedReason = reason;
       this.db.prepare('UPDATE research_group_registrations SET record=? WHERE id=?').run(canonical(record), id);
@@ -128,6 +184,7 @@ export class ResearchGroupsRepository {
     });
   }
   private actual(record: ResearchGroupsRecord) {
+    ensure(record.state !== 'retired', 'old retired group input cannot authorize new work');
     const row = this.db.prepare('SELECT record FROM runtime_runs WHERE id=?').get(record.runtimeId);
     ensure(row, 'native runtime missing');
     const runtime = JSON.parse(String(row.record)) as RuntimeRecord;

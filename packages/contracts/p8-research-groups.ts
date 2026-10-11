@@ -63,8 +63,10 @@ export interface ResearchGroupsRecord {
   registeredAtMs: number;
   deadlineMs: number;
   configurationDigest: string;
-  state: 'waiting-materials' | 'prepared' | 'installed' | 'blocked';
+  state: 'waiting-materials' | 'prepared' | 'installed' | 'blocked' | 'retired';
   blockedReason?: string;
+  retirement?: {commandId: string; previousContractVersion: number; previousContractDigest: string;
+    contractVersion: number; contractDigest: string; runRevision: number};
   prepared: ResearchGroupsPrepared | null;
   schedulerId: string | null;
 }
