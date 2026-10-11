@@ -58,5 +58,6 @@ export function expectedAuthorRouteConfig(receipt:AuthorRouteReceipt):ReasonerCo
  ensureRoute(a.originalTimeoutMs===receipt.baseline.timeoutMs,'Author original timeout changed');
  const timeoutMs=Math.min(a.originalTimeoutMs,a.absoluteDeadlineMs-at);
  ensureRoute(Number.isSafeInteger(timeoutMs)&&timeoutMs>=1000,'Insufficient remaining author deadline');
- return {...selectAcceptanceAuthorRouteV2(receipt.capabilities.capabilities,receipt.baseline,receipt.policy),timeoutMs};
+ return {...selectAcceptanceAuthorRouteV2(receipt.capabilities.capabilities,receipt.baseline,receipt.policy),timeoutMs,
+  ...(a.authorSession?{reservation:a.authorSession.remaining}:{})};
 }

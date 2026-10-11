@@ -15,6 +15,8 @@ export interface SupervisionRecord {
   references:{proposalId?:string;reviewId?:string;planId?:string;verificationJobId?:string;authorJobId?:string;diagnosisJobId?:string};
   /** Controller validates the versioned pure-policy snapshot before use. */
   monitor:unknown;
+  /** Missing on legacy loops; selected explicitly for new staged command authoring. */
+  authoringProtocol?:'acceptance-stages-v1';
 }
 export interface SupervisionJob {
   id:string;loopId:string;runtimeId:string;projectId:string;runId:string;contractVersion:number;contractDigest:string;

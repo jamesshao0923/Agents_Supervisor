@@ -33,8 +33,26 @@ export function parseAuthorRouteReceipt(value: unknown): AuthorRouteReceipt {
     exact(r.policy, ['schemaVersion', 'version', 'preference', 'models', 'minimumEffort', 'capabilityMaxAgeMs']);
     integer(r.policy.capabilityMaxAgeMs, 1);
     ensure(authorRouteDigest(r.policy) === r.policyDigest, 'Author route policy digest changed');
-    exact(r.authorization, ['observedAt', 'loopCreatedAt', 'absoluteDeadlineMs', 'loopRevision', 'runRevision', 'originalTimeoutMs', 'budget', 'maxContextChars', 'storedChars', 'wireChars', 'inputDigest', 'wireDigest']);
+    exact(r.authorization, ['observedAt', 'loopCreatedAt', 'absoluteDeadlineMs', 'loopRevision', 'runRevision', 'originalTimeoutMs', 'budget', 'maxContextChars', 'storedChars', 'wireChars', 'inputDigest', 'wireDigest', ...(Object.hasOwn(r.authorization,'authorSession')?['authorSession']:[])]);
     const a = r.authorization;
+    if (Object.hasOwn(a,'authorSession')) {
+        const session=a.authorSession;
+        exact(session,['schemaVersion','sessionId','rootJobId','ceiling','spent','remaining','jobs']);
+        ensure(session.schemaVersion===1&&typeof session.sessionId==='string'&&session.sessionId.length>0
+            &&typeof session.rootJobId==='string'&&session.rootJobId.length>0,'Invalid author session identity');
+        integer(session.ceiling,1);integer(session.spent);integer(session.remaining,1);
+        ensure(session.ceiling-session.spent===session.remaining,'Author session arithmetic changed');
+        ensure(Array.isArray(session.jobs)&&session.jobs.length>=3&&session.jobs.length<=6,'Invalid author session inventory');
+        const ids=new Set<string>();let spent=0;
+        for(const job of session.jobs) {
+            exact(job,['jobId','inputDigest','completionDigest','proofsDigest','usage']);
+            ensure(typeof job.jobId==='string'&&job.jobId.length>0&&!ids.has(job.jobId),'Duplicate author session job');
+            ids.add(job.jobId);integer(job.usage);spent+=job.usage;
+            for(const key of ['inputDigest','completionDigest','proofsDigest'] as const)ensure(typeof job[key]==='string'&&/^[a-f0-9]{64}$/.test(job[key] as string),'Invalid author session digest');
+        }
+        ensure(Number.isSafeInteger(spent)&&spent===session.spent&&session.jobs[0]!.jobId===session.rootJobId
+            &&session.jobs.at(-1)!.jobId===r.rejection.previousJobId,'Author session source inventory changed');
+    }
     integer(a.loopRevision);
     integer(a.runRevision);
     integer(a.maxContextChars, 8000);

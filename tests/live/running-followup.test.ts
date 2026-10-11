@@ -14,6 +14,9 @@ import {runtimeCanonical} from '../../packages/persistence/runtime.js';
 import {authorWireInput,type PresentedAuthorInput} from '../../packages/orchestration/author-presentation.js';
 import type {SupervisionJob} from '../../packages/contracts/p6-supervision.js';
 import type {Run} from '../../packages/contracts/p1.js';
+import {parseAuthorStageInput,parseAuthorStageOutput,authorStageDigest} from '../../packages/orchestration/acceptance-authoring-stages.js';
+import {assertStoredAuthorStage,assertAuthorStageParents,assertAuthorStageAssemblyProof} from '../../packages/orchestration/author-stage-proofs.js';
+import {resolveAuthorBundle,assertAuthorExpansionProof} from '../../packages/orchestration/author-result-patch.js';
 import {DatabaseSync} from 'node:sqlite';
 import {AuthorRoutingRepository} from '../../packages/persistence/author-routing.js';
 import {expectedAuthorRouteConfig} from '../../packages/orchestration/acceptance-authoring-route.js';
@@ -149,13 +152,31 @@ test('P6 running followup survives real service restart applies once and indepen
 
  const executed=await until(()=>rpc<any>('runtime',{type:'inspect',runtimeId}),v=>['awaiting-verification','blocked','cancelled'].includes(v.runtime.phase),'revised execution');assert.equal(executed.runtime.phase,'awaiting-verification',executed.runtime.error??'');
  await exec(process.execPath,['math.test.mjs'],{cwd:workspace,timeout:10_000});await exec(process.execPath,['--input-type=module','-e',`import assert from 'node:assert/strict';import {sum,multiply} from './math.mjs';assert.equal(sum(7,9),16);assert.equal(sum(-1,1),0);assert.equal(multiply(6,7),42);assert.equal(multiply(-2,3),-6);for(const f of [sum,multiply])for(const x of [NaN,Infinity,-Infinity,'2',null,undefined]){assert.throws(()=>f(x,1),TypeError);assert.throws(()=>f(1,x),TypeError);}`],{cwd:workspace,timeout:10_000});
- const beforeDeliveryContract=JSON.stringify(executed.run.contract);const attached=await rpc<SupervisionInspection>('supervision',{type:'attach',commandId:randomUUID(),runtimeId,config:{...config,reservation:180_000},limits:{maxRepairs:0,maxReasoningCalls:4,maxDurationMs:1_320_000,maxContextChars:200_000}});loopId=attached.loop.id;
+ const beforeDeliveryContract=JSON.stringify(executed.run.contract);const attached=await rpc<SupervisionInspection>('supervision',{type:'attach',commandId:randomUUID(),runtimeId,authoringProtocol:'acceptance-stages-v1',config:{...config,reservation:180_000},limits:{maxRepairs:0,maxReasoningCalls:4,maxDurationMs:1_320_000,maxContextChars:200_000}});loopId=attached.loop.id;
  const delivered=await until(()=>rpc<SupervisionInspection>('supervision',{type:'inspect',loopId}),v=>['complete','blocked'].includes(v.loop.phase)||v.loop.stopped,'independent delivery');assert.equal(delivered.loop.phase,'complete',delivered.loop.reason??'');assert.equal(JSON.stringify(delivered.runtime.run.contract),beforeDeliveryContract);assert.equal(delivered.runtime.run.status,'succeeded');assert.deepEqual(delivered.loop.config,{...config,reservation:180_000});assert.equal(delivered.verification.deliveries.length,1);
  const delivery=delivered.verification.deliveries[0]!;
  const final=delivered.verification.jobs.find(j=>j.id===delivery.jobId)!;assert.equal(final.kind,'verification');
  const plan=delivered.verification.plans.find(p=>p.id===delivery.planId)!;assert.equal(final.planId,plan.id);assert.equal(plan.selection.mode,'final');assert.equal(plan.selection.completeScope,true);assert.equal(plan.runId,delivered.runtime.run.id);assert.equal(delivery.runtimeId,runtimeId);assert.equal(delivery.candidateDigest,plan.candidate.digest);assert.equal(delivery.definitionDigest,plan.definitionDigest);
  assert.ok(final.evaluation?.obligations.length&&final.evaluation.obligations.every(o=>o.satisfied));
  const authors=delivered.jobs.filter(j=>j.purpose==='acceptance-authoring');assert.ok(authors.length>0);
+ assert.equal(delivered.loop.authoringProtocol,'acceptance-stages-v1');
+ const readAuthor=(id:string)=>{const job=delivered.jobs.find(j=>j.id===id);assert.ok(job,'Actual completed author ancestry must be present');return job;};
+ const stages=authors.filter(job=>parseAuthorStageInput(job.input));
+ assert.equal(stages.length,3,'All three actual provider fragments are required');
+ assert.equal(new Set(stages.map(job=>parseAuthorStageInput(job.input)!.context.authorStage.sessionId)).size,1);
+ assert.deepEqual(stages.map(job=>parseAuthorStageInput(job.input)!.context.authorStage.index).sort(),[0,1,2]);
+ for(const job of stages){
+  const binding=parseAuthorStageInput(job.input)!.context.authorStage;
+  assert.equal(binding.sessionTokenCeiling,180_000);assert.equal(binding.perCallTimeoutMs,240_000);
+  assert.equal(binding.loopDeadlineMs,Date.parse(delivered.loop.createdAt)+delivered.loop.limits.maxDurationMs);
+  assertStoredAuthorStage(job,data);assertAuthorStageParents(job,readAuthor,data);assertAuthorStageAssemblyProof(job,readAuthor,data);
+  const raw=await modelProof(job.proofs,'/result.json');assert.deepEqual(raw.output,job.result);
+  const input=parseAuthorStageInput(job.input)!;const fragment=parseAuthorStageOutput(raw.output,input.context.acceptance,binding,input.context.authorStageParents);
+  assert.equal(fragment.stage,binding.stage);assert.equal(fragment.protocol,'acceptance-stages-v1');
+ }
+ assert.ok(authors.every(job=>job.usage!==null));
+ assert.ok(authors.reduce((sum,job)=>sum+job.usage!,0)<=180_000,'Recovery and all fragments share the original author allowance');
+ assert.ok(delivered.loop.reasoningCount<=4,'Splitting cannot increase original call limit');
  const routeDb=new DatabaseSync(join(data,'supervisor.sqlite'),{readOnly:true});
  try {
   const routes=new AuthorRoutingRepository(routeDb,data);
@@ -170,7 +191,11 @@ test('P6 running followup survives real service restart applies once and indepen
     const advertised=readRoutingCapabilities(data,route.capabilities);
     assert.deepEqual(job.config,expectedAuthorRouteConfig({...route,capabilities:{...route.capabilities,capabilities:advertised}}));
     assert.equal(route.baseline.timeoutMs,240_000);
-    assert.equal(job.config.reservation,route.baseline.reservation);
+    if(route.authorization.authorSession){
+     const budget=route.authorization.authorSession;
+     assert.equal(job.config.reservation,budget.remaining);
+     assert.ok(job.config.reservation<route.baseline.reservation,'Charged prior stages cannot receive a refreshed allowance');
+    }else assert.equal(job.config.reservation,route.baseline.reservation);
     assert.equal(route.authorization.absoluteDeadlineMs,Date.parse(delivered.loop.createdAt)+delivered.loop.limits.maxDurationMs);
     assert.equal(route.authorization.originalTimeoutMs,240_000);
     assert.equal(job.config.timeoutMs,Math.min(240_000,route.authorization.absoluteDeadlineMs-Date.parse(route.authorization.observedAt)));
@@ -188,7 +213,13 @@ test('P6 running followup survives real service restart applies once and indepen
  assert.ok(acceptedAuthor);assert.equal(acceptedAuthor.error,null);assert.ok(acceptedAuthor.result);
  const authored=await modelProof(acceptedAuthor.proofs,'/result.json');assert.equal(authored.result.threadId,acceptedAuthor.threadId);assert.equal(authored.result.usage,acceptedAuthor.usage);assert.deepEqual(authored.result.value,acceptedAuthor.result);assert.deepEqual(authored.output,acceptedAuthor.result);
 
- assert.ok(final.approved&&final.evaluation?.complete);const proposal=delivered.verification.proposals.find(p=>p.id===final.proposalId)!;const approved=delivered.verification.jobs.find(j=>j.id===proposal.reviewId)!;assert.equal(approved.kind,'review');assert.equal(approved.approved,true);assert.ok(approved.modelStarted&&approved.usage>0&&approved.controls.length>=2&&approved.controls.every(c=>c.passed));
+ const resolvedAuthor=resolveAuthorBundle(acceptedAuthor,readAuthor,data);assert.ok(resolvedAuthor.receipt);
+ assertAuthorStageAssemblyProof(acceptedAuthor,readAuthor,data);assertAuthorExpansionProof(acceptedAuthor,readAuthor,data);
+ assert.ok(final.approved&&final.evaluation?.complete);const proposal=delivered.verification.proposals.find(p=>p.id===final.proposalId)!;
+ const materializedSpec=structuredClone(resolvedAuthor.bundle.spec);
+ for(const control of materializedSpec.controls)if(resolvedAuthor.bundle.controls.some(asset=>asset.id===control.id))control.workspace=join(data,'supervision','authoring',acceptedAuthor.id,'controls',control.id);
+ assert.deepEqual(proposal.spec,materializedSpec,'Published standards equal the complete model bundle with only host-owned control paths materialized');
+ await save('actual-author-assembly',{jobId:acceptedAuthor.id,rawDigest:authorStageDigest(acceptedAuthor.result),receipt:resolvedAuthor.receipt,bundle:resolvedAuthor.bundle});const approved=delivered.verification.jobs.find(j=>j.id===proposal.reviewId)!;assert.equal(approved.kind,'review');assert.equal(approved.approved,true);assert.ok(approved.modelStarted&&approved.usage>0&&approved.controls.length>=2&&approved.controls.every(c=>c.passed));
  const reviewed=await modelProof(approved.proofs,'/definition-review/result.json');assert.equal(reviewed.result.usage,approved.usage);assert.deepEqual(reviewed.output,{verdict:reviewed.result.verdict,reason:reviewed.result.reason,observations:reviewed.result.observations});assert.ok(authors.every(a=>a.threadId!==reviewed.result.threadId),'Actual author and reviewer threads must differ');
  const allExecutions=await rpc<any[]>('execution',{type:'list'});assert.equal(allExecutions.filter(e=>e.id===initial.id).length,1);assert.equal(allExecutions.filter(e=>e.runtimeBinding?.runtimeId===runtimeId).length,2,'Original and revised executions only, no service-restart duplicate');for(const execution of allExecutions){assert.ok(execution.stopConfirmed&&execution.usage&&execution.usage.totalTokens>0);assert.equal(execution.usageStatus,'reported');assert.ok(execution.threadId&&execution.turnId);assert.equal((await inspectProcess(execution.identity)).status,'stopped');
   const events:any[]=[];let after=0;while(after<execution.lastEventSeq){const page=await rpc<any[]>('execution',{type:'events',executionId:execution.id,after});assert.ok(page.length);for(const event of page){assert.ok(event.seq>after&&event.seq<=execution.lastEventSeq);after=event.seq;events.push(event);}}

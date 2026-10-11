@@ -1,3 +1,4 @@
+import {parseAuthorStageInput} from '../orchestration/acceptance-authoring-stages.js';
 import {assertAuthorWireCapacity,type PresentedAuthorInput} from '../orchestration/author-presentation.js';
 import { acceptanceReferenceDiagnostic } from '../orchestration/acceptance-authoring-feedback.js';
 import { createHash } from 'node:crypto';
@@ -44,12 +45,13 @@ export class SupervisionRepository {
     this.db.prepare('UPDATE runs SET snapshot=?,revision=? WHERE project_id=? AND id=?').run(canonical(result.run),result.run.revision,loop.projectId,loop.runId);
     for(const event of result.events)this.db.prepare('INSERT INTO events(command_id,project_id,run_id,type,payload) VALUES (?,?,?,?,?)').run(loop.id,loop.projectId,loop.runId,event.type,canonical(event));return result.run;
   }
-  attach(input:{commandId:string;runtimeId:string;config:ReasonerConfig;limits:SupervisionLimits}):SupervisionRecord{return this.transaction(()=>{
+  attach(input:{commandId:string;runtimeId:string;config:ReasonerConfig;limits:SupervisionLimits;authoringProtocol?:'acceptance-stages-v1'}):SupervisionRecord{return this.transaction(()=>{
     const prior=this.receipt<{id:string}>(input.commandId,input);if(prior)return this.get(prior.id);
     configValid(input.config);integer(input.limits.maxRepairs,'repair limit',0,100);integer(input.limits.maxReasoningCalls,'reasoning limit',1,1000);integer(input.limits.maxDurationMs,'duration',1000,30*24*3600000);integer(input.limits.maxContextChars,'context capacity',8000,200000);
     const inspection=new RuntimeRepository(this.db).inspect(input.runtimeId),run=inspection.run;
     ensure(!this.forRuntime(input.runtimeId),'Runtime already supervised');ensure(run.admission!=='draft'&&!['succeeded','cancelled'].includes(run.status),'Only unfinished admitted runtime may be supervised');
-    const time=now(),value:SupervisionRecord={id:'supervision-'+hash(input.runtimeId).slice(0,24),runtimeId:input.runtimeId,projectId:run.projectId,runId:run.id,contractVersion:run.contract.version,contractDigest:hash(canonical(run.contract)),revision:0,phase:'executing',paused:false,stopped:false,reason:null,config:structuredClone(input.config),limits:structuredClone(input.limits),createdAt:time,updatedAt:time,repairCount:0,reasoningCount:0,intent:null,references:{},monitor:null};
+    ensure(!Object.hasOwn(input,'authoringProtocol')||input.authoringProtocol==='acceptance-stages-v1','Unknown authoring protocol');
+    const time=now(),value:SupervisionRecord={id:'supervision-'+hash(input.runtimeId).slice(0,24),runtimeId:input.runtimeId,projectId:run.projectId,runId:run.id,contractVersion:run.contract.version,contractDigest:hash(canonical(run.contract)),revision:0,phase:'executing',paused:false,stopped:false,reason:null,config:structuredClone(input.config),limits:structuredClone(input.limits),createdAt:time,updatedAt:time,repairCount:0,reasoningCount:0,intent:null,references:{},monitor:null,...(input.authoringProtocol?{authoringProtocol:input.authoringProtocol}:{})};
     this.db.prepare('INSERT INTO supervision_loops(id,runtime_id,record) VALUES (?,?,?)').run(value.id,value.runtimeId,serializable(value));this.record(input.commandId,input,{id:value.id});return value;
   });}
   /** CAS prevents an older monitor/controller callback overwriting a newer pause or contract boundary. */
@@ -123,6 +125,7 @@ export class SupervisionRepository {
     const frozen=structuredClone(old.input) as {prompt:string;outputSchema:unknown;context:Record<string,unknown>};
     ensure(frozen&&Object.keys(frozen).sort().join(',')==='context,outputSchema,prompt'&&typeof frozen.prompt==='string'&&frozen.context&&typeof frozen.context==='object'&&!Array.isArray(frozen.context),'Invalid frozen author input');
     ensure(canonical((frozen.context.acceptance as {contract?:unknown}|undefined)?.contract)===canonical(run.contract),'Frozen author contract differs from current ledger');
+    ensure(!parseAuthorStageInput(old.input),'Staged author recovery requires versioned shared-session routing');
     ensure(!Object.hasOwn(frozen.context,'authorFeedback'),'Author regeneration limit exhausted');
     ensure(!Object.hasOwn(frozen.context,'evolution'),'V2 author regeneration is not implemented');
     const feedback={schemaVersion:1,attempt:1,previousJobId:old.id,inputDigest:old.inputDigest,resultDigest:input.diagnostic.resultDigest,diagnostic:input.diagnostic.message,references:acceptanceReferenceDiagnostic(old.result),result:old.result};

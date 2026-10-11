@@ -1,3 +1,5 @@
+import {parseAuthorStageInput} from './acceptance-authoring-stages.js';
+import {resolveStagedAuthor,assertAuthorStageAssemblyProof} from './author-stage-proofs.js';
 import {createHash} from 'node:crypto';
 import {lstatSync,readFileSync,realpathSync} from 'node:fs';
 import {isAbsolute,join,relative,sep} from 'node:path';
@@ -130,11 +132,13 @@ export function assertAuthorPatchBase(job:SupervisionJob,readJob:ReadAuthorJob,d
   const read=(name:string)=>{const path=join(directory,name);ensure(Object.hasOwn(base.proofs,path),'base required proof missing');return readFileSync(path,'utf8');};
   ensure(same(JSON.parse(read('output.txt')),base.result)&&same(JSON.parse(read('result.json')).value,base.result),'base raw output differs');
   const prior=resolveAuthorBundle(base,readJob,dataDir,ancestors);
-  if(prior.receipt)ensure(same(JSON.parse(read('author-expansion.json')),prior.receipt),'base expansion proof differs');
+  if(parseAuthorStageInput(base.input))assertAuthorStageAssemblyProof(base,readJob,dataDir);
+  else if(prior.receipt)ensure(same(JSON.parse(read('author-expansion.json')),prior.receipt),'base expansion proof differs');
   ensure(authorPatchDigest(prior.bundle)===binding.bundleDigest,'resolved base bundle differs');
   return binding;
 }
 export function resolveAuthorBundle(job:SupervisionJob,readJob:ReadAuthorJob,dataDir:string,ancestors=new Set<string>()):{bundle:AcceptanceBundle;receipt:Record<string,unknown>|null} {
+  if(parseAuthorStageInput(job.input))return resolveStagedAuthor(job,readJob,dataDir);
   const input=patchInput(job.input);
   if(!input)return {bundle:job.result as AcceptanceBundle,receipt:null};
   const binding=assertAuthorPatchBase(job,readJob,dataDir,ancestors)!;

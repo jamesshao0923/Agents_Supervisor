@@ -654,7 +654,9 @@
     "p6.integration-author-presentation.001",
     "p6.integration-author-presentation.002",
     "p6.integration-author-presentation.003",
-    "p6.live-running-followup.001"
+    "p6.live-running-followup.001",
+    "p6.integration-author-stages.001",
+    "p6.integration-author-stages.002"
   ],
   "requiredRisks": [
     "p0.unit-contracts.001",
@@ -959,7 +961,8 @@
     "p6-maint-u06",
     "p6-maint-i09",
     "p6-author-presentation",
-    "p6-running-followup-live"
+    "p6-running-followup-live",
+    "p6-author-stages"
   ],
   "coreRegression": [
     "dev.integration-runner.003",

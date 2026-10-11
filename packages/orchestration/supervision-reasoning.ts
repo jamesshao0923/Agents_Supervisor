@@ -1,3 +1,5 @@
+import {parseAuthorStageInput,parseAuthorStageOutput} from './acceptance-authoring-stages.js';
+import {assertAuthorStagePolicy,assertAuthorStagePhysical,authorStageAssemblyRecord,assertAuthorStageAssemblyProof} from './author-stage-proofs.js';
 import {authorExpansionRecord,assertAuthorExpansionProof,assertAuthorPatchBase,patchInput} from './author-result-patch.js';
 import {authorRouteDispatch,assertAuthorRouteProof} from './author-route-binding.js';
 import {IndexedResearchConsumer,assertIndexedConsumerArchive} from '../runtime/indexed-research-consumer.js';
@@ -89,6 +91,7 @@ export class SupervisionReasoningRunner {
     ensure(loop.runtimeId === job.runtimeId && loop.projectId === job.projectId && loop.runId === job.runId && loop.contractVersion === job.contractVersion && loop.contractDigest === job.contractDigest, 'Supervision job boundary changed');
     ensure(!runtime.paused && !runtime.cancelled, 'Supervision runtime is paused or cancelled');
     frozenInput(job, loop.limits.maxContextChars);
+    assertAuthorStagePolicy(job,loop,id=>this.store.supervision.job(id));
     const route=this.store.authorRouting.forJob(job.id);
     if(route?.schemaVersion===2&&job.status==='running')ensure(Date.now()>=Date.parse(route.authorization.observedAt)&&Date.now()<route.authorization.absoluteDeadlineMs,'Author frozen route deadline exhausted');
     const attempt = run.attempts.find(a => a.id === job.attemptId), operation = run.operations.find(o => o.id === job.id);
@@ -166,6 +169,8 @@ export class SupervisionReasoningRunner {
       ensure(runtimeCanonical(actual) === runtimeCanonical(job.proofs), 'Supervision proof digest changed');
       assertAuthorWireProof(job,this.directory(job.id));
       assertAuthorExpansionProof(job,id=>this.store.supervision.job(id),this.dataDir);
+      await assertAuthorStagePhysical(job,id=>this.store.supervision.job(id),this.dataDir);
+      assertAuthorStageAssemblyProof(job,id=>this.store.supervision.job(id),this.dataDir);
       const route=this.store.authorRouting.forJob(job.id);if(route)assertAuthorRouteProof(route,job,this.directory(job.id));
       ensure(await this.stopped(job, false), 'Supervision process has not actually stopped');
       await this.writersStopped(job);
@@ -187,7 +192,7 @@ export class SupervisionReasoningRunner {
   }
   private async execute(initial: SupervisionJob, controller: AbortController): Promise<SupervisionJob> {
     let result: ReasonerResult | undefined, failure: string | null = null, proofs: Record<string, string> = {};
-    let wirePath:string|undefined,routePath:string|undefined,expansionPath:string|undefined;
+    let wirePath:string|undefined,routePath:string|undefined,expansionPath:string|undefined,assemblyPath:string|undefined;
     const original = runtimeCanonical({ input: initial.input, inputDigest: initial.inputDigest, config: initial.config, contractVersion: initial.contractVersion, contractDigest: initial.contractDigest });
     const current = (): SupervisionJob => {
       const job = this.store.supervision.job(initial.id);
@@ -206,11 +211,15 @@ export class SupervisionReasoningRunner {
       const receipt=authorWireReceipt(job);
       if(receipt){wirePath=join(logDir,'author-wire.json');await writeFile(wirePath,JSON.stringify(receipt),{flag:'wx',mode:0o600});current();}
       assertAuthorPatchBase(job,id=>this.store.supervision.job(id),this.dataDir);
+      await assertAuthorStagePhysical(job,id=>this.store.supervision.job(id),this.dataDir);current();
       const indexed=await IndexedResearchConsumer.supervision(this.store,job.id);
       const route=this.store.authorRouting.forJob(job.id);
       const dispatch=route?.schemaVersion===2?authorRouteDispatch(route,job):null;
+      const stage=parseAuthorStageInput(job.input);
+      const stageDeadline=stage?Math.min(stage.context.authorStage.loopDeadlineMs,Date.parse(job.startedAt)+job.config.timeoutMs):null;
+      if(stageDeadline!==null)ensure(stageDeadline>Date.now(),'Author stage absolute deadline exhausted');
       if(dispatch){routePath=join(logDir,'author-route-dispatch.json');await writeFile(routePath,JSON.stringify(dispatch),{flag:'wx',mode:0o600});current();}
-      result = await this.reasoner.request({ ...(indexed?{indexed}:{}),...(dispatch?{absoluteDeadlineMs:dispatch.absoluteDeadlineMs}:{}),id: job.id, cwd, logDir, prompt: input.prompt, outputSchema: input.outputSchema, model: job.config.model, effort: job.config.effort, timeoutMs: dispatch?.timeoutMs??job.config.timeoutMs, signal: controller.signal,
+      result = await this.reasoner.request({ ...(indexed?{indexed}:{}),...(dispatch?{absoluteDeadlineMs:dispatch.absoluteDeadlineMs}:stageDeadline!==null?{absoluteDeadlineMs:stageDeadline}:{}),id: job.id, cwd, logDir, prompt: input.prompt, outputSchema: input.outputSchema, model: job.config.model, effort: job.config.effort, timeoutMs: dispatch?.timeoutMs??job.config.timeoutMs, signal: controller.signal,
         assertEligible: () => { current(); },
         onIntent: intent => { const value = current(); this.boundary(value, true); ensure(!value.intents.some(item => item.operationId === intent.operationId), 'Duplicate supervision process intent'); ensure(intent.cwd === cwd && intent.operationId.startsWith(job.id + '-'), 'Unbound supervision process intent'); this.store.supervision.observeJob(job.id, { intents: [...value.intents, intent] }); current(); },
         onIdentity: identity => { const value = this.store.supervision.job(job.id); ensure(value.intents.some(intent => intent.operationId === identity.operationId && intent.ownerToken === identity.ownerToken) && !value.identities.some(item => item.operationId === identity.operationId), 'Unbound supervision process identity'); this.store.supervision.observeJob(job.id, { identities: [...value.identities, identity] }); current(); },
@@ -222,12 +231,17 @@ export class SupervisionReasoningRunner {
       ensure(result.stopConfirmed && await this.stopped(observed, false), 'Supervision result lacks actual stopped process');
       ensure(result.usage !== null && Number.isSafeInteger(result.usage) && result.usage >= observed.observedUsage && result.usage <= observed.config.reservation, 'Supervision usage is unknown, underreported or over reservation');
       ensure(result.value !== null, 'Empty supervision model result'); safeJSON(result.value); result.value = parseReasonerOutput(JSON.stringify(result.value), input.outputSchema);
+      if(stage){
+        parseAuthorStageOutput(result.value,stage.context.acceptance,stage.context.authorStage,stage.context.authorStageParents);
+        const assembly=authorStageAssemblyRecord({...observed,result:result.value},id=>this.store.supervision.job(id),this.dataDir);
+        if(assembly){assemblyPath=join(logDir,'author-assembly.json');await writeFile(assemblyPath,JSON.stringify(assembly),{flag:'wx',mode:0o600});}
+      }
       if(patchInput(observed.input)){
         const expanded=authorExpansionRecord({...observed,result:result.value},id=>this.store.supervision.job(id),this.dataDir);
         expansionPath=join(logDir,'author-expansion.json');
         await writeFile(expansionPath,JSON.stringify(expanded),{flag:'wx',mode:0o600});
       }
-      proofs = await this.proofs(observed, [...result.proofFiles,...(expansionPath?[expansionPath]:[]),...(wirePath?[wirePath]:[]),...(routePath?[routePath]:[])]);
+      proofs = await this.proofs(observed, [...result.proofFiles,...(expansionPath?[expansionPath]:[]),...(assemblyPath?[assemblyPath]:[]),...(wirePath?[wirePath]:[]),...(routePath?[routePath]:[])]);
       assertAuthorWireProof({...observed,proofs,threadId:result.threadId},this.directory(job.id));
       if(route)assertAuthorRouteProof(route,{...observed,proofs,threadId:result.threadId},this.directory(job.id));
       await this.writersStopped(observed); current();
@@ -241,7 +255,7 @@ export class SupervisionReasoningRunner {
     let usage: number | null = result?.usage ?? (latest.modelStarted || !stopConfirmed ? null : 0);
     if (latest.modelStarted && result && !result.modelStarted) { usage = null; failure ??= 'Transport model-start evidence contradicts durable turn intent'; }
     if (usage !== null && (!Number.isSafeInteger(usage) || usage < 0)) { usage = null; failure ??= 'Invalid final supervision usage'; }
-    if (failure && result?.proofFiles.length) { try { proofs = await this.proofs(latest, [...result.proofFiles,...(expansionPath?[expansionPath]:[]),...(wirePath?[wirePath]:[]),...(routePath?[routePath]:[])]); } catch { /* Invalid proofs never authorize application; accounting remains durable. */ } }
+    if (failure && result?.proofFiles.length) { try { proofs = await this.proofs(latest, [...result.proofFiles,...(expansionPath?[expansionPath]:[]),...(assemblyPath?[assemblyPath]:[]),...(wirePath?[wirePath]:[]),...(routePath?[routePath]:[])]); } catch { /* Invalid proofs never authorize application; accounting remains durable. */ } }
     // Process/proof awaits may cross pause, cancel or close; recheck immediately before the synchronous settlement.
     if (!failure) { try { current(); } catch (error) { failure = message(error); } }
     const finished = this.store.supervision.finishJob(latest.id, { usage, stopConfirmed, error: failure, proofs, threadId: result?.threadId ?? null, result: failure ? null : result!.value });

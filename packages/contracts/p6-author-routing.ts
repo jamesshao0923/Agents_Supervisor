@@ -29,7 +29,13 @@ export interface AuthorRoutingPolicyV2 {
  preference:'quality-first'; models:{id:string;qualityRank:number}[];
  minimumEffort:'medium'; capabilityMaxAgeMs:number;
 }
+/** Derived from actual immutable completed stage/patch jobs in one original author session. */
+export interface AuthorSessionBudget {
+ schemaVersion:1; sessionId:string; rootJobId:string; ceiling:number; spent:number; remaining:number;
+ jobs:{jobId:string;inputDigest:string;completionDigest:string;proofsDigest:string;usage:number}[];
+}
 export interface AuthorRouteAuthorizationV2 {
+ authorSession?:AuthorSessionBudget;
  observedAt:string; loopCreatedAt:string; absoluteDeadlineMs:number;
  loopRevision:number; runRevision:number; originalTimeoutMs:number;
  budget:{limit:number;spent:number;reserved:number;protected:number};

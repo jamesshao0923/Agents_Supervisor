@@ -32,7 +32,7 @@ export function SupervisionPanel({api,runtime,config,maxContextChars,online,term
       if(kind==='attach'){
         if(!config)throw new Error('缺少已准入需求的主控配置');
         if(!Number.isInteger(maxRepairs)||maxRepairs<0||maxRepairs>100||!Number.isInteger(maxCalls)||maxCalls<1||maxCalls>1000||!Number.isInteger(hours)||hours<1||hours>720)throw new Error('请填写有效的监督次数与时限');
-        pending.current??={commandId:crypto.randomUUID(),runtimeId:runtime.id,config,limits:{maxRepairs,maxReasoningCalls:maxCalls,maxDurationMs:hours*3600000,maxContextChars}};
+        pending.current??={commandId:crypto.randomUUID(),runtimeId:runtime.id,config,authoringProtocol:'acceptance-stages-v1',limits:{maxRepairs,maxReasoningCalls:maxCalls,maxDurationMs:hours*3600000,maxContextChars}};
         result=await api.supervisionAttach(pending.current);pending.current=null;
       }else{if(!view)throw new Error('监督状态尚未读取');result=await (kind==='pause'?api.supervisionPause:kind==='resume'?api.supervisionResume:api.supervisionStop)(view.loop.id);}
       if(alive.current){setView(result);setKnown(true);}

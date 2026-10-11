@@ -1,3 +1,6 @@
+import {parseAuthorStageInput} from './acceptance-authoring-stages.js';
+import {beginAuthorStages,advanceAuthorStage} from './author-stage-controller.js';
+import {isCommandOnlyAuthorContext} from './acceptance-authoring-presentation.js';
 import {resolveAuthorBundle,assertAuthorExpansionProof} from './author-result-patch.js';
 import type {MaintenanceBasis} from '../contracts/p6-control-maintenance.js';
 import {captureMaintenanceContext,captureRegressionContext} from '../verification/control-maintenance-replay.js';
@@ -133,6 +136,7 @@ export class SupervisionController {
     const id=loop.phase==='authoring'?loop.references.authorJobId:loop.phase==='diagnosing'?loop.references.diagnosisJobId:loop.phase==='blocked'?(loop.references.diagnosisJobId??loop.references.authorJobId):undefined;
     if(!id)return false;const job=this.repo.job(id);if(!job.error)return false;ensure(!this.store.controlMaintenance.forLoop(loop.id),'Interrupted bounded maintenance author cannot be replayed; stopped records and charged usage remain available.');
     ensure(job.status==='finished'&&job.stopConfirmed&&job.usage!==null,'Paused analysis has unknown usage or stop; it cannot be retried');
+    if(parseAuthorStageInput(job.input))ensure(!job.modelStarted&&job.usage===0,'Paused author stage already started; shared session budget forbids replay');
     ensure(/cancelled|dispatch disabled|paused/i.test(job.error),'Paused analysis has an independent failure requiring explicit recovery');
     ensure(job.inputDigest===digest(runtimeCanonical(job.input))&&job.contractVersion===loop.contractVersion&&job.contractDigest===loop.contractDigest,'Paused analysis frozen input changed');
     const run=this.store.runtime.inspect(loop.runtimeId).run,attempt=run.attempts.find(item=>item.id===job.attemptId);ensure(attempt?.settled&&attempt.actual===job.usage,'Paused analysis usage is not settled');
@@ -252,8 +256,13 @@ export class SupervisionController {
     }
     if(loop.phase==='authoring'){
       const job=this.repo.job(loop.references.authorJobId!);if(job.status==='running'){this.launch(job);return;}
-      if(job.error!==null){ensure(!this.store.controlMaintenance.forLoop(loop.id),'Required V2 maintenance author failed; no automatic replay: '+job.error);const next=await this.authorRecovery.begin(loop.id,job.id,()=>{this.dispatchAllowed(loop.id);this.ensureFloor(this.repo.get(loop.id));});this.launch(next.job);return;}
+      if(job.error!==null){ensure(!parseAuthorStageInput(job.input),'Author fragment failed; partial output cannot authorize complete-bundle recovery: '+job.error);ensure(!this.store.controlMaintenance.forLoop(loop.id),'Required V2 maintenance author failed; no automatic replay: '+job.error);const next=await this.authorRecovery.begin(loop.id,job.id,()=>{this.dispatchAllowed(loop.id);this.ensureFloor(this.repo.get(loop.id));});this.launch(next.job);return;}
       const verified=await this.runner.run(job.id),input=modelInput(verified),context=input.context;
+      if(parseAuthorStageInput(verified.input)?.context.authorStage.index!==undefined&&parseAuthorStageInput(verified.input)!.context.authorStage.index<2){
+        await assertCandidate(context.candidate);this.dispatchAllowed(loop.id);
+        const next=this.repo.transaction(()=>{this.ensureFloor(this.repo.get(loop.id));return advanceAuthorStage(this.store,this.dataDir,verified);});
+        if(!next)throw Error('Next author fragment missing');this.launch(next);return;
+      }
       if(context.evolution){
         await assertCandidate(context.candidate);
         const material=await materializeControlEvolutionBundle({privateRoot:join(this.dataDir,'supervision','authoring'),jobId:job.id,context:context.evolution,bundle:verified.result});
@@ -369,7 +378,8 @@ export class SupervisionController {
         }).job;
       else {
         this.ensureFloor(loop);
-        job = this.repo.beginJob({
+        job = current.authoringProtocol==='acceptance-stages-v1'&&!context.evolution&&context.acceptance.previousSpec===null&&isCommandOnlyAuthorContext(context.acceptance)
+          ?beginAuthorStages(this.store,loop.id,context):this.repo.beginJob({
           commandId: randomUUID(), loopId: loop.id, expectedRevision: current.revision,
           purpose: 'acceptance-authoring', context: input
         });

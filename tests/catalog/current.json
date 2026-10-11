@@ -1065,6 +1065,12 @@
       "layer": "live",
       "file": "dist/tests/live/exploration-tiers.test.js",
       "timeoutMs": 3420000
+    },
+    {
+      "id": "integration-author-stages",
+      "layer": "integration",
+      "file": "dist/tests/integration/author-stages.test.js",
+      "timeoutMs": 180000
     }
   ],
   "cases": [
@@ -21418,6 +21424,44 @@
       "prerequisites": "Actual installed Codex planning, execution, author and independent review; optional predictions must supply four distinct real threshold stimuli, no host relabeling or synthetic success",
       "assertions": "tests/live/exploration-tiers.test.ts :: P7-EXPLORE-L01 real P5 candidates traverse four tiers retain active work and independently deliver every required criterion",
       "cleanup": "Retain original raw outputs, failed attempts and unknown reservations; close actual service and inspect/stop exact owned processes; no automatic paid retry",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-author-stages.001",
+      "name": "P6-AUTH-STAGE-I01 actual three-stage author retains raw fragments and shared budget across reopen before one P4-rejected patch recovery",
+      "suiteId": "integration-author-stages",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-author-stages"
+      ],
+      "scenario": "P6-AUTH-STAGE-I01 actual three-stage author retains raw fragments and shared budget across reopen before one P4-rejected patch recovery",
+      "impactTags": [
+        "p6-author-stages",
+        "p6-author-routing"
+      ],
+      "prerequisites": "Actual SQLite/FS/managed Node; explicit synthetic model JSON and usage, no provider approval.",
+      "assertions": "tests/integration/author-stages.test.ts :: P6-AUTH-STAGE-I01 actual three-stage author retains raw fragments and shared budget across reopen before one P4-rejected patch recovery",
+      "cleanup": "Close actual runners/controllers/stores, confirm owned Node stop, remove isolated fixture; retain run reports and prior failures.",
+      "status": "active"
+    },
+    {
+      "id": "p6.integration-author-stages.002",
+      "name": "P6-AUTH-STAGE-I02 stage preflight and interrupted accounting reject without extra calls or fabricated progress",
+      "suiteId": "integration-author-stages",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "p6-author-stages"
+      ],
+      "scenario": "P6-AUTH-STAGE-I02 stage preflight and interrupted accounting reject without extra calls or fabricated progress",
+      "impactTags": [
+        "p6-author-stages",
+        "p6-author-routing"
+      ],
+      "prerequisites": "Actual SQLite/FS/managed Node; explicit synthetic model JSON and usage, no provider approval.",
+      "assertions": "tests/integration/author-stages.test.ts :: P6-AUTH-STAGE-I02 stage preflight and interrupted accounting reject without extra calls or fabricated progress",
+      "cleanup": "Close actual runners/controllers/stores, confirm owned Node stop, remove isolated fixture; retain run reports and prior failures.",
       "status": "active"
     }
   ]

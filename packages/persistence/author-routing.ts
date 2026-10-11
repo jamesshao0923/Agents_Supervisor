@@ -1,4 +1,6 @@
-import {authorPatchBinding,resolveAuthorBundle,patchInput} from '../orchestration/author-result-patch.js';
+import {parseAuthorStageInput} from '../orchestration/acceptance-authoring-stages.js';
+import {assertAuthorStagePhysical,assertAuthorStageAssemblyProof,assertAuthorStageParents,assertStoredAuthorOutput} from '../orchestration/author-stage-proofs.js';
+import {authorPatchBinding,resolveAuthorBundle,patchInput,assertAuthorPatchBase,assertAuthorExpansionProof} from '../orchestration/author-result-patch.js';
 import {isCommandOnlyAuthorContext} from '../orchestration/acceptance-authoring-presentation.js';
 import {futureVerificationFloor,futureExecutionFloor} from '../domain/index.js';
 import {parseAuthorRouteReceipt,assertAuthorRouteJob,assertAuthorRouteProof} from '../orchestration/author-route-binding.js';
@@ -9,7 +11,7 @@ import {createHash} from 'node:crypto';
 import {lstatSync,readFileSync,realpathSync,readdirSync} from 'node:fs';
 import {join,relative,isAbsolute,sep} from 'node:path';
 import type {DatabaseSync} from 'node:sqlite';
-import type {AuthorRejection,AuthorRouteReceipt,AuthorRouteAuthorizationV2,AuthorRoutingPolicyV2} from '../contracts/p6-author-routing.js';
+import type {AuthorRejection,AuthorRouteReceipt,AuthorRouteAuthorizationV2,AuthorRoutingPolicyV2,AuthorSessionBudget} from '../contracts/p6-author-routing.js';
 import type {RoutingCapabilities,SupervisionRoutingPolicy} from '../contracts/p6-routing.js';
 import {SUPERVISOR_ROUTING_POLICY_V1} from '../contracts/p6-routing.js';
 import {SupervisionRepository} from './supervision.js';
@@ -23,6 +25,7 @@ import {parseReasonerOutput,ReasonerSchemaError} from '../orchestration/reasoner
 import {assertCandidate,environmentFingerprint,exclusions,canonical as candidateCanonical,type Candidate} from '../verification/candidate.js';
 import {inspectProcess,type ProcessIdentity} from '../process-control/index.js';
 import type {ExecutionRecord} from '../contracts/p2.js';
+import type {SupervisionJob} from '../contracts/p6-supervision.js';
 import type {Run} from '../contracts/p1.js';
 const overlaps=(a:string,b:string)=>a===b||a.startsWith(b+sep)||b.startsWith(a+sep);
 const sha=(v:string|Uint8Array)=>createHash('sha256').update(v).digest('hex');
@@ -37,12 +40,56 @@ export class AuthorRoutingRepository {
  constructor(private readonly db:DatabaseSync,private readonly dataDir:string,private readonly policy:SupervisionRoutingPolicy=SUPERVISOR_ROUTING_POLICY_V1){this.supervision=new SupervisionRepository(db);this.runtime=new RuntimeRepository(db);}
  transaction<T>(body:()=>T):T{return this.supervision.transaction(body);}
  routes(loopId:string):AuthorRouteReceipt[]{return this.db.prepare('SELECT record FROM supervision_author_routes WHERE loop_id=? ORDER BY rowid').all(loopId).map(r=>parseAuthorRouteReceipt(JSON.parse(String(r.record))));}
+ /** Follow only actual immutable patch bases; an ordinary legacy author has no session. */
+ private authorSession(job:SupervisionJob):AuthorSessionBudget|null {
+  const patches:SupervisionJob[]=[],seen=new Set<string>();let current=job;
+  while(patchInput(current.input)) {
+   ensure(!seen.has(current.id)&&patches.length<3,'Invalid author session patch ancestry');
+   seen.add(current.id);patches.push(current);
+   current=this.supervision.job(patchInput(current.input)!.context.authorPatch!.base.jobId);
+  }
+  const input=parseAuthorStageInput(current.input);if(!input)return null;
+  ensure(input.context.authorStage.index===2,'Recovery requires a complete stage assembly');
+  const loop=this.supervision.get(job.loopId),binding=input.context.authorStage;
+  ensure(loop.authoringProtocol==='acceptance-stages-v1'&&binding.sessionTokenCeiling===loop.config.reservation
+   &&binding.loopDeadlineMs===Date.parse(loop.createdAt)+loop.limits.maxDurationMs,'Author session policy changed');
+  const jobs=[...assertAuthorStageParents(current,id=>this.supervision.job(id),this.dataDir),current,...patches.reverse()];
+  assertAuthorStageAssemblyProof(current,id=>this.supervision.job(id),this.dataDir);
+  const {run}=this.runtime.inspect(loop.runtimeId);let spent=0;
+  for(const source of jobs) {
+   for(const key of ['loopId','runtimeId','projectId','runId','contractVersion','contractDigest','purpose'] as const)
+    ensure(source[key]===job[key],'Author session scope changed');
+   assertStoredAuthorOutput(source,this.dataDir);
+   if(patchInput(source.input)) {
+    assertAuthorPatchBase(source,id=>this.supervision.job(id),this.dataDir);
+    assertAuthorExpansionProof(source,id=>this.supervision.job(id),this.dataDir);
+   }
+   ensure(source.config.reservation===binding.sessionTokenCeiling-spent,'Author session prior reservation changed');
+   const attempt=run.attempts.find(a=>a.id===source.attemptId);
+   ensure(attempt?.purpose==='reasoning'&&attempt.nodeId==='@supervisor'&&attempt.contractVersion===source.contractVersion
+    &&attempt.status==='succeeded'&&attempt.settled&&attempt.actual===source.usage&&attempt.reservation===source.config.reservation,
+    'Author session actual accounting changed');
+   ensure(run.operations.some(o=>o.id===source.id&&o.attemptId===source.attemptId&&o.status==='confirmed')
+    &&run.leases.filter(l=>l.attemptId===source.attemptId).every(l=>l.released),'Author session operation unresolved');
+   spent+=source.usage!;
+  }
+  const remaining=binding.sessionTokenCeiling-spent;
+  ensure(Number.isSafeInteger(spent)&&remaining>0,'Shared author session budget exhausted');
+  return {schemaVersion:1,sessionId:binding.sessionId,rootJobId:jobs[0]!.id,ceiling:binding.sessionTokenCeiling,spent,remaining,
+   jobs:jobs.map(source=>({jobId:source.id,inputDigest:source.inputDigest,completionDigest:source.completionDigest!,proofsDigest:hash(source.proofs),usage:source.usage!}))};
+ }
+ private assertRouteSession(receipt:AuthorRouteReceipt):void {
+  const session=this.authorSession(this.supervision.job(receipt.rejection.previousJobId));
+  ensure(session?receipt.schemaVersion===2&&same(receipt.authorization.authorSession,session):receipt.schemaVersion!==2||!Object.hasOwn(receipt.authorization,'authorSession'),
+   'Author route actual session budget changed');
+ }
  /** Actual persisted route only; absence retains legacy non-route behavior. */
  forJob(jobId:string):AuthorRouteReceipt|null {
   const job=this.supervision.job(jobId),rows=this.routes(job.loopId).filter(r=>r.nextJobId===jobId);
   ensure(rows.length<=1,'Ambiguous author route job');
   if(!rows[0])return null;
   assertAuthorRouteJob(rows[0],job,this.supervision.get(job.loopId));
+  this.assertRouteSession(rows[0]);
   return rows[0];
  }
  /** All writers sharing the filesystem boundary matter, even in another Run.
@@ -77,6 +124,7 @@ export class AuthorRoutingRepository {
   const input=job.input as {prompt:string;outputSchema:Record<string,unknown>;context:{acceptance:AcceptanceAuthoringContext;candidate:Candidate;authorFeedback?:unknown;evolution?:unknown}};
   ensure(input&&Object.keys(input).sort().join(',')==='context,outputSchema,prompt'&&typeof input.prompt==='string'&&input.context?.acceptance&&input.context.candidate,'Author input missing');
   ensure(!Object.hasOwn(input.context,'evolution'),'V2 author recovery is not implemented');
+  const staged=parseAuthorStageInput(job.input);if(staged){ensure(staged.context.authorStage.index===2,'Only a complete author assembly supports recovery');assertAuthorStageAssemblyProof(job,id=>this.supervision.job(id),this.dataDir);}
   ensure(reviewRebuild||!Object.hasOwn(input.context,'authorFeedback'),'Author replacement limit exhausted');
   if(reviewRebuild)ensure(!this.routes(loopId).some(r=>r.rejection.kind==='review'),'Review reconstruction limit exhausted');
   ensure(same(input.context.acceptance.contract,run.contract)&&input.context.candidate.root===runtime.workspace,'Author frozen contract/workspace changed');
@@ -105,19 +153,22 @@ export class AuthorRoutingRepository {
   let kind:AuthorRejection['kind'],message:string;let review:AuthorRejection['review'];
   if(reviewRebuild){ensure(!schemaError&&job.error===null&&same(result.value,parsed)&&same(job.result,parsed)&&result.outputRejection===undefined&&!diagnoseAcceptanceAuthoringResult(resolveAuthorBundle(job,id=>this.supervision.job(id),this.dataDir).bundle,input.context.acceptance),'Review rebuild requires a complete valid original author');review=readAuthorReviewRejection(this.db,this.dataDir,loop,job,input.context.acceptance,run);kind='review';message=review.classification+': '+review.review.error;}
   else if(schemaError){const marker={schemaVersion:1,kind:'schema',rawOutputDigest:sha(raw),message:schemaError.message},error=JSON.parse(read('error.json'));ensure(job.error===schemaError.message&&job.result===null&&result.value===null&&same(result.outputRejection,marker)&&error.name==='ReasonerSchemaError'&&error.message===schemaError.message,'Author schema failure lacks typed transport classification');kind='schema';message=schemaError.message;}
-  else {ensure(job.error===null&&same(result.value,parsed)&&same(job.result,parsed)&&result.outputRejection===undefined,'Author failed for a non-schema reason');let diagnostic:{message:string}|null;try{diagnostic=diagnoseAcceptanceAuthoringResult(parsed,input.context.acceptance);}catch(error){if(!(error instanceof ReasonerSchemaError))throw error;diagnostic={message:error.message};}ensure(diagnostic,'Author result is not rejected');kind='semantic';message=diagnostic.message;}
+  else {ensure(job.error===null&&same(result.value,parsed)&&same(job.result,parsed)&&result.outputRejection===undefined,'Author failed for a non-schema reason');let diagnostic:{message:string}|null;try{diagnostic=diagnoseAcceptanceAuthoringResult(resolveAuthorBundle(job,id=>this.supervision.job(id),this.dataDir).bundle,input.context.acceptance);}catch(error){if(!(error instanceof ReasonerSchemaError))throw error;diagnostic={message:error.message};}ensure(diagnostic,'Author result is not rejected');kind='semantic';message=diagnostic.message;}
   const rejection:AuthorRejection={schemaVersion:1,kind,previousJobId:job.id,jobDigest:hash(job),inputDigest:job.inputDigest,schemaDigest:hash(input.outputSchema),rawOutputPath:join(logs,'output.txt'),rawOutputDigest:sha(raw),message,raw:parsed,proofsDigest:hash(job.proofs),workspaceBoundaryDigest:hash(workspaceBoundary),...(review?{review}:{})};
   return {loop,job,run,runtime,input,rejection,workspaceBoundary};
  }
  async assess(loopId:string,jobId:string,reviewRebuild=false):Promise<AuthorRejection>{
   ensure(!this.db.isTransaction,'Physical author inspection must precede transaction');const before=this.actual(loopId,jobId,reviewRebuild);
   if(before.rejection.review)ensure(before.rejection.review.review.environmentDigest===(await environmentFingerprint(before.rejection.review.review.environmentScope)).digest,'Rejected review environment changed');
+  const session=this.authorSession(before.job);
   const identities=[...before.job.identities];
+  if(session)for(const source of session.jobs)identities.push(...this.supervision.job(source.jobId).identities);
   for(const execution of before.workspaceBoundary.executions)if(execution.identity)identities.push(execution.identity as ProcessIdentity);
   for(const verification of before.workspaceBoundary.jobs)identities.push(...verification.identities);
-  for(const identity of identities)ensure((await inspectProcess(identity)).status==='stopped','Author boundary process is not physically stopped');
+  for(const identity of [...new Map(identities.map(identity=>[identity.operationId,identity])).values()])ensure((await inspectProcess(identity)).status==='stopped','Author boundary process is not physically stopped');
+  await assertAuthorStagePhysical(before.job,id=>this.supervision.job(id),this.dataDir);
   await assertCandidate(before.input.context.candidate);
-  const after=this.actual(loopId,jobId,reviewRebuild);ensure(same(before.rejection,after.rejection),'Author rejection changed during physical inspection');return after.rejection;
+  const after=this.actual(loopId,jobId,reviewRebuild);ensure(same(session,this.authorSession(after.job)),'Author session changed during physical inspection');ensure(same(before.rejection,after.rejection),'Author rejection changed during physical inspection');return after.rejection;
  }
  begin(input:BeginAuthorRoute){return this.reserve(input,null);}
  beginV2(input:BeginAuthorRoute){return this.reserve(input,ACCEPTANCE_AUTHOR_ROUTING_POLICY_V2);}
@@ -130,12 +181,15 @@ export class AuthorRoutingRepository {
    const receipt=parseAuthorRouteReceipt(JSON.parse(String(prior.record)));
    ensure(same(stable,input)&&policyDigest===receipt.policyDigest,'Conflicting author route commandId');
    const job=this.supervision.job(receipt.nextJobId);assertAuthorRouteJob(receipt,job,this.supervision.get(receipt.loopId));
+   this.assertRouteSession(receipt);
    return {receipt,job};
   }
   const policy=v2??this.policy,request={...input,policyDigest:hash(policy)};
   const value=this.actual(input.loopId,input.previousJobId,input.rejection.kind==='review');ensure(value.loop.revision===input.expectedRevision,'Stale author route revision');ensure(same(value.rejection,input.rejection),'Author rejection binding changed');
   ensure(!this.routes(input.loopId).some(r=>r.rejection.previousJobId===input.previousJobId),'Author already has a replacement');
   const actual=readRoutingCapabilities(this.dataDir,input.capabilities),age=Date.now()-Date.parse(actual.checkedAt);ensure(age>=0&&age<=policy.capabilityMaxAgeMs,'Author capabilities stale or from future');
+  const authorSession=this.authorSession(value.job);
+  ensure(!authorSession||v2,'Staged author recovery requires versioned shared-session routing');
   let selected=v2?selectAcceptanceAuthorRouteV2(actual,value.job.config,v2):selectAcceptanceAuthorRoute(actual,value.job.config,this.policy);
   // Full immutable proof inventories stay in the route receipt. The model gets
   // all authored bytes, actual control checks/reasons/logs and review judgment;
@@ -147,13 +201,15 @@ export class AuthorRoutingRepository {
   // Presentation metadata belongs to the previous request, never to the new one.
   delete (context as Record<string,unknown>).authorPresentation;
   delete (context as Record<string,unknown>).authorPatch;
+  delete (context as Record<string,unknown>).authorStage;
+  delete (context as Record<string,unknown>).authorStageParents;
   if(patchInput(value.job.input))feedback.references={...feedback.references,previousFeedback:value.input.context.authorFeedback} as typeof feedback.references;
   let nextInput=createAuthorRecoveryInput({...context,authorFeedback:feedback as AuthorRecoveryFeedback},acceptanceAuthoringSchema(context.acceptance));
   if(v2&&input.rejection.kind!=='schema'&&!context.acceptance.workflowMode&&isCommandOnlyAuthorContext(context.acceptance)){
     const resolved=resolveAuthorBundle(value.job,id=>this.supervision.job(id),this.dataDir);
     // Complete schema validity is required; semantic rejection is allowed here.
     parseReasonerOutput(JSON.stringify(resolved.bundle),acceptanceAuthoringSchema(context.acceptance));
-    const authorPatch={schemaVersion:1 as const,base:authorPatchBinding(value.job,resolved.bundle),...(patchInput(value.job.input)?{expandedBase:resolved.bundle}:{})};
+    const authorPatch={schemaVersion:1 as const,base:authorPatchBinding(value.job,resolved.bundle),...((patchInput(value.job.input)||parseAuthorStageInput(value.job.input))?{expandedBase:resolved.bundle}:{})};
     nextInput=createAuthorPatchInput({...context,authorFeedback:feedback as AuthorRecoveryFeedback,authorPatch});
   }
   ensure(canonical(nextInput).length+6000<=value.loop.limits.maxContextChars,'Author recovery exceeds complete context capacity; no truncation');
@@ -164,11 +220,11 @@ export class AuthorRoutingRepository {
    ensure(Number.isFinite(created)&&at>=created,'Author route clock moved backwards');
    const timeoutMs=Math.min(value.job.config.timeoutMs,absoluteDeadlineMs-at);
    ensure(Number.isSafeInteger(timeoutMs)&&timeoutMs>=1000,'Insufficient remaining author deadline');
-   selected={...selected,timeoutMs};
+   selected={...selected,timeoutMs,...(authorSession?{reservation:authorSession.remaining}:{})};
    const run=value.run,wire=authorWireInput(nextInput,'acceptance-authoring');
    const reserved=run.attempts.filter(a=>!a.settled).reduce((n,a)=>n+a.reservation,0);
    const legacy=Math.max(0,run.budget.verificationReserve-run.attempts.filter(a=>a.purpose==='verification'&&a.contractVersion===run.contract.version).reduce((n,a)=>n+(a.settled?a.actual!:a.reservation),0));
-   authorization={observedAt,loopCreatedAt:value.loop.createdAt,absoluteDeadlineMs,loopRevision:value.loop.revision,runRevision:run.revision,originalTimeoutMs:value.job.config.timeoutMs,
+   authorization={...(authorSession?{authorSession}:{}),observedAt,loopCreatedAt:value.loop.createdAt,absoluteDeadlineMs,loopRevision:value.loop.revision,runRevision:run.revision,originalTimeoutMs:value.job.config.timeoutMs,
     budget:{limit:run.budget.limit,spent:run.budget.spent,reserved,protected:Math.max(legacy,futureVerificationFloor(run))+futureExecutionFloor(run)},
     maxContextChars:value.loop.limits.maxContextChars,storedChars:canonical(nextInput).length,wireChars:wire.prompt.length+JSON.stringify(wire.outputSchema).length,inputDigest:hash(nextInput),wireDigest:hash({prompt:wire.prompt,outputSchema:wire.outputSchema})};
   }
