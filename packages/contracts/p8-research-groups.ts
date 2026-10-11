@@ -26,7 +26,8 @@ export interface ResearchGroupTaskBinding {
   inputDigest: string;
 }
 export interface ResearchGroupInput {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
+  indexed?: import('./p8-research-reader.js').PreparedResearchReader;
   authority: 'untrusted-group-extraction-only';
   registrationId: string;
   group: ResearchGroupDeclaration;

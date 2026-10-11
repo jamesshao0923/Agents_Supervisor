@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "stage": "P8",
-  "revision": "p8-v48-indexed-consumer-author-developing",
+  "revision": "p8-v49-indexed-group-developing",
   "caseIds": [
     "dev.unit-contracts.001",
     "dev.unit-contracts.002",
@@ -944,7 +944,8 @@
     "p6.integration-author-presentation.003",
     "p8.integration-source-refresh-nochange-delivery.001",
     "p8.integration-indexed-research-consumer.001",
-    "p8.integration-indexed-schema-lifecycle.001"
+    "p8.integration-indexed-schema-lifecycle.001",
+    "p8.integration-research-group-execution.008"
   ],
   "requiredRisks": [
     "p0.unit-contracts.001",
@@ -1292,7 +1293,8 @@
     "p6-author-presentation",
     "p8-source-refresh-nochange-delivery",
     "p8-indexed-consumer-complete",
-    "p8-indexed-schema-lifecycle"
+    "p8-indexed-schema-lifecycle",
+    "p8-indexed-group-current-delivery"
   ],
   "coreRegression": [
     "dev.integration-runner.003",

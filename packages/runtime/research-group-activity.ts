@@ -1,3 +1,4 @@
+import {assertIndexedProducerReceipt} from './indexed-research-consumer.js';
 import {writeFile, lstat, realpath, readdir} from 'node:fs/promises';
 import {join} from 'node:path';
 import type {SupervisorStore} from '../persistence/store.js';
@@ -40,6 +41,12 @@ export class ResearchGroupActivity {
     let record = this.store.executionGet(id);
     const before = this.boundary(record);
     ensure((await inspectProcess(record.identity as ProcessIdentity)).status === 'stopped', 'physical group writer unresolved');
+    if(before.input.indexed){
+      let after=0,closed:unknown;while(after<record.lastEventSeq){const page=this.store.executionEvents(id,after);ensure(page.length>0,'group reader closed receipt unavailable');for(const event of page){after=event.seq;if(event.kind==='indexed-reader-closed')closed=event.payload;if(after>=record.lastEventSeq)break;}}
+      const receipt=closed as {readerDigest:string;inputDigest:string;proofs:Record<string,string>}|undefined;
+      ensure(receipt?.readerDigest===before.input.indexed.digest&&receipt.inputDigest===before.input.digest,'actual group reader closure differs');
+      await assertIndexedProducerReceipt(join(this.dataRoot,'execution-indexed-proof',bytesDigest(id),'indexed-reader','binding.json'),receipt.proofs,{jobId:id,attemptId:id,identity:record.identity as ProcessIdentity,inputDigest:before.input.digest,readerDigest:before.input.indexed.digest});
+    }
     const draft = await validateResearchGroupOutput({intake: new MaterialIntake(this.dataRoot), input: before.input, output: record.message});
     const current = this.store.executionGet(id), after = this.boundary(current);
     ensure(after.input.digest === before.input.digest && current.message === record.message &&
@@ -85,12 +92,13 @@ export class ResearchGroupActivity {
   }
   /** Existing worker invokes this before original analysis claim. Failures are
    * durable blocked states, never silently retried or unbounded waiting. */
-  advance(runtimeId: string): void {
+  async advance(runtimeId: string): Promise<void> {
     const record = this.store.researchGroups.byRuntime(runtimeId);
     if (!record || record.state === 'installed' || record.state === 'blocked') return;
     const runtime = this.store.runtime.get(runtimeId);
     if (runtime.cancelled || runtime.paused || runtime.cursor === 0) return;
     try {
+      await this.store.researchGroups.prepareIndexedViews(record.id);
       this.store.researchGroups.prepare(record.id);
       const run = this.store.runtime.inspect(runtimeId).run;
       this.store.researchGroups.install({commandId: 'research-group-auto-install:' + record.id, id: record.id,

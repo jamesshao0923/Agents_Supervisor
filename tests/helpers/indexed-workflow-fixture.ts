@@ -1,3 +1,5 @@
+import {ResearchGroupActivity} from '../../packages/runtime/research-group-activity.js';
+import {ScheduledResultPublisher} from '../../packages/runtime/scheduled-publication.js';
 import {SupervisionController} from '../../packages/orchestration/supervision-controller.js';
 import {LocalRuntimeAdapter} from '../../packages/runtime/index.js';
 import {indexedCodexProtocol} from './indexed-codex-protocol.js';
@@ -80,7 +82,7 @@ async function hashes(dir: string): Promise<Record<string, string>> {
 }
 export async function indexedWorkflowFixture(t: TestContext, fault?: (point: string) => void,
     beforeRuntime?: (store:SupervisorStore,runtime:RuntimeRecord,root:string,workspace:string)=>Promise<void>,
-    evidence?: {timestampSyntheticEvents:true;archiveRoot:string;preserveOriginalRoot?:true}) {
+    evidence?: {timestampSyntheticEvents:true;archiveRoot:string;preserveOriginalRoot?:true}, options?:{indexedGroups:true}) {
     const root = await realpath(await mkdtemp('/tmp/sv-research-host-authority-')), data = join(root, 'data'), workspace = join(root, 'workspace'), source = join(root, 'notes.md');
     await mkdir(workspace);
     await writeFile(source, originalQuote + '\n');
@@ -181,10 +183,51 @@ export async function indexedWorkflowFixture(t: TestContext, fault?: (point: str
         await beforeRuntime(store,runtime,root,workspace);
         runtime=store.runtime.get(runtime.id);
     }
+    if(options?.indexedGroups)store.researchGroups.register({commandId:'indexed-groups',runtimeId:runtime.id,expectedRunRevision:store.runtime.inspect(runtime.id).run.revision,maxActive:2,tier:'low',groups:[{id:'first',purpose:'Summarize assigned original materials without authorizing delivery',materialIds:inputs.slice(0,2).map(input=>input.id),criterionIds:['meaning'],reservation:100},{id:'second',purpose:'Summarize remaining original materials with literal provenance',materialIds:inputs.slice(2).map(input=>input.id),criterionIds:['meaning'],reservation:100}]});
     const activity = new ResearchRuntimeActivity(store, data), acquire = store.runtime.claim(runtime.id, 'fixture-owner')!;
     await activity.acquire(acquire, 'fixture-owner');
+    const groupExecutions:import('../../packages/contracts/p2.js').ExecutionRecord[]=[];
+    if(options?.indexedGroups){
+      await new ResearchGroupActivity(store,data).advance(runtime.id);const registration=store.researchGroups.byRuntime(runtime.id)!;assert.equal(registration.state,'installed');
+      const claims=[];for(const commandId of ['indexed-group-first','indexed-group-second']){const claimed=store.scheduler.claim({commandId,id:registration.schedulerId!,expected:store.scheduler.expected(registration.schedulerId!),owner:'fixture-groups'});assert.equal(claimed.kind,'claimed');if(claimed.kind!=='claimed')throw Error('group claim unavailable');store.scheduler.prepareInputs(claimed.claim.id,'fixture-groups');claims.push(claimed.claim);}
+      // Explicit protocol coordination, not a provider timing/efficiency claim.
+      // Both owned transports must finish their actual first reader response
+      // before either synthetic group answer can complete; no fixed sleep.
+      const barrierDirectory=join(root,'group-reader-ready');await mkdir(barrierDirectory,{mode:0o700});
+      await writeFile(reply,JSON.stringify({kind:'group',value:fixtureProposal(store.researchGroups.inputForClaim(claims[0]!)!.context),groupBarrier:{directory:barrierDirectory,participantIds:registration.groups.map(group=>group.id)}}));
+      const groupManager=new ExecutionManager(store,data);try{
+        await Promise.all(claims.map(claim=>{const binding=store.scheduler.binding(claim.id,'fixture-groups');store.scheduler.markStarted(binding);const {workspaceKind,...start}=store.scheduler.executionInput(claim.id);return groupManager.startScheduled(start,binding);}));
+        const end=Date.now()+45000;while(claims.some(claim=>!store.executionGet(claim.attemptId).stopConfirmed)&&Date.now()<end)await new Promise(resolve=>setTimeout(resolve,25));
+        for(const claim of claims){const actual=store.executionGet(claim.attemptId);assert.equal(actual.state,'completed',actual.error??'group incomplete');assert.equal(actual.stopConfirmed,true);await store.scheduler.reconcileExecution({commandId:'fixture-group:'+claim.id,claimId:claim.id,executionId:actual.id});await new ScheduledResultPublisher(store).publish(store.scheduler.claimGet(claim.id));groupExecutions.push(actual);}
+        assert.equal(new ScheduledResultPublisher(store).releaseIfReady(registration.schedulerId!),true);
+      }finally{await groupManager.close({cancel:false});}
+    }
     const op = store.runtime.claim(runtime.id, 'fixture-owner')!;
+    // Match LocalRuntimeWorker.execute: frozen research input, real copied
+    // branch packages, full qualification, then durable effect intent.
     await activity.prepare(op.id, 'fixture-owner');
+    const integrationReceipt = store.runtime.prepareIntegrationInputs(op.id, 'fixture-owner');
+    store.runtime.eligible(op.id, 'fixture-owner');
+    if(options?.indexedGroups){
+        assert.ok(integrationReceipt, 'Actual grouped integration receipt is required');
+        const copied=JSON.parse(await readFile(integrationReceipt.indexPath,'utf8')) as {
+            runtimeId:string;schedulerId:string;inputs:{binding:import('../../packages/contracts/p7-integration-inputs.js').IntegrationInputBinding['inputBindings'][number]}[]
+        };
+        const registration=store.researchGroups.byRuntime(runtime.id)!;
+        assert.equal(copied.runtimeId,runtime.id);
+        assert.equal(copied.schedulerId,registration.schedulerId);
+        assert.equal(integrationReceipt.indexDigest,digest(Buffer.from(canonical(copied))));
+        const ledger=store.taskResults.inspect({projectId:runtime.projectId,runId:runtime.runId});
+        const expected=groupExecutions.map(execution=>{
+            const claim=store.scheduler.claimGet(execution.scheduledBinding!.claimId);
+            const head=ledger.heads.find(head=>head.taskId===claim.taskId);
+            assert.ok(head, 'Actual completed group must have a submitted result head');
+            return {dependencyNodeId:claim.taskId,result:head.ref,minimumState:'submitted'};
+        });
+        assert.deepEqual([...copied.inputs.map(value=>value.binding)].sort((a,b)=>a.dependencyNodeId.localeCompare(b.dependencyNodeId)),
+            expected.sort((a,b)=>a.dependencyNodeId.localeCompare(b.dependencyNodeId)));
+        store.runtime.verifyIntegrationInputs(op.id);
+    }
     const input = store.runtime.researchInput(op.id)!;
     store.runtime.markStarted(op.id, 'fixture-owner');
     await writeFile(reply,JSON.stringify({kind:'producer',value:fixtureProposal(input.package.context)}));
@@ -320,5 +363,5 @@ export async function indexedWorkflowFixture(t: TestContext, fault?: (point: str
     const final=store.verification.get('job',loop.references.verificationJobId!),plan=store.verification.get('plan',final.planId!),p=store.verification.get('proposal',final.proposalId),author=store.supervision.jobs(loop.id).find(j=>j.purpose==='acceptance-authoring')!,delivery=store.verification.list('delivery',runtime.id)[0]!;
     assert.ok(delivery&&final.approved&&final.kind==='verification'&&plan.selection.mode==='final');
     assert.ok(Object.keys(author.proofs).some(p=>p.endsWith('/indexed-reader/binding.json')));
-    return {root,data,workspace,source,store,p4,runtime,proposal:p,plan,final,context,bundle,author,originalCheck,config,delivery};
+    return {root,data,workspace,source,store,p4,runtime,proposal:p,plan,final,context,bundle,author,originalCheck,config,delivery,groupExecutions};
 }

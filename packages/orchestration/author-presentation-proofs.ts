@@ -18,9 +18,12 @@ function ensure(value: unknown, message: string): asserts value { if (!value) th
 export function authorWireReceipt(job: Pick<SupervisionJob, 'id' | 'input' | 'inputDigest' | 'purpose'>) {
   const wire = authorWireInput(job.input as PresentedAuthorInput, job.purpose);
   if (!wire.presented) return null;
+  const presentation = ((job.input as PresentedAuthorInput).context as {authorPresentation:{schemaVersion:number}}).authorPresentation;
+  const version = presentation.schemaVersion === 3
+    ? {schemaVersion:2,kind:'acceptance-author-wire',presentation}
+    : {schemaVersion:1,kind:'control-evolution-author-wire'};
   return {
-    schemaVersion: 1,
-    kind: 'control-evolution-author-wire',
+    ...version,
     jobId: job.id,
     inputDigest: job.inputDigest,
     promptDigest: bytesHash(wire.prompt),

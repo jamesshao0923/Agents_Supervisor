@@ -37,6 +37,9 @@ test('P6-AUTH-U01 strict proposed assets bind complete contract source environme
   assert.match(prompt, /does not authorize workers, subprocesses, candidate writes/);
   assert.match(prompt, /do not require their future observations to be present in the author input/);
   assert.match(prompt, /report unknown\/failure on unavailable evidence/);
+  assert.match(prompt, /Exit with code 0 exactly when every verdict is passed or not-applicable/);
+  assert.match(prompt, /process.exitCode=1 when any verdict is failed or unknown/);
+  assert.match(prompt, /Missing\/malformed reports, crashes, timeouts and unavailable evidence cannot stand in/);
   assert.equal(acceptanceAuthoringContextDigest(c), b.contextDigest);
   assert.deepEqual(validateAcceptanceBundle(b, c), b, 'Runtime explanation does not change contract or asset semantics');
   assert.throws(() => validateAcceptanceBundle({ ...b, passed: true }, c));

@@ -1,3 +1,4 @@
+import {authorWireInput,AUTHOR_RECOVERY_PRESENTATION_PROMPT_V3} from '../../packages/orchestration/author-presentation.js';
 import test from 'node:test';
 import {createHash} from 'node:crypto';
 import {assertLegacyControlQualification} from '../../packages/verification/control-qualification-gates.js';
@@ -33,7 +34,17 @@ test('P6-AUTHREVIEW-I01 actual P4 command rejection reserves one fresh author at
  const input=await request(f),before=f.store.runtime.inspect(f.runtime.id),old=JSON.stringify({author:f.store.supervision.job(f.old.id),proposal:f.store.verification.get('proposal',oldReview.proposal.id),review:f.store.verification.get('job',oldReview.job.id)});
  assert.equal(oldReview.job.controls.length,1,'actual positive failfast must retain only first failed control');assert.equal(oldReview.job.controls[0]!.id,oldReview.proposal.spec.controls[0]!.id);assert.equal(oldReview.job.controls[0]!.passed,false);assert.equal(oldReview.job.modelStarted,false);assert.equal(oldReview.job.usage,0);assert.throws(()=>assertLegacyControlQualification(oldReview.proposal.spec,oldReview.job.controls),/Complete declared control qualification/);assert.throws(()=>f.store.verification.publish(oldReview.proposal,'incomplete-control-cannot-publish'),/review|approved|qualification/i);
  assert.equal(input.rejection.kind,'review');assert.equal(input.rejection.review!.classification,'control-rejected');assert.throws(()=>f.repo.transaction(()=>{f.repo.begin(input);throw Error('parent rollback')}),/parent rollback/);assert.deepEqual(f.store.runtime.inspect(f.runtime.id),before);assert.equal(f.repo.routes(f.loop.id).length,0);
- const next=f.repo.begin(input);assert.equal(next.job.config.model,'gpt-6-astra');assert.equal(next.job.config.effort,'high');assert.equal(next.job.config.reservation,f.old.config.reservation);assert.equal(futureVerificationFloor(f.store.runtime.inspect(f.runtime.id).run),25);assert.equal(f.store.runtime.inspect(f.runtime.id).run.budget.spent,7);assert.equal(f.store.supervision.get(f.loop.id).repairCount,0);assert.equal(f.store.supervision.get(f.loop.id).references.proposalId,undefined);
+ const next=f.repo.begin(input);
+ const stored=next.job.input as any,wire=authorWireInput(stored,'acceptance-authoring');
+ assert.equal(stored.prompt,AUTHOR_RECOVERY_PRESENTATION_PROMPT_V3);
+ assert.deepEqual(stored.context.acceptance,(f.old.input as any).context.acceptance);
+ assert.deepEqual(stored.context.candidate,(f.old.input as any).context.candidate);
+ assert.deepEqual(stored.context.authorFeedback.rejection.raw,input.rejection.raw);
+ assert.deepEqual(stored.context.authorFeedback.rejection.review.diagnostics,input.rejection.review!.diagnostics);
+ assert.equal(wire.prompt.split(JSON.stringify(stored.context.authorFeedback.rejection.raw.spec.obligations[0]!.expectation)).length>=2,true);
+ assert.ok(JSON.stringify(stored).length+6000<=200000);
+ assert.ok(wire.prompt.length+JSON.stringify(wire.outputSchema).length+6000<=200000);
+ assert.equal(next.job.config.model,'gpt-6-astra');assert.equal(next.job.config.effort,'high');assert.equal(next.job.config.reservation,f.old.config.reservation);assert.equal(futureVerificationFloor(f.store.runtime.inspect(f.runtime.id).run),25);assert.equal(f.store.runtime.inspect(f.runtime.id).run.budget.spent,7);assert.equal(f.store.supervision.get(f.loop.id).repairCount,0);assert.equal(f.store.supervision.get(f.loop.id).references.proposalId,undefined);
  assert.equal(JSON.stringify({author:f.store.supervision.job(f.old.id),proposal:f.store.verification.get('proposal',oldReview.proposal.id),review:f.store.verification.get('job',oldReview.job.id)}),old);f.reopen();assert.deepEqual(f.repo.begin(input),next);assert.throws(()=>f.repo.begin({...input,expectedRevision:input.expectedRevision+1}),/Conflicting/);assert.equal(f.store.supervision.jobs(f.loop.id).length,2);
 });
 test('P6-AUTHREVIEW-I02 changed actual review proof and changed original candidate reject without granting a replacement',async t=>{

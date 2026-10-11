@@ -105,7 +105,7 @@ export class LocalRuntimeWorker {
       return;
     }
     if (runtime.cancelled || runtime.paused || runtime.cursor >= runtime.definition.steps.length) return;
-    new ResearchGroupActivity(this.store,this.dataDir).advance(runtimeId);
+    await new ResearchGroupActivity(this.store,this.dataDir).advance(runtimeId);
     const claimed = this.store.runtime.claim(runtimeId, this.owner);
     if (claimed) await this.execute(claimed);
   }

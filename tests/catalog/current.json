@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-v49-live-gate-entries",
+  "revision": "dev-v50-author-recovery-indexed-groups",
   "modules": [
     {
       "id": "dev-contracts",
@@ -974,7 +974,7 @@
       "id": "integration-research-group-execution",
       "layer": "integration",
       "file": "dist/tests/integration/research-group-execution.test.js",
-      "timeoutMs": 180000
+      "timeoutMs": 300000
     },
     {
       "id": "integration-source-refresh",
@@ -5564,7 +5564,8 @@
         "schema13-startup",
         "v38-combined-impact",
         "v40-research-groups-impact",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/integration/runtime.test.ts: runtime HTTP commit before response survives Worker SIGKILL with stable key and one SQLite effect",
@@ -5589,7 +5590,8 @@
         "schema13-startup",
         "v38-combined-impact",
         "v40-research-groups-impact",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/integration/runtime.test.ts: runtime idempotent HTTP recovery resends the same key after lost response and has one actual effect",
@@ -5614,7 +5616,8 @@
         "schema13-startup",
         "v38-combined-impact",
         "v40-research-groups-impact",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/integration/runtime.test.ts: runtime unknown nonidempotent HTTP effect without query is preserved and never automatically retried",
@@ -5639,7 +5642,8 @@
         "schema13-startup",
         "v38-combined-impact",
         "v40-research-groups-impact",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/integration/runtime.test.ts: runtime service restart retains an alive old Worker and original declared wait history",
@@ -5664,7 +5668,8 @@
         "schema13-startup",
         "v38-combined-impact",
         "v40-research-groups-impact",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/integration/runtime.test.ts: runtime Worker startup stops an actual orphan workspace writer and preserves unknown effects without model replay",
@@ -5689,7 +5694,8 @@
         "schema13-startup",
         "v38-combined-impact",
         "v40-research-groups-impact",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/integration/runtime.test.ts: runtime SIGSTOP SIGCONT process suspension preserves pause input and resumes one declared effect",
@@ -5714,7 +5720,8 @@
         "schema13-startup",
         "v38-combined-impact",
         "v40-research-groups-impact",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/integration/runtime.test.ts: runtime cancellation reaches an in-flight real HTTP request and prevents the later declared step",
@@ -5739,7 +5746,8 @@
         "schema13-startup",
         "v38-combined-impact",
         "v40-research-groups-impact",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/integration/runtime.test.ts: runtime recovery keeps original frozen plan budget failure history and product catalog publication atomic",
@@ -5806,7 +5814,8 @@
         "schema13-startup",
         "v38-combined-impact",
         "v40-research-groups-impact",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node and actual production runtime, SQLite, filesystem and local processes",
       "assertions": "tests/integration/runtime.test.ts: runtime startup ownership recovery stops the released process scope before receipt takeover and fences stale publishers",
@@ -7445,7 +7454,8 @@
         "schema13-startup",
         "v38-combined-impact",
         "v40-research-groups-impact",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
       "assertions": "tests/integration/runtime.test.ts :: P6 revised workflow runs a new real HTTP effect once and preserves prior checkpoint across service restart",
@@ -17954,7 +17964,8 @@
         "v38-combined-impact",
         "v40-research-groups-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
       "assertions": "tests/integration/research-runtime.test.ts :: P8-RUN-I01 actual materials operation same Run structured input and stopped process materialization charge only real activity types without claiming semantic delivery",
@@ -17978,7 +17989,8 @@
         "v38-combined-impact",
         "v40-research-groups-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
       "assertions": "tests/integration/research-runtime.test.ts :: P8-RUN-I02 actual input tamper blocks dispatch and terminal artifact while stopped known fixture usage settles and original material archive stays unchanged",
@@ -18002,7 +18014,8 @@
         "v38-combined-impact",
         "v40-research-groups-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
       "assertions": "tests/integration/research-runtime.test.ts :: P8-RUN-I03 actual incomplete archive is retained unknown on recovery and cannot invent a receipt or free a pending operation",
@@ -18026,7 +18039,8 @@
         "v38-combined-impact",
         "v40-research-groups-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
       "assertions": "tests/integration/research-runtime.test.ts :: P8-RUN-I04 actual frozen input self-rehash cannot change original prompt schema requirements or report target and failed binding rolls back unchanged Run",
@@ -18050,7 +18064,8 @@
         "v38-combined-impact",
         "v40-research-groups-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
       "assertions": "tests/integration/research-runtime.test.ts :: P8-RUN-I05 actual native P4 proposal freezes same-Run material receipts literal evidence and real refresh rejects changed original without granting semantic delivery",
@@ -18074,7 +18089,8 @@
         "v38-combined-impact",
         "v40-research-groups-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
       "assertions": "tests/integration/research-runtime.test.ts :: P8-RUN-I06 actual P5 research admission preserves original material criteria and budget while host appends only acquisition dependency",
@@ -18098,7 +18114,8 @@
         "v38-combined-impact",
         "v40-research-groups-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
       "assertions": "tests/integration/research-runtime.test.ts :: P8-RUN-I07 actual existing worker acquires a partial unsupported local archive and records exact-once zero-cost receipt without any model or delivery",
@@ -18122,7 +18139,8 @@
         "v38-combined-impact",
         "v40-research-groups-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
       "assertions": "tests/integration/research-runtime.test.ts :: P8-RUN-I08 actual terminal foreign-message fatal diagnostic unknown usage and late pause cancel reject publication while preserving actual stop and accounting",
@@ -20246,7 +20264,8 @@
         "v40-research-groups-impact",
         "v41-source-refresh-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
       "assertions": "tests/integration/research-groups.test.ts :: P8-GRP-I01 actual five-material receipt freezes full mandatory coverage and installs same-Run graph final floor and real claims",
@@ -20268,7 +20287,8 @@
         "v40-research-groups-impact",
         "v41-source-refresh-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
       "assertions": "tests/integration/research-groups.test.ts :: P8-GRP-I02 parent SQLite rollback and stale CAS pause cancel reject group authority without partial graph floor or receipts",
@@ -20290,7 +20310,8 @@
         "v40-research-groups-impact",
         "v41-source-refresh-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
       "assertions": "tests/integration/research-groups.test.ts :: P8-GRP-I03 unknown acquisition and unknown shared claim accounting preserve reservations effects and block new dispatch",
@@ -20312,7 +20333,8 @@
         "v40-research-groups-impact",
         "v41-source-refresh-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
       "assertions": "tests/integration/research-groups.test.ts :: P8-GRP-I04 missing coverage expanded requests tampered host plan partial input and changed archive cannot grant installation",
@@ -20334,7 +20356,8 @@
         "v40-research-groups-impact",
         "v41-source-refresh-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
       "assertions": "tests/integration/research-groups.test.ts :: P8-GRP-I05 two actual Node processes use SQLite CAS for one exact same-Run claim and never double-reserve",
@@ -20356,7 +20379,8 @@
         "v40-research-groups-impact",
         "v41-source-refresh-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
       "assertions": "tests/integration/research-groups.test.ts :: P8-GRP-I06 actual process exit inside install transaction rolls back graph floor and scheduler and restart reuses exact owned preparation",
@@ -20378,7 +20402,8 @@
         "v40-research-groups-impact",
         "v41-source-refresh-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
       "assertions": "tests/integration/research-groups.test.ts :: P8-GRP-I07 ordinary runtime and ordinary engineering install guards remain exact while registered native material acquisition stays runnable",
@@ -20400,7 +20425,8 @@
         "v40-research-groups-impact",
         "v41-source-refresh-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
       "assertions": "tests/integration/research-group-execution.test.ts :: P8-GROUP-EXEC-I01 actual material spans schema and complete unavailable coverage reject fabricated quotations cross-material summaries and omitted gaps",
@@ -20422,7 +20448,8 @@
         "v40-research-groups-impact",
         "v41-source-refresh-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
       "assertions": "tests/integration/research-group-execution.test.ts :: P8-GROUP-EXEC-I02 actual stopped branches publish submitted host extractions and full original analysis freezes exact refs through native P4 binding",
@@ -20444,7 +20471,8 @@
         "v40-research-groups-impact",
         "v41-source-refresh-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
       "assertions": "tests/integration/research-group-execution.test.ts :: P8-GROUP-EXEC-I03 actual structured refusal late pause cancel and unknown accounting retain raw output stop and original budget without TaskResult",
@@ -20466,7 +20494,8 @@
         "v40-research-groups-impact",
         "v41-source-refresh-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
       "assertions": "tests/integration/research-group-execution.test.ts :: P8-GROUP-EXEC-I04 actually running writer and rehashed host receipt cannot forge publication or free shared reservations",
@@ -20488,7 +20517,8 @@
         "v40-research-groups-impact",
         "v41-source-refresh-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
       "assertions": "tests/integration/research-group-execution.test.ts :: P8-GROUP-EXEC-I05 actual Manager JSON line transport requests read-only and exact structured schema then persists raw stopped extraction",
@@ -20510,7 +20540,8 @@
         "v40-research-groups-impact",
         "v41-source-refresh-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
       "assertions": "tests/integration/research-group-execution.test.ts :: P8-GROUP-EXEC-I06 actual worker tick automatically installs once and records immutable input failure as readable blocked state across restart",
@@ -20532,7 +20563,8 @@
         "v40-research-groups-impact",
         "v41-source-refresh-impact",
         "v42-research-group-entry-impact",
-        "v44-source-refresh-delivery-impact"
+        "v44-source-refresh-delivery-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
       "assertions": "tests/integration/research-group-execution.test.ts :: P8-GROUP-EXEC-I07 actual process exit after exclusive host receipt recovers original evidence once without replay or duplicate fee",
@@ -20852,7 +20884,8 @@
       "scenario": "P8-READER-U01 complete raw HTML Unicode page index and global UTF16 range preserve every original byte",
       "impactTags": [
         "p8-indexed-reader-integrity",
-        "v45-indexed-reader-impact"
+        "v45-indexed-reader-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Actual MaterialIntake, archived filesystem bytes and owned Node transport. Supplier protocol fixtures are synthetic; no real provider or semantic acceptance.",
       "assertions": "tests/unit/research-reader.test.ts :: P8-READER-U01 complete raw HTML Unicode page index and global UTF16 range preserve every original byte",
@@ -20871,7 +20904,8 @@
       "scenario": "P8-READER-U02 literal search reports total matches truncation context neighborhoods and no-match without a verdict",
       "impactTags": [
         "p8-indexed-reader-integrity",
-        "v45-indexed-reader-impact"
+        "v45-indexed-reader-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Actual MaterialIntake, archived filesystem bytes and owned Node transport. Supplier protocol fixtures are synthetic; no real provider or semantic acceptance.",
       "assertions": "tests/unit/research-reader.test.ts :: P8-READER-U02 literal search reports total matches truncation context neighborhoods and no-match without a verdict",
@@ -20890,7 +20924,8 @@
       "scenario": "P8-READER-U03 selection and strict typed bounds reject unauthorized source split-surrogate oversized and extra arguments",
       "impactTags": [
         "p8-indexed-reader-integrity",
-        "v45-indexed-reader-impact"
+        "v45-indexed-reader-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Actual MaterialIntake, archived filesystem bytes and owned Node transport. Supplier protocol fixtures are synthetic; no real provider or semantic acceptance.",
       "assertions": "tests/unit/research-reader.test.ts :: P8-READER-U03 selection and strict typed bounds reject unauthorized source split-surrogate oversized and extra arguments",
@@ -20909,7 +20944,8 @@
       "scenario": "P8-READER-U04 actual archive tamper alias rehashed metadata and accessor host input cannot become readable evidence",
       "impactTags": [
         "p8-indexed-reader-integrity",
-        "v45-indexed-reader-impact"
+        "v45-indexed-reader-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Actual MaterialIntake, archived filesystem bytes and owned Node transport. Supplier protocol fixtures are synthetic; no real provider or semantic acceptance.",
       "assertions": "tests/unit/research-reader.test.ts :: P8-READER-U04 actual archive tamper alias rehashed metadata and accessor host input cannot become readable evidence",
@@ -20928,7 +20964,8 @@
       "scenario": "P8-READER-U05 full response capacity rejects rather than silently truncating and caller mutation freezes before await",
       "impactTags": [
         "p8-indexed-reader-integrity",
-        "v45-indexed-reader-impact"
+        "v45-indexed-reader-impact",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Actual MaterialIntake, archived filesystem bytes and owned Node transport. Supplier protocol fixtures are synthetic; no real provider or semantic acceptance.",
       "assertions": "tests/unit/research-reader.test.ts :: P8-READER-U05 full response capacity rejects rather than silently truncating and caller mutation freezes before await",
@@ -21183,7 +21220,8 @@
       "scenario": "P8-IDXC-I01 explicit indexed single analysis automatic author actual controls full final seal and reopen preserve original sources and budget",
       "impactTags": [
         "p8-indexed-consumer-impact",
-        "p8-indexed-consumer-complete"
+        "p8-indexed-consumer-complete",
+        "p8-indexed-group-main-impact"
       ],
       "prerequisites": "Real SQLite/FS and owned Node. Protocol judgments/usage are explicitly synthetic, no provider/native acceptance.",
       "assertions": "tests/integration/indexed-research-consumer.test.ts :: P8-IDXC-I01 explicit indexed single analysis automatic author actual controls full final seal and reopen preserve original sources and budget",
@@ -21261,6 +21299,26 @@
       "prerequisites": "Authenticated installed Codex; advertised inherited model and effort; frozen exact selection; actual supplier execution required, no injected protocol fixture",
       "assertions": "tests/live/running-followup.test.ts :: P6 running followup survives real service restart applies once and independently delivers original plus additive requirements",
       "cleanup": "Cancel unfinished actual runtime, stop owned service/worker/model identities, preserve all DB/raw output/usage/unknown reservations and failure archives",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-research-group-execution.008",
+      "name": "P8-GROUP-EXEC-I08 actual indexed assigned group readers summarize concurrently then full current analysis independent P4 seals all original sources",
+      "suiteId": "integration-research-group-execution",
+      "module": "indexed-research-consumer",
+      "layer": "integration",
+      "covers": [
+        "p8-indexed-group-current-delivery"
+      ],
+      "scenario": "P8-GROUP-EXEC-I08 actual indexed assigned group readers summarize concurrently then full current analysis independent P4 seals all original sources",
+      "impactTags": [
+        "p8-indexed-group-impact",
+        "p8-indexed-consumer-impact",
+        "p8-indexed-group-main-impact"
+      ],
+      "prerequisites": "Actual local MaterialIntake/SQLite and owned Node transport; interpretation and usage are explicit synthetic supplier metadata, no public-provider claim.",
+      "assertions": "tests/integration/research-group-execution.test.ts :: P8-GROUP-EXEC-I08 actual indexed assigned group readers summarize concurrently then full current analysis independent P4 seals all original sources",
+      "cleanup": "Stop exact owned group/current/review processes; retain actual roots/evidence and close SQLite.",
       "status": "active"
     }
   ]

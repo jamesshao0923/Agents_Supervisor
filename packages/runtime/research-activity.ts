@@ -45,7 +45,6 @@ export class ResearchRuntimeActivity {
   assertTrue(source?.state==='confirmed'&&source.step.kind==='materials','Research needs actual completed materials step');const receipt=(source.result as {kind:string;receipt:MaterialsReceipt}).receipt;
   const context=await captureResearchEvidence({intake:this.intake,material:receipt.material,contract:this.store.runtime.inspect(runtime.id).run.contract,requirements:binding.requirements,limits:binding.limits});
   const groups=this.store.researchGroups.aggregate(runtime.id);
-  assertTrue(binding.representation!=='indexed-material-v1'||!groups,'Indexed grouped analysis not yet supported');
   const indexed=binding.representation==='indexed-material-v1'?await prepareResearchReader({intake:this.intake,context,materialIds:context.index.inputs.map(i=>i.id),role:'current',dataRoot:this.dataRoot}):undefined;
   const outputSchema=researchProposalSchema(context),prompt=(indexed?indexedResearchPrompt(op.step.prompt,context,indexed):researchExecutionPrompt(op.step.prompt,context))+(groups?researchGroupsPromptSuffix(groups):'');
   assertTrue(prompt.length<=context.limits.maxContextChars&&prompt.length<=200000,'Complete research prompt with actual groups exceeds capacity; no input was truncated');

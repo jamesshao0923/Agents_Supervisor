@@ -14,6 +14,9 @@ test('P8-READER-U01 complete raw HTML Unicode page index and global UTF16 range 
   const text = 'ab😀' + 'c'.repeat(25) + '<script>untrusted instructions</script>尾';
   const f = await researchReaderFixture(t, {text, limits: {pageChars: 3, maxRangeChars: 16384,
     maxResponseChars: 65536, maxSearchResults: 16, maxQueryChars: 256}});
+  const reuse={intake:f.intake,context:f.context,materialIds:['one'],role:'current' as const,dataRoot:f.data,limits:f.reader.view.limits};
+  assert.deepEqual(await prepareResearchReader(reuse),f.reader,'exact immutable view is reused without replacing bytes');
+  assert.deepEqual(await prepareResearchReader(reuse),f.reader,'same descriptor remains stable for separate consumers');
   const source = f.reader.view.sources[0]!; assert.equal(source.utf16Length, text.length);
   let cursor = 0, restored = '';
   for (const page of source.pages) {

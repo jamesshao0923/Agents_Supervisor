@@ -1,3 +1,7 @@
+import {assertIndexedProducerReceiptSync} from '../workspace/indexed-consumer-proof.js';
+import {MaterialIntake} from '../workspace/material-intake.js';
+import {prepareResearchReader} from '../workspace/research-reader.js';
+import type {PreparedResearchReader} from '../contracts/p8-research-reader.js';
 import {createHash} from 'node:crypto';
 import {mkdirSync, realpathSync, lstatSync, writeFileSync, readdirSync} from 'node:fs';
 import {join, resolve} from 'node:path';
@@ -336,15 +340,28 @@ export class ResearchGroupsRepository {
     }
     return path;
   }
+  async prepareIndexedViews(id:string):Promise<void>{
+    const record=this.get(id),actual=this.acquired(record,false);
+    if(actual.analysis.research!.representation!=='indexed-material-v1')return;
+    const context=projectResearchEvidence(actual.run.contract,actual.analysis.research!.requirements,actual.analysis.research!.limits,actual.receipt.index);
+    for(const group of record.groups){
+      const reader=await prepareResearchReader({intake:new MaterialIntake(this.dataRoot),context,materialIds:group.materialIds,role:'current',dataRoot:this.dataRoot});
+      const directory=this.directory('research-group-inputs',hash(record.id),group.id),path=join(directory,'reader.json');
+      try{writeFileSync(path,canonical(reader),{flag:'wx',mode:0o600});}catch(error){if((error as NodeJS.ErrnoException).code!=='EEXIST')throw error;ensure(researchDigest(JSON.parse(readBounded(path).toString('utf8')))===researchDigest(reader),'conflicting group reader retained');}
+      const latest=this.get(id),now=this.acquired(latest,false);ensure(latest.configurationDigest===record.configurationDigest&&now.receipt.digest===actual.receipt.digest,'group view preparation scope changed');
+    }
+  }
   private input(record: ResearchGroupsRecord, groupId: string): ResearchGroupInput {
     const actual = this.acquired(record, false), group = record.groups.find(item => item.id === groupId);
     ensure(group, 'unknown group');
     const context = projectResearchEvidence(actual.run.contract, actual.analysis.research!.requirements,
       actual.analysis.research!.limits, actual.receipt.index);
+    const indexed=actual.analysis.research!.representation==='indexed-material-v1'?JSON.parse(readBounded(join(realpathSync(this.dataRoot),'research-group-inputs',hash(record.id),group.id,'reader.json')).toString('utf8')) as PreparedResearchReader:undefined;
+    if(indexed)ensure(indexed.schemaVersion===1&&indexed.view.role==='current'&&canonical(indexed.context)===canonical(context)&&canonical(indexed.view.allowedMaterialIds)===canonical(group.materialIds)&&researchDigest(JSON.parse(readBounded(indexed.path).toString('utf8')))===researchDigest(indexed),'frozen group reader scope changed');
     const sources = group.materialIds.map(id => {
       const entry = context.index.entries.find(item => item.id === id)!;
       let text: string | null = null;
-      if (entry.status === 'success' && entry.text?.complete) {
+      if (!indexed && entry.status === 'success' && entry.text?.complete) {
         const buffer = readBounded(join(context.index.directory, entry.text.path), context.index.limits.maxItemBytes);
         ensure(buffer.length === entry.text.size && bytesDigest(buffer) === entry.text.sha256,
           'source buffer changed after archive inspection');
@@ -352,7 +369,7 @@ export class ResearchGroupsRepository {
       }
       return {materialId: id, text, status: entry.status};
     });
-    const body = {schemaVersion: 1 as const, authority: 'untrusted-group-extraction-only' as const,
+    const body = {schemaVersion: (indexed?2:1) as 1|2, ...(indexed?{indexed}:{}), authority: 'untrusted-group-extraction-only' as const,
       registrationId: record.id, group: structuredClone(group), materialReceiptDigest: actual.receipt.digest, context, sources};
     ensure(canonical(body).length <= actual.analysis.research!.limits.maxContextChars,
       'full bound group context capacity exceeded; no source or failed coverage is silently removed');
@@ -526,6 +543,11 @@ export class ResearchGroupsRepository {
       .all(execution.id, after).map(row => ({seq: Number(row.seq), executionId: String(row.execution_id),
         receivedAt: String(row.received_at), kind: String(row.kind), payload: JSON.parse(String(row.payload))}));
     researchCompletionEvents(execution, readEvents);
+    if(input.indexed){let after=0,closed:unknown;while(after<execution.lastEventSeq){const page=readEvents(after);ensure(page.length>0,'indexed group reader receipt unavailable');for(const event of page){after=event.seq;if(event.kind==='indexed-reader-closed')closed=event.payload;if(after>=execution.lastEventSeq)break;}}
+      const value=closed as {readerDigest:string;inputDigest:string;proofs:Record<string,string>}|undefined;
+      ensure(value?.readerDigest===input.indexed.digest&&value.inputDigest===input.digest&&execution.identity,'actual group reader receipt differs');
+      assertIndexedProducerReceiptSync(join(realpathSync(this.dataRoot),'execution-indexed-proof',bytesDigest(execution.id),'indexed-reader','binding.json'),value.proofs,{jobId:execution.id,attemptId:execution.id,identity:execution.identity as import('../process-control/index.js').ProcessIdentity,inputDigest:input.digest,readerDigest:input.indexed.digest});
+    }
     const path = join(realpathSync(this.dataRoot), 'research-group-completions', hash(execution.id), 'receipt.json');
     const receipt = JSON.parse(readBounded(path).toString('utf8')) as ResearchGroupCompletion;
     ensure(Number.isSafeInteger(receipt.eventPrefixSeq) && receipt.eventPrefixSeq <= execution.lastEventSeq, 'invalid actual completion prefix');

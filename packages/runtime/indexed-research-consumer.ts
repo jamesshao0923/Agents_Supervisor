@@ -22,10 +22,19 @@ export class IndexedResearchConsumer {
  #session:MaterialReaderSession|undefined;
  private constructor(key:symbol,readonly reader:PreparedResearchReader,readonly jobId:string,readonly attemptId:string,readonly inputDigest:string,private readonly boundary:()=>void,private readonly identityBound:(identity:ProcessIdentity)=>void,readonly callRoot?:string){ensure(key===grantKey,'Host factory required; caller cannot construct a grant');this.reader=freeze(structuredClone(reader));for(const name of ['reader','jobId','attemptId','inputDigest','boundary','identityBound','callRoot'])Object.defineProperty(this,name,{writable:false,configurable:false});grants.add(this);}
  static async execution(store:SupervisorStore,id:string):Promise<IndexedResearchConsumer|null>{
-  const record=store.executionGet(id);if(!record.runtimeBinding)return null;
+  const record=store.executionGet(id);
+  if(record.scheduledBinding){
+   const claim=store.scheduler.claimGet(record.scheduledBinding.claimId),input=store.researchGroups.inputForClaim(claim);
+   if(!input?.indexed)return null;
+   const reader=structuredClone(input.indexed),digest=input.digest;
+   const boundary=()=>{const e=store.executionGet(id),actualClaim=store.scheduler.claimGet(claim.id),actual=store.researchGroups.assertDispatch(actualClaim);
+    ensure(e.scheduledBinding?.claimId===actualClaim.id&&e.scheduledBinding.operationId===actualClaim.operationId&&e.id===actualClaim.attemptId&&e.runId===actualClaim.runId&&e.projectId===actualClaim.projectId&&!e.cancelRequested&&['starting','running','waiting'].includes(e.state)&&actual?.schemaVersion===2&&actual.digest===digest&&actual.indexed&&researchDigest(actual.indexed)===researchDigest(reader)&&reader.view.role==='current'&&researchDigest(reader.view.allowedMaterialIds)===researchDigest(actual.group.materialIds),'Actual indexed group execution scope changed');
+   };boundary();await assertResearchReader(reader);boundary();return new IndexedResearchConsumer(grantKey,reader,id,id,digest,boundary,identity=>{ensure(researchDigest(store.executionGet(id).identity)===researchDigest(identity),'Actual group process identity differs');});
+  }
+  if(!record.runtimeBinding)return null;
   const op=store.runtime.getOperation(record.runtimeBinding.operationId),input=store.runtime.researchInput(op.id);
   if(!input?.package.indexed)return null;
-  ensure(input.package.schemaVersion===2&&!input.package.groups,'Only explicit single-analysis indexed package supported');
+  ensure(input.package.schemaVersion===2,'Only explicit indexed package supported');
   const digest=input.digest,reader=structuredClone(input.package.indexed);
   const boundary=()=>{const e=store.executionGet(id),o=store.runtime.getOperation(op.id),r=store.runtime.get(o.runtimeId),run=store.runtime.inspect(r.id).run;
    ensure(e.runtimeBinding?.operationId===o.id&&e.runtimeBinding.owner===o.owner&&o.executionId===id&&e.runId===run.id&&e.projectId===run.projectId&&o.contractVersion===run.contract.version&&!r.cancelled&&!r.paused&&!e.cancelRequested&&['starting','running','waiting'].includes(e.state),'Execution scope no longer dispatchable');
@@ -74,38 +83,4 @@ export class IndexedResearchConsumer {
  }
 }
 
-/** Reopening validates copies and the actual original journal; no semantic authority. */
-export function assertIndexedConsumerArchiveSync(path:string,expected:{jobId:string;attemptId:string;identities:ProcessIdentity[];inputDigest?:string;readerDigest?:string},requireClosed=true) {
- const proof=JSON.parse(readBounded(path,1024*1024).toString('utf8')) as {schemaVersion:number;authority:string;grantVersion?:number;callRoot?:string;owner:{jobId:string;attemptId:string;inputDigest:string};reader:PreparedResearchReader;originalDirectory:string;files:Record<string,string>};
- ensure(expected.inputDigest===undefined||proof.owner.inputDigest===expected.inputDigest,'Reader actual frozen input differs');
- ensure(expected.readerDigest===undefined||proof.reader.digest===expected.readerDigest,'Reader actual frozen view differs');
- ensure(proof.schemaVersion===1&&proof.authority==='material-integrity-only'&&proof.owner.jobId===expected.jobId&&proof.owner.attemptId===expected.attemptId,'Reader archive owner changed');
- const {digest:readerDigest,...readerBody}=proof.reader;ensure(researchDigest(readerBody)===readerDigest&&researchDigest(JSON.parse(readBounded(proof.reader.path).toString('utf8')))===researchDigest(proof.reader),'Frozen reader file changed');
- assertMaterialIndex(proof.reader.context.index);let bytes=0;const records:import('../contracts/p8-research-reader.js').ResearchReaderAudit[]=[];
- const originalOwner=JSON.parse(readBounded(join(proof.originalDirectory,'owner.json')).toString('utf8')) as {owner:import('../contracts/p8-research-reader.js').ResearchReaderOwner;readerDigest:string;protocolDigest:string;schemaVersion:number;protocol:string};
- ensure(originalOwner.schemaVersion===1&&originalOwner.protocol==='indexed-material-v1'&&originalOwner.protocolDigest===MATERIAL_READER_SCHEMA_DIGEST&&originalOwner.readerDigest===proof.reader.digest&&originalOwner.owner.jobId===expected.jobId&&originalOwner.owner.attemptId===expected.attemptId&&originalOwner.owner.inputDigest===proof.owner.inputDigest&&expected.identities.some(i=>researchDigest(i)===researchDigest(originalOwner.owner.processIdentity)),'Reader actual process ownership differs');
- const root=proof.reader.context.material.directory.substring(0,proof.reader.context.material.directory.lastIndexOf('/material-intake/'));
- ensure(proof.originalDirectory===join(root,'material-reader-sessions',bytesDigest(researchDigest({owner:originalOwner.owner,viewDigest:proof.reader.view.digest,protocolDigest:originalOwner.protocolDigest}))),'Reader journal path is not derived from actual owner');
- for(const [copy,sha]of Object.entries(proof.files)){
-  ensure(copy===join(dirname(path),basename(copy))&&(basename(copy)==='owner.json'||/^\d+\.json$/.test(basename(copy))),'Reader copy escaped proof directory');const value=readBounded(copy,6*1024*1024);bytes+=value.length;ensure(bytes<=6*1024*1024&&bytesDigest(value)===sha,'Reader audit changed or exceeded capacity');
-  const name=copy.slice(copy.lastIndexOf('/')+1);ensure(bytesDigest(readBounded(join(proof.originalDirectory,name),6*1024*1024))===sha,'Original reader journal differs from copied proof');if(name!=='owner.json')records.push(JSON.parse(value.toString('utf8')));
- }
- records.sort((a,b)=>a.sequence-b.sequence);for(let i=0;i<records.length;i++){const r=records[i]!,{digest,...body}=r;ensure(r.sequence===i+1&&researchDigest(body)===digest&&researchDigest(r.owner)===researchDigest(originalOwner.owner)&&r.viewDigest===proof.reader.view.digest,'Reader journal binding/order changed');}
- if(requireClosed)ensure(records.at(-1)?.stage==='closed'&&!records.some(r=>r.stage==='aborted'),'Incomplete reader cannot support applicable result');
- ensure(readdirSync(dirname(path)).filter(name=>name!=='binding.json').sort().join('|')===Object.keys(proof.files).map(name=>basename(name)).sort().join('|'),'Copied reader inventory changed');
- ensure(readdirSync(proof.originalDirectory).sort().join('|')===['owner.json',...records.map(r=>r.sequence+'.json')].sort().join('|'),'Original reader inventory changed');
- return {proof,records};
-}
-export async function assertIndexedConsumerArchive(path:string,expected:{jobId:string;attemptId:string;identities:ProcessIdentity[];inputDigest?:string;readerDigest?:string},requireClosed=true){
- const actual=assertIndexedConsumerArchiveSync(path,expected,requireClosed);await assertResearchReader(actual.proof.reader);return actual;
-}
-
-/** Exact receipt inventory; neither a payload label nor an empty proof list is a grant. */
-export async function assertIndexedProducerReceipt(path:string,proofs:Record<string,string>,expected:{jobId:string;attemptId:string;identity:ProcessIdentity;inputDigest:string;readerDigest:string}) {
- ensure(Object.keys(proofs).length>0&&Object.keys(proofs).filter(p=>p.endsWith('/indexed-reader/binding.json')).length===1&&proofs[path],'Actual complete producer reader binding required');
- const actual=await assertIndexedConsumerArchive(path,{jobId:expected.jobId,attemptId:expected.attemptId,identities:[expected.identity],inputDigest:expected.inputDigest,readerDigest:expected.readerDigest});
- const inventory={...actual.proof.files,[path]:bytesDigest(readBounded(path))};
- ensure(researchDigest(proofs)===researchDigest(inventory),'Producer reader receipt inventory differs');
- for(const [p,sha]of Object.entries(inventory))ensure(bytesDigest(readBounded(p,6*1024*1024))===sha,'Producer reader receipt bytes changed');
- return actual;
-}
+export {assertIndexedConsumerArchiveSync,assertIndexedConsumerArchive,assertIndexedProducerReceipt} from '../workspace/indexed-consumer-proof.js';

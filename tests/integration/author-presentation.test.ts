@@ -26,7 +26,8 @@ async function setup(t: TestContext) {
   return { ...f, engineContext: f.context, context, bundle };
 }
 
-import {CONTROL_EVOLUTION_PRESENTATION_PROMPT,CONTROL_EVOLUTION_PRESENTATION_PROMPT_V2,renderControlEvolutionPrompt,authorWireInput,assertAuthorWireCapacity} from '../../packages/orchestration/author-presentation.js';
+import {CONTROL_EVOLUTION_PRESENTATION_PROMPT,CONTROL_EVOLUTION_PRESENTATION_PROMPT_V2,CONTROL_EVOLUTION_PRESENTATION_PROMPT_V3,AUTHOR_RECOVERY_PRESENTATION_PROMPT_V3,renderControlEvolutionPrompt,renderControlEvolutionPromptV2,authorRecoveryInput,authorWireInput,assertAuthorWireCapacity} from '../../packages/orchestration/author-presentation.js';
+import {COMMAND_AUTHOR_RUNTIME_CONTEXT,COMMAND_AUTHOR_EXIT_CONTEXT_V3} from '../../packages/orchestration/acceptance-runtime-guidance.js';
 import {controlEvolutionAuthorInput} from '../../packages/orchestration/acceptance-authoring-v2.js';
 import {authorWireReceipt,assertAuthorWireProof} from '../../packages/orchestration/author-presentation-proofs.js';
 import {SupervisorStore} from '../../packages/persistence/store.js';
@@ -38,7 +39,7 @@ import {runtimeCanonical} from '../../packages/persistence/runtime.js';
 
 // Real SQLite, actual managed Node process, complete actual request transcripts.
 // Output and seven tokens are explicit protocol fixtures, not provider approval.
-async function runtimeFixture(t:TestContext,maxContextChars=200000,presentationVersion:1|2=2){
+async function runtimeFixture(t:TestContext,maxContextChars=200000,presentationVersion:1|2|3|'recovery'=3){
   const f=await setup(t),workspace=join(f.root,'runtime');await mkdir(workspace);
   const data=join(f.root,'store');let store=new SupervisorStore(data);
   const runtime=store.runtime.submit({type:'submit',commandId:'runtime',workspace,workspaceKind:'project',goal:'Frozen standard',tokenLimit:100,verificationReserve:20,steps:[{id:'input',kind:'input',prompt:'Original input'}]});
@@ -48,7 +49,9 @@ async function runtimeFixture(t:TestContext,maxContextChars=200000,presentationV
   const loop=store.supervision.attach({commandId:'loop',runtimeId:runtime.id,config:{model:'explicit-node-protocol-fixture',effort:'low',reservation:30,timeoutMs:5000},limits:{maxRepairs:1,maxReasoningCalls:4,maxDurationMs:60000,maxContextChars}});
   t.after(()=>store.close());
   const latest=controlEvolutionAuthorInput({acceptance:f.context.current,candidate:{fixture:'complete candidate already in evolution'},evolution:f.context});
-  const input=presentationVersion===2?latest:{...latest,prompt:CONTROL_EVOLUTION_PRESENTATION_PROMPT,context:{...latest.context,authorPresentation:{schemaVersion:1 as const,kind:'control-evolution' as const}}};
+  const input=presentationVersion==='recovery'
+    ? authorRecoveryInput({acceptance:f.context.current,candidate:{fixture:'complete candidate already in acceptance'},authorFeedback:{schemaVersion:1,attempt:1,previousJobId:'prior-explicit-fixture',inputDigest:'a'.repeat(64),rejection:{schemaVersion:1,kind:'review',raw:f.bundle,diagnostics:'Full rejected evidence retained. '.repeat(2000)},references:{missing:[]}}},latest.outputSchema)
+    : presentationVersion===3?latest:{...latest,prompt:presentationVersion===2?CONTROL_EVOLUTION_PRESENTATION_PROMPT_V2:CONTROL_EVOLUTION_PRESENTATION_PROMPT,context:{...latest.context,authorPresentation:{schemaVersion:presentationVersion,kind:'control-evolution' as const}}};
   return {...f,data,runtime,loop,input,get store(){return store;},reopen(){store.close();store=new SupervisorStore(data);},begin(value:unknown=input,commandId='author'){return store.supervision.beginJob({commandId,loopId:loop.id,expectedRevision:store.supervision.get(loop.id).revision,purpose:'acceptance-authoring',context:value});}};
 }
 class NodeWireTransport implements SupervisorReasoner{
@@ -71,18 +74,34 @@ class NodeWireTransport implements SupervisorReasoner{
 
 test('P6-AUTH-PRESENT-I01 explicit presentation preserves complete context and exact legacy wire text',async t=>{
   const f=await runtimeFixture(t),legacy=buildControlEvolutionAuthoringPrompt(f.context),wire=authorWireInput(f.input,'acceptance-authoring');
-  const v1={...f.input,prompt:CONTROL_EVOLUTION_PRESENTATION_PROMPT,context:{...f.input.context,authorPresentation:{schemaVersion:1,kind:'control-evolution'}}};
+  const v1={...f.input,prompt:CONTROL_EVOLUTION_PRESENTATION_PROMPT,context:{...(f.input.context as object),authorPresentation:{schemaVersion:1,kind:'control-evolution'}}};
   assert.equal(authorWireInput(v1,'acceptance-authoring').prompt,legacy);
   assert.equal(renderControlEvolutionPrompt(f.context),legacy);
   assert.ok(wire.prompt.startsWith(legacy+'\n\n'));
   assert.match(wire.prompt,/SUPERVISOR_VERIFY_TYPESCRIPT_MODULE/);
   assert.ok(!legacy.includes('SUPERVISOR_VERIFY_TYPESCRIPT_MODULE'));
-  assert.equal(f.input.prompt,CONTROL_EVOLUTION_PRESENTATION_PROMPT_V2);assert.deepEqual(f.input.context.evolution,f.context);assert.deepEqual(f.input.context.acceptance,f.context.current);
+  assert.equal(f.input.prompt,CONTROL_EVOLUTION_PRESENTATION_PROMPT_V3);assert.deepEqual((f.input.context as any).evolution,f.context);assert.deepEqual((f.input.context as any).acceptance,f.context.current);
+  const v2={...f.input,prompt:CONTROL_EVOLUTION_PRESENTATION_PROMPT_V2,context:{...(f.input.context as object),authorPresentation:{schemaVersion:2,kind:'control-evolution'}}};
+  assert.equal(authorWireInput(v2,'acceptance-authoring').prompt,legacy+'\n\n'+COMMAND_AUTHOR_RUNTIME_CONTEXT);
+  assert.equal(renderControlEvolutionPromptV2(f.context),legacy+'\n\n'+COMMAND_AUTHOR_RUNTIME_CONTEXT);
+  assert.equal(wire.prompt,renderControlEvolutionPromptV2(f.context)+'\n\n'+COMMAND_AUTHOR_EXIT_CONTEXT_V3);
+  const recovery=await runtimeFixture(t,200000,'recovery'),recoveryWire=authorWireInput(recovery.input,'acceptance-authoring');
+  const feedback=(recovery.input.context as any).authorFeedback;
+  assert.equal(recovery.input.prompt,AUTHOR_RECOVERY_PRESENTATION_PROMPT_V3);
+  assert.ok(recoveryWire.prompt.includes(feedback.rejection.diagnostics));
+  assert.equal(recoveryWire.prompt.split(feedback.rejection.diagnostics).length,2,'complete diagnostics occur exactly once');
+  assert.match(recoveryWire.prompt,/Exit with code 0 exactly when every verdict is passed or not-applicable/);
+  assert.match(recoveryWire.prompt,/process.exitCode=1 when any verdict is failed or unknown/);
+  assert.equal((authorWireReceipt({id:'new-recovery',input:recovery.input,inputDigest:'x',purpose:'acceptance-authoring'}) as any).schemaVersion,2);
+  for(const change of [{schemaVersion:3,kind:'acceptance-recovery',extra:true},{schemaVersion:4,kind:'acceptance-recovery'},null,false,0])assert.throws(()=>authorWireInput({...recovery.input,context:{...(recovery.input.context as object),authorPresentation:change}},'acceptance-authoring'),/Unknown/);
+  assert.throws(()=>authorWireInput({...recovery.input,prompt:CONTROL_EVOLUTION_PRESENTATION_PROMPT_V3},'acceptance-authoring'),/marker/);
+  assert.throws(()=>authorWireInput({...recovery.input,context:{...(recovery.input.context as object),authorFeedback:{...feedback,rejection:{kind:'review'}}}},'acceptance-authoring'),/typed author recovery/);
   assert.ok(JSON.stringify(f.input).length<JSON.stringify({...f.input,prompt:legacy}).length);
   assert.equal(authorWireInput({prompt:'historical prompt byte exact\n',outputSchema:{},context:{}},'diagnosis').prompt,'historical prompt byte exact\n');
+  assert.equal(authorWireInput({prompt:'historical inline author prompt byte exact\n',outputSchema:{},context:{}},'acceptance-authoring').prompt,'historical inline author prompt byte exact\n');
   assert.equal(authorWireReceipt({id:'legacy',input:{prompt:legacy,outputSchema:{},context:{}},inputDigest:'x',purpose:'acceptance-authoring'}),null);
-  for(const change of [()=>({...f.input,prompt:'caller rendered replacement'}),()=>({...f.input,context:{...f.input.context,authorPresentation:{schemaVersion:3,kind:'control-evolution'}}}),()=>({...f.input,context:{...f.input.context,acceptance:{}}})])assert.throws(()=>authorWireInput(change(),'acceptance-authoring'));
-  for(const bad of [false,0,null,{schemaVersion:99,kind:'control-evolution'},{schemaVersion:2,kind:'control-evolution',extra:true}])assert.throws(()=>authorWireInput({...f.input,context:{...f.input.context,authorPresentation:bad}},'acceptance-authoring'),/Unknown/);
+  for(const change of [()=>({...f.input,prompt:'caller rendered replacement'}),()=>({...f.input,context:{...(f.input.context as object),authorPresentation:{schemaVersion:4,kind:'control-evolution'}}}),()=>({...f.input,context:{...(f.input.context as object),acceptance:{}}})])assert.throws(()=>authorWireInput(change(),'acceptance-authoring'));
+  for(const bad of [false,0,null,{schemaVersion:99,kind:'control-evolution'},{schemaVersion:2,kind:'control-evolution',extra:true}])assert.throws(()=>authorWireInput({...f.input,context:{...(f.input.context as object),authorPresentation:bad}},'acceptance-authoring'),/Unknown/);
   assert.throws(()=>authorWireInput({...v1,prompt:CONTROL_EVOLUTION_PRESENTATION_PROMPT_V2},'acceptance-authoring'),/marker/);
   assert.throws(()=>authorWireInput({...f.input,prompt:CONTROL_EVOLUTION_PRESENTATION_PROMPT},'acceptance-authoring'),/marker/);
   assert.throws(()=>authorWireInput({prompt:CONTROL_EVOLUTION_PRESENTATION_PROMPT_V2,outputSchema:{},context:{}},'acceptance-authoring'),/Missing/);
@@ -96,12 +115,12 @@ test('P6-AUTH-PRESENT-I02 both unchanged capacity ceilings reject before reserva
   const wire=authorWireInput(f.input,'acceptance-authoring');
   const wireLimit=wire.prompt.length+JSON.stringify(wire.outputSchema).length+6000-1;
   assert.throws(()=>assertAuthorWireCapacity(f.input,'acceptance-authoring',wireLimit),/Rendered/);
-  const v1={...f.input,prompt:CONTROL_EVOLUTION_PRESENTATION_PROMPT,context:{...f.input.context,authorPresentation:{schemaVersion:1,kind:'control-evolution'}}};
+  const v1={...f.input,prompt:CONTROL_EVOLUTION_PRESENTATION_PROMPT,context:{...(f.input.context as object),authorPresentation:{schemaVersion:1,kind:'control-evolution'}}};
   const oldWire=authorWireInput(v1,'acceptance-authoring');
   assert.throws(()=>assertAuthorWireCapacity(v1,'acceptance-authoring',oldWire.prompt.length+JSON.stringify(v1.outputSchema).length+5999),/Rendered/);
   const huge=structuredClone(f.input);(huge.context as any).retainedProof='x'.repeat(200000);
   assert.throws(()=>f.begin(huge),/context exceeds capacity/);
-  const hugeV1={...huge,prompt:CONTROL_EVOLUTION_PRESENTATION_PROMPT,context:{...huge.context,authorPresentation:{schemaVersion:1,kind:'control-evolution'}}};
+  const hugeV1={...huge,prompt:CONTROL_EVOLUTION_PRESENTATION_PROMPT,context:{...(huge.context as object),authorPresentation:{schemaVersion:1,kind:'control-evolution'}}};
   assert.throws(()=>f.begin(hugeV1),/context exceeds capacity/);
   const minimal={prompt:CONTROL_EVOLUTION_PRESENTATION_PROMPT,outputSchema:{},context:{authorPresentation:{schemaVersion:1,kind:'control-evolution'},acceptance:{},evolution:{schemaVersion:1,current:{},history:{},historyText:{},base:{},transitions:[]}}};
   const length=runtimeCanonical(minimal).length+6000;assert.ok(length<8000);
@@ -115,11 +134,20 @@ test('P6-AUTH-PRESENT-I02 both unchanged capacity ceilings reject before reserva
 });
 
 test('P6-AUTH-PRESENT-I03 actual Node dispatch stores wire binding and finished reopen never dispatches again',async t=>{
-  for(const presentationVersion of [1,2] as const){
+  for(const presentationVersion of [1,2,3,'recovery'] as const){
   const f=await runtimeFixture(t,200000,presentationVersion),transport=new NodeWireTransport(f.bundle);let runner=new SupervisionReasoningRunner(f.store,f.data,transport);
   const job=f.begin(),done=await runner.run(job.id),directory=join(f.data,'supervision-reasoning',digest(job.id));
   assert.equal(done.error,null);assert.equal(done.usage,7);assert.equal(done.stopConfirmed,true);assert.equal(done.inputDigest,digest(runtimeCanonical(f.input)));
   assertAuthorWireProof(done,directory);assert.deepEqual(JSON.parse(await readFile(join(directory,'author-wire.json'),'utf8')),authorWireReceipt(done));
+  const receipt=authorWireReceipt(done)!;
+  assert.equal(receipt.schemaVersion,presentationVersion===1||presentationVersion===2?1:2);
+  if(presentationVersion==='recovery'){
+    const changed=structuredClone(done),input=changed.input as any;
+    input.context.authorFeedback.rejection.diagnostics+=' changed frozen evidence';
+    changed.inputDigest=digest(runtimeCanonical(input));
+    assert.throws(()=>assertAuthorWireProof(changed,directory),/wire receipt/);
+    assert.deepEqual((done.input as any).context.authorFeedback,(f.input.context as any).authorFeedback);
+  }
   await runner.close();f.reopen();runner=new SupervisionReasoningRunner(f.store,f.data,transport);assert.deepEqual(await runner.run(job.id),done);assert.equal(transport.calls,1);assert.equal(f.store.runtime.inspect(f.runtime.id).run.budget.spent,7);
   const path=join(directory,'events.jsonl'),original=await readFile(path,'utf8'),events=original.trim().split('\n').map(line=>JSON.parse(line));events.find(e=>e.kind==='reasoner-turn-intent').value.input[0].text+=' altered';await writeFile(path,events.map(e=>JSON.stringify(e)).join('\n'));
   const forged={...done,proofs:{...done.proofs,[path]:digest(await readFile(path))}};

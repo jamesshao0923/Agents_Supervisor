@@ -1,3 +1,5 @@
+import {indexedWorkflowFixture} from '../helpers/indexed-workflow-fixture.js';
+import {VerificationProofReader} from '../../packages/verification/proof-reader.js';
 import {existsSync} from 'node:fs';
 import test, {type TestContext} from 'node:test';
 import assert from 'node:assert/strict';
@@ -53,7 +55,7 @@ async function fixture(t: TestContext, partial = false) {
     ]});
   const acquire = async () => {const op = store.runtime.claim(runtime.id, owner)!; assert.ok(op);
     await new ResearchRuntimeActivity(store, data).acquire(op, owner); assert.equal(store.runtime.getOperation(op.id).state, 'confirmed');};
-  const install = async () => {const record = register(); await acquire(); new ResearchGroupActivity(store, data).advance(runtime.id);
+  const install = async () => {const record = register(); await acquire(); await new ResearchGroupActivity(store, data).advance(runtime.id);
     assert.equal(store.researchGroups.get(record.id).state, 'installed'); return store.researchGroups.get(record.id);};
   const claim = (commandId: string) => {const schedulerId = store.researchGroups.byRuntime(runtime.id)!.schedulerId!;
     const result = store.scheduler.claim({commandId, id: schedulerId, expected: store.scheduler.expected(schedulerId), owner});
@@ -314,7 +316,7 @@ test('P8-GROUP-EXEC-I06 actual worker tick automatically installs once and recor
   await assert.rejects((blocked as unknown as {tick(id: string): Promise<void>}).tick(g.runtime.id), /partial or conflicting input/);
   assert.equal(g.store.researchGroups.get(record.id).state, 'blocked'); assert.match(g.store.researchGroups.get(record.id).blockedReason!, /partial or conflicting input/);
   assert.equal(g.store.runtime.get(g.runtime.id).phase, 'blocked'); assert.equal(g.store.scheduler.list().length, 0);
-  g.reopen(); new ResearchGroupActivity(g.store, g.data).advance(g.runtime.id);
+  g.reopen(); await new ResearchGroupActivity(g.store, g.data).advance(g.runtime.id);
   assert.equal(g.store.researchGroups.get(record.id).state, 'blocked'); assert.equal(g.store.scheduler.list().length, 0);
   assert.equal(g.store.runtime.inspect(g.runtime.id).run.budget.spent, 0);
 });
@@ -352,4 +354,20 @@ process.exit(73);`;
   assert.deepEqual(f.store.taskResults.inspect({projectId: f.runtime.projectId, runId: f.runtime.runId}), first);
   assert.equal(f.store.executionList().length, 1); assert.equal(f.store.scheduler.claims(claim.schedulerId).length, 1);
   assert.equal(f.store.runtime.inspect(f.runtime.id).run.budget.spent, 7);
+});
+
+// Real local sources and owned Node transport; supplier judgments are synthetic.
+// No public-network/provider acceptance is represented by this component case.
+test('P8-GROUP-EXEC-I08 actual indexed assigned group readers summarize concurrently then full current analysis independent P4 seals all original sources',{timeout:270000},async t=>{
+ const f=await indexedWorkflowFixture(t,undefined,undefined,{timestampSyntheticEvents:true,archiveRoot:join(process.env.SUPERVISOR_EVIDENCE_DIR??join(process.cwd(),'.supervisor-dev','indexed-group-evidence'),'component'),preserveOriginalRoot:true},{indexedGroups:true});
+ assert.equal(f.groupExecutions.length,2);assert.equal(f.store.runtime.inspect(f.runtime.id).run.status,'succeeded');
+ const aggregate=f.store.researchGroups.aggregate(f.runtime.id)!;assert.equal(aggregate.groups.length,2);assert.equal(aggregate.authority,'untrusted-group-extraction-only');
+ const op=f.store.runtime.currentOperations(f.runtime.id).find(op=>op.step.kind==='codex'&&op.step.research)!;const input=f.store.runtime.researchInput(op.id)!.package;assert.equal(input.indexed!.view.allowedMaterialIds.length,5);assert.equal(input.groups!.digest,aggregate.digest);
+ for(const record of f.groupExecutions){assert.equal(record.stopConfirmed,true);assert.equal((await inspectProcess(record.identity as import('../../packages/process-control/index.js').ProcessIdentity)).status,'stopped');
+  const claim=f.store.scheduler.claimGet(record.scheduledBinding!.claimId),frozen=f.store.researchGroups.inputForClaim(claim)!;assert.equal(frozen.schemaVersion,2);assert.deepEqual(frozen.indexed!.view.allowedMaterialIds,frozen.group.materialIds);assert.ok(frozen.sources.every(source=>source.text===null));assert.ok(f.store.researchGroups.assertCompletion(record));}
+ // Actual turn time intervals, not nominal maxActive or artificial sleep.
+ const intervals=f.groupExecutions.map(record=>{const events=f.store.executionEvents(record.id,0);const started=events.find(event=>event.kind==='turn-started');const completed=events.find(event=>event.kind==='codex-event'&&(event.payload as {kind?:string;terminal?:boolean;status?:string}).kind==='turn-status'&&(event.payload as {terminal?:boolean}).terminal);assert.ok(started&&completed,'actual group turn event interval required');return{start:Date.parse(started.receivedAt),end:Date.parse(completed.receivedAt)};});
+ assert.ok(Math.max(...intervals.map(i=>i.start))<Math.min(...intervals.map(i=>i.end)),'actual group summary turns overlap');
+ await new VerificationProofReader(f.store).assertJob(f.final);const budget=f.store.runtime.inspect(f.runtime.id).run.budget;assert.ok(budget.spent<=budget.limit);assert.equal(f.store.verification.get('delivery',f.delivery.id).jobId,f.final.id);
+ const reopened=new SupervisorStore(f.data);try{assert.equal(reopened.runtime.inspect(f.runtime.id).run.status,'succeeded');assert.equal(reopened.researchGroups.aggregate(f.runtime.id)!.digest,aggregate.digest);await new VerificationProofReader(reopened).assertJob(reopened.verification.get('job',f.final.id));}finally{reopened.close();}
 });

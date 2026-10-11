@@ -14,6 +14,8 @@ import {AuthorRoutingRepository} from '../../packages/persistence/author-routing
 import {captureCandidate} from '../../packages/verification/candidate.js';
 import {runtimeCanonical as canonical} from '../../packages/persistence/runtime.js';
 import {acceptanceAuthoringSchema,buildAcceptanceAuthoringPrompt} from '../../packages/orchestration/acceptance-authoring.js';
+import {authorWireInput} from '../../packages/orchestration/author-presentation.js';
+import {authorWireReceipt} from '../../packages/orchestration/author-presentation-proofs.js';
 import {parseFinalReasonerOutput} from '../../packages/orchestration/reasoner.js';
 import {spawnManagedProcess,inspectProcess} from '../../packages/process-control/index.js';
 import {CodexAdapter} from '../../packages/executor-codex/index.js';
@@ -36,7 +38,7 @@ async function capabilities(data:string){
  const lines=createInterface({input:child.stdout});const adapter=new CodexAdapter({transport:{write:line=>{child.stdin.write(line);},onLine:cb=>{lines.on('line',cb);return()=>lines.off('line',cb)},onClose:cb=>{const done=()=>cb('closed');lines.on('close',done);return()=>lines.off('close',done)}},onRawEvent:save,onEvent:()=>{},requestTimeoutMs:3000});
  try{await adapter.initialize();await adapter.listModels();const value={version:'synthetic-node',schemaDigest:sha('fixture'),models:models.map(m=>({id:m.model,label:m.displayName,inputModalities:m.inputModalities,reasoningEfforts:['low','high'],defaultEffort:'low'})),imageInput:false,checkedAt:new Date().toISOString()};writeFileSync(snapshotPath,JSON.stringify(value));adapter.dispose();const stop=await child.terminate();await child.completion;save({kind:'stop',stop});const proofDigest=sha(readFileSync(proofPath)),snapshotDigest=sha(readFileSync(snapshotPath));const receipt={id:'routing-capabilities-'+sha(proofDigest+snapshotDigest).slice(0,24),capabilities:value,proofPath,proofDigest,snapshotPath,snapshotDigest,identity:child.identity};assert.deepEqual(readRoutingCapabilities(data,receipt),value);return receipt;}finally{adapter.dispose();await child.terminate();await child.completion;}
 }
-async function fixture(t:TestContext,options:{limit?:number;calls?:number;kind?:string;capacity?:boolean}={}){
+async function fixture(t:TestContext,options:{limit?:number;calls?:number;kind?:string;capacity?:boolean;largeFeedback?:boolean}={}){
  const root=realpathSync(mkdtempSync('/tmp/sv-author-route-component-')),workspace=join(root,'workspace'),data=join(root,'data');mkdirSync(workspace);
  const context=fixtureContext();for(const file of context.candidate.files){writeFileSync(join(workspace,file.path),file.content);}
  let store=new SupervisorStore(data);const runtime=store.runtime.submit({type:'submit',commandId:'workflow',workspace,workspaceKind:'project',goal:'Fixture original requirement contract',tokenLimit:options.limit??200,verificationReserve:20,steps:[{id:'input',kind:'input',prompt:'Fixture input'}]});
@@ -48,21 +50,26 @@ async function fixture(t:TestContext,options:{limit?:number;calls?:number;kind?:
  async function create(kind='schema', existing?:SupervisionJob){
   let input={prompt:buildAcceptanceAuthoringPrompt(context),outputSchema:acceptanceAuthoringSchema(context),context:{acceptance:context,candidate}};
   const rawValue=fixtureBundle((input.outputSchema as any).properties.contextDigest.const);
+  if(options.largeFeedback)rawValue.verifierFiles[0]!.content+='// Complete rejected fixture source retained.\n'.repeat(1500);
   if(kind==='semantic')rawValue.spec.obligations[0]!.id='declared-but-not-referenced';
   if(kind==='semantic')for(let i=1;i<rawValue.spec.obligations.length;i++)rawValue.spec.obligations[i]!.id=rawValue.spec.cases[0]!.obligationIds[i]!;
   const job=existing??store.supervision.beginJob({commandId:randomUUID(),loopId:loop.id,expectedRevision:store.supervision.get(loop.id).revision,purpose:'acceptance-authoring',context:input});if(existing)input=existing.input as typeof input;
   const dir=join(data,'supervision-reasoning',sha(job.id));mkdirSync(dir,{recursive:true});const raw=JSON.stringify(rawValue),eventsPath=join(dir,'events.jsonl'),outputPath=join(dir,'output.txt');
   const save=(kind:string,value:unknown)=>appendFileSync(eventsPath,JSON.stringify({kind,value})+'\n');
-  save('reasoner-input',{id:job.id,prompt:input.prompt,outputSchema:input.outputSchema,model:job.config.model,effort:job.config.effort});
+  const wire=authorWireInput(input,job.purpose),wireReceipt=authorWireReceipt(job);
+  if(wireReceipt)writeFileSync(join(dir,'author-wire.json'),JSON.stringify(wireReceipt));
+  save('reasoner-input',{id:job.id,prompt:wire.prompt,outputSchema:input.outputSchema,model:job.config.model,effort:job.config.effort});
   store.supervision.observeJob(job.id,{modelStarted:true,observedUsage:7});
   const notification={method:'turn/completed',params:{threadId:'fixture-'+job.id,turn:{id:'turn-'+job.id,status:kind==='transport'?'failed':'completed',items:[{type:'agentMessage',text:raw}]}}};
   const child=await spawnManagedProcess({operationId:job.id+'-reasoner',command:process.execPath,args:['-e','console.log(process.argv[1])',JSON.stringify(notification)],cwd:workspace,timeoutMs:5000,onBeforeSpawn:intent=>{const current=store.supervision.job(job.id);store.supervision.observeJob(job.id,{intents:[...current.intents,intent]});},onIdentity:identity=>{const current=store.supervision.job(job.id);store.supervision.observeJob(job.id,{identities:[...current.identities,identity]});}});
-  let stdout='';child.stdout.on('data',c=>stdout+=c);const stop=await child.completion;assert.equal((await inspectProcess(child.identity)).status,'stopped');save('process-stop',{result:stop});const actual=JSON.parse(stdout);save('codex-event',{raw:actual});writeFileSync(outputPath,actual.params.turn.items[0].text);
+  save('reasoner-turn-intent',{threadId:notification.params.threadId,input:[{type:'text',text:wire.prompt}],model:job.config.model,effort:job.config.effort});
+  save('reasoner-turn-started',{turn:{id:notification.params.turn.id}});
+  let stdout='';child.stdout.on('data',c=>stdout+=c);const stop=await child.completion;assert.equal((await inspectProcess(child.identity)).status,'stopped');save('process-stop',{result:stop});const actual=JSON.parse(stdout);save('codex-event',{method:actual.method,threadId:actual.params.threadId,raw:actual});writeFileSync(outputPath,actual.params.turn.items[0].text);
   const result:ReasonerResult={value:null,usage:kind==='unknown'?null:7,threadId:notification.params.threadId,turnId:notification.params.turn.id,proofFiles:[],stopConfirmed:true,modelStarted:true};let error:string|null=null;
   try{result.value=parseFinalReasonerOutput(raw,input.outputSchema,result);}catch(caught){const e=caught as Error;error=e.message;writeFileSync(join(dir,'error.json'),JSON.stringify({name:e.name,message:e.message}));}
   if(kind==='transport'){error='Explicit transport failure fixture';delete result.outputRejection;}
   if(kind==='unknown')error='Explicit unknown usage fixture';
-  writeFileSync(join(dir,'result.json'),JSON.stringify(result));const proofs=Object.fromEntries(['events.jsonl','output.txt','result.json',...(error&&kind!=='transport'?['error.json']:[])].map(name=>[join(dir,name),sha(readFileSync(join(dir,name)))]));
+  writeFileSync(join(dir,'result.json'),JSON.stringify(result));const proofs=Object.fromEntries(['events.jsonl','output.txt','result.json',...(wireReceipt?['author-wire.json']:[]),...(error&&kind!=='transport'?['error.json']:[])].map(name=>[join(dir,name),sha(readFileSync(join(dir,name)))]));
   const done=store.supervision.finishJob(job.id,{usage:result.usage,stopConfirmed:true,error,proofs,threadId:result.threadId,result:error?null:result.value});const l=store.supervision.get(loop.id);store.supervision.update(l.id,l.revision,{phase:'authoring',references:{authorJobId:job.id}});return done;
  }
  const old=await create(options.kind??'schema');
@@ -85,7 +92,13 @@ test('protected shared balance and full recovery context limits fail without a n
  const f=await fixture(t),request=await f.request(),run=f.store.runtime.inspect(f.runtime.id).run;
  f.store.runtime.setFutureVerification({commandId:'all-protected',runtimeId:f.runtime.id,expectedContractVersion:run.contract.version,expectedRevision:run.revision,allocationId:'protect-remaining',amount:run.budget.limit-run.budget.spent,reason:'Explicit fixture protects remaining balance'});
  assert.throws(()=>f.repo.begin(request),/budget|reserve|verification/i);assert.equal(f.repo.routes(f.loop.id).length,0);assert.equal(f.store.supervision.jobs(f.loop.id).length,1);
- const small=await fixture(t,{capacity:true}),limited=await small.request();assert.throws(()=>small.repo.begin(limited),/context capacity/);assert.equal(small.repo.routes(small.loop.id).length,0);assert.equal(small.store.supervision.jobs(small.loop.id).length,1);
+ const small=await fixture(t,{capacity:true}),limited=await small.request();assert.throws(()=>small.repo.begin(limited),/Rendered author input exceeds capacity/);assert.equal(small.repo.routes(small.loop.id).length,0);assert.equal(small.store.supervision.jobs(small.loop.id).length,1);
+ // Distinct actual rejected-output fixture exercises storage capacity, while the
+ // original small fixture now reaches the independent rendered-wire ceiling.
+ const large=await fixture(t,{capacity:true,largeFeedback:true}),largeRequest=await large.request(),beforeLarge=large.store.runtime.inspect(large.runtime.id);
+ assert.throws(()=>large.repo.begin(largeRequest),/Author recovery exceeds complete context capacity/);
+ assert.deepEqual(large.store.runtime.inspect(large.runtime.id),beforeLarge);
+ assert.equal(large.repo.routes(large.loop.id).length,0);assert.equal(large.store.supervision.jobs(large.loop.id).length,1);
 });
 
 test('cross-Run workspace queued or unknown effects block assess and late begin without consuming the one author replacement',async t=>{
