@@ -19,10 +19,10 @@ import { evaluateVerification, selectInstances } from '../../packages/verificati
 import { inspectProcess } from '../../packages/process-control/index.js';
 
 const repairStep={id:'repair-1',kind:'codex' as const,prompt:'Repair the observed result while retaining strict original behavior',model:'not-invoked-in-repository-tests',effort:'low',reservation:30,timeoutMs:1000};
-async function fixture(t:TestContext,codex=false){
+async function fixture(t:TestContext,codex=false,entryExit=false){
   const root=await realpath(await mkdtemp(join(tmpdir(),'sv-runtime-repair-'))),data=join(root,'data'),workspace=join(root,'workspace');await mkdir(workspace);await writeFile(join(workspace,'result.json'),'{"value":1}\n');
   let store=new SupervisorStore(data);t.after(async()=>{store.close();await rm(root,{recursive:true,force:true});});
-  const runtime=store.runtime.submit({type:'submit',commandId:'fixture',workspace,workspaceKind:'project',goal:'result.json.value must equal 2',tokenLimit:10000,verificationReserve:20,steps:codex?[{...repairStep,id:'initial'}]:[{id:'ready',kind:'input',prompt:'Ready for independent verification'}]});
+  const runtime=store.runtime.submit({type:'submit',commandId:'fixture',workspace,workspaceKind:'project',goal:entryExit?'Actual node entry.mjs process must exit successfully':'result.json.value must equal 2',tokenLimit:10000,verificationReserve:20,steps:codex?[{...repairStep,id:'initial'}]:[{id:'ready',kind:'input',prompt:'Ready for independent verification'}]});
   if(!codex){store.runtime.control({type:'input',commandId:'ready',runtimeId:runtime.id,stepId:'ready',text:'Ready'});const op=store.runtime.claim(runtime.id,'fixture-owner')!;store.runtime.report(op.id,'fixture-owner',{messageId:'actual-input-report',outcome:'confirmed',result:{text:'Ready'}});}
   const boundary=()=>{const {run}=store.runtime.inspect(runtime.id);return {runtimeId:runtime.id,expectedContractVersion:run.contract.version,expectedRevision:run.revision};};
   return {root,data,workspace,runtime,boundary,get store(){return store;},restart(){store.close();store=new SupervisorStore(data);return store;}};
@@ -30,12 +30,18 @@ async function fixture(t:TestContext,codex=false){
 
 /** Exercise the real P4 command engine and frozen assets. Catalog publication is a
  * repository-boundary fixture; this does not claim an independent live model review. */
-export async function failedCandidate(t:TestContext){
-  const f=await fixture(t),good=join(f.data,'good'),bad=join(f.data,'bad'),author=join(f.data,'author');
+export async function failedCandidate(t:TestContext,options:{entryExit?:boolean}={}){
+  const f=await fixture(t,false,options.entryExit===true),good=join(f.data,'good'),bad=join(f.data,'bad'),author=join(f.data,'author');
   for(const path of [good,bad,author])await mkdir(path);await writeFile(join(good,'result.json'),'{"value":2}\n');await writeFile(join(bad,'result.json'),'{"value":1}\n');
   const checker="import {readFileSync,writeFileSync} from 'node:fs';\nconst value=JSON.parse(readFileSync(process.argv[2]+'/result.json','utf8')).value;\nconst passed=value===2;\nwriteFileSync(process.env.SUPERVISOR_VERIFY_REPORT,JSON.stringify({schemaVersion:1,checks:[{obligationId:'correct',verdict:passed?'passed':'failed',reason:'Actual result.json.value is '+value+'; required value is 2'}]}));\nprocess.exitCode=passed?0:1;\n";
   await writeFile(join(author,'check.mjs'),checker);
   const spec:VerificationSpec={schemaVersion:1,contractVersion:1,standardsVersion:'strict-value-2',obligations:[{id:'correct',criterionId:'independent-acceptance',expectation:'value must equal 2',required:true,applicable:true}],cases:[{id:'value',revision:1,obligationIds:['correct'],parameters:[{}],modules:['result'],replaces:[],defectRefs:['WRONG-VALUE'],verifier:{kind:'command',version:'strict-v1',entry:'check.mjs',files:['check.mjs'],timeoutMs:5000}}],controls:[{id:'good',workspace:good,expect:'passed',mustFail:[]},{id:'bad',workspace:bad,expect:'failed',mustFail:['correct']}],moduleDependencies:{}};
+  if(options.entryExit){
+    spec.obligations[0]!.expectation='Actual node entry.mjs process exits with code zero';
+    const verifier=spec.cases[0]!.verifier;if(verifier.kind==='command')verifier.candidateEntries=['entry.mjs'];
+    for(const [directory,exit] of [[f.workspace,1],[good,0],[bad,1]] as const)await writeFile(join(directory,'entry.mjs'),'process.exitCode='+exit+';\n');
+    await writeFile(join(author,'check.mjs'),"import{writeFileSync}from'node:fs';writeFileSync(process.env.SUPERVISOR_VERIFY_REPORT,JSON.stringify({schemaVersion:1,checks:[{obligationId:'correct',verdict:'passed',reason:'Declared direct CLI succeeded before checker'}]}));\n");
+  }
   const specPath=join(author,'spec.json');await writeFile(specPath,JSON.stringify(spec));const {bundle}=await captureDefinition(specPath,join(f.data,'definition'));
   const candidate=await captureCandidate(f.workspace,join(f.data,'candidate')),run=f.store.runtime.inspect(f.runtime.id).run;
   const proposal:Proposal={id:'proposal-fixture',runtimeId:f.runtime.id,projectId:run.projectId,runId:run.id,baseVersion:0,version:null,spec,bundle,candidate,contractDigest:digest(canonical(run.contract)),status:'proposed',createdAt:new Date().toISOString()};

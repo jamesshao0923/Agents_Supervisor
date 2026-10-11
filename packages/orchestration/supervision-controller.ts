@@ -32,7 +32,7 @@ import { assertCandidate,captureCandidate,canonical,digest,environmentFingerprin
 import { evaluateVerification } from '../verification/rules.js';
 import { inspectProcess,type ProcessIdentity } from '../process-control/index.js';
 import { acceptanceAuthoringSchema,buildAcceptanceAuthoringPrompt,diagnoseAcceptanceAuthoringResult,materializeAcceptanceBundle,type AcceptanceAuthoringContext } from './acceptance-authoring.js';
-import { captureControlEvolutionContext, controlEvolutionAuthoringSchema, buildControlEvolutionAuthoringPrompt, controlEvolutionAuthorInput,referencedIndexedHistoryEvolutionAuthorInput, materializeControlEvolutionBundle, type ControlEvolutionAuthoringContext } from './acceptance-authoring-v2.js';
+import { captureControlEvolutionContext, controlEvolutionAuthoringSchema, buildControlEvolutionAuthoringPrompt, controlEvolutionAuthorInput,executionRegressionEvolutionAuthorInput,referencedIndexedHistoryEvolutionAuthorInput, materializeControlEvolutionBundle, type ControlEvolutionAuthoringContext } from './acceptance-authoring-v2.js';
 import { parseReasonerOutput,validateReasonerSchema } from './reasoner-schema.js';
 import { SupervisionReasoningRunner } from './supervision-reasoning.js';
 import { SupervisionMonitorController } from './supervision-monitor-controller.js';
@@ -380,7 +380,7 @@ export class SupervisionController {
     const input = context.evolution
       ? (context.evolution.sourceRefresh && context.evolution.current.materials?.length && context.evolution.current.materials.every(m=>m.evidence!==null&&typeof m.evidence==='object'&&'indexed' in m.evidence&&m.evidence.indexed)
           ? referencedIndexedHistoryEvolutionAuthorInput({...context,evolution:context.evolution})
-          : controlEvolutionAuthorInput({...context, evolution:context.evolution}))
+          : context.evolution.maintenance||context.evolution.regression ? executionRegressionEvolutionAuthorInput({...context,evolution:context.evolution}) : controlEvolutionAuthorInput({...context, evolution:context.evolution}))
       : {prompt:buildAcceptanceAuthoringPrompt(context.acceptance),outputSchema:acceptanceAuthoringSchema(context.acceptance),context};
     await assertCandidate(context.candidate);
     if (maintenance)

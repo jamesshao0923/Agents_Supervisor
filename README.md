@@ -20,7 +20,7 @@ Supervisor 的需求理解与计划已由模型驱动，P6 自动监督控制器
 
 f07b1c0 唯一真实修复场景已完成诊断、一次业务修复、原定义复验和动态维护作者；两次实际模型调用的 schema 投影及原始 schema 严格校验通过，未再出现数组const HTTP400。维护资格检查仍 FAIL：新 CLI 回归检查器使用 node:test 包装执行，对原始失败脚本返回 unknown；旧宿主直接执行能确认 exit1。普通 CLI 验收与维护回归的证据路径需要核对，不能把 unknown 改作有效失败证据。尚未完成维护独审、新定义发布或交付。
 
-327,194已知token、0未知，803份证明一致，60个所属进程停止，冻结无漂移；此前两笔150,000未知预留分别保留。必要集仍139条限定PASS、1条FAIL。证据 `.supervisor-dev/p6-loop-supplied-f07b1c0-live-work/final-result.json`、`cli-checker-diagnosis-design.json`、`provider-schema-validation.json`。不自动重试、不继续调整业务标准以获取通过。
+327,194已知token、0未知，803份证明一致，60个所属进程停止，冻结无漂移；此前两笔150,000未知预留分别保留。必要集仍139条限定PASS、1条FAIL。证据 `.supervisor-dev/p6-loop-supplied-f07b1c0-live-work/final-result.json`、`cli-checker-diagnosis-design.json`、`provider-schema-validation.json`。不自动重试、不继续调整业务标准以获取通过。 原CLI执行回归的闭集修复已合入：从原已独审发布的单入口单义务用例及真实失败证据派生权限；保持用例、参数和校验器内容，坏侧重演原入口失败，好侧仍须入口及原检查器通过。非可执行校验器资产及无checker启动/证明条件在发布和历史读取时核对；普通入口失败规则不变。U01/I09两个既有用例实际通过（真实SQLite、Node进程及重开），独立审查通过；完整模型链路尚待复验。
 
 ## 先前开发检查点（2026-10-12，数组约束的接口兼容待修）
 

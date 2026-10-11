@@ -1,3 +1,5 @@
+import {existsSync,lstatSync} from 'node:fs';
+import type {RegressionSource} from '../contracts/p6-control-maintenance.js';
 import {basename,isAbsolute,join,resolve,sep} from 'node:path';
 import type {VerificationInstance,VerificationResult} from '../contracts/p4.js';
 import type {ProcessIdentity,ProcessIntent,ProcessResult} from '../process-control/index.js';
@@ -5,22 +7,40 @@ import type {CandidateEntryResult,CommandResult} from './command.js';
 import type {Proposal,VerificationJob} from './records.js';
 import {canonical,digest} from './candidate.js';
 import {FrozenReader} from './frozen-reader.js';
-import {maintenanceEnsure as ensure} from './control-maintenance-rules.js';
+import {inheritedExecutionRegression, maintenanceEnsure as ensure} from './control-maintenance-rules.js';
 const same=(a:unknown,b:unknown)=>canonical(a)===canonical(b);
 
 /** Reconstruct a supported replay from the host's individual process artifacts.
  * The aggregate controls/report and mutable proof manifest cannot substitute for
  * the actual checker report. Used both before publication and on historical reads.
  */
-export function assertMaintenanceCommandEvidence(input:{
+export interface OriginalExecutionRegression { proposal:Proposal; job:VerificationJob; source:RegressionSource; output:string; side:'bad'|'good' }
+type EvidenceInput = {
   proposal:Proposal;job:VerificationJob;instance:VerificationInstance;
-  label:string;output:string;result:VerificationResult;reader:FrozenReader;
-}):void {
+  label:string;output:string;result:VerificationResult;reader:FrozenReader;originalExecution?:OriginalExecutionRegression|undefined;
+};
+export function assertMaintenanceCommandEvidence(input:EvidenceInput):void { assertEvidence(input,false); }
+function assertEvidence(input:EvidenceInput, originalOnly:boolean):void {
   const {proposal,job,instance,label,output,result,reader}=input;
   const definition=proposal.spec.cases.find(c=>c.id===instance.caseId&&c.revision===instance.revision);
   ensure(definition?.verifier.kind==='command'&&!definition.verifier.build,
     'Regression evidence supports command detectors without build only');
   const verifier=definition.verifier,tree=join(output,'candidate');
+  if (input.originalExecution && !originalOnly) {
+    const original=input.originalExecution,source=original.source,old=original.proposal,oldJob=original.job;
+    ensure(old.status==='published' && old.reviewId && oldJob.kind==='verification' && oldJob.status==='finished'
+      && oldJob.proposalId===old.id && oldJob.id===source.failureJobId && oldJob.stopConfirmed && !oldJob.error && !oldJob.usageUnknown
+      && same(oldJob.results.find(r=>r.instanceId===source.instance.id),source.result)
+      && old.projectId===proposal.projectId && old.runId===proposal.runId && old.contractDigest===proposal.contractDigest
+      && inheritedExecutionRegression(old.spec,proposal.spec,source,instance),'Execution regression must inherit its actual original single-obligation entry case');
+    reader.definition(old.spec,old.bundle); reader.definition(proposal.spec,proposal.bundle);
+    for(const file of verifier.files) ensure(old.bundle.files[file]===proposal.bundle.files[file]
+      && (lstatSync(join(old.bundle.directory,file)).mode&0o111)===0
+      && (lstatSync(join(proposal.bundle.directory,file)).mode&0o111)===0,'Execution regression checker bytes or non-executable mode differ');
+    reader.candidate({...source.candidate,tree:join(original.output,'candidate')});
+    assertEvidence({proposal:old,job:oldJob,instance:source.instance,label:'candidate',output:original.output,result:source.result,reader},true);
+  }
+
   const read=(path:string):Buffer=>{
     ensure(path.startsWith(output+sep)&&resolve(path)===path&&job.proofs[path],
       'Regression command proof lacks its exact operation manifest');
@@ -62,9 +82,10 @@ export function assertMaintenanceCommandEvidence(input:{
   for(const [index,entry] of (verifier.candidateEntries??[]).entries()){
     const directory=join(output,'candidate-entries','entry-'+(index+1));
     const record=json<CandidateEntryResult>(join(directory,'result.json'));
-    ensure(record.executionStatus==='executed'&&record.stopped===true&&record.passed===true
-      &&record.exitCode===0&&record.entry===entry,
-      'Regression candidate entry must succeed before specific checker attribution');
+    const exitWitness=originalOnly || input.originalExecution?.side==='bad';
+    ensure(record.executionStatus==='executed'&&record.stopped===true&&record.entry===entry
+      && (exitWitness ? verifier.candidateEntries?.length===1 && instance.obligationIds.length===1 && record.passed===false && Number.isSafeInteger(record.exitCode) && record.exitCode!==0 : record.passed===true && record.exitCode===0),
+      'Regression candidate entry must succeed before specific checker attribution or preserve its original execution failure');
     const configuration=json<{schemaVersion:number;entry:string;entryDigest:string;cwd:string;node:string;permissions:unknown}>(join(directory,'configuration.json'));
     const outcome=process(directory,'entry-'+digest(job.id+label+instance.id+index).slice(0,48),intent=>{
       const g=guard(intent.args[4]);
@@ -74,11 +95,21 @@ export function assertMaintenanceCommandEvidence(input:{
         'Regression candidate entry configuration differs');
       return ['--permission','--allow-fs-read='+tree,'--allow-fs-read='+g,'--import',g,join(tree,entry)];
     });
-    ensure(outcome.exitCode===0,'Regression candidate entry exit differs');
-    const expectedReason=`Actual candidate Node entry ${entry}: exit 0, stopped true`;
+    ensure(outcome.exitCode===record.exitCode,'Regression candidate entry exit differs');
+    const expectedReason=`Actual candidate Node entry ${entry}: exit ${record.exitCode}, stopped true`;
     ensure(record.reason===expectedReason,'Regression candidate entry reason differs');
     reasons.push(expectedReason);
     paths.push(...inventory(directory,['configuration.json','intent.json','identity.json','process.json','stdout.log','stderr.log'],record));
+  }
+  if(originalOnly || input.originalExecution?.side==='bad') {
+    const checkerOperation='check-'+digest(job.id+label+instance.id).slice(0,48),checkerRoot=join(output,'command');
+    ensure(!existsSync(checkerRoot) && !job.intents.some(intent=>intent.operationId===checkerOperation)
+      && !job.identities.some(identity=>identity.operationId===checkerOperation)
+      && !Object.keys(job.proofs).some(path=>path.startsWith(checkerRoot+sep)),
+      'Original execution failure cannot contain an unperformed checker');
+    const reason=reasons.join('; '),reconstructed:VerificationResult={instanceId:instance.id,executionStatus:'executed',checks:[{obligationId:instance.obligationIds[0]!,verdict:'failed',reason}],reason,proofFiles:paths};
+    ensure(same(result,reconstructed),'Execution regression aggregate differs from actual original entry failure');
+    return;
   }
   const directory=join(output,'command'),record=json<CommandResult>(join(directory,'result.json'));
   ensure(record.executionStatus==='executed'&&record.stopped===true

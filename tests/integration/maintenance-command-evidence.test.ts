@@ -1,3 +1,7 @@
+import {failedCandidate} from '../helpers/control-maintenance-fixture.js';
+import {regressionRef} from '../../packages/verification/control-maintenance-rules.js';
+import {verificationDirectory} from '../../packages/verification/scoped-environment.js';
+import {inspectProcess} from '../../packages/process-control/index.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,mkdir,writeFile,readFile,realpath,rm} from 'node:fs/promises';
@@ -45,4 +49,41 @@ test('P6-MAINT-I09 actual candidate entry and command evidence bind one specific
   assert.equal(early.executionStatus,'executed');assert.equal(early.checks[0]!.verdict,'failed');
   assert.ok(!early.proofFiles!.some(path=>path.endsWith('/command/result.json')),'Actual engine did not run checker after entry failure');
   assert.throws(()=>assertMaintenanceCommandEvidence({proposal,job,instance,label:earlyLabel,output:join(output,earlyLabel,instance.id),result:early,reader:new FrozenReader(root)}),/candidate entry must succeed/);
+  // Separate real SQLite/legacy publication + actual original entry-exit source.
+  // Synthetic independent reviewer metadata is explicit in the existing helper;
+  // no model, direct database success seed or archive rewriting is introduced.
+  const f=await failedCandidate(t,{entryExit:true});f.store.runtime.appendRepair(f.append());
+  const repairEvent=f.store.runtime.events(f.runtime.id,0).find(e=>e.kind==='repair-appended')!;
+  const source={defectRef:regressionRef(f.job.id,f.plan.selection.instances[0]!,f.job.results[0]!),failureJobId:f.job.id,repairEventSeq:repairEvent.seq,candidate:f.plan.candidate,instance:f.plan.selection.instances[0]!,result:f.job.results[0]!,obligationIds:['correct']};
+  const old=f.store.verification.get('proposal',f.proposal.id),nextSpec=structuredClone(old.spec);
+  nextSpec.cases.push({...structuredClone(nextSpec.cases[0]!),revision:2,defectRefs:[...nextSpec.cases[0]!.defectRefs,source.defectRef]});
+  const nextRoot=join(f.data,'cli-next-author');await mkdir(nextRoot);await writeFile(join(nextRoot,'check.mjs'),await readFile(join(old.bundle.directory,'check.mjs')),{mode:0o600});await writeFile(join(nextRoot,'spec.json'),JSON.stringify(nextSpec));
+  const nextFrozen=await captureDefinition(join(nextRoot,'spec.json'),join(f.data,'cli-next-definition'));
+  const target:Proposal={...old,id:'cli-regression-proposal',baseVersion:old.version!,version:null,status:'proposed',spec:nextFrozen.spec,bundle:nextFrozen.bundle};delete target.reviewId;
+  f.store.verification.insert('proposal',target);
+  const mapped=selectInstances(target.spec,{mode:'final'}).instances.find(i=>i.revision===2)!;
+  const replayJob:VerificationJob={...structuredClone(f.job),id:'cli-replay',proposalId:target.id,kind:'review',planId:null,status:'running',intents:[],identities:[],results:[],controls:[],proofs:{},error:null,usageUnknown:false,stopConfirmed:false};
+  const replayOutput=verificationDirectory(f.data,replayJob),replayContext={job:replayJob,output:replayOutput,save(){},eligible(){},signal:new AbortController().signal};
+  const badLabel='closed-bad',badResult=(await executeInstances(replayContext,target.spec,target.bundle,source.candidate,[mapped],badLabel))[0]!;
+  for(const path of badResult.proofFiles??[])replayJob.proofs[path]=digest(await readFile(path));
+  const badBinding=f.store.controlMaintenance.executionRegressionSource(source,target.id,mapped,'bad');assert.ok(badBinding);
+  assertMaintenanceCommandEvidence({proposal:target,job:replayJob,instance:mapped,label:badLabel,output:join(replayOutput,badLabel,mapped.id),result:badResult,reader:new FrozenReader(f.data),originalExecution:badBinding});
+  assert.equal(badResult.checks[0]!.verdict,'failed');assert.equal(badResult.checks.length,1);assert.ok(!badResult.proofFiles!.some(path=>path.includes('/command/')));
+  const checkerOperation='check-'+digest(replayJob.id+badLabel+mapped.id).slice(0,48);
+  const memoryCheck=(memoryJob:VerificationJob)=>assertMaintenanceCommandEvidence({proposal:target,job:memoryJob,instance:mapped,label:badLabel,output:join(replayOutput,badLabel,mapped.id),result:badResult,reader:new FrozenReader(f.data),originalExecution:badBinding});
+  const phantomIntent=structuredClone(replayJob);phantomIntent.intents.push({...phantomIntent.intents[0]!,operationId:checkerOperation});assert.throws(()=>memoryCheck(phantomIntent),/cannot contain an unperformed checker/);
+  const phantomIdentity=structuredClone(replayJob);phantomIdentity.identities.push({...phantomIdentity.identities[0]!,operationId:checkerOperation});assert.throws(()=>memoryCheck(phantomIdentity),/cannot contain an unperformed checker/);
+  const phantomProof=structuredClone(replayJob);phantomProof.proofs[join(replayOutput,badLabel,mapped.id,'command','not-created.json')]=digest('not-created');assert.throws(()=>memoryCheck(phantomProof),/cannot contain an unperformed checker/);
+  const unrelated=structuredClone(replayJob);unrelated.intents.push({...unrelated.intents[0]!,operationId:'other-instance-checker'});unrelated.identities.push({...unrelated.identities[0]!,operationId:'other-instance-checker'});unrelated.proofs[join(replayOutput,'other-instance','command','not-read.json')]=digest('not-read');assert.doesNotThrow(()=>memoryCheck(unrelated));
+
+  const goodCandidate=await captureCandidate(join(f.data,'good'),join(f.data,'closed-good'));
+  const goodLabel='closed-good',goodResult=(await executeInstances(replayContext,target.spec,target.bundle,goodCandidate,[mapped],goodLabel))[0]!;
+  for(const path of goodResult.proofFiles??[])replayJob.proofs[path]=digest(await readFile(path));
+  const goodBinding=f.store.controlMaintenance.executionRegressionSource(source,target.id,mapped,'good');assert.ok(goodBinding);
+  assertMaintenanceCommandEvidence({proposal:target,job:replayJob,instance:mapped,label:goodLabel,output:join(replayOutput,goodLabel,mapped.id),result:goodResult,reader:new FrozenReader(f.data),originalExecution:goodBinding});
+  assert.equal(goodResult.checks[0]!.verdict,'passed');assert.ok(goodResult.proofFiles!.some(path=>path.endsWith('/command/report.json')));
+  for(const identity of replayJob.identities)assert.equal((await inspectProcess(identity)).status,'stopped');
+  assert.equal(replayJob.usage,0);assert.equal(replayJob.usageUnknown,false);
+  f.restart();assert.ok(f.store.controlMaintenance.executionRegressionSource(source,target.id,mapped,'bad'),'Readonly authority reloaded after actual SQLite reopen');
+
 });

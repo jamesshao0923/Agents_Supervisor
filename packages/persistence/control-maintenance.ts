@@ -1,3 +1,5 @@
+import {assertLegacyControlReviewEvidence} from '../verification/legacy-review-evidence.js';
+import {assertControlQualificationPublication} from './control-qualification.js';
 import {expandedAuthorInput} from '../orchestration/indexed-history-presentation.js';
 import {assertMaintenanceCommandEvidence} from '../verification/maintenance-command-evidence.js';
 import { lstatSync } from 'node:fs';
@@ -12,7 +14,7 @@ import type { MaintenanceBasis, MaintenanceRecord, MaintenanceReplayStage, Maint
 import type { VerificationJob, Proposal, FrozenPlan } from '../verification/records.js';
 import { canonical, digest } from '../verification/candidate.js';
 import { FrozenReader, assertRecordedStops } from '../verification/frozen-reader.js';
-import { maintenanceEnsure as ensure, maintenanceDigest as hash, regressionRef, assertMaintenancePlan, maintenanceInstance, assertMaintenanceReplay } from '../verification/control-maintenance-rules.js';
+import { maintenanceEnsure as ensure, maintenanceDigest as hash, regressionRef, assertMaintenancePlan, maintenanceInstance, assertMaintenanceReplay, inheritedExecutionRegression } from '../verification/control-maintenance-rules.js';
 import { evaluateVerification, selectInstances } from '../verification/rules.js';
 import { RuntimeRepository } from './runtime.js';
 import { SupervisionRepository } from './supervision.js';
@@ -435,6 +437,25 @@ export class ControlMaintenanceRepository {
             ensure(same(basis.sources, required), 'Author invented an unregistered inherited fault');
         return { basis, plan };
     }
+    /** Read-only proof binding; never publication authority. Reloads both original and target objects. */
+    executionRegressionSource(source:RegressionSource,proposalId:string,instance:import('../contracts/p4.js').VerificationInstance,side:'bad'|'good'):import('../verification/maintenance-command-evidence.js').OriginalExecutionRegression|undefined {
+        const proposal=this.object<Proposal>('proposal',proposalId);
+        ensure(side==='bad'||side==='good','Unknown execution regression side');
+        ensure(selectInstances(proposal.spec,{mode:'final'}).instances.some(i=>same(i,instance)),'Execution regression instance is not an actual final selection');
+        this.assertSource(source);
+        const job=this.object<VerificationJob>('job',source.failureJobId),{proposal:old}=this.final(job,false);
+        if(!inheritedExecutionRegression(old.spec,proposal.spec,source,instance)
+          || source.result.proofFiles?.some(path=>path.includes('/command/'))) return undefined;
+        ensure(old.status==='published' && old.reviewId,'Original execution regression lacks published independent approval');
+        const review=this.object<VerificationJob>('job',old.reviewId);this.settled(review);
+        ensure(review.kind==='review' && review.proposalId===old.id && review.approved,'Original execution definition lacks actual independent approval');
+        const database=this.db.prepare('PRAGMA database_list').all().find(row=>row.name==='main');
+        ensure(database?.file,'Original execution evidence requires actual database directory');
+        const dataDir=this.dataDir??dirname(String(database.file));
+        if(old.controlDraftDigest)assertControlQualificationPublication(this.db,{proposalId:old.id,reviewId:review.id},dataDir);
+        else assertLegacyControlReviewEvidence({dataDir,proposal:old,review});
+        return {proposal:old,job,source,output:join(verificationDirectory(dataDir,job),'candidate',source.instance.id),side};
+    }
     replayForReview(reviewId: string): MaintenanceReplayStage | null {
         const row = this.db.prepare('SELECT record FROM control_maintenance_replays WHERE review_id=?').get(reviewId);
         if (!row)
@@ -497,7 +518,7 @@ export class ControlMaintenanceRepository {
                     assertMaintenanceCommandEvidence({
                         proposal, job, instance: replay.instance,
                         label: 'maintenance-' + replay.id + '-' + side,
-                        output, result, reader,
+                        output, result, reader, originalExecution:this.executionRegressionSource(original,proposal.id,replay.instance,side),
                     });
                 }
             }
@@ -553,7 +574,11 @@ export class ControlMaintenanceRepository {
             passingSourceText[name] = {content,executable};
         }
         reader.candidate(candidate);
-        return { context, plan: source.plan, replay: stage, passingSourceText };
+        const executionRegressions = stage.replays.filter(replay=>this.executionRegressionSource(replay.source,proposal.id,replay.instance,'bad')).map(replay=>({
+            role:'original-execution-regression-v1',defectRef:replay.defectRef,originalFailureJobId:replay.source.failureJobId,originalInstance:replay.source.instance,currentInstance:replay.instance,
+            meaning:'Exact already-published single-obligation entry-exit case only; not arbitrary business assertion coverage. Bad actual entry nonzero with no checker, good actual entry zero plus original checker pass.'
+        }));
+        return { context, plan: source.plan, replay: stage, passingSourceText, ...(executionRegressions.length?{executionRegressions}:{}) };
     }
     /** A recorded mandatory gap cannot be bypassed by manually delivering its old baseline. */
     assertDelivery(projectId: string, runId: string, contractDigest: string): void {

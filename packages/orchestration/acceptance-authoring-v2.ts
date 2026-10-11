@@ -1,7 +1,7 @@
 import {compactIndexedHistoryContext,INDEXED_COMPACT_PROMPT} from './indexed-history-presentation.js';
 import type {SourceRefreshControlContext} from '../contracts/p4-source-refresh.js';
 import {assertHistoricalMaterialEpoch} from '../verification/source-refresh-controls.js';
-import { renderControlEvolutionPrompt, CONTROL_EVOLUTION_PRESENTATION_PROMPT_V3, INDEXED_HISTORY_PRESENTATION_PROMPT_V4 } from './author-presentation.js';
+import { renderControlEvolutionPrompt, CONTROL_EVOLUTION_PRESENTATION_PROMPT_V3, EXECUTION_REGRESSION_PRESENTATION_PROMPT_V12, INDEXED_HISTORY_PRESENTATION_PROMPT_V4 } from './author-presentation.js';
 import type {MaintenanceContext,MaintenancePlan,RegressionContext} from '../contracts/p6-control-maintenance.js';
 import {assertMaintenanceContext,assertRegressionContext} from '../verification/control-maintenance-replay.js';
 import {assertMaintenancePlan,maintenanceInstance} from '../verification/control-maintenance-rules.js';
@@ -201,3 +201,8 @@ export function indexedHistoryEvolutionAuthorInput<T extends {acceptance:Accepta
 
 /** New reservations only; original indexed V4 builder remains replayable. */
 export function referencedIndexedHistoryEvolutionAuthorInput<T extends {acceptance:AcceptanceAuthoringContext;candidate:unknown;evolution:ControlEvolutionAuthoringContext}>(context:T){const old=indexedHistoryEvolutionAuthorInput(context);return {...old,prompt:INDEXED_COMPACT_PROMPT,context:compactIndexedHistoryContext(old.context)};}
+
+export function executionRegressionEvolutionAuthorInput<T extends {acceptance:AcceptanceAuthoringContext;candidate:unknown;evolution:ControlEvolutionAuthoringContext}>(context:T) {
+  frozen(context.evolution);ensure(context.evolution.maintenance||context.evolution.regression,'Execution regression presentation requires frozen source');
+  return {prompt:EXECUTION_REGRESSION_PRESENTATION_PROMPT_V12,outputSchema:controlEvolutionAuthoringSchema(context.evolution),context:{...structuredClone(context),authorPresentation:{schemaVersion:12 as const,kind:'original-execution-regression' as const}}};
+}

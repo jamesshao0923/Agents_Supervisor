@@ -1,3 +1,7 @@
+## 2026-10-12 — Retained original CLI execution regression
+
+Extend existing U01/I09 only. Preserve generic early-entry rejection and original report assertions; add exact inherited single-obligation/single-entry eligibility, a self-owned real SQLite publication and Node bad/good replay, original-source reopen, and in-memory phantom checker rejection. Actual selected results: 2/2 PASS, zero skip; unit 74ms and integration 16.2s. Independent review accepted the narrow source/proof guard and new versioned presentation; old renderers remain unchanged. No new stable ID, default-scope expansion, provider invocation or live delivery claim. Original f07 maintenance FAIL remains.
+
 ## 2026-10-12 — Provider projection with exact host validation
 
 Extend existing reasoner U001/U002 only: transport removes array const without mutating original schema or literal data; host still rejects wrong order/value. Const-only array structure and explicit unsupported oneOf preflight are covered, alongside versioned projection/turn binding and legacy records. Both actual selected unit cases passed, zero skips; these are supplemental and do not enlarge the 140-ID gate or prove provider dispatch. Original diagnosis/maintenance HTTP400 failures and unknown reservations remain.

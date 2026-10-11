@@ -70,3 +70,16 @@ export function assertMaintenanceReplay(replay: MaintenanceReplay): void {
         maintenanceEnsure(results[0]!.proofFiles?.length, 'Regression execution lacks actual proofs');
     }
 }
+
+/** Structural inheritance only, never authority. Actual source and files are reloaded by the repository. */
+export function inheritedExecutionRegression(old: VerificationSpec, next: VerificationSpec, source: RegressionSource, instance: VerificationInstance): boolean {
+    const prior = old.cases.find(c => c.id === source.instance.caseId && c.revision === source.instance.revision);
+    const current = next.cases.find(c => c.id === instance.caseId && c.revision === instance.revision);
+    if (!prior || !current || prior.verifier.kind !== 'command' || prior.verifier.build || prior.verifier.candidateEntries?.length !== 1
+      || source.obligationIds.length !== 1 || source.instance.obligationIds.length !== 1 || prior.obligationIds.length !== 1
+      || !same(source.obligationIds, prior.obligationIds) || !same(instance.obligationIds, prior.obligationIds)
+      || current.id !== prior.id || current.revision < prior.revision || !same(source.instance.parameters, instance.parameters)
+      || !current.defectRefs.includes(source.defectRef) || !prior.defectRefs.every(ref => current.defectRefs.includes(ref))) return false;
+    const content = (c: typeof prior) => { const {revision: _r, defectRefs: _d, status: _s, ...rest} = c; return rest; };
+    return same(content(prior), content(current)) && same(old.obligations.find(o => o.id === prior.obligationIds[0]), next.obligations.find(o => o.id === prior.obligationIds[0]));
+}
