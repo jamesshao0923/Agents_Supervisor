@@ -1,3 +1,7 @@
+## 2026-10-12 — Provider-compatible exact empty arrays
+
+Existing P6-AUTH-U08 now checks the actual historical defectRefs empty-array schema: [] accepted, nonempty and nonarray values rejected; nonempty const and all prior history assertions remain. Sole selected case actually passed (1/1, zero skip); no provider calls. Production replaces redundant empty const with exact zero-length array constraints. Original HTTP400 failure and unknown reservation are retained; live maintenance remains unverified. No new ID or acceptance scope change.
+
 ## 2026-10-12 — Environment ownership and diagnosis digest semantics
 
 Update existing ENV-I05 with actual separately owned processes: owner-only restarts preserve both fingerprints; real TZ and another environment field still invalidate. The only excluded field is SUPERVISOR_PROCESS_OWNER; all ownership/proof checks remain. Original owner failure and two fixture preparation failures retained.

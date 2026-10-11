@@ -515,6 +515,24 @@ test('P6-AUTH-U08 historical case schema is typed and preserves exact parameters
   }
   const historyBranch = (caseSchema.anyOf as Node[])[1]!;
   checkTyped(historyBranch);
+  const emptyHistory = structuredClone(historical); emptyHistory.defectRefs = [];
+  const emptyAssets = currentAcceptanceAssetSchema(context(), [emptyHistory]);
+  const emptyCases = ((((emptyAssets.properties as Node).spec as Node).properties as Node).cases as Node).items as Node;
+  const emptyLiteral = (emptyCases.anyOf as Node[])[1]!;
+  const emptyRefs = (emptyLiteral.properties as Node).defectRefs as Node;
+  assert.deepEqual(emptyRefs, { type: 'array', items: { type: 'null' }, minItems: 0, maxItems: 0 });
+  assert.deepEqual(parseReasonerOutput('[]', emptyRefs), []);
+  assert.throws(() => parseReasonerOutput('[null]', emptyRefs));
+  assert.throws(() => parseReasonerOutput('["unexpected"]', emptyRefs));
+  assert.throws(() => parseReasonerOutput('null', emptyRefs));
+  assert.doesNotThrow(() => parseReasonerOutput(JSON.stringify(emptyHistory), emptyCases));
+  const nonemptyAssets = currentAcceptanceAssetSchema(context(), [historical]);
+  const nonemptyCases = ((((nonemptyAssets.properties as Node).spec as Node).properties as Node).cases as Node).items as Node;
+  const nonemptyRefs = ((nonemptyCases.anyOf as Node[])[1]!.properties as Node).defectRefs as Node;
+  assert.deepEqual(nonemptyRefs.const, historical.defectRefs);
+  assert.deepEqual(parseReasonerOutput(JSON.stringify(historical.defectRefs), nonemptyRefs), historical.defectRefs);
+  assert.throws(() => parseReasonerOutput('[]', nonemptyRefs));
+  assert.throws(() => parseReasonerOutput('["different"]', nonemptyRefs));
   for (const published of cases) assert.deepEqual(parseReasonerOutput(JSON.stringify(published), historyBranch), published);
   const mutations: ((value: typeof historical) => void)[] = [
     value => { value.parameters[0]!.input = '99'; },

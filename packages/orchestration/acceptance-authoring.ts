@@ -144,6 +144,7 @@ export function currentAcceptanceAssetSchema(context: AcceptanceAuthoringContext
 function typedLiteral(value: unknown): Record<string, unknown> {
   if (value === null) return { type: 'null', const: null };
   if (Array.isArray(value)) {
+    if (value.length === 0) return { type: 'array', items: { type: 'null' }, minItems: 0, maxItems: 0 };
     const children = [...new Map(value.map(item => [canonical(item), item])).values()].map(typedLiteral);
     return { type: 'array', items: children.length ? typedAlternatives(children) : { type: 'null' }, minItems: value.length, maxItems: value.length, const: value };
   }
