@@ -21,10 +21,16 @@ export interface ScheduledPlan {
  limits:{maxActive:number;maxNodes:number;maxDepth:number;deadlineMs:number};
 }
 export interface ScheduledRecord {id:string;plan:ScheduledPlan;planDigest:string;revision:number;state:'active'|'paused'|'cancelled'|'drained'|'blocked';fence:'held'|'released'}
+export interface ScheduledExecutionBrief {
+ schemaVersion:1;workspaceMode:'plain-directory'|'git-metadata-present'|'unknown';reservation:number;
+ inputs:{dependencyNodeId:string;manifestDigest:string;files:{path:string;digest:string;size:number}[]}[];
+}
 export interface ScheduledClaim {
  schemaVersion:1;id:string;schedulerId:string;runtimeId:string;projectId:string;runId:string;
  taskId:string;attemptId:string;operationId:string;planRevision:number;planDigest:string;generation:number;
  contractVersion:number;contractDigest:string;owner:string;workspace:string;workspaceKind:'project'|'managed';
+ /** Host captured information only; absence preserves the exact legacy prompt. */
+ hostExecutionBrief?:ScheduledExecutionBrief;
  inputBindings:DependencyBinding[];resources:SchedulerResource[];reservation:number;loopIds:string[];
 }
 export interface ScheduledBinding {schedulerId:string;claimId:string;operationId:string;owner:string;projectId:string;runId:string;attemptId:string;planRevision:number;generation:number}

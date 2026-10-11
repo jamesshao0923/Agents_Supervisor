@@ -145,6 +145,9 @@ export class TaskSchedulerRepository{
   const run=this.run(s.plan),ledger=this.results().inspect(s.plan),claims=this.claims(s.id),operations=this.actualOperations(claims,this.operations(s.id)),leases=this.allResourceLeases(),base={run,plan:s.plan,effectiveTier:this.effectivePolicy(s.id).tier,ledger,claims,operations,leases,nowMs:this.now(),blockedTaskIds:[...this.unavailableDependencies(s),...unavailableResearchGroups(this.db,this.dataRoot,s.id),...s.plan.tasks.filter(t=>stoppedLoopTask(this.db,s.id,t.node.id)).map(t=>t.node.id)]},decision=domain.evaluate(base),taskId=decision.dispatchTaskIds[0];
   if(!taskId){const waiting:ScheduledClaimResult={kind:'waiting',decision};this.remember(input.commandId,request,waiting);return waiting;}
   const claimId='claim-'+sha256(canonical({scheduler:s.id,plan:s.planDigest,taskId,generation:s.plan.tasks.find(t=>t.node.id===taskId)!.generation})),attemptId='exec-'+sha256(claimId),next=domain.start({...base,taskId,attemptId,claimId,operationId:attemptId,owner:input.owner});
+  // Research groups use their own complete structured input pipeline.
+  if(!s.plan.tasks.find(task=>task.node.id===taskId)!.researchGroup)
+   next.claim.hostExecutionBrief=new HostScheduledInputs().captureBrief(next.claim,()=>this.inputSources(next.claim));
   this.persistRun(run,next.run,next.events,input.commandId);this.db.prepare('INSERT INTO scheduled_claims VALUES(?,?,?,?,?,?)').run(claimId,s.id,attemptId,taskId,next.claim.generation,canonical(next.claim));this.db.prepare('INSERT INTO scheduled_outbox VALUES(?,?,?)').run(next.operation.id,claimId,canonical(next.operation));
   for(const [i,resource] of next.claim.resources.entries()){const lease:ScheduledLease={id:claimId+':'+i,claimId,resource,state:'held'};this.db.prepare('INSERT INTO scheduled_leases VALUES(?,?,?,?)').run(lease.id,claimId,lease.state,canonical(lease));}
   this.db.prepare('UPDATE scheduled_meta SET lease_revision=lease_revision+1 WHERE id=1').run();

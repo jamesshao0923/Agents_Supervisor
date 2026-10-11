@@ -1,3 +1,6 @@
+import {scheduledExecutionPrompt} from '../../packages/contracts/p7-inputs.js';
+import {HostScheduledInputs} from '../../packages/workspace/scheduled-inputs.js';
+import {execFileSync} from 'node:child_process';
 import test,{type TestContext} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,mkdir,realpath,rm,readFile,writeFile,chmod,stat} from 'node:fs/promises';
@@ -46,7 +49,44 @@ async function fixture(t:TestContext,lifetime=100000){
 }
 
 test('P7-INPUT-I01 exact complete dependency files and executable modes are copied before launch and prompt binds their index',async t=>{
- const f=await fixture(t),a=f.claim('A');await f.complete(a);await f.published(a);const b=f.claim('B');assert.equal(b.taskId,'B');const input=f.scheduler.executionInput(b.id),receipt=f.scheduler.prepareInputs(b.id,'owner')!;assert.ok(input.prompt.includes('.supervisor/task-inputs/'+b.id+'/manifest.json'));const index=JSON.parse(await readFile(receipt.indexPath,'utf8'));assert.deepEqual(index.inputs[0].binding,b.inputBindings[0]);const directory=join(receipt.indexPath,'..',index.inputs[0].directory);assert.equal(await readFile(join(directory,'output.txt'),'utf8'),'actual branch output\n');assert.equal((await stat(join(directory,'runner.sh'))).mode&0o111,0o111);assert.deepEqual(f.scheduler.prepareInputs(b.id,'owner'),receipt);await f.complete(b);await f.published(b);assert.ok(f.results.readPublished({...f.scope,ref:f.results.inspect(f.scope).heads.find(h=>h.taskId==='B')!.ref,minimumState:'submitted'}));
+ const f=await fixture(t),a=f.claim('A');await f.complete(a);await f.published(a);const b=f.claim('B');assert.equal(b.taskId,'B');
+ assert.equal(a.hostExecutionBrief?.workspaceMode,'plain-directory');
+ assert.equal(b.hostExecutionBrief?.workspaceMode,'plain-directory');
+ assert.equal(b.hostExecutionBrief?.reservation,b.reservation);
+ assert.deepEqual(b.hostExecutionBrief?.inputs.map(input=>input.dependencyNodeId),['A']);
+ const legacy=f.scheduler.claimGet(b.id);delete legacy.hostExecutionBrief;
+ const taskPrompt=f.plan.tasks.find(task=>task.node.id==='B')!.step.prompt;
+ const legacyPrompt=scheduledExecutionPrompt(taskPrompt,legacy);
+ assert.ok(f.scheduler.executionInput(b.id).prompt.startsWith(legacyPrompt+'\n\nHost execution brief'));
+ assert.throws(()=>scheduledExecutionPrompt(taskPrompt,{...a,hostExecutionBrief:undefined} as unknown as ScheduledClaim),/Invalid scheduled host brief/);
+ const legacyA=structuredClone(a);delete legacyA.hostExecutionBrief;assert.equal(scheduledExecutionPrompt(taskPrompt,legacyA),taskPrompt);
+ const legacyHost=new HostScheduledInputs(),unexpectedRead=()=>{throw Error('Legacy empty inputs must not read current sources');};
+ assert.equal(legacyHost.prepare(legacyA,unexpectedRead),null);assert.equal(legacyHost.verify(legacyA,unexpectedRead),null);
+ assert.throws(()=>legacyHost.verify(a,unexpectedRead),/must not read current sources/,'A new generic brief still revalidates its source callback');
+ // Pure rendering boundary on cloned input; this is not published source authority.
+ const large=f.scheduler.claimGet(b.id);
+ large.hostExecutionBrief!.inputs[0]!.files=Array.from({length:100},(_,i)=>({path:'.supervisor/task-inputs/'+large.id+'/packages/inventory/files/file-'+i+'.txt',digest:'a'.repeat(64),size:i}));
+ const fullInventory=JSON.stringify(large.hostExecutionBrief!.inputs);assert.ok(fullInventory.length>8192);
+ const frozenLarge=JSON.stringify(large),largePrompt=scheduledExecutionPrompt(taskPrompt,large);
+ assert.ok(largePrompt.startsWith(legacyPrompt+'\n\nHost execution brief'));
+ assert.ok(largePrompt.includes('exceeds 8192 characters'));assert.ok(largePrompt.includes('This is not a complete file listing'));
+ assert.ok(largePrompt.includes('.supervisor/task-inputs/'+large.id+'/manifest.json'));assert.ok(largePrompt.includes('\"fileCount\":100'));
+ assert.equal(largePrompt.includes(fullInventory),false);assert.equal(JSON.stringify(large),frozenLarge,'Presentation does not truncate the complete stored inventory');
+ assert.ok(f.scheduler.executionInput(b.id).prompt.includes(JSON.stringify(f.scheduler.claimGet(b.id).hostExecutionBrief!.inputs)),'Small inventory remains complete');
+const input=f.scheduler.executionInput(b.id),receipt=f.scheduler.prepareInputs(b.id,'owner')!;assert.ok(input.prompt.includes('.supervisor/task-inputs/'+b.id+'/manifest.json'));const index=JSON.parse(await readFile(receipt.indexPath,'utf8'));assert.deepEqual(index.inputs[0].binding,b.inputBindings[0]);
+ const inventory=b.hostExecutionBrief!.inputs[0]!.files;
+ assert.deepEqual(inventory,index.inputs[0].manifest.artifacts.map((file:{relativePath:string;digest:string;size:number})=>({path:'.supervisor/task-inputs/'+b.id+'/'+index.inputs[0].directory+'/'+file.relativePath,digest:file.digest,size:file.size})));
+ assert.ok(inventory.every(file=>!file.path.includes(f.root)),'Only current claim relative sealed source paths');
+ const reopened=new DatabaseSync(join(f.data,'supervisor.sqlite'),{readOnly:true});
+ try{assert.deepEqual(new TaskSchedulerRepository(reopened,f.data).executionInput(b.id),input);}finally{reopened.close();}
+ const foreign=structuredClone(b);foreign.hostExecutionBrief!.inputs[0]!.files[0]!.path='.supervisor/task-inputs/'+a.id+'/packages/other/files/output.txt';
+ assert.throws(()=>scheduledExecutionPrompt(taskPrompt,foreign),/Invalid scheduled host brief file/);
+ const changed=structuredClone(b);changed.hostExecutionBrief!.inputs[0]!.files[0]!.digest='0'.repeat(64);
+ const source=f.results.inspect(f.scope).versions.find(v=>v.ref.taskId==='A')!,pack=f.results.readPublished({...f.scope,ref:source.ref,minimumState:'submitted'});
+ assert.throws(()=>new HostScheduledInputs().verify(changed,()=>[{manifest:source.manifest,package:pack}]),/host brief differs/);
+const directory=join(receipt.indexPath,'..',index.inputs[0].directory);assert.equal(await readFile(join(directory,'output.txt'),'utf8'),'actual branch output\n');assert.equal((await stat(join(directory,'runner.sh'))).mode&0o111,0o111);assert.deepEqual(f.scheduler.prepareInputs(b.id,'owner'),receipt);await f.complete(b);await f.published(b);assert.ok(f.results.readPublished({...f.scope,ref:f.results.inspect(f.scope).heads.find(h=>h.taskId==='B')!.ref,minimumState:'submitted'}));
+ execFileSync('git',['init','--quiet'],{cwd:f.plan.tasks.find(task=>task.node.id==='C')!.workspace});const c=f.claim('C');assert.equal(c.hostExecutionBrief?.workspaceMode,'git-metadata-present');assert.deepEqual(c.hostExecutionBrief?.inputs,[]);await f.complete(c);
+ assert.equal(new HostScheduledInputs().captureBrief({...a,workspace:join(a.workspace,'absent-information-only')},()=>[]).workspaceMode,'unknown');
 });
 test('P7-INPUT-I02 tampered copied bytes index modes and upstream prevent actual dispatch qualification without new spending',async t=>{
  const f=await fixture(t),a=f.claim('A');await f.complete(a);const published=await f.published(a),b=f.claim('B'),receipt=f.scheduler.prepareInputs(b.id,'owner')!,before=f.run(),original=await readFile(receipt.indexPath);const index=JSON.parse(original.toString()),file=join(receipt.indexPath,'..',index.inputs[0].directory,'output.txt'),bytes=await readFile(file);await writeFile(file,'corrupt');assert.throws(()=>f.scheduler.eligible(b.operationId,'owner'),/package bytes changed/);await writeFile(file,bytes);await writeFile(receipt.indexPath,'{}');assert.throws(()=>f.scheduler.eligible(b.operationId,'owner'),/input index changed/);await writeFile(receipt.indexPath,original);const script=join(receipt.indexPath,'..',index.inputs[0].directory,'runner.sh');await chmod(script,0o600);assert.throws(()=>f.scheduler.eligible(b.operationId,'owner'),/executable mode changed/);await chmod(script,0o711);await writeFile(join(published.pack.directory,'files/output.txt'),'broken upstream');assert.throws(()=>f.scheduler.eligible(b.operationId,'owner'),/package bytes changed/);assert.deepEqual(f.run(),before);assert.equal(f.store.executionList().length,1);

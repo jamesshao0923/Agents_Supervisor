@@ -267,6 +267,8 @@ test('P8-GROUP-EXEC-I04 actually running writer and rehashed host receipt cannot
 
 test('P8-GROUP-EXEC-I05 actual Manager JSON line transport requests read-only and exact structured schema then persists raw stopped extraction', async t => {
   const f = await fixture(t); await f.install(); const claim = f.claim('protocol'), input = f.store.researchGroups.inputForClaim(claim)!;
+  assert.equal(Object.hasOwn(claim, 'hostExecutionBrief'), false, 'Research groups retain their original complete structured input pipeline');
+  assert.equal(Object.hasOwn(f.store.scheduler.claimGet(claim.id), 'hostExecutionBrief'), false);
   const path = join(f.root, 'protocol-fixture.cjs'), log = join(f.root, 'actual-request-lines.jsonl');
   const script = `#!${process.execPath}
 const fs=require('node:fs'),rl=require('node:readline').createInterface({input:process.stdin});
