@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-p6-personal-followup-v4-loop-core-20261012",
+  "revision": "dev-p6-personal-followup-core-v5-loop-core-20261012",
   "modules": [
     {
       "id": "dev-contracts",
@@ -21396,11 +21396,11 @@
       "covers": [
         "p6-running-followup-live"
       ],
-      "scenario": "Scope v4: exact bounded criterion descriptions/checks, initial pre-admit validation; real active writer/service restart/exact-once followup, two P2 executions, supplied checker/11 controls and actual independent P4 final delivery/reopen. Broad API behavior retained; sum candidate tests require four invalid categories at each isolated position, multiply representative invalid per isolated position. Artifact scope is independently checked, not candidate self-inspection or historical-process proof.",
+      "scenario": "Core v5: exact criteria and initial pre-admit validation; active writer/service restart/exact-once followup, two real implementations, direct independent API arithmetic/TypeError checks, artifact/dependency checks and actual script success, eight controls and independent P4 final delivery/reopen. Generic candidate-test quality qualification explicitly deferred.",
       "impactTags": [
         "p6-running-followup-live"
       ],
-      "prerequisites": "Authenticated Codex; frozen selection; actual provider execution; exact initial criteria before admit; followup criteria checked at applied boundary (no promise of pre-dispatch interception); supplied verifier is not autonomous authoring; genuine independent P4 rejection remains FAIL; async/framework unknown not a qualification negative; original wider-scope failures remain.",
+      "prerequisites": "Authenticated Codex; frozen selection; actual provider execution; exact initial and applied followup criteria; supplied checker is not autonomous authoring. Synchronous sample boundary remains. No claim of candidate assertion precision/completeness or framework support. Original wider failures retained.",
       "assertions": "tests/live/running-followup.test.ts :: P6 running followup survives real service restart applies once and independently delivers original plus additive requirements",
       "cleanup": "Cancel unfinished actual runtime, stop owned service/worker/model identities, preserve all DB/raw output/usage/unknown reservations and failure archives",
       "status": "active"

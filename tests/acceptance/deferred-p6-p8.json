@@ -3,7 +3,7 @@
   "date": "2026-10-12",
   "authorization": "User explicitly requested reduced P6-P8 acceptance tests with a record of omissions and potential risks for later field validation.",
   "scope": "Personal field-trial gate; source tests and original failures retained. Exclusion is not a pass or a claim of duplicate coverage.",
-  "catalogRevision": "dev-p6-followup-supplied-verifier-v2-20261012",
+  "catalogRevision": "dev-p6-personal-followup-core-v5-loop-core-20261012",
   "reason": "Deferred from default stage gate to shorten personal-trial delivery. Run when affected by changes, field failures, or before broader release.",
   "stages": {
     "P6": {
@@ -2639,6 +2639,26 @@
       "risk": "A weak user test can pass the reduced command criterion. This gate does not establish general generated-test quality or reliable automatic obligation derivation.",
       "revisitWhen": "First field project relying on generated tests to detect regressions; inspect actual assertion execution and introduce a relevant defect, then restore the corresponding coverage.",
       "evidenceScope": "Keep independent business-failure rejection, actual repair, mandatory regression maintenance, two publications, three full verifications and delivery/reopen; no live pass yet."
+    },
+    {
+      "id": "followup-generic-user-test-quality-qualification",
+      "kind": "scope-revision-not-a-new-test-case-id",
+      "relatedCaseIds": [
+        "p6.live-running-followup.001"
+      ],
+      "status": "deferred-not-demonstrated",
+      "scope": "Core v5 directly verifies sum/multiply arithmetic, actual TypeError rejection at both argument positions, artifact/dependency presence and actual script execution. Candidate assertion precision, exception-type assertion quality, per-category completeness, assertion provenance and mutation sensitivity are deferred.",
+      "removedControls": [
+        "sum-missing-tests",
+        "multiply-missing-tests",
+        "empty-tests",
+        "invalid-both-positions-only"
+      ],
+      "currentEvidence": "Scope v4 actual independent P4 FAIL2faaa60: weak assert.throws without TypeError and notEqual(result,0/1) can pass the mutation checker; 213935known,0unknown,753proofs,57actualstopped,0delivery. Original source at e1930d8 and local evidence preserved.",
+      "reason": "Explicit user-authorized reduction of development acceptance scope; direct business acceptance does not require a generic test-quality framework.",
+      "risk": "An empty or weak script may satisfy current CLI-success requirement while independent API probes pass. This does not establish that user tests catch regressions. Broader asynchronous/framework support also remains unverified.",
+      "revisitWhen": "First real project relying on generated tests for regression detection; introduce a relevant defect and inspect actual assertions, then restore selected quality controls.",
+      "evidenceScope": "All original live lifecycle assertions, actual service restart, exactly-once followup, two real implementations, original criteria inheritance, independent full P4, delivery/reopen and accounting/stop requirements retained. Not an equivalent pass of v4."
     }
   ]
 }

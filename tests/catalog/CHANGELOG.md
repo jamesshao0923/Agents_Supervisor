@@ -1,3 +1,7 @@
+## 2026-10-12 — Followup core v5: direct business acceptance
+
+User-authorized new narrower development scope. Remove generic candidate assertion/mutation qualification and its four quality-only controls; retain independent API arithmetic/TypeError probes, artifact/dependency checks, actual CLI execution and all 154 live lifecycle/independent-review/delivery assertions. Eight relevant controls remain (including missing-module); missing-script pre-spawn errors are not qualified negatives. The synchronous sample boundary is unchanged. Each removed check and field risk is recorded in deferred-p6-p8.json; v4 actual FAIL and earlier evidence remain. Targeted component: 15 actual commands across five selected controls passed expected outcomes in 27.594 seconds; 15 processes stopped and 115 proofs matched. All eight controls remain required in future real P4. No production or stable-ID change; no live pass claimed.
+
 ## 2026-10-12 — Reduced L01 core and targeted followup results
 
 L01 now freezes an exact current-artifact criterion before admission. Defer generic assertion instrumentation, test mutation-quality and isolated mutation-process qualification; retain every original driver assertion, including the actual +2 test failure, independent business rejection, repair, required maintenance, publication and delivery. This is a narrower new scenario, not equivalent coverage or a rewrite of prior FAIL. See deferred-p6-p8.json.

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "stage": "P6",
-  "revision": "p6-personal-trial-followup-v4-loop-core-developing",
+  "revision": "p6-personal-trial-followup-core-v5-loop-core-developing",
   "caseIds": [
     "p6.unit-loop-policy.001",
     "p6.unit-loop-policy.002",
