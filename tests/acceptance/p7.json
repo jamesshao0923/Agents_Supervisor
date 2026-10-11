@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "stage": "P7",
-  "revision": "p7-v39-completion-developing",
+  "revision": "p7-v43-efficiency-entry-developing",
   "caseIds": [
     "p7.unit-task-results.001",
     "p7.unit-task-results.002",
@@ -133,7 +133,8 @@
     "p7.integration-scheduled-terminal.005",
     "p7.integration-scheduled-terminal.006",
     "p7.integration-scheduled-terminal.007",
-    "p7.integration-scheduled-terminal.008"
+    "p7.integration-scheduled-terminal.008",
+    "p7.live-scheduled-efficiency.001"
   ],
   "requiredRisks": [
     "p7-task-results",
@@ -152,7 +153,8 @@
     "p7-decomposition",
     "p7-parallel-admission",
     "p7-nested-loop",
-    "p7-exploration-tier"
+    "p7-exploration-tier",
+    "p7-live-efficiency-pair"
   ],
   "coreRegression": [
     "dev.integration-runner.003",

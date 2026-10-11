@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-v42-research-group-entry-integration",
+  "revision": "dev-v43-efficiency-entry",
   "modules": [
     {
       "id": "dev-contracts",
@@ -981,6 +981,12 @@
       "layer": "integration",
       "file": "dist/tests/integration/research-group-admission.test.js",
       "timeoutMs": 120000
+    },
+    {
+      "id": "live-scheduled-efficiency",
+      "layer": "live",
+      "file": "dist/tests/live/scheduled-efficiency.test.js",
+      "timeoutMs": 3300000
     }
   ],
   "cases": [
@@ -20275,6 +20281,24 @@
       "prerequisites": "Pinned Node, actual modules/SQLite/FS/managed Node and React server rendering. Model planning responses and declared token values are explicit synthetic fixtures, never provider or independent semantic approval.",
       "assertions": "tests/integration/research-group-admission.test.ts :: P8-GADMIT-I06 actual stopped failed or cancelled branches may retire without submitted success while unknown costs retain the old group fence and reservation",
       "cleanup": "Close only owned workers/processes/stores, retain failed traces and unknown costs; no provider/global configuration/device operation.",
+      "status": "active"
+    },
+    {
+      "id": "p7.live-scheduled-efficiency.001",
+      "name": "P7-EFFICIENCY-L01 identical frozen workload serial and parallel both independently deliver before comparison",
+      "suiteId": "live-scheduled-efficiency",
+      "module": "orchestration",
+      "layer": "live",
+      "covers": [
+        "p7-live-efficiency-pair"
+      ],
+      "scenario": "One non-generalizable serial/parallel actual-provider sample; identical task/input/quality; no fabricated waits",
+      "impactTags": [
+        "p7-efficiency-live"
+      ],
+      "prerequisites": "Real configured Codex login and advertised model, actual managed independent workspaces and P4 review; no provider fixtures",
+      "assertions": "tests/live/scheduled-efficiency.test.ts :: P7-EFFICIENCY-L01 identical frozen workload serial and parallel both independently deliver before comparison",
+      "cleanup": "Stop only owned targets and worker, preserve all actual evidence and unknown accounting",
       "status": "active"
     }
   ]
