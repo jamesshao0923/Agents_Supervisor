@@ -1,3 +1,4 @@
+import {captureSourceRefreshControlContext,sourceRefreshReviewEvidence} from '../verification/source-refresh-controls.js';
 import {ControlMaintenanceRepository} from './control-maintenance.js';
 import {FrozenReader} from '../verification/frozen-reader.js';
 import {persistedResearchWorkflow,researchQualificationReviewContext} from '../verification/research-mapping-proof.js';
@@ -42,6 +43,7 @@ export function controlQualificationDigest(value: Omit<ControlQualificationEvide
 /** Append-only sidecars; never changes Proposal, Run, model costs, or publication head. */
 export class ControlQualificationRepository {
   constructor(private readonly db: DatabaseSync, private readonly dataDir?: string) {}
+  sourceRefreshContext(base:import('../contracts/p4-lineage.js').ProposalBase,spec:import('../contracts/p4.js').VerificationSpec,history:ControlBootstrapHistory,actualProposalId?:string){if(!base.transitionIds.some(id=>new VerificationLineageRepository(this.db).transition(id).sourceRefresh))return null;const database=this.db.prepare('PRAGMA database_list').all().find(r=>r.name==='main');ensure(this.dataDir||database?.file,'Refresh authority requires real host data root');return captureSourceRefreshControlContext(this.db,this.dataDir??dirname(String(database!.file)),base,spec,history,actualProposalId);}
   transaction<T>(body: () => T): T { const own = !this.db.isTransaction; if (own) this.db.exec('BEGIN IMMEDIATE'); try { const result = body(); ensure(!result
       || typeof (result as { then?: unknown }).then !== 'function', 'Asynchronous control transaction prohibited'); if (own) this.db.exec('COMMIT'); return result; } catch (error) { if (own) this.db.exec('ROLLBACK'); throw error; } }
   private command<T>(commandId: string, request: unknown, body: () => T): T { return this.transaction(() => { text(commandId); const row = this.db.prepare('SELECT request,result FROM verification_control_receipts WHERE command_id=?').get(commandId); if (row) { ensure(row.request === encoded(request), 'Conflicting control qualification commandId'); return JSON.parse(String(row.result)) as T; } const result = body(); this.db.prepare('INSERT INTO verification_control_receipts(command_id,request,result) VALUES (?,?,?)').run(commandId, encoded(request), encoded(result)); return result; }); }
@@ -161,6 +163,7 @@ export class ControlQualificationRepository {
     ensure(same(draft.transitions, draft.base.transitionIds.map(id => lineage.transition(id))), 'Control draft transition is not actual applied authority');
     const history = draft.base.baseProposalId ? this.loadHistory(draft.base.baseProposalId) : { definitions: [], specimens: [], manifest: null, transitions: [] };
     ensure(same(history, draft.history), 'Control draft historical state differs from its exact published predecessor');
+    ensure(same(this.sourceRefreshContext(draft.base,draft.target.definition.spec,history,proposal.id),draft.sourceRefresh??null),'Refresh control context differs from actual acquisition/history authority');
     const author = this.author(draft), reader = new FrozenReader(this.dataDir);
     reader.definition(proposal.spec, proposal.bundle); reader.candidate(proposal.candidate);
     ensure(draft.manifest.lineageId === draft.base.lineageId
@@ -264,8 +267,9 @@ export class ControlQualificationRepository {
     const proposal=this.record<Proposal>('proposal',evidence.proposalId);
     const native=persistedResearchWorkflow(this.db,proposal.id);
     const researchWorkflow=native?researchQualificationReviewContext(this.db,proposal,this.run(proposal.projectId,proposal.runId).contract):undefined;
+    const sourceRefreshEvidence=sourceRefreshReviewEvidence({matrix:assembled.matrix,pairs:evidence.execution.pairs,observations:job.materials??[]});
     const materialProjections=materialProjectionReviewEvidence(evidence.execution.pairs,job.materials??[],assembled);
-    ensure(same(payload, { ...(researchWorkflow?{researchWorkflow}:{}),...(materialProjections.length?{materialProjections}:{}),rules: assembled.rules, matrix: assembled.matrix, pairs: evidence.execution.pairs, deterministicQualification: evaluateControlQualification(assembled.matrix, evidence.execution.pairs), implementations, specimenImplementations, diffs, ...(()=>{const value=new ControlMaintenanceRepository(this.db,this.dataDir).reviewPayload(job.proposalId,job.id);return value?{maintenance:value}:{};})() }), 'Independent model did not review the complete actual qualification context');
+    ensure(same(payload, { ...(sourceRefreshEvidence?{sourceRefreshEvidence}:{}),...(researchWorkflow?{researchWorkflow}:{}),...(materialProjections.length?{materialProjections}:{}),rules: assembled.rules, matrix: assembled.matrix, pairs: evidence.execution.pairs, deterministicQualification: evaluateControlQualification(assembled.matrix, evidence.execution.pairs), implementations, specimenImplementations, diffs, ...(()=>{const value=new ControlMaintenanceRepository(this.db,this.dataDir).reviewPayload(job.proposalId,job.id);return value?{maintenance:value}:{};})() }), 'Independent model did not review the complete actual qualification context');
     const completed = events.filter(e => e.kind === 'codex-event' && e.value?.method === 'turn/completed').map(e => e.value.raw?.params);
     ensure(completed.some(p => p?.threadId === model.threadId
         && p?.turn?.id === model.turnId
@@ -318,6 +322,8 @@ export class ControlQualificationRepository {
     }
     const report = join(this.jobRoot(job), 'report.json'); ensure(Object.hasOwn(job.proofs, report)
         && same(JSON.parse(reader.read(report).toString()), { results: job.results, controls: job.controls, evaluation: job.evaluation, error: job.error }), 'Actual finished job report differs from persisted qualification results');
+    sourceRefreshReviewEvidence({matrix:expected.matrix,pairs:execution.pairs,observations:job.materials??[]});
+    for(const observation of job.materials??[])if(observation.historical)ensure(execution.pairs.some(pair=>pair.results.some(r=>r.proofFiles?.includes(observation.proofPath))),'Historical observation cannot exempt bootstrap or untracked material evidence');
     this.recordedStops(job); this.verifyModel(job, evidence, author);
     const persisted = this.stagesForReview(job.id), payloads: ControlReviewStagePayloads[ControlReviewStageName][] = [{ draftDigest: record.draftDigest }, { bootstrap: evidence.bootstrap, assembled: evidence.assembled }, { execution }, { review: evidence.independentReview, promptDigest: evidence.reviewPromptDigest }];
     ensure(persisted.length === 4

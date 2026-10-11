@@ -1,3 +1,4 @@
+import {readActivatingSourceRefreshGeneration} from '../verification/source-refresh-binding.js';
 import {mkdir,rename,lstat,realpath,readdir,writeFile} from 'node:fs/promises';
 import {join,dirname,sep} from 'node:path';
 import type {SupervisorStore} from '../persistence/store.js';
@@ -92,8 +93,18 @@ export async function publishResearchRoundReports(
   inputPath:input.path,inputDigest:input.digest,contextDigest:input.package.context.digest,
   completionPath:join(dataRoot,'research-completions',bytesDigest(record.id),'receipt.json'),completionDigest:completion.digest};
  const actual=readMaterialBindingSync(currentBinding);
- const goalAppend=readResearchGoalAppendProof(dataRoot,binding,currentBinding,before.input.context,input.package.context);
- const basisDigest=assertResearchProjectionCompatibility(before.input.context,input.package.context,goalAppend);
+ const proposalBase=store.verificationLineage.captureBase(runtime.projectId,runtime.runId),refreshTransitions=proposalBase.transitionIds.map(id=>store.verificationLineage.transition(id)).filter(t=>t.sourceRefresh);
+ let refresh:import('../contracts/p8-source-refresh.js').SourceRefreshGenerationProof|undefined;
+ let goalAppend:ReturnType<typeof readResearchGoalAppendProof>=null;let basisDigest:string;
+ if(refreshTransitions.length){
+  assertTrue(refreshTransitions.length===1&&proposalBase.transitionIds.length===1&&refreshTransitions[0]!.changes.length===0&&proposalBase.baseProposalId===previous.id,'Refresh report activation requires exact same-input delivered predecessor');
+  refresh=await readActivatingSourceRefreshGeneration(store,dataRoot,{transitionId:refreshTransitions[0]!.id,previousOperationId:before.input.acquisitionOperationId,currentOperationId:input.package.acquisitionOperationId},record.id);
+  assertTrue(refresh.entries.filter(e=>e.selected).every(e=>e.state!=='unknown')&&refresh.state==='changed'&&researchDigest(before.input.context.requirements)===researchDigest(input.package.context.requirements)&&researchDigest(before.input.context.limits)===researchDigest(input.package.context.limits),'Refresh source observation or original questions/conditions incomplete');
+  basisDigest=refresh.digest;
+ }else{
+  goalAppend=readResearchGoalAppendProof(dataRoot,binding,currentBinding,before.input.context,input.package.context);
+  basisDigest=assertResearchProjectionCompatibility(before.input.context,input.package.context,goalAppend);
+ }
  const draft=validateResearchProjectionDraftSync(input.package.context,record.message,dataRoot);
  assertTrue(researchDigest(actual.completion)===researchDigest(completion)
   &&researchDigest(completion.draft)===researchDigest(draft)
@@ -164,7 +175,7 @@ export async function publishResearchRoundReports(
   assertTrue(!(await lstat(path)).isSymbolicLink()&&await realpath(path)===path,'Research round private directory alias');
  }
  const stage=join(directory,'new'),backup=join(directory,'previous');
- const intent={schemaVersion:1,authority:'filesystem-integrity-only',rule:'delivered-same-source-round-v1',
+ const intent={schemaVersion:1,authority:'filesystem-integrity-only',rule:refresh?'delivered-explicit-source-refresh-v1':'delivered-same-source-round-v1',...(refresh?{refresh}:{}),
   operationId:op.id,executionId:record.id,runtimeId:runtime.id,runId:runtime.runId,
   predecessorDeliveryId:delivery.id,predecessorProposalId:previous.id,predecessorBinding:binding,
   inputDigest:input.digest,completionDigest:completion.digest,sourceBasisDigest:basisDigest,goalAppend,

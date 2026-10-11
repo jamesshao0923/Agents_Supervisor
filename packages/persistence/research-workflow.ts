@@ -116,7 +116,7 @@ export class ResearchWorkflowRepository {
             this.assertMappingReview(previous,this.repo.get('job',previous.reviewId));
             evolution=prepareResearchWorkflowEvolution({previous:this.proposal(previous.id),
                 previousSpec:previous.spec,currentPlan:expected,currentSpec:p.spec,currentContract:run.contract,
-                base:draft.base,transitions:draft.transitions});
+                base:draft.base,transitions:draft.transitions,...(draft.sourceRefresh?{refresh:draft.sourceRefresh}:{})});
         }
         const body = {
             ...(evolution?{evolution}:{}),
@@ -150,7 +150,7 @@ export class ResearchWorkflowRepository {
         const expected=prepareResearchWorkflowEvolution({previous,
             previousSpec:this.repo.get('proposal',previous.proposalId).spec,
             currentPlan:current.proofPlan,currentSpec:proposal.spec,currentContract:contract,
-            base:draft.base,transitions:draft.transitions});
+            base:draft.base,transitions:draft.transitions,...(draft.sourceRefresh?{refresh:draft.sourceRefresh}:{})});
         ensure(canonical(expected)===canonical(current.evolution),'actual native evolution changed');
         return {current,previous,contract};
     }

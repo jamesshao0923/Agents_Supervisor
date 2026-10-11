@@ -41,7 +41,7 @@ export function researchQualificationReviewContext(db:DatabaseSync,p:Proposal,co
  const draft=(JSON.parse(String(draftRow.record)) as import('../contracts/p4-qualification.js').StoredControlDraft).draft;
  const repo=new VerificationRepository(db),before=repo.get('proposal',previous.proposalId);
  const expected=prepareResearchWorkflowEvolution({previous,previousSpec:before.spec,
-  currentPlan:current.proofPlan,currentSpec:p.spec,currentContract:contract,base:draft.base,transitions:draft.transitions});
+  currentPlan:current.proofPlan,currentSpec:p.spec,currentContract:contract,base:draft.base,transitions:draft.transitions,...(draft.sourceRefresh?{refresh:draft.sourceRefresh}:{})});
  ensure(canonical(expected)===canonical(current.evolution),'native actual evolution receipt changed');
  return {current,previous,contract};
 }

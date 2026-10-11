@@ -1,3 +1,4 @@
+import type {SourceRefreshControlContext,SourceRefreshAdaptation,HistoricalMaterialEpoch} from './p4-source-refresh.js';
 import type { TaskContract } from './p1.js';
 import type { AppliedContractTransition } from './p4-lineage.js';
 import { parseVerificationSpec } from './p4.js';
@@ -30,10 +31,11 @@ export interface ControlDefinitionBinding { spec:VerificationSpec;contract:TaskC
 export interface QualificationRow {
   id:string;specimen:SpecimenRef;definitionDigest:string;instance:VerificationInstance;
   role:'current'|'historical-witness';
+  context?:{role:'current';digest:string}|{role:'historical';digest:string;epoch:HistoricalMaterialEpoch};
   expected:{obligationId:string;verdict:'passed'|'failed'|'not-applicable';witnessId:string|null}[];
 }
 export interface FrozenQualificationMatrix {
-  schemaVersion:1;manifestDigest:string;baseDefinitionDigest:string|null;
+  schemaVersion:1|2;sourceRefresh?:{context:SourceRefreshControlContext;adaptations:SourceRefreshAdaptation[]};manifestDigest:string;baseDefinitionDigest:string|null;
   targetDefinitionDigest:string;transitionIds:string[];
   rows:QualificationRow[];
   exclusions:{specimen:SpecimenRef;obligationId:string;transitionId:string|null;reason:string}[];
@@ -45,6 +47,7 @@ export interface QualificationResult {
   rows:{rowId:string;qualified:boolean;reasons:string[]}[];
 }
 export interface QualificationMatrixInput {
+  sourceRefresh?:SourceRefreshControlContext;
   base:ControlDefinitionBinding|null;target:ControlDefinitionBinding;
   transitions:AppliedContractTransition[];manifest:ControlEvolutionManifest;
   specimens:SpecimenRevision[];historicalDefinitions?:ControlDefinitionBinding[];
@@ -87,7 +90,7 @@ export function parseQualifiedDefinition(value:unknown):QualifiedDefinitionV2 {
   safeControlJSON(value);const o=object(value,['schemaVersion','finalSpec','evolution']);if(o.schemaVersion!==2)throw new Error('Unsupported qualified definition');return {schemaVersion:2,finalSpec:parseVerificationSpec(o.finalSpec),evolution:parseControlEvolutionManifest(o.evolution)};
 }
 export function parseFrozenQualificationMatrix(value:unknown):FrozenQualificationMatrix {
-  safeControlJSON(value);const o=object(value,['schemaVersion','manifestDigest','baseDefinitionDigest','targetDefinitionDigest','transitionIds','rows','exclusions','digest']);if(o.schemaVersion!==1)throw new Error('Unsupported qualification matrix');hash(o.manifestDigest);hash(o.targetDefinitionDigest);hash(o.digest);if(o.baseDefinitionDigest!==null)hash(o.baseDefinitionDigest);strings(o.transitionIds);
-  list(o.rows,x=>{const r=object(x,['id','specimen','definitionDigest','instance','role','expected']);text(r.id);ref(r.specimen);hash(r.definitionDigest);instance(r.instance);if(!['current','historical-witness'].includes(String(r.role)))throw new Error('Invalid qualification role');list(r.expected,x=>{const c=object(x,['obligationId','verdict','witnessId']);text(c.obligationId);if(!['passed','failed','not-applicable'].includes(String(c.verdict)))throw new Error('Invalid expected control verdict');if(c.witnessId!==null)text(c.witnessId);},1);},1);
+  safeControlJSON(value);const refresh=(value as FrozenQualificationMatrix).schemaVersion===2;const o=object(value,['schemaVersion',...(refresh?['sourceRefresh']:[]),'manifestDigest','baseDefinitionDigest','targetDefinitionDigest','transitionIds','rows','exclusions','digest']);if(o.schemaVersion!==1&&o.schemaVersion!==2)throw new Error('Unsupported qualification matrix');hash(o.manifestDigest);hash(o.targetDefinitionDigest);hash(o.digest);if(o.baseDefinitionDigest!==null)hash(o.baseDefinitionDigest);strings(o.transitionIds);
+  list(o.rows,x=>{const hasContext=Object.hasOwn(x as object,'context');const r=object(x,['id','specimen','definitionDigest','instance','role','expected',...(hasContext?['context']:[])]);if(refresh&&!hasContext||!refresh&&hasContext)throw new Error('Qualification context role mismatch');if(hasContext){const role=(r.context as {role?:unknown})?.role;if(role!=='current'&&role!=='historical')throw new Error('Invalid qualification context role');const context=object(r.context,['role','digest',...(role==='historical'?['epoch']:[])]);hash(context.digest);if(role==='historical'){const epoch=object(context.epoch,['role','binding','originalJobId','originalProposalId','originalProofs','originalObservation','modelEventsPath','observedAt','specimen','witnessId','digest']);if(epoch.role!=='historical')throw new Error('Invalid historical epoch role');hash(epoch.digest);ref(epoch.specimen);for(const k of ['originalJobId','originalProposalId','modelEventsPath','observedAt','witnessId'])text(epoch[k]);if(!Number.isFinite(Date.parse(epoch.observedAt as string)))throw new Error('Invalid historical observation time');}}text(r.id);ref(r.specimen);hash(r.definitionDigest);instance(r.instance);if(!['current','historical-witness'].includes(String(r.role)))throw new Error('Invalid qualification role');list(r.expected,x=>{const c=object(x,['obligationId','verdict','witnessId']);text(c.obligationId);if(!['passed','failed','not-applicable'].includes(String(c.verdict)))throw new Error('Invalid expected control verdict');if(c.witnessId!==null)text(c.witnessId);},1);},1);
   list(o.exclusions,x=>{const e=object(x,['specimen','obligationId','transitionId','reason']);ref(e.specimen);text(e.obligationId);text(e.reason);if(e.transitionId!==null)text(e.transitionId);});const m=structuredClone(value) as FrozenQualificationMatrix;if(new Set(m.rows.map(r=>r.id)).size!==m.rows.length)throw new Error('Duplicate qualification row');return m;
 }

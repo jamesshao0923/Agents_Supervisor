@@ -1,3 +1,4 @@
+import type {HistoricalMaterialEpoch} from './p4-source-refresh.js';
 /** Native P4 provenance; this binding is captured from actual Run-owned activity. */
 export interface MaterialVerifierBinding {
  schemaVersion:1;operationId:string;executionId:string;inputPath:string;inputDigest:string;completionPath:string;completionDigest:string;contextDigest:string;
@@ -7,7 +8,7 @@ export interface MaterialProjectionObservation {
  rule:'lossless-prior-questions-v1';currentBinding:MaterialVerifierBinding;
  currentClaimDigest:string;projectionDigest:string;
 }
-export interface MaterialObservation {projection?:MaterialProjectionObservation;schemaVersion:1;binding:MaterialVerifierBinding;observedAt:string;sourceAcquiredAt:string;maxAgeMs:number;coverage:{completeness:'complete'|'partial';disposition:'completed'|'cancelled'|'deadline'};proofPath:string;proofDigest:string}
+export interface MaterialObservation {historical?:HistoricalMaterialEpoch;projection?:MaterialProjectionObservation;schemaVersion:1;binding:MaterialVerifierBinding;observedAt:string;sourceAcquiredAt:string;maxAgeMs:number;coverage:{completeness:'complete'|'partial';disposition:'completed'|'cancelled'|'deadline'};proofPath:string;proofDigest:string}
 const obj=(properties:Record<string,unknown>)=>({type:'object',additionalProperties:false,required:Object.keys(properties),properties});
 const text={type:'string',minLength:1,maxLength:4096};const sha={type:'string',minLength:64,maxLength:64};
 export const MATERIAL_BINDING_SCHEMA=obj({schemaVersion:{type:'integer',const:1},operationId:text,executionId:text,inputPath:text,inputDigest:sha,completionPath:text,completionDigest:sha,contextDigest:sha});

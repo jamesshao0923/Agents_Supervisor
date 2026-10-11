@@ -1,6 +1,6 @@
 import type { TestContext } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, readFile, readdir, realpath, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, readdir, realpath, rm, cp } from 'node:fs/promises';
 import { join } from 'node:path';
 import { SupervisorStore } from '../../packages/persistence/store.js';
 import { ResearchRuntimeActivity } from '../../packages/runtime/research-activity.js';
@@ -82,7 +82,8 @@ async function hashes(dir: string): Promise<Record<string, string>> {
     return files;
 }
 export async function researchWorkflowFixture(t: TestContext, fault?: (point: string) => void,
-    beforeRuntime?: (store:SupervisorStore,runtime:RuntimeRecord,root:string,workspace:string)=>Promise<void>) {
+    beforeRuntime?: (store:SupervisorStore,runtime:RuntimeRecord,root:string,workspace:string)=>Promise<void>,
+    evidence?: {timestampSyntheticEvents:true;archiveRoot:string;preserveOriginalRoot?:true}) {
     const root = await realpath(await mkdtemp('/tmp/sv-research-host-authority-')), data = join(root, 'data'), workspace = join(root, 'workspace'), source = join(root, 'notes.md');
     await mkdir(workspace);
     await writeFile(source, originalQuote + '\n');
@@ -92,7 +93,9 @@ export async function researchWorkflowFixture(t: TestContext, fault?: (point: st
     t.after(async () => {
         await p4.close();
         store.close();
-        await rm(root, {
+        // Preserve actual component evidence before cleanup, including failed runs.
+        if(evidence){await mkdir(evidence.archiveRoot,{recursive:true});await cp(root,join(evidence.archiveRoot,root.split('/').at(-1)!),{recursive:true});}
+        if(!evidence?.preserveOriginalRoot)await rm(root, {
             recursive: true,
             force: true
         });
@@ -572,7 +575,7 @@ export async function researchWorkflowFixture(t: TestContext, fault?: (point: st
                         }
                     }
                 }
-            }].map(e => JSON.stringify(e)).join('\n'));
+            }].map(e => JSON.stringify(evidence?{...e,at:new Date().toISOString()}:e)).join('\n'));
         job.usage++;
         job.modelStarted = true;
         return result;

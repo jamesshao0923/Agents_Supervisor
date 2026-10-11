@@ -1,3 +1,5 @@
+import {assertHistoricalMaterialEpoch} from './source-refresh-controls.js';
+import type {HistoricalMaterialEpoch} from '../contracts/p4-source-refresh.js';
 import {join} from 'node:path';
 import {mkdir,writeFile} from 'node:fs/promises';
 import type {SupervisorStore} from '../persistence/store.js';
@@ -77,7 +79,7 @@ export function currentMaterialProjectionBinding(
 
 export async function acquireMaterialEvidence(
  verifier:MaterialVerifier, tree:string, output:string, signal:AbortSignal,
- currentBinding?:MaterialVerifierBinding
+ currentBinding?:MaterialVerifierBinding,historical?:HistoricalMaterialEpoch
 ){
  // Freeze host configuration and exact candidate bytes before any archive await.
  const frozenVerifier=parseMaterialVerifier(verifier);
@@ -85,7 +87,7 @@ export async function acquireMaterialEvidence(
  const targetBinding=currentBinding?structuredClone(currentBinding):undefined;
  signal.throwIfAborted();
  const claimBytes=readBounded(await relativeFile(tree,frozenVerifier.claimFile));
- const claim=claimBytes.toString('utf8');
+ const claim=claimBytes.toString('utf8');if(historical){assertHistoricalMaterialEpoch(historical);assertTrue(!currentBinding&&researchDigest(historical.binding)===researchDigest(frozenVerifier.binding),'Historical epoch cannot adapt current context');const original=JSON.parse(readBounded(historical.originalObservation.proofPath).toString('utf8'));assertTrue(original.proposed?.proposal&&researchDigest(original.proposed.proposal)===researchDigest(JSON.parse(claim)), 'Historical replay must use original specimen claim');}
  const {input,completion,intake}=await readMaterialBinding(frozenVerifier.binding);
  let proposed;
  let basisProjection;
@@ -116,7 +118,7 @@ export async function acquireMaterialEvidence(
  await mkdir(output,{recursive:true});
  const proofPath=join(output,'actual-materials.json');
  await writeFile(proofPath,JSON.stringify(payload),{flag:'wx',mode:0o600});
- const observation:MaterialObservation={schemaVersion:1,binding:structuredClone(frozenVerifier.binding),
+ const observation:MaterialObservation={...(historical?{historical}:{}),schemaVersion:1,binding:structuredClone(frozenVerifier.binding),
   observedAt:new Date().toISOString(),sourceAcquiredAt:input.context.index.acquiredAt,
   maxAgeMs:Math.min(...input.context.requirements.map(r=>r.maxSourceAgeMs)),
   coverage:{completeness:input.context.index.completeness,disposition:input.context.index.disposition},
@@ -164,7 +166,7 @@ export function assertMaterialProjectionSync(observation:MaterialObservation):Ma
   coverage:{completeness:current.input.context.index.completeness,disposition:current.input.context.index.disposition}};
 }
 export async function assertMaterialsCurrent(observations:MaterialObservation[],refresh=false,signal?:AbortSignal):Promise<void>{
- const checked=new Set<string>();for(const observation of observations){signal?.throwIfAborted();assertTrue(bytesDigest(readBounded(observation.proofPath))===observation.proofDigest,'Native material proof changed');const currentProjection=assertMaterialProjectionSync(observation);if(currentProjection){const {input:currentInput}=await readMaterialBinding(currentProjection.binding);for(const requirement of currentInput.context.requirements)assertTrue(Date.now()-Date.parse(currentInput.context.index.acquiredAt)<=requirement.maxSourceAgeMs,'Current projected material evidence expired');}const {input,intake}=await readMaterialBinding(observation.binding);assertTrue(observation.sourceAcquiredAt===input.context.index.acquiredAt&&observation.maxAgeMs===Math.min(...input.context.requirements.map(r=>r.maxSourceAgeMs))&&researchDigest(observation.coverage)===researchDigest({completeness:input.context.index.completeness,disposition:input.context.index.disposition}),'Material observation timing or coverage changed');for(const requirement of input.context.requirements)assertTrue(Date.now()-Date.parse(input.context.index.acquiredAt)<=requirement.maxSourceAgeMs,'Material evidence expired');if(refresh&&!checked.has(input.context.material.indexDigest)){const actual=await intake.refresh(input.context.material.directory,input.context.index.inputs,signal);if(actual.state!=='current'){const newer=await intake.inspect(actual.directory);assertTrue(newer.disposition==='completed'&&newer.inputs.length===input.context.index.inputs.length&&input.context.index.entries.every((old,i)=>{const fresh=newer.entries[i];return fresh&&researchDigest(fresh.input)===researchDigest(old.input)&&old.raw?.complete&&fresh.raw?.complete&&fresh.raw.sha256===old.raw.sha256&&fresh.finalURL===old.finalURL&&(old.status==='success'&&fresh.status==='success'||old.status==='unsupported'&&fresh.status==='unsupported');}),'Material source currentness is '+actual.state+'; original snapshots retained');}checked.add(input.context.material.indexDigest);}signal?.throwIfAborted();}
+ const checked=new Set<string>();for(const observation of observations){signal?.throwIfAborted();assertTrue(bytesDigest(readBounded(observation.proofPath))===observation.proofDigest,'Native material proof changed');if(observation.historical){assertHistoricalMaterialEpoch(observation.historical);assertTrue(!observation.projection&&researchDigest(observation.binding)===researchDigest(observation.historical.binding),'Historical material role changed');const original=JSON.parse(readBounded(observation.historical.originalObservation.proofPath).toString('utf8')),actual=JSON.parse(readBounded(observation.proofPath).toString('utf8'));assertTrue(researchDigest(actual)===researchDigest(original),'Historical replay differs from actual original material payload');continue;}const currentProjection=assertMaterialProjectionSync(observation);if(currentProjection){const {input:currentInput}=await readMaterialBinding(currentProjection.binding);for(const requirement of currentInput.context.requirements)assertTrue(Date.now()-Date.parse(currentInput.context.index.acquiredAt)<=requirement.maxSourceAgeMs,'Current projected material evidence expired');}const {input,intake}=await readMaterialBinding(observation.binding);assertTrue(observation.sourceAcquiredAt===input.context.index.acquiredAt&&observation.maxAgeMs===Math.min(...input.context.requirements.map(r=>r.maxSourceAgeMs))&&researchDigest(observation.coverage)===researchDigest({completeness:input.context.index.completeness,disposition:input.context.index.disposition}),'Material observation timing or coverage changed');for(const requirement of input.context.requirements)assertTrue(Date.now()-Date.parse(input.context.index.acquiredAt)<=requirement.maxSourceAgeMs,'Material evidence expired');if(refresh&&!checked.has(input.context.material.indexDigest)){const actual=await intake.refresh(input.context.material.directory,input.context.index.inputs,signal);if(actual.state!=='current'){const newer=await intake.inspect(actual.directory);assertTrue(newer.disposition==='completed'&&newer.inputs.length===input.context.index.inputs.length&&input.context.index.entries.every((old,i)=>{const fresh=newer.entries[i];return fresh&&researchDigest(fresh.input)===researchDigest(old.input)&&old.raw?.complete&&fresh.raw?.complete&&fresh.raw.sha256===old.raw.sha256&&fresh.finalURL===old.finalURL&&(old.status==='success'&&fresh.status==='success'||old.status==='unsupported'&&fresh.status==='unsupported');}),'Material source currentness is '+actual.state+'; original snapshots retained');}checked.add(input.context.material.indexDigest);}signal?.throwIfAborted();}
 }
 
 /** Complete actual projection payloads for the same paid independent reviewer.

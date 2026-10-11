@@ -1,3 +1,4 @@
+import type {SourceRefreshControlContext} from './p4-source-refresh.js';
 import type { AppliedContractTransition, ProposalBase } from './p4-lineage.js';
 import type { ControlDefinitionBinding, ControlEvolutionManifest, FrozenQualificationMatrix, QualificationMatrixInput, SpecimenRef, SpecimenRevision } from './p4-controls.js';
 import type { VerificationInstance, VerificationResult } from './p4.js';
@@ -31,6 +32,7 @@ export interface BootstrapPair {
   failures:{obligationId:string;expectationDigest:string}[];
 }
 export interface FrozenControlDraft {
+  sourceRefresh?:SourceRefreshControlContext;
   schemaVersion:1;proposalId:string;base:ProposalBase;
   baseDefinition:ControlDefinitionBinding|null;
   target:FrozenControlDetector;
@@ -44,6 +46,7 @@ export interface FrozenControlDraft {
   digest:string;
 }
 export interface PrepareControlDraftInput {
+  sourceRefresh?:SourceRefreshControlContext;
   proposalId:string;base:ProposalBase;baseDefinition:ControlDefinitionBinding|null;
   target:FrozenControlDetector;transitions:AppliedContractTransition[];
   history:ControlBootstrapHistory;authoredPlan:AuthoredControlPlan;

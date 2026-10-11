@@ -61,7 +61,7 @@ export interface ResearchWorkflowDeclaration {
         hostGates: ResearchHostGate[];
     }[];
 }
-export interface ResearchWorkflowEvolution {
+export interface ResearchAppendWorkflowEvolution {
     schemaVersion:1;
     rule:'append-same-source-lossless-v1';
     predecessorProposalId:string;
@@ -72,6 +72,12 @@ export interface ResearchWorkflowEvolution {
         current:import('./p4-material.js').MaterialVerifierBinding;sourceBasisDigest:string}[];
     digest:string;
 }
+export interface ResearchRefreshWorkflowEvolution {
+ schemaVersion:1;rule:'same-input-refresh-v1';predecessorProposalId:string;
+ predecessorProofPlanDigest:string;lineageId:string;transitionIds:string[];
+ context:import('./p4-source-refresh.js').SourceRefreshControlContext;digest:string;
+}
+export type ResearchWorkflowEvolution=ResearchAppendWorkflowEvolution|ResearchRefreshWorkflowEvolution;
 export interface ResearchWorkflowProposal {
     evolution?:ResearchWorkflowEvolution;
     schemaVersion: 1;

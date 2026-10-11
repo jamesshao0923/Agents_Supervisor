@@ -1,4 +1,5 @@
-import type {ResearchProofPlan,ResearchWorkflowProposal,ResearchWorkflowEvolution} from '../contracts/p4-research-workflow.js';
+import {researchDigest} from '../workspace/research-materials.js';
+import type {ResearchProofPlan,ResearchWorkflowProposal,ResearchWorkflowEvolution,ResearchAppendWorkflowEvolution} from '../contracts/p4-research-workflow.js';
 import type {VerificationSpec} from '../contracts/p4.js';
 import type {ProposalBase,AppliedContractTransition} from '../contracts/p4-lineage.js';
 import type {TaskContract} from '../contracts/p1.js';
@@ -16,7 +17,7 @@ function ensure(value:unknown,message:string):asserts value {
 export function prepareResearchWorkflowEvolution(input:{
  previous:ResearchWorkflowProposal;previousSpec:VerificationSpec;
  currentPlan:ResearchProofPlan;currentSpec:VerificationSpec;currentContract:TaskContract;
- base:ProposalBase;transitions:AppliedContractTransition[];
+ base:ProposalBase;transitions:AppliedContractTransition[];refresh?:import('../contracts/p4-source-refresh.js').SourceRefreshControlContext;
 }):ResearchWorkflowEvolution {
  safeControlJSON(input);
  const frozen=structuredClone(input),{previous,currentPlan,base}=frozen;
@@ -31,10 +32,17 @@ export function prepareResearchWorkflowEvolution(input:{
   ensure(matching.length===1&&canonical(matching[0])===canonical(old),
    'original check or its ALL-OF artifact/host mapping changed');
  }
+ if(frozen.refresh){
+  const refresh=frozen.refresh,{digest:stored,...body}=refresh;
+  ensure(researchDigest(body)===stored&&refresh.rule==='same-input-refresh-v1'&&frozen.transitions.length===1&&frozen.transitions[0]!.sourceRefresh&&refresh.generation.authorization.transitionId===frozen.transitions[0]!.id&&canonical(currentPlan.originalChecks)===canonical(previous.proofPlan.originalChecks),'refresh original exact ALL-OF mapping or applied generation changed');
+  const original=readMaterialBindingSync(refresh.previousBinding),current=readMaterialBindingSync(refresh.currentBinding);
+  ensure(canonical(original.input.context.requirements)===canonical(current.input.context.requirements)&&canonical(original.input.context.index.inputs)===canonical(current.input.context.index.inputs)&&original.input.context.material.generation===refresh.generation.previousGeneration&&current.input.context.material.generation===refresh.generation.currentGeneration,'refresh producer belongs to different original/current source context');
+  const value={schemaVersion:1 as const,rule:'same-input-refresh-v1' as const,predecessorProposalId:previous.proposalId,predecessorProofPlanDigest:previous.proofPlan.digest,lineageId:base.lineageId,transitionIds:base.transitionIds,context:refresh};return {...value,digest:digest(canonical(value))};
+ }
  const oldCases=currentVerificationCases(frozen.previousSpec).filter(c=>(c.status??'active')==='active'&&c.verifier.kind==='material');
  const currentCases=currentVerificationCases(frozen.currentSpec).filter(c=>(c.status??'active')==='active'&&c.verifier.kind==='material');
  ensure(oldCases.length>0&&currentCases.length>0,'native material basis missing');
- const bases=new Map<string,ResearchWorkflowEvolution['bases'][number]>();
+ const bases=new Map<string,ResearchAppendWorkflowEvolution['bases'][number]>();
  for(const old of oldCases){
   if(old.verifier.kind!=='material')continue;
   const oldVerifier=old.verifier;
