@@ -1,3 +1,4 @@
+import type {SourceRefreshIntent,SourceRefreshReview} from './p8-source-refresh.js';
 import type { TaskContract } from './p1.js';
 
 /** Digest uses verificationCanonical, never a project-wide version counter. */
@@ -16,7 +17,8 @@ export interface AppliedContractTransition {
   messageId:string; messageSequence:number; processingAttempt:number;
   relatedMessageIds:string[]; changes:AuthorizedCriterionChange[];
   review:{approved:true; changes:{criterionId:string;kind:AuthorizedCriterionChange['kind'];authorized:true;reasons:string[]}[];
-    proposalDigest:string; sourceDigest:string};
+    proposalDigest:string; sourceDigest:string; sourceRefresh?:SourceRefreshReview};
+  sourceRefresh?:SourceRefreshIntent;
   proofs:Record<string,string>;
 }
 export interface AcceptanceLineage {

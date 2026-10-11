@@ -1,0 +1,6 @@
+/** User provenance only. No caller hashes, current generation or approval. */
+export interface SourceRefreshIntent {materialIds:string[];sources:{messageId:string;quote:string}[]}
+export interface SourceRefreshReview {intentDigest:string;authorized:boolean;reasons:string[]}
+/** Host-derived actual applied transition; not a semantic P4 verdict. */
+export interface SourceRefreshAuthorization {schemaVersion:1;authority:'actual-applied-refresh-integrity-only';transitionId:string;transitionDigest:string;lineageId:string;projectId:string;previousRunId:string;currentRunId:string;intent:SourceRefreshIntent;researchConfigurationDigest:string;criteriaDigest:string;digest:string}
+export interface SourceRefreshGenerationProof {schemaVersion:1;authority:'acquisition-integrity-only';authorization:SourceRefreshAuthorization;previousOperationId:string;currentOperationId:string;previousReceiptDigest:string;currentReceiptDigest:string;previousGeneration:string;currentGeneration:string;previousIndexDigest:string;currentIndexDigest:string;entries:{id:string;selected:boolean;state:'current'|'changed'|'unknown';oldRawDigest:string|null;newRawDigest:string|null;oldTextDigest:string|null;newTextDigest:string|null}[];state:'current'|'changed'|'unknown';publication:'blocked-until-adapted-p4';digest:string}

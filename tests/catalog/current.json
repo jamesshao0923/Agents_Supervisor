@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-v40-research-groups-integration",
+  "revision": "dev-v41-source-refresh-integration",
   "modules": [
     {
       "id": "dev-contracts",
@@ -963,6 +963,12 @@
       "layer": "integration",
       "file": "dist/tests/integration/research-group-execution.test.js",
       "timeoutMs": 180000
+    },
+    {
+      "id": "integration-source-refresh",
+      "layer": "integration",
+      "file": "dist/tests/integration/source-refresh.test.js",
+      "timeoutMs": 120000
     }
   ],
   "cases": [
@@ -7656,7 +7662,8 @@
       "scenario": "P6-FUP-U01 strict followup schema requires every field rejects extra authority and freezes source IDs",
       "impactTags": [
         "p6-followup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/unit/followup-proposal.test.ts :: P6-FUP-U01 strict followup schema requires every field rejects extra authority and freezes source IDs",
@@ -7675,7 +7682,8 @@
       "scenario": "P6-FUP-U02 explicit question cannot revise and explicit change cannot be dismissed as answer",
       "impactTags": [
         "p6-followup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/unit/followup-proposal.test.ts :: P6-FUP-U02 explicit question cannot revise and explicit change cannot be dismissed as answer",
@@ -7694,7 +7702,8 @@
       "scenario": "P6-FUP-U03 answer cannot carry plans retirements or standard changes and response must be nonempty",
       "impactTags": [
         "p6-followup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/unit/followup-proposal.test.ts :: P6-FUP-U03 answer cannot carry plans retirements or standard changes and response must be nonempty",
@@ -7713,7 +7722,8 @@
       "scenario": "P6-FUP-U04 clarification preserves a concrete question without a ready plan or acceptance retirement",
       "impactTags": [
         "p6-followup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/unit/followup-proposal.test.ts :: P6-FUP-U04 clarification preserves a concrete question without a ready plan or acceptance retirement",
@@ -7732,7 +7742,8 @@
       "scenario": "P6-FUP-U05 revision keeps old necessary acceptance and admits an additive ready fully covered plan",
       "impactTags": [
         "p6-followup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/unit/followup-proposal.test.ts :: P6-FUP-U05 revision keeps old necessary acceptance and admits an additive ready fully covered plan",
@@ -7751,7 +7762,8 @@
       "scenario": "P6-FUP-U06 old required IDs cannot be silently removed renamed or declared retired while still present",
       "impactTags": [
         "p6-followup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/unit/followup-proposal.test.ts :: P6-FUP-U06 old required IDs cannot be silently removed renamed or declared retired while still present",
@@ -7770,7 +7782,8 @@
       "scenario": "P6-FUP-U07 explicit retirement needs an exact current-user quote and historical permission cannot authorize it",
       "impactTags": [
         "p6-followup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/unit/followup-proposal.test.ts :: P6-FUP-U07 explicit retirement needs an exact current-user quote and historical permission cannot authorize it",
@@ -7789,7 +7802,8 @@
       "scenario": "P6-FUP-U08 same-ID description kind target and check edits all require new-user semantic-change evidence",
       "impactTags": [
         "p6-followup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/unit/followup-proposal.test.ts :: P6-FUP-U08 same-ID description kind target and check edits all require new-user semantic-change evidence",
@@ -7808,7 +7822,8 @@
       "scenario": "P6-FUP-U09 retirement sources cannot claim unrelated unchanged or newly added acceptance IDs",
       "impactTags": [
         "p6-followup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/unit/followup-proposal.test.ts :: P6-FUP-U09 retirement sources cannot claim unrelated unchanged or newly added acceptance IDs",
@@ -7827,7 +7842,8 @@
       "scenario": "P6-FUP-U10 unknown baseline cannot silently weaken checks and stale structured baseline is rejected",
       "impactTags": [
         "p6-followup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/unit/followup-proposal.test.ts :: P6-FUP-U10 unknown baseline cannot silently weaken checks and stale structured baseline is rejected",
@@ -7846,7 +7862,8 @@
       "scenario": "P6-FUP-U11 revision reuses actual proposal validation for escaped targets uncovered acceptance bad provenance and cyclic dependencies",
       "impactTags": [
         "p6-followup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/unit/followup-proposal.test.ts :: P6-FUP-U11 revision reuses actual proposal validation for escaped targets uncovered acceptance bad provenance and cyclic dependencies",
@@ -7865,7 +7882,8 @@
       "scenario": "P6-FUP-U12 frozen input rejects future boundaries duplicate IDs wrong conversation reordered sequences and conflicting source text",
       "impactTags": [
         "p6-followup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/unit/followup-proposal.test.ts :: P6-FUP-U12 frozen input rejects future boundaries duplicate IDs wrong conversation reordered sequences and conflicting source text",
@@ -7884,7 +7902,8 @@
       "scenario": "P6-FUP-U13 quote provenance is retained for independent semantic review rather than treated as semantic authorization",
       "impactTags": [
         "p6-followup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/unit/followup-proposal.test.ts :: P6-FUP-U13 quote provenance is retained for independent semantic review rather than treated as semantic authorization",
@@ -7904,7 +7923,8 @@
       "impactTags": [
         "p6-followup",
         "v34-legacy-portability-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I01 follow-up freezes ordered message inputs once and refuses ordinary admission through the pending fence",
@@ -7924,7 +7944,8 @@
       "impactTags": [
         "p6-followup",
         "v34-legacy-portability-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I02 follow-up rejects active work and unknown effects without partially appending requirements",
@@ -7944,7 +7965,8 @@
       "impactTags": [
         "p6-followup",
         "v34-legacy-portability-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I10 explicit and classified inquiries remain read-only requirements and legacy controls cannot bypass their processing state",
@@ -7964,7 +7986,8 @@
       "impactTags": [
         "p6-followup",
         "v34-legacy-portability-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I11 recursive clarification replies preserve original text and atomically apply every ancestor with the same contract",
@@ -7984,7 +8007,8 @@
       "impactTags": [
         "p6-followup",
         "v34-legacy-portability-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I12 follow-up budget refusal rolls back processing and requirement append without resetting prior spend",
@@ -8004,7 +8028,8 @@
       "impactTags": [
         "p6-followup",
         "v34-legacy-portability-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I03 successful follow-up finish retains the old proposal until atomic draft admission and is idempotent",
@@ -8024,7 +8049,8 @@
       "impactTags": [
         "p6-followup",
         "v34-legacy-portability-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I04 follow-up revises awaiting-verification runtime and keeps later messages fenced and out of the frozen plan",
@@ -8044,7 +8070,8 @@
       "impactTags": [
         "p6-followup",
         "v34-legacy-portability-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I05 unknown usage and failed follow-up retain the fence and cannot reserve again after explicit retry",
@@ -8064,7 +8091,8 @@
       "impactTags": [
         "p6-followup",
         "v34-legacy-portability-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I06 follow-up apply rejects missing proofs stale contract and mutated frozen requirements",
@@ -8084,7 +8112,8 @@
       "impactTags": [
         "p6-followup",
         "v34-legacy-portability-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I07 failed atomic acknowledgement rolls back runtime revision outbox checkpoint proposal and application marker",
@@ -8104,7 +8133,8 @@
       "impactTags": [
         "p6-followup",
         "v34-legacy-portability-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I08 delivered continuation preserves the old round and exact remaining authorization without starting a model",
@@ -8124,7 +8154,8 @@
       "impactTags": [
         "p6-followup",
         "v34-legacy-portability-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I09 continuation rejection rolls back new runs for exhausted reasoning capacity and forbids unrelated command reuse",
@@ -8143,7 +8174,8 @@
       "scenario": "P6-CC-I01 send receipts queue once during P5 reasoning and existing follow-up processing without additional jobs",
       "impactTags": [
         "p6-followup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/conversation-controller.test.ts :: P6-CC-I01 send receipts queue once during P5 reasoning and existing follow-up processing without additional jobs",
@@ -8162,7 +8194,8 @@
       "scenario": "P6-CC-I02 unknown prior usage blocks queued follow-up with its reservation retained and no new model job",
       "impactTags": [
         "p6-followup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/conversation-controller.test.ts :: P6-CC-I02 unknown prior usage blocks queued follow-up with its reservation retained and no new model job",
@@ -8181,7 +8214,8 @@
       "scenario": "P6-CC-I03 context capacity fails before the real reasoner process receives an intent and settles known zero usage",
       "impactTags": [
         "p6-followup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/conversation-controller.test.ts :: P6-CC-I03 context capacity fails before the real reasoner process receives an intent and settles known zero usage",
@@ -8200,7 +8234,8 @@
       "scenario": "P6-CC-I04 restored finished answer publishes once after checking its actual proof file SHA without changing requirements",
       "impactTags": [
         "p6-followup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/conversation-controller.test.ts :: P6-CC-I04 restored finished answer publishes once after checking its actual proof file SHA without changing requirements",
@@ -8219,7 +8254,8 @@
       "scenario": "P6-CC-I05 changed proof bytes prevent recovered answer publication and retain the unclassified message fence",
       "impactTags": [
         "p6-followup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/conversation-controller.test.ts :: P6-CC-I05 changed proof bytes prevent recovered answer publication and retain the unclassified message fence",
@@ -8238,7 +8274,8 @@
       "scenario": "P6-CC-I06 real service restarts preserve messages and reconcile an interrupted-model fixture without resending it",
       "impactTags": [
         "p6-followup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/integration/conversation-controller.test.ts :: P6-CC-I06 real service restarts preserve messages and reconcile an interrupted-model fixture without resending it",
@@ -11036,7 +11073,8 @@
       ],
       "scenario": "P6-FE-U01 new transport schema requires complete source mappings but never asks the model to compute hashes",
       "impactTags": [
-        "p6-followup-evolution"
+        "p6-followup-evolution",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
       "assertions": "tests/unit/followup-evolution.test.ts :: P6-FE-U01 new transport schema requires complete source mappings but never asks the model to compute hashes",
@@ -11054,7 +11092,8 @@
       ],
       "scenario": "P6-FE-U02 additions bind exact current criterion bytes using trusted digests and leave inputs intact",
       "impactTags": [
-        "p6-followup-evolution"
+        "p6-followup-evolution",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
       "assertions": "tests/unit/followup-evolution.test.ts :: P6-FE-U02 additions bind exact current criterion bytes using trusted digests and leave inputs intact",
@@ -11072,7 +11111,8 @@
       ],
       "scenario": "P6-FE-U03 omissions duplicates fabricated and unchanged deltas cannot authorize a different set",
       "impactTags": [
-        "p6-followup-evolution"
+        "p6-followup-evolution",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
       "assertions": "tests/unit/followup-evolution.test.ts :: P6-FE-U03 omissions duplicates fabricated and unchanged deltas cannot authorize a different set",
@@ -11090,7 +11130,8 @@
       ],
       "scenario": "P6-FE-U04 changed and retired criteria bind exact prior bytes and still require legacy fresh user authority",
       "impactTags": [
-        "p6-followup-evolution"
+        "p6-followup-evolution",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
       "assertions": "tests/unit/followup-evolution.test.ts :: P6-FE-U04 changed and retired criteria bind exact prior bytes and still require legacy fresh user authority",
@@ -11108,7 +11149,8 @@
       ],
       "scenario": "P6-FE-U05 every source is exact nonempty nonduplicate and belongs to this processing group",
       "impactTags": [
-        "p6-followup-evolution"
+        "p6-followup-evolution",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
       "assertions": "tests/unit/followup-evolution.test.ts :: P6-FE-U05 every source is exact nonempty nonduplicate and belongs to this processing group",
@@ -11126,7 +11168,8 @@
       ],
       "scenario": "P6-FE-U06 a specifically bound clarification ancestor can source additions but arbitrary history cannot",
       "impactTags": [
-        "p6-followup-evolution"
+        "p6-followup-evolution",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
       "assertions": "tests/unit/followup-evolution.test.ts :: P6-FE-U06 a specifically bound clarification ancestor can source additions but arbitrary history cannot",
@@ -11144,7 +11187,8 @@
       ],
       "scenario": "P6-FE-U07 answers and clarification cannot smuggle evolution and saved hashes cannot be rewritten",
       "impactTags": [
-        "p6-followup-evolution"
+        "p6-followup-evolution",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
       "assertions": "tests/unit/followup-evolution.test.ts :: P6-FE-U07 answers and clarification cannot smuggle evolution and saved hashes cannot be rewritten",
@@ -11162,7 +11206,8 @@
       ],
       "scenario": "P6-FE-U08 independent review binds proposal and exact ordered user sources",
       "impactTags": [
-        "p6-followup-evolution"
+        "p6-followup-evolution",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
       "assertions": "tests/unit/followup-evolution.test.ts :: P6-FE-U08 independent review binds proposal and exact ordered user sources",
@@ -11180,7 +11225,8 @@
       ],
       "scenario": "P6-FE-U09 overall approval cannot override a rejected or omitted individual change",
       "impactTags": [
-        "p6-followup-evolution"
+        "p6-followup-evolution",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
       "assertions": "tests/unit/followup-evolution.test.ts :: P6-FE-U09 overall approval cannot override a rejected or omitted individual change",
@@ -11198,7 +11244,8 @@
       ],
       "scenario": "P6-FE-U10 duplicate review identities cannot replace another required authorization",
       "impactTags": [
-        "p6-followup-evolution"
+        "p6-followup-evolution",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
       "assertions": "tests/unit/followup-evolution.test.ts :: P6-FE-U10 duplicate review identities cannot replace another required authorization",
@@ -11220,7 +11267,8 @@
         "v34-legacy-portability-impact",
         "v35-author-recovery-impact",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
       "assertions": "tests/integration/verification-lineage.test.ts :: P6-LINE-I01 independent same-project roots keep exact immutable bindings and full-payload receipts across reopen",
@@ -11242,7 +11290,8 @@
         "v34-legacy-portability-impact",
         "v35-author-recovery-impact",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
       "assertions": "tests/integration/verification-lineage.test.ts :: P6-LINE-I02 frozen exact bases and scoped CAS reject a competing publication without touching another root",
@@ -11264,7 +11313,8 @@
         "v34-legacy-portability-impact",
         "v35-author-recovery-impact",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
       "assertions": "tests/integration/verification-lineage.test.ts :: P6-LINE-I03 outer rollback atomically removes head proposal mutation and receipt while preserving parent transaction",
@@ -11286,7 +11336,8 @@
         "v34-legacy-portability-impact",
         "v35-author-recovery-impact",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
       "assertions": "tests/integration/verification-lineage.test.ts :: P6-LINE-I04 continuation binds the exact delivered adjacent round and rejects unrelated or stale predecessor",
@@ -11308,7 +11359,8 @@
         "v34-legacy-portability-impact",
         "v35-author-recovery-impact",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
       "assertions": "tests/integration/verification-lineage.test.ts :: P6-LINE-I05 exact message reviewed transition is required even when Run contract version numbers match",
@@ -11330,7 +11382,8 @@
         "v34-legacy-portability-impact",
         "v35-author-recovery-impact",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
       "assertions": "tests/integration/verification-lineage.test.ts :: P6-LINE-I06 legacy migration preserves old JSON and costs and records ambiguous unrelated project ancestry as blocked",
@@ -11352,7 +11405,8 @@
         "v34-legacy-portability-impact",
         "v35-author-recovery-impact",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
       "assertions": "tests/integration/verification-lineage.test.ts :: P6-LINE-I07 unpublished legacy base and duplicate historical versions remain blocked without nearest-head inference",
@@ -11374,7 +11428,8 @@
         "v34-legacy-portability-impact",
         "v35-author-recovery-impact",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
       "assertions": "tests/integration/verification-lineage.test.ts :: P6-LINE-I08 publication rejects proof tampering unknown accounting and an active user message fence",
@@ -11396,7 +11451,8 @@
         "v34-legacy-portability-impact",
         "v35-author-recovery-impact",
         "v36-authority-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
       "assertions": "tests/integration/verification-lineage.test.ts :: P6-LINE-I09 applied authorization persists a complete two-transition chain and rollback retains no partial receipt",
@@ -11682,7 +11738,8 @@
       "impactTags": [
         "p6-followup-persistence",
         "v34-legacy-portability-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
       "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I13 enriched follow-up atomically binds actual active and delivered-child contracts with original proof and costs",
@@ -11702,7 +11759,8 @@
       "impactTags": [
         "p6-followup-persistence",
         "v34-legacy-portability-impact",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite and file transactions with explicit persisted scenario fixtures. Not live model evidence.",
       "assertions": "tests/integration/goal-followup.test.ts :: P6-GOAL-I14 failed transition receipt rolls back message runtime plan and contract while keeping completed model accounting",
@@ -16015,7 +16073,8 @@
         "p8-research-binding",
         "v36-authority-impact",
         "v38-combined-impact",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
       "assertions": "tests/integration/research-binding.test.ts :: P8-RBIND-I01 real five-material snapshots schema projection span digests and dependent sources remain proposed with explicit partial coverage",
@@ -16036,7 +16095,8 @@
         "p8-research-binding",
         "v36-authority-impact",
         "v38-combined-impact",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
       "assertions": "tests/integration/research-binding.test.ts :: P8-RBIND-I02 wrong literal outside span split surrogate unknown source and invented authority are rejected by actual schema and byte binding",
@@ -16057,7 +16117,8 @@
         "p8-research-binding",
         "v36-authority-impact",
         "v38-combined-impact",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
       "assertions": "tests/integration/research-binding.test.ts :: P8-RBIND-I03 actual snapshot corruption and self-rehashed metadata cannot authorize a citation or redirect its material scope",
@@ -16078,7 +16139,8 @@
         "p8-research-binding",
         "v36-authority-impact",
         "v38-combined-impact",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
       "assertions": "tests/integration/research-binding.test.ts :: P8-RBIND-I04 context request and model objects freeze before async material reads and never inherit late caller metadata",
@@ -16099,7 +16161,8 @@
         "p8-research-binding",
         "v36-authority-impact",
         "v38-combined-impact",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
       "assertions": "tests/integration/research-binding.test.ts :: P8-RBIND-I05 typed schema bounds and safe JSON reject executable accessors sparse arrays duplicate references and empty answers",
@@ -16120,7 +16183,8 @@
         "p8-research-binding",
         "v36-authority-impact",
         "v38-combined-impact",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
       "assertions": "tests/integration/research-binding.test.ts :: P8-RBIND-I06 missing unsupported and cancelled material coverage cannot become a complete answer or erase required criteria",
@@ -16141,7 +16205,8 @@
         "p8-research-binding",
         "v36-authority-impact",
         "v38-combined-impact",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Real files, SQLite/managed Node or local HTTP as applicable; no provider or P4 delivery claim.",
       "assertions": "tests/integration/research-binding.test.ts :: P8-RBIND-I07 actual refresh changed and unknown preserve immutable historical research evidence without granting revalidation",
@@ -17440,7 +17505,8 @@
       "scenario": "P8-RPLAN-U01 host research configuration is separated from verbatim user-only fact sources",
       "impactTags": [
         "p8-research-runtime",
-        "p8-v32-mechanisms"
+        "p8-v32-mechanisms",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
       "assertions": "tests/unit/research-planning.test.ts :: P8-RPLAN-U01 host research configuration is separated from verbatim user-only fact sources",
@@ -17459,7 +17525,8 @@
       "scenario": "P8-RPLAN-U02 observed paid failure pattern preserves rejection of four host-attributed explicit facts",
       "impactTags": [
         "p8-research-runtime",
-        "p8-v32-mechanisms"
+        "p8-v32-mechanisms",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
       "assertions": "tests/unit/research-planning.test.ts :: P8-RPLAN-U02 observed paid failure pattern preserves rejection of four host-attributed explicit facts",
@@ -17478,7 +17545,8 @@
       "scenario": "P8-RPLAN-U03 malformed configuration or invented duplicate message identity cannot gain fact authority",
       "impactTags": [
         "p8-research-runtime",
-        "p8-v32-mechanisms"
+        "p8-v32-mechanisms",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
       "assertions": "tests/unit/research-planning.test.ts :: P8-RPLAN-U03 malformed configuration or invented duplicate message identity cannot gain fact authority",
@@ -19456,7 +19524,8 @@
       "scenario": "P8-RV2-I07 actual authorized research continuation new producer full V2 original-witness replay and ALL-OF sealed second delivery preserve original scope history and total budget",
       "impactTags": [
         "p8-research-v2",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Actual modules, SQLite, files and managed Node. Provider judgments are synthetic protocol inputs; no real model semantic acceptance.",
       "assertions": "tests/integration/research-followup.test.ts :: P8-RV2-I07 actual authorized research continuation new producer full V2 original-witness replay and ALL-OF sealed second delivery preserve original scope history and total budget",
@@ -19496,7 +19565,8 @@
       "scenario": "P8-GRP-I01 actual five-material receipt freezes full mandatory coverage and installs same-Run graph final floor and real claims",
       "impactTags": [
         "p8-research-groups-foundation",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
       "assertions": "tests/integration/research-groups.test.ts :: P8-GRP-I01 actual five-material receipt freezes full mandatory coverage and installs same-Run graph final floor and real claims",
@@ -19515,7 +19585,8 @@
       "scenario": "P8-GRP-I02 parent SQLite rollback and stale CAS pause cancel reject group authority without partial graph floor or receipts",
       "impactTags": [
         "p8-research-groups-foundation",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
       "assertions": "tests/integration/research-groups.test.ts :: P8-GRP-I02 parent SQLite rollback and stale CAS pause cancel reject group authority without partial graph floor or receipts",
@@ -19534,7 +19605,8 @@
       "scenario": "P8-GRP-I03 unknown acquisition and unknown shared claim accounting preserve reservations effects and block new dispatch",
       "impactTags": [
         "p8-research-groups-foundation",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
       "assertions": "tests/integration/research-groups.test.ts :: P8-GRP-I03 unknown acquisition and unknown shared claim accounting preserve reservations effects and block new dispatch",
@@ -19553,7 +19625,8 @@
       "scenario": "P8-GRP-I04 missing coverage expanded requests tampered host plan partial input and changed archive cannot grant installation",
       "impactTags": [
         "p8-research-groups-foundation",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
       "assertions": "tests/integration/research-groups.test.ts :: P8-GRP-I04 missing coverage expanded requests tampered host plan partial input and changed archive cannot grant installation",
@@ -19572,7 +19645,8 @@
       "scenario": "P8-GRP-I05 two actual Node processes use SQLite CAS for one exact same-Run claim and never double-reserve",
       "impactTags": [
         "p8-research-groups-foundation",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
       "assertions": "tests/integration/research-groups.test.ts :: P8-GRP-I05 two actual Node processes use SQLite CAS for one exact same-Run claim and never double-reserve",
@@ -19591,7 +19665,8 @@
       "scenario": "P8-GRP-I06 actual process exit inside install transaction rolls back graph floor and scheduler and restart reuses exact owned preparation",
       "impactTags": [
         "p8-research-groups-foundation",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
       "assertions": "tests/integration/research-groups.test.ts :: P8-GRP-I06 actual process exit inside install transaction rolls back graph floor and scheduler and restart reuses exact owned preparation",
@@ -19610,7 +19685,8 @@
       "scenario": "P8-GRP-I07 ordinary runtime and ordinary engineering install guards remain exact while registered native material acquisition stays runnable",
       "impactTags": [
         "p8-research-groups-foundation",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
       "assertions": "tests/integration/research-groups.test.ts :: P8-GRP-I07 ordinary runtime and ordinary engineering install guards remain exact while registered native material acquisition stays runnable",
@@ -19629,7 +19705,8 @@
       "scenario": "P8-GROUP-EXEC-I01 actual material spans schema and complete unavailable coverage reject fabricated quotations cross-material summaries and omitted gaps",
       "impactTags": [
         "p8-research-groups-execution",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
       "assertions": "tests/integration/research-group-execution.test.ts :: P8-GROUP-EXEC-I01 actual material spans schema and complete unavailable coverage reject fabricated quotations cross-material summaries and omitted gaps",
@@ -19648,7 +19725,8 @@
       "scenario": "P8-GROUP-EXEC-I02 actual stopped branches publish submitted host extractions and full original analysis freezes exact refs through native P4 binding",
       "impactTags": [
         "p8-research-groups-execution",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
       "assertions": "tests/integration/research-group-execution.test.ts :: P8-GROUP-EXEC-I02 actual stopped branches publish submitted host extractions and full original analysis freezes exact refs through native P4 binding",
@@ -19667,7 +19745,8 @@
       "scenario": "P8-GROUP-EXEC-I03 actual structured refusal late pause cancel and unknown accounting retain raw output stop and original budget without TaskResult",
       "impactTags": [
         "p8-research-groups-execution",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
       "assertions": "tests/integration/research-group-execution.test.ts :: P8-GROUP-EXEC-I03 actual structured refusal late pause cancel and unknown accounting retain raw output stop and original budget without TaskResult",
@@ -19686,7 +19765,8 @@
       "scenario": "P8-GROUP-EXEC-I04 actually running writer and rehashed host receipt cannot forge publication or free shared reservations",
       "impactTags": [
         "p8-research-groups-execution",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
       "assertions": "tests/integration/research-group-execution.test.ts :: P8-GROUP-EXEC-I04 actually running writer and rehashed host receipt cannot forge publication or free shared reservations",
@@ -19705,7 +19785,8 @@
       "scenario": "P8-GROUP-EXEC-I05 actual Manager JSON line transport requests read-only and exact structured schema then persists raw stopped extraction",
       "impactTags": [
         "p8-research-groups-execution",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
       "assertions": "tests/integration/research-group-execution.test.ts :: P8-GROUP-EXEC-I05 actual Manager JSON line transport requests read-only and exact structured schema then persists raw stopped extraction",
@@ -19724,7 +19805,8 @@
       "scenario": "P8-GROUP-EXEC-I06 actual worker tick automatically installs once and records immutable input failure as readable blocked state across restart",
       "impactTags": [
         "p8-research-groups-execution",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
       "assertions": "tests/integration/research-group-execution.test.ts :: P8-GROUP-EXEC-I06 actual worker tick automatically installs once and records immutable input failure as readable blocked state across restart",
@@ -19743,11 +19825,69 @@
       "scenario": "P8-GROUP-EXEC-I07 actual process exit after exclusive host receipt recovers original evidence once without replay or duplicate fee",
       "impactTags": [
         "p8-research-groups-execution",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "v41-source-refresh-impact"
       ],
       "prerequisites": "Pinned Node; actual SQLite, FS and managed Node. Provider/capability/usage fixtures where explicitly stated are synthetic, no model semantics or sandbox enforcement evidence.",
       "assertions": "tests/integration/research-group-execution.test.ts :: P8-GROUP-EXEC-I07 actual process exit after exclusive host receipt recovers original evidence once without replay or duplicate fee",
       "cleanup": "Stop only owned processes and preserve raw outputs, exclusive receipts, unknown accounting and prior failures; no paid call or native device.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-source-refresh.001",
+      "name": "P8-REFRESH-I01 actual explicit dual-call applied intent and new local source generation remain integrity-only across restart",
+      "suiteId": "integration-source-refresh",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-source-refresh-foundation"
+      ],
+      "scenario": "P8-REFRESH-I01 actual explicit dual-call applied intent and new local source generation remain integrity-only across restart",
+      "impactTags": [
+        "p8-source-refresh-foundation",
+        "v41-source-refresh-impact"
+      ],
+      "prerequisites": "Pinned Node, actual SQLite/FS and managed Node. Explicit synthetic model output/usage fixture; no supplier or native request.",
+      "assertions": "tests/integration/source-refresh.test.ts :: P8-REFRESH-I01 actual explicit dual-call applied intent and new local source generation remain integrity-only across restart",
+      "cleanup": "Stop owned processes and remove private roots, preserve prior failed evidence; no paid call or global write.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-source-refresh.002",
+      "name": "P8-REFRESH-I02 refresh request cannot change source IDs original checks or bypass independent intent authorization",
+      "suiteId": "integration-source-refresh",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-source-refresh-foundation"
+      ],
+      "scenario": "P8-REFRESH-I02 refresh request cannot change source IDs original checks or bypass independent intent authorization",
+      "impactTags": [
+        "p8-source-refresh-foundation",
+        "v41-source-refresh-impact"
+      ],
+      "prerequisites": "Pinned Node, actual SQLite/FS and managed Node. Explicit synthetic model output/usage fixture; no supplier or native request.",
+      "assertions": "tests/integration/source-refresh.test.ts :: P8-REFRESH-I02 refresh request cannot change source IDs original checks or bypass independent intent authorization",
+      "cleanup": "Stop owned processes and remove private roots, preserve prior failed evidence; no paid call or global write.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-source-refresh.003",
+      "name": "P8-REFRESH-I03 actual same-loopback HTTP byte refresh retains both snapshots and explicit failed later observation",
+      "suiteId": "integration-source-refresh",
+      "module": "verification",
+      "layer": "integration",
+      "covers": [
+        "p8-source-refresh-foundation"
+      ],
+      "scenario": "P8-REFRESH-I03 actual same-loopback HTTP byte refresh retains both snapshots and explicit failed later observation",
+      "impactTags": [
+        "p8-source-refresh-foundation",
+        "v41-source-refresh-impact"
+      ],
+      "prerequisites": "Pinned Node, actual SQLite/FS and managed Node. Explicit synthetic model output/usage fixture; no supplier or native request.",
+      "assertions": "tests/integration/source-refresh.test.ts :: P8-REFRESH-I03 actual same-loopback HTTP byte refresh retains both snapshots and explicit failed later observation",
+      "cleanup": "Stop owned processes and remove private roots, preserve prior failed evidence; no paid call or global write.",
       "status": "active"
     }
   ]

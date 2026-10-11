@@ -1,3 +1,4 @@
+import type {SourceRefreshIntent} from './p8-source-refresh.js';
 import type { GoalProposal, GoalSession, ReasonerConfig } from './p5.js';
 import type { Run } from './p1.js';
 import type { ProcessIdentity, ProcessIntent } from '../process-control/index.js';
@@ -13,6 +14,7 @@ export interface FollowupProposal {
   /** Present only after a complete versioned change-source validation. Legacy
    * follow-ups remain readable but cannot authorize control evolution. */
   criterionChanges?: AuthorizedCriterionChange[];
+  sourceRefresh?:SourceRefreshIntent|null;
 }
 
 export type ConversationMessageKind = 'question' | 'change' | 'unclassified';

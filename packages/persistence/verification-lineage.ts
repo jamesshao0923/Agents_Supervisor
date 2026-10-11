@@ -1,3 +1,6 @@
+import type {SourceRefreshAuthorization} from '../contracts/p8-source-refresh.js';
+import type {GoalResearchConfiguration} from '../contracts/p8-research-runtime.js';
+import {assertSourceRefreshIntent,sourceRefreshDigest,assertSourceRefreshConfiguration} from '../verification/source-refresh-intent.js';
 import {assertResearchMappingApproval,persistedResearchWorkflow} from '../verification/research-mapping-proof.js';
 import {dirname} from 'node:path';
 import {assertLegacyControlReviewEvidence} from '../verification/legacy-review-evidence.js';
@@ -101,6 +104,24 @@ export class VerificationLineageRepository {
     const value=input.transition;this.validateTransition(value);const old=this.db.prepare('SELECT record FROM verification_contract_transitions WHERE id=?').get(value.id);if(old){ensure(old.record===json(value),'Conflicting applied transition');return value;}
     this.db.prepare('INSERT INTO verification_contract_transitions(id,lineage_id,project_id,run_id,to_contract_digest,record) VALUES (?,?,?,?,?,?)').run(value.id,value.lineageId,value.to.projectId,value.to.runId,value.to.contractDigest,json(value));return structuredClone(value);
   });}
+  /** Fail closed even before the first head exists. No new-generation report
+   * publication is supported until adapted native P4 controls are implemented. */
+  assertRefreshPublicationSupported(projectId:string,runId:string):void {
+    let ref={projectId,runId,contractDigest:lineageDigest(this.run(projectId,runId).contract)};
+    const seen=new Set<string>();
+    for(;;){const row=this.db.prepare('SELECT id FROM verification_contract_transitions WHERE project_id=? AND run_id=? AND to_contract_digest=?').get(ref.projectId,ref.runId,ref.contractDigest);if(!row)return;
+      ensure(seen.size<32&&!seen.has(String(row.id)),'Refresh publication ancestry is unresolved');seen.add(String(row.id));const transition=this.transition(String(row.id));
+      ensure(!transition.sourceRefresh,'Source refresh publication blocked until adapted P4 qualification is implemented');ref=transition.from;
+    }
+  }
+  /** Existing applied lineage receipt only; no new approval or acquisition. */
+  sourceRefreshAuthorization(id:string):SourceRefreshAuthorization {
+    const t=this.transition(id);ensure(t.sourceRefresh,'Transition has no explicit source refresh');
+    const row=this.db.prepare('SELECT record FROM goal_sessions WHERE id=?').get(t.sessionId)!;
+    const session=JSON.parse(String(row.record)) as GoalSession;
+    const body={schemaVersion:1 as const,authority:'actual-applied-refresh-integrity-only' as const,transitionId:t.id,transitionDigest:lineageDigest(t),lineageId:t.lineageId,projectId:t.to.projectId,previousRunId:t.from.runId,currentRunId:t.to.runId,intent:t.sourceRefresh,researchConfigurationDigest:lineageDigest(session.research),criteriaDigest:lineageDigest(t.fromContract.criteria)};
+    return {...body,digest:lineageDigest(body)};
+  }
   private validateTransition(value:AppliedContractTransition,currentTarget=true):void {
     text(value.id);const binding=this.resolveRun(value.to.projectId,value.to.runId);ensure(value.lineageId===binding.lineageId&&value.from.projectId===value.to.projectId,'Foreign transition lineage');ensure(lineageDigest(value.fromContract)===value.from.contractDigest&&lineageDigest(value.toContract)===value.to.contractDigest,'Transition contract digest mismatch');if(currentTarget)ensure(same(this.run(value.to.projectId,value.to.runId).contract,value.toContract),'Transition must bind the actually applied contract');
     ensure(value.from.runId===value.to.runId||binding.predecessorRunId===value.from.runId,'Transition has unrelated predecessor');
@@ -122,6 +143,20 @@ export class VerificationLineageRepository {
     const group=[...value.relatedMessageIds,value.messageId].map(id=>conversations.message(id)).sort((a,b)=>a.sequence-b.sequence);ensure(new Set(group.map(m=>m.id)).size===group.length&&group.every(m=>m.conversationId===value.conversationId&&m.state==='applied'&&m.appliedContractVersion===value.toContract.version),'Transition source group was not applied together');
     ensure(value.review.sourceDigest===lineageDigest(group.map(m=>({id:m.id,text:m.text,sequence:m.sequence}))),'Transition source digest mismatch');
     ensure(same(job.proofs,value.proofs)&&Object.keys(value.proofs).length>0,'Transition proof binding mismatch');for(const [path,digest]of Object.entries(value.proofs))ensure(createHash('sha256').update(readFileSync(path)).digest('hex')===digest,'Transition proof bytes changed');
+    ensure(same(value.sourceRefresh??null,job.followupResult.sourceRefresh??null),'Applied refresh differs from actual planner output');
+    if(value.sourceRefresh){
+      const config=session.research;
+      const frozenConfig=(context?.input as {researchConfiguration?:GoalResearchConfiguration}|undefined)?.researchConfiguration;
+      ensure(config&&frozenConfig&&same(config,frozenConfig),'Refresh research configuration changed after reasoning');
+      const originalSessionRow=this.db.prepare('SELECT record FROM goal_sessions WHERE id=?').get(value.from.runId);ensure(originalSessionRow,'Original research session missing');const originalSession=JSON.parse(String(originalSessionRow.record)) as GoalSession;ensure(originalSession.runtimeId,'Original research runtime missing');
+      const actualOriginalOperations=this.db.prepare('SELECT record FROM runtime_outbox WHERE runtime_id=? ORDER BY rowid').all(originalSession.runtimeId).map(row=>JSON.parse(String(row.record)));
+      assertSourceRefreshConfiguration(config,actualOriginalOperations,value.fromContract.version);
+
+      if(session.continuation){const parent=this.db.prepare('SELECT record FROM goal_sessions WHERE id=?').get(session.continuation.predecessorSessionId);ensure(parent&&same((JSON.parse(String(parent.record)) as GoalSession).research,config),'Refresh changes original input/cutoff configuration');}
+      assertSourceRefreshIntent(value.sourceRefresh,config,group,value.fromContract,value.toContract);
+      const reviewed=value.review.sourceRefresh;
+      ensure(value.changes.length===0&&reviewed?.authorized===true&&reviewed.intentDigest===sourceRefreshDigest(value.sourceRefresh)&&reviewed.reasons.length>0&&reviewed.reasons.every(r=>typeof r==='string'&&r.trim()),'Refresh needs exact independent authorization and unchanged criteria');
+    }else ensure(!value.review.sourceRefresh,'Review cannot introduce an absent refresh request');
     const before=new Map(value.fromContract.criteria.map(c=>[c.id,c])),after=new Map(value.toContract.criteria.map(c=>[c.id,c]));ensure(before.size===value.fromContract.criteria.length&&after.size===value.toContract.criteria.length,'Duplicate transition criterion');const changed=[...new Set([...before.keys(),...after.keys()])].filter(id=>!same(before.get(id)??null,after.get(id)??null));
     ensure(value.changes.length===changed.length&&new Set(value.changes.map(c=>c.criterionId)).size===changed.length&&value.review.changes.length===changed.length,'Transition delta must cover every actual criterion change');
     for(const change of value.changes){const old=before.get(change.criterionId),next=after.get(change.criterionId),kind=!old?'add':!next?'retire':'modify';ensure(changed.includes(change.criterionId)&&change.kind===kind&&change.beforeDigest===(old?lineageDigest(old):null)&&change.afterDigest===(next?lineageDigest(next):null),'Transition criterion delta mismatch');ensure(change.sources.length>0&&change.sources.every(source=>source.quote.trim()&&group.some(m=>m.id===source.messageId&&m.text.includes(source.quote))),'Transition change lacks exact user provenance');const reviews=value.review.changes.filter(r=>r.criterionId===change.criterionId&&r.kind===change.kind);ensure(reviews.length===1&&reviews[0]!.authorized===true&&reviews[0]!.reasons.length>0,'Transition change lacks independent authorization');}
@@ -129,7 +164,7 @@ export class VerificationLineageRepository {
   /** Caller still performs async actual-stop/environment/definition checks. This
    * joins its transaction and rechecks durable review, proofs, fence and exact base. */
   publishBound(input:{commandId:string;proposalId:string;reviewId:string;expectedBaseProposalId:string|null;expectedHeadRevision:number}):BoundHead {return this.command(input.commandId,{method:'publish-bound',...input},()=>{
-    const proposal=this.record<Proposal>('proposal',input.proposalId),binding=this.bindingForProposal(proposal.id),base=binding.base;ensure(same(this.captureBase(proposal.projectId,proposal.runId),base),'Publication base or contract changed');ensure(base.baseProposalId===input.expectedBaseProposalId&&base.expectedHeadRevision===input.expectedHeadRevision,'Publication CAS differs from frozen base');ensure(proposal.status==='proposed'&&proposal.version===null,'Proposal already published by a different command');ensure(proposal.baseVersion===(this.head(base.lineageId)?.catalogVersion??0),'Publication catalog version changed');
+    const proposal=this.record<Proposal>('proposal',input.proposalId),binding=this.bindingForProposal(proposal.id),base=binding.base;ensure(same(this.captureBase(proposal.projectId,proposal.runId),base),'Publication base or contract changed');ensure(base.baseProposalId===input.expectedBaseProposalId&&base.expectedHeadRevision===input.expectedHeadRevision,'Publication CAS differs from frozen base');this.assertRefreshPublicationSupported(proposal.projectId,proposal.runId);ensure(proposal.status==='proposed'&&proposal.version===null,'Proposal already published by a different command');ensure(proposal.baseVersion===(this.head(base.lineageId)?.catalogVersion??0),'Publication catalog version changed');
     ensure(!new ConversationRepository(this.db).hasPendingForRun(proposal.projectId,proposal.runId),'Pending follow-up prevents publication');const run=this.run(proposal.projectId,proposal.runId);ensure(!['paused','cancelled','succeeded'].includes(run.status)&&run.attempts.every(a=>a.settled&&a.status!=='running')&&run.operations.every(o=>o.status==='confirmed')&&run.leases.every(l=>l.released),'Publication needs a current settled Run');
     const review=this.record<VerificationJob>('job',input.reviewId),attempt=run.attempts.find(a=>a.id===review.attemptId);ensure(review.projectId===proposal.projectId&&review.runId===proposal.runId&&review.runtimeId===proposal.runtimeId&&review.proposalId===proposal.id&&review.kind==='review'&&review.status==='finished'&&review.approved&&!review.error&&!review.usageUnknown&&review.stopConfirmed&&attempt?.settled&&attempt.actual===review.usage,'Publication needs the exact settled independent review');ensure(Object.keys(review.proofs).length>0,'Publication lacks review proof');for(const [path,expected]of Object.entries(review.proofs))ensure(createHash('sha256').update(readFileSync(path)).digest('hex')===expected,'Publication review proof changed');
     if(binding.definitionFormat==='qualified-v2')assertControlQualificationPublication(this.db,{proposalId:proposal.id,reviewId:review.id});

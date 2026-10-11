@@ -1,3 +1,5 @@
+import type {GoalResearchConfiguration} from '../contracts/p8-research-runtime.js';
+import {assertSourceRefreshIntent,sourceRefreshIntentSchema,sourceRefreshDigest} from '../verification/source-refresh-intent.js';
 import { createHash } from 'node:crypto';
 import type { TaskContract } from '../contracts/p1.js';
 import type { AcceptanceItem } from '../contracts/p5.js';
@@ -21,9 +23,9 @@ export function acceptanceCriterion(item: AcceptanceItem): TaskContract['criteri
   return { id: item.id, required: true, description: [item.description, `Acceptance kind: ${item.kind}; target: ${item.target}`, ...item.checks].join('\n') };
 }
 /** The model selects sources; trusted code computes digests from actual criteria. */
-export function followupEvolutionSchema(sourceIds: string[]): Record<string, unknown> {
+export function followupEvolutionSchema(sourceIds: string[],research?:GoalResearchConfiguration): Record<string, unknown> {
   const legacy = followupProposalSchema(sourceIds);
-  return validateReasonerSchema(object({ ...(legacy.properties as Record<string, unknown>), criterionChanges: {
+  return validateReasonerSchema(object({ ...(legacy.properties as Record<string, unknown>), ...(research?{sourceRefresh:{anyOf:[sourceRefreshIntentSchema(research.inputs.map(i=>i.id),sourceIds),{type:'null'}]}}:{}), criterionChanges: {
     type: 'array', maxItems: 128, items: object({
       kind: { type: 'string', enum: ['add', 'modify', 'retire'] }, criterionId: text,
       sources: { type: 'array', minItems: 1, maxItems: 64, items: object({ messageId: { ...text, enum: sourceIds }, quote: { ...text, maxLength: 40000 } }) },
@@ -67,10 +69,11 @@ function bindChanges(result: FollowupProposal, requested: ChangeRequest[], conte
 }
 export function parseFollowupEvolution(value: unknown, context: FollowupValidationContext, relatedMessageIds: string[]): FollowupProposal {
   const sourceIds = [...new Set([...context.session.messages.map(message => message.id), ...context.frozenMessages.map(message => message.id)])];
-  const parsed = parseReasonerOutput(JSON.stringify(value), followupEvolutionSchema(sourceIds)) as Omit<FollowupProposal, 'criterionChanges'> & { criterionChanges: ChangeRequest[] };
-  const { criterionChanges, ...legacy } = parsed;
+  const parsed = parseReasonerOutput(JSON.stringify(value), followupEvolutionSchema(sourceIds,Object.hasOwn(value as object,'sourceRefresh')?context.session.research:undefined)) as Omit<FollowupProposal, 'criterionChanges'> & { criterionChanges: ChangeRequest[] };
+  const { criterionChanges, sourceRefresh, ...legacy } = parsed;
   const result = validateFollowupProposal(legacy, context);
-  return { ...result, criterionChanges: bindChanges(result, criterionChanges, context, relatedMessageIds) };
+  if(sourceRefresh){ensure(result.decision==='revise'&&context.session.research&&result.proposal,'Refresh requires research executable revision');assertSourceRefreshIntent(sourceRefresh,context.session.research,processingSources(context,relatedMessageIds),context.originalContract,{...context.originalContract,criteria:result.proposal.criteria.map(acceptanceCriterion)});}
+  return { ...result, ...(Object.hasOwn(parsed,'sourceRefresh')?{sourceRefresh}:{}),criterionChanges: bindChanges(result, criterionChanges, context, relatedMessageIds) };
 }
 /** Revalidate a saved enriched result. Never recompute altered digests in place. */
 export function validateFollowupEvolution(value: FollowupProposal, context: FollowupValidationContext, relatedMessageIds: string[]): FollowupProposal {
@@ -86,7 +89,8 @@ export function followupEvolutionReviewSchema(result: FollowupProposal, context:
   ensure(checked.decision === 'revise', 'Only an executable revision has an authorization review');
   const sourceDigest = hash(processingSources(context, relatedMessageIds).map(({ id, text, sequence }) => ({ id, text, sequence })));
   return validateReasonerSchema(object({
-    approved: { type: 'boolean' }, proposalDigest: { type: 'string', const: hash(checked.proposal) }, sourceDigest: { type: 'string', const: sourceDigest },
+    approved: { type: 'boolean' }, ...(checked.sourceRefresh?{sourceRefresh:object({intentDigest:{type:'string',const:sourceRefreshDigest(checked.sourceRefresh)},authorized:{type:'boolean'},reasons:{type:'array',minItems:1,maxItems:64,items:text}})}:{}),
+    proposalDigest: { type: 'string', const: hash(checked.proposal) }, sourceDigest: { type: 'string', const: sourceDigest },
     changes: { type: 'array', minItems: checked.criterionChanges!.length, maxItems: checked.criterionChanges!.length, items: object({
       criterionId: text, kind: { type: 'string', enum: ['add', 'modify', 'retire'] }, authorized: { type: 'boolean' },
       reasons: { type: 'array', minItems: 1, maxItems: 64, items: text },
@@ -98,5 +102,6 @@ export function validateEvolutionReview(value: unknown, result: FollowupProposal
   ensure(new Set(reviewed.changes.map(change => change.criterionId)).size === reviewed.changes.length, 'Duplicate authorization review criterion');
   ensure(result.criterionChanges!.every(change => reviewed.changes.some(item => item.criterionId === change.criterionId && item.kind === change.kind && item.reasons.every(reason => reason.trim()))), 'Authorization review omitted or changed an acceptance delta');
   ensure(!reviewed.approved || reviewed.changes.every(change => change.authorized), 'Overall approval cannot override a rejected criterion change');
+  if(result.sourceRefresh)ensure(reviewed.sourceRefresh?.intentDigest===sourceRefreshDigest(result.sourceRefresh)&&reviewed.sourceRefresh.reasons.every(r=>r.trim())&&(!reviewed.approved||reviewed.sourceRefresh.authorized),'Refresh intent lacks independent authorization');
   return reviewed;
 }

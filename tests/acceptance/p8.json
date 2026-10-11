@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "stage": "P8",
-  "revision": "p8-v40-research-groups-developing",
+  "revision": "p8-v41-source-refresh-developing",
   "caseIds": [
     "dev.unit-contracts.001",
     "dev.unit-contracts.002",
@@ -911,7 +911,10 @@
     "p8.integration-research-group-execution.004",
     "p8.integration-research-group-execution.005",
     "p8.integration-research-group-execution.006",
-    "p8.integration-research-group-execution.007"
+    "p8.integration-research-group-execution.007",
+    "p8.integration-source-refresh.001",
+    "p8.integration-source-refresh.002",
+    "p8.integration-source-refresh.003"
   ],
   "requiredRisks": [
     "p0.unit-contracts.001",
@@ -1251,7 +1254,8 @@
     "p8-hostauth-i09",
     "p6-maint-i09",
     "p8-research-groups-foundation",
-    "p8-research-groups-execution"
+    "p8-research-groups-execution",
+    "p8-source-refresh-foundation"
   ],
   "coreRegression": [
     "dev.integration-runner.003",
