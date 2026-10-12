@@ -1,4 +1,5 @@
-import {resolveAuthorBundle,assertAuthorExpansionProof,AUTHOR_PATCH_PROMPT,authorPatchDigest,authorExpansionRecord} from '../../packages/orchestration/author-result-patch.js';
+import {AUTHOR_TYPED_PATCH_PROMPT,AUTHOR_TYPED_PATCH_PROTOCOL} from '../../packages/orchestration/author-typed-patch.js';
+import {resolveAuthorBundle,assertAuthorExpansionProof,authorPatchDigest,authorExpansionRecord} from '../../packages/orchestration/author-result-patch.js';
 import {materializeAcceptanceBundle,validateAcceptanceBundle} from '../../packages/orchestration/acceptance-authoring.js';
 import {setTimeout as delay} from 'node:timers/promises';
 import {SupervisionReasoningRunner} from '../../packages/orchestration/supervision-reasoning.js';
@@ -132,19 +133,20 @@ test('schema rejection: actual stopped Node, SQLite rollback, bounded route and 
 test('semantic rejection uses the exact schema-valid raw bundle and never returns approved assets',async t=>{
  const f=await fixture(t,{kind:'semantic'}),request=await f.request();assert.equal(request.rejection.kind,'semantic');assert.equal(f.old.error,null);assert.match(request.rejection.message,/unknown obligation/);
  const old=String(f.db.prepare('SELECT record FROM supervision_jobs WHERE id=?').get(f.old.id)!.record);
- const patch={protocol:'acceptance-replace-v1',baseJobId:f.old.id,baseResultDigest:authorPatchDigest(f.old.result),replacements:[{path:'/spec/obligations/0/id',replacementJSON:JSON.stringify('value-check')}]};
+ const expected=structuredClone(f.old.result) as AcceptanceBundle;expected.spec.obligations[0]!.id='value-check';
+ const patch={protocol:AUTHOR_TYPED_PATCH_PROTOCOL,baseJobId:f.old.id,baseResultDigest:authorPatchDigest(f.old.result),replacements:[{path:'/spec',value:expected.spec}]};
  const transport=nodeAuthorTransport(false,patch),runner=new SupervisionReasoningRunner(f.store,f.data,transport);await runner.initialize();
  const result=f.repo.beginV2(request);assert.equal(result.job.result,null);assert.deepEqual(f.store.runtime.inspect(f.runtime.id).run.contract,f.context.contract);
- const input=result.job.input as any;assert.equal(input.prompt,AUTHOR_PATCH_PROMPT);assert.deepEqual(input.context.authorFeedback.rejection.raw,f.old.result);
+ const input=result.job.input as any;assert.equal(input.prompt,AUTHOR_TYPED_PATCH_PROMPT);assert.deepEqual(input.context.authorFeedback.rejection.raw,f.old.result);
  assert.equal(JSON.stringify(input).split(JSON.stringify((f.old.result as AcceptanceBundle).verifierFiles[0]!.content)).length,2,'Original complete checker stored once');
  try{const done=await runner.run(result.job.id);assert.deepEqual(done.result,patch);assert.equal(done.error,null);assert.equal(done.usage,7);assert.equal(done.stopConfirmed,true);
-  const resolved=resolveAuthorBundle(done,id=>f.store.supervision.job(id),f.data);assert.ok(resolved.receipt);assert.equal(validateAcceptanceBundle(resolved.bundle,f.context).spec.obligations[0]!.id,'value-check');
+  const resolved=resolveAuthorBundle(done,id=>f.store.supervision.job(id),f.data);assert.ok(resolved.receipt);assert.equal(validateAcceptanceBundle(resolved.bundle,f.context).spec.obligations[0]!.id,'value-check');assert.deepEqual(resolved.bundle,expected,'Only the rejected obligation ID changes; all other fields stay exact');
   assert.deepEqual(JSON.parse(readFileSync(join(f.data,'supervision-reasoning',sha(done.id),'output.txt'),'utf8')),patch);
   assertAuthorExpansionProof(done,id=>f.store.supervision.job(id),f.data);
   // Pure derived-input negatives; never change the actual job, archive or receipt.
-  const invalid={...done,result:{...patch,replacements:[{path:'/contextDigest',replacementJSON:'"unchanged-is-still-forbidden"'}]}};
+  const invalid={...done,result:{...patch,replacements:[{path:'/contextDigest',value:(f.old.result as AcceptanceBundle).contextDigest}]}};
   assert.equal(authorExpansionRecord(invalid,id=>f.store.supervision.job(id),f.data)!.kind,'acceptance-patch-expansion-rejected');
-  assert.throws(()=>resolveAuthorBundle(invalid,id=>f.store.supervision.job(id),f.data),/contextDigest/);
+  assert.throws(()=>resolveAuthorBundle(invalid,id=>f.store.supervision.job(id),f.data),{name:'ReasonerSchemaError',message:'$output.replacements[0]: anyOf branch count mismatch'});
   const stale=structuredClone(done) as any;stale.input.context.authorPatch.base.jobDigest='0'.repeat(64);
   assert.throws(()=>resolveAuthorBundle(stale,id=>f.store.supervision.job(id),f.data),/stale actual base/);
   assert.deepEqual(f.store.supervision.job(done.id).result,patch);

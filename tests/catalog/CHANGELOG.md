@@ -2,6 +2,8 @@
 
 Add 19 stable cases for explicit nullable token limits, actual SQLite persistence/continuation, scheduler and supervision gates, and actual Codex execution. Reuse affected finite/unknown-accounting cases; P8 selects109 necessary IDs. File-granularity execution expands the targeted batch to92 unit,55 integration,1 live. No retired or deleted cases; deferred full combinations remain in the ledger.
 
+Separately maintain p6.integration-author-routing.002: caf9b5f already migrated the product to typed v11, but this fixture still expected v5. Original integration report2026-10-12T05-30-14-519Z-1a076c16-04b4-4762-a837-e264185b7e8d retains54PASS/1FAIL. Update only fixture protocol, /spec typed parent replacement and precise forbidden-path schema error. Preserve immutable raw/base,14 usage, exact raw output, stale-base refusal, proposed-only/P4-empty, reopen and no duplicate call assertions; add complete bundle equality to prove only one obligation ID changes. Independent review by unlimited_tests confirms no gate weakening. Rerun the affected author-routing suite; unchanged product/source evidence is reused only after hash comparison.
+
 ## 2026-10-12 — 试用反馈：任务对话与附件
 
 新增 5 个组件用例和 1 个真实 Codex 图文输入用例、1 个真实 IPC→需求澄清→图文询问→重启幂等用例，复用既有桌面投影与 SQLite 会话重试检查；不删除或替代旧断言。P8 个人范围加入这些影响项，当前修复通过 task-chat-impact 冻结去重选择，不执行全历史。视频/PDF 等规划期解码、拖放/粘贴和草稿快照自动清理延期，见 deferred-p6-p8.json。

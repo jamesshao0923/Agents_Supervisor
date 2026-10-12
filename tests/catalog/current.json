@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-token-policy-v1-20261012",
+  "revision": "dev-token-policy-v2-20261012",
   "modules": [
     {
       "id": "dev-contracts",

@@ -2837,7 +2837,13 @@
       "deferred": [
         "Unlimited multi-stage verifier author and full P4 mobile/research delivery have component and code-review coverage only in this change; not a new real-model end-to-end verification of every stage.",
         "Sustained multi-day unlimited runs and provider account exhaustion remain field-validation scenarios."
-      ]
+      ],
+      "testMaintenance": {
+        "caseId": "p6.integration-author-routing.002",
+        "reason": "Existing semantic recovery fixture still used v5 after caf9b5f migrated product to typed v11. Update fixture protocol and precise rejection error only; preserve all assertions and add exact full-bundle equality. No product gate or required coverage removed.",
+        "originalFailure": "2026-10-12T05-30-14-519Z-1a076c16-04b4-4762-a837-e264185b7e8d",
+        "independentReview": "unlimited_tests reviewed assertion preservation; no weakened gate."
+      }
     }
   ]
 }
