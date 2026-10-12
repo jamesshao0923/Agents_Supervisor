@@ -1,3 +1,7 @@
+## 2026-10-12 — Personal reduced gate closes with actual L01
+
+No added/removed/retired/deferred IDs or changed stage profile. Keep50/47/51 selections and140unique:139 applicable historical bounded PASS plus fc4ea7b actual L01 PASS. Original supplied driver/helper/model/caps unchanged; actual repair, mandatory regression maintenance,32qualification rows, fresh independent review112087, second publication, third full verification, sealed delivery and reopen completed.362759 known/0unknown/all settled,1575proof hashes match,111owned identities stopped,481source/887compiled no drift. Source evidence `.supervisor-dev/p6-loop-supplied-fc4ea7b-live-work/`; aggregate `.supervisor-dev/p6-p8-personal-aggregate-fc4ea7b/`. Personal reduced status is passed; original profiles remain developing and CLIstagePassed false. Old failures/unknown costs and exact deferred ledger remain unchanged. No extra provider or historical test reruns after terminal.
+
 ## 2026-10-12 — Complete qualification causal review v3
 
 Extend existing CTRL-I07 (complete row/rawfile inventory, omission/hash rejection and exact v3 roundtrip), QUAL-I04 (v3 atomic publication/reopen), HISTV2-I02 (v3 history despite current-state drift). Keep HISTV2-I01 on compact-v2 and other legacy fixtures unchanged for compatibility. Existing MAINT-I05 runs the new controller presentation through actual maintenance and final verification; its model transport is explicitly synthetic. No stable ID added, removed or deferred; no change to the reduced140 gate or deferred-risk ledger.
