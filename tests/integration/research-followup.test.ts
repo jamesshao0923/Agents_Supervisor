@@ -296,7 +296,7 @@ test('P8-RV2-I07 actual authorized research continuation new producer full V2 or
   assert.equal(canonical({proposal:f.store.verification.get('proposal',f.proposal.id),review:f.store.verification.get('job',f.proposal.reviewId!),final:f.store.verification.get('job',f.final.id),run:f.store.runtime.inspect(f.runtime.id).run}),originalHistory);
   assert.equal(canonical(f.store.researchWorkflow.committed('first-delivery',{type:'deliver',commandId:'first-delivery',jobId:f.final.id})),firstSeal);
   assert.deepEqual(await hashes(f.proposal.bundle.root),originalFiles);
-  const budget=f.store.conversations.budget(conversation.id);assert.equal(budget.limit,originalBudget.limit);assert.ok(budget.spent>originalBudget.spent);assert.ok(budget.spent<=budget.limit);assert.equal(budget.reserved,0);
+  const budget=f.store.conversations.budget(conversation.id);assert.equal(budget.limit!,originalBudget.limit);assert.ok(budget.spent>originalBudget.spent);assert.ok(budget.spent<=budget.limit!);assert.equal(budget.reserved,0);
   for(const job of f.store.verification.list('job'))for(const identity of job.identities)assert.equal((await inspectProcess(identity)).status,'stopped');
  }finally{
   if(oldBinary===undefined)delete process.env.SUPERVISOR_CODEX_PATH;else process.env.SUPERVISOR_CODEX_PATH=oldBinary;

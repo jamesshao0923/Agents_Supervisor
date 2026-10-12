@@ -1,3 +1,4 @@
+import { tokenCapacity, tokenRemaining } from '../contracts/token-policy.js';
 import { createHash } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import {validateTaskAttachments} from '../contracts/task-attachments.js';
@@ -124,7 +125,7 @@ export class ConversationRepository {
     const jobs=this.assessments(id),reasoningSpent=jobs.reduce((sum,job)=>sum+(job.settled?job.usage!:0),0),reasoningReserved=jobs.filter(job=>!job.settled).reduce((sum,job)=>sum+job.config.reservation,0);
     const spent=rounds.reduce((sum,round)=>sum+round.spent,0)+reasoningSpent,reserved=rounds.reduce((sum,round)=>sum+round.reserved,0)+reasoningReserved;
     ensure(Number.isSafeInteger(spent)&&Number.isSafeInteger(reserved),'Conversation accounting exceeds safe integer range');
-    return {limit:conversation.authorizedLimit,spent,reserved,remaining:conversation.authorizedLimit-spent,available:conversation.authorizedLimit-spent-reserved,reasoningSpent,reasoningReserved,rounds};
+    return {limit:conversation.authorizedLimit,spent,reserved,remaining:tokenRemaining(conversation.authorizedLimit,spent),available:tokenRemaining(conversation.authorizedLimit,spent+reserved),reasoningSpent,reasoningReserved,rounds};
   }
   assessments(conversationId:string):TerminalAssessmentJob[] {this.get(conversationId);return this.db.prepare('SELECT record FROM conversation_assessments WHERE conversation_id=? ORDER BY rowid').all(conversationId).map(row=>JSON.parse(String(row.record)) as TerminalAssessmentJob);}
   assessment(id:string):TerminalAssessmentJob {const row=this.db.prepare('SELECT record FROM conversation_assessments WHERE id=?').get(id);ensure(row,'Unknown conversation assessment');return JSON.parse(String(row.record)) as TerminalAssessmentJob;}
@@ -137,7 +138,7 @@ export class ConversationRepository {
     ensure(session.jobs.every(job=>job.status==='finished'&&job.stopConfirmed&&job.usage!==null),'Prior goal reasoning is unresolved');
     ensure(message.kind!=='change'||message.replyToMessageId,'Explicit changes use execution continuation');
     const reservation=session.config.reservation;
-    ensure(Number.isSafeInteger(reservation)&&reservation>0&&reservation+authorization.verificationReserve<=authorization.tokenLimit,'Insufficient conversation assessment budget');
+    ensure(Number.isSafeInteger(reservation)&&reservation>0&&reservation+authorization.verificationReserve<=tokenCapacity(authorization.tokenLimit),'Insufficient conversation assessment budget');
     const processing=this.beginProcessing(messageId).processing!;
     const job:TerminalAssessmentJob={id:'assessment-'+hash(message.id+':'+processing.attempt),conversationId:conversation.id,messageId,processingAttempt:processing.attempt,sessionId:session.id,runId:run.id,baseContractVersion:run.contract.version,messageSequence:message.sequence,relatedMessageIds:this.clarificationParents(messageId).map(parent=>parent.id),workspace:session.workspace,config:structuredClone(session.config),maxContextChars:session.maxContextChars,input:{session,run,messages:this.messages(conversation.id).filter(m=>m.sequence<=message.sequence),budget:this.budget(conversation.id)},status:'running',startedAt:now(),finishedAt:null,intents:[],identities:[],modelStarted:false,observedUsage:null,usage:null,reportedUsage:null,stopConfirmed:false,settled:false,proofs:{},threadId:null,result:null,error:null,cancelRequested:false,publishedAt:null,promotion:null,finishRequest:null};
     this.db.prepare('INSERT INTO conversation_assessments(id,conversation_id,message_id,attempt,record) VALUES (?,?,?,?,?)').run(job.id,job.conversationId,messageId,job.processingAttempt,canonical(job));return job;
@@ -161,7 +162,7 @@ export class ConversationRepository {
     if(job.usage!==null&&job.observedUsage!==null&&job.usage<job.observedUsage){job.usage=null;job.error='Final assessment usage contradicts durable observed usage';}
     job.settled=job.stopConfirmed&&job.usage!==null;
     // Never cap measured overruns or release an uncertain reservation.
-    if(job.usage!==null&&job.usage>job.config.reservation)job.error??='Conversation reasoning exceeded its reservation';
+    if(job.input.run.budget.limit!==null&&job.usage!==null&&job.usage>job.config.reservation)job.error??='Conversation reasoning exceeded its reservation';
     if(job.cancelRequested)job.error??='Conversation assessment cancelled';
     if(!job.settled)job.error??='Conversation assessment usage or stop is unknown';
     if(job.error)job.result=null;
@@ -227,7 +228,7 @@ export class ConversationRepository {
     const rows=this.db.prepare("SELECT record FROM verification_records WHERE kind='delivery' AND project_id=? AND run_id=? ORDER BY rowid DESC").all(conversation.projectId,run.id);
     ensure(rows.length>0,'Prior conversation Run has no independent delivery');const delivery=JSON.parse(String(rows[0]!.record)) as {id:string;runId:string;projectId:string};
     ensure(delivery.runId===run.id&&delivery.projectId===run.projectId,'Delivery identity mismatch');
-    ensure(budget.reserved===0&&budget.remaining>0,'Conversation budget exhausted or unresolved');
+    ensure(budget.reserved===0&&tokenCapacity(budget.remaining)>0,'Conversation budget exhausted or unresolved');
     return {conversationId:id,projectId:conversation.projectId,workspace:conversation.workspace,predecessorRunId:run.id,predecessorDeliveryId:delivery.id,tokenLimit:budget.remaining,verificationReserve:run.budget.verificationReserve};
   }
   attachRound(id:string,sessionId:string,predecessorDeliveryId:string):ConversationRound {return this.tx(()=>{
@@ -237,7 +238,7 @@ export class ConversationRepository {
     ensure(authorization.predecessorDeliveryId===predecessorDeliveryId,'Stale predecessor delivery');
     ensure(session.projectId===conversation.projectId&&session.workspace===conversation.workspace&&run.projectId===conversation.projectId,'Child goal project or workspace differs');
     ensure(run.admission==='draft'&&run.status==='ready'&&run.budget.unit==='token'&&run.budget.limit===authorization.tokenLimit&&run.budget.spent===0&&run.attempts.length===0&&run.operations.length===0&&run.leases.length===0&&run.nodes.length===0&&run.artifact===null&&run.evidence.length===0&&session.jobs.length===0&&session.runtimeId===null,'Child must be a pristine draft with the exact remaining authorization');
-    ensure(run.budget.verificationReserve===authorization.verificationReserve&&run.budget.verificationReserve+session.config.reservation<=authorization.tokenLimit,'Child must preserve verification reserve and retain reasoning budget');
+    ensure(run.budget.verificationReserve===authorization.verificationReserve&&run.budget.verificationReserve+session.config.reservation<=tokenCapacity(authorization.tokenLimit),'Child must preserve verification reserve and retain reasoning budget');
     ensure(!this.messages(id).some(message=>message.state==='processing'),'Cannot rotate a processing conversation');
     const round:ConversationRound={conversationId:id,ordinal:this.rounds(id).length+1,sessionId,projectId:run.projectId,runId:run.id,predecessorRunId:authorization.predecessorRunId,predecessorDeliveryId,createdAt:now()};
     this.insertRound(round);conversation.activeRunId=run.id;conversation.activeSessionId=sessionId;this.db.prepare('UPDATE conversations SET record=? WHERE id=?').run(canonical(conversation),id);return round;

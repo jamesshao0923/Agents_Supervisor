@@ -271,7 +271,7 @@ export interface LoopDecisionInput {
   cancelled: boolean;
   paused: boolean;
   completion: LoopCompletionEvidence;
-  budget: { used: number; limit: number; attempts: number; maxAttempts: number; elapsedMs: number; maxElapsedMs: number; stopMode: 'strict' | 'soft' };
+  budget: { used: number; limit: number | null; attempts: number; maxAttempts: number; elapsedMs: number; maxElapsedMs: number; stopMode: 'strict' | 'soft' };
   noProgressExhausted: boolean;
   diagnosisDue: boolean;
   missingInputs: string[];
@@ -299,7 +299,8 @@ export function decideLoop(input: LoopDecisionInput): LoopDecision {
   for (const key of ['integrationPassed', 'usabilityPassed', 'sideEffectsResolved', 'writersEndedOrIsolated'] as const) bool(completion[key], key);
   const budget = input.budget;
   for (const key of ['used', 'attempts', 'elapsedMs'] as const) integer(budget[key], key);
-  for (const key of ['limit', 'maxAttempts', 'maxElapsedMs'] as const) integer(budget[key], key, 1);
+  if (budget.limit !== null) integer(budget.limit, 'limit', 1);
+  for (const key of ['maxAttempts', 'maxElapsedMs'] as const) integer(budget[key], key, 1);
   if (!['strict', 'soft'].includes(budget.stopMode)) throw new Error('Invalid budget stop mode');
   const missing = strings(input.missingInputs, 'missing input');
   const result = (action: LoopDecision['action'], reason: string, terminateInFlight = false): LoopDecision => ({ action, reason, stopNewDispatch: !['continue', 'diagnose'].includes(action), terminateInFlight });
@@ -308,8 +309,8 @@ export function decideLoop(input: LoopDecisionInput): LoopDecision {
   const complete = completion.requiredCriteria.every(item => item.status === 'passed' && item.evidenceCurrent)
     && completion.integrationPassed && completion.usabilityPassed && completion.sideEffectsResolved && completion.writersEndedOrIsolated;
   if (complete) return result('complete', 'current-independent-evidence-complete');
-  if (budget.used >= budget.limit || budget.attempts >= budget.maxAttempts || budget.elapsedMs >= budget.maxElapsedMs) {
-    const reason = budget.used >= budget.limit ? 'shared-budget-limit' : budget.attempts >= budget.maxAttempts ? 'attempt-limit' : 'elapsed-time-limit';
+  if ((budget.limit !== null && budget.used >= budget.limit) || budget.attempts >= budget.maxAttempts || budget.elapsedMs >= budget.maxElapsedMs) {
+    const reason = (budget.limit !== null && budget.used >= budget.limit) ? 'shared-budget-limit' : budget.attempts >= budget.maxAttempts ? 'attempt-limit' : 'elapsed-time-limit';
     return result('stop', reason, budget.stopMode === 'strict');
   }
   if (input.inFlightWork) return result('wait', 'managed-work-in-flight');

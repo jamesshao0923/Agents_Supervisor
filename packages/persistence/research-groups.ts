@@ -1,3 +1,4 @@
+import {withinTokenReservation,tokenCapacity} from '../contracts/token-policy.js';
 import {assertIndexedProducerReceiptSync} from '../workspace/indexed-consumer-proof.js';
 import {MaterialIntake} from '../workspace/material-intake.js';
 import {prepareResearchReader} from '../workspace/research-reader.js';
@@ -221,7 +222,7 @@ export class ResearchGroupsRepository {
     const groups = record.groups.reduce((sum, group) => sum + group.reservation, 0);
     ensure(Number.isSafeInteger(groups) && Number.isSafeInteger(run.budget.spent + groups + reservation +
       Math.max(protectedReserve, futureVerificationFloor(run))) && run.budget.spent + groups + reservation +
-      Math.max(protectedReserve, futureVerificationFloor(run)) <= run.budget.limit,
+      Math.max(protectedReserve, futureVerificationFloor(run)) <= tokenCapacity(run.budget.limit),
       'unchanged Run cannot fund all mandatory groups plus original final analysis and P4');
   }
   register(input: ResearchGroupsRequest): ResearchGroupsRecord {
@@ -533,11 +534,12 @@ export class ResearchGroupsRepository {
     ensure(row, 'completion claim missing');
     const claim = JSON.parse(String(row.record)) as ScheduledClaim, input = this.inputForClaim(claim);
     if (!input) return null;
+    const run = this.actual(this.get(input.registrationId)).run;
     const actualRow = this.db.prepare('SELECT record FROM executions WHERE id=?').get(execution.id);
     ensure(actualRow && canonical(JSON.parse(String(actualRow.record))) === canonical(execution), 'completion execution changed');
     ensure(execution.id === claim.attemptId && execution.scheduledBinding.operationId === claim.operationId &&
       execution.state === 'completed' && execution.stopConfirmed && !execution.cancelRequested && !execution.error &&
-      execution.usageStatus === 'reported' && execution.usage && execution.usage.totalTokens <= claim.reservation,
+      execution.usageStatus === 'reported' && execution.usage && withinTokenReservation(run.budget.limit,execution.usage.totalTokens,claim.reservation),
       'completion is not actual known successful stopped claim');
     const readEvents = (after: number) => this.db.prepare('SELECT * FROM execution_events WHERE execution_id=? AND seq>? ORDER BY seq LIMIT 500')
       .all(execution.id, after).map(row => ({seq: Number(row.seq), executionId: String(row.execution_id),

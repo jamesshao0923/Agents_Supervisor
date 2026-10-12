@@ -26,7 +26,7 @@ export interface HostAuthorStageBinding {
   sessionId: string;
   index: 0 | 1 | 2;
   stage: AuthorStage;
-  sessionTokenCeiling: number;
+  sessionTokenCeiling: number | null;
   perCallTimeoutMs: number;
   loopDeadlineMs: number;
   parents: AuthorStageParent[];

@@ -1,3 +1,4 @@
+import {tokenCapacity,withinTokenReservation} from '../contracts/token-policy.js';
 import {parseAuthorStageInput,parseAuthorStageOutput} from './author-stage-protocol.js';
 import {assertAuthorStagePolicy,assertAuthorStagePhysical,authorStageAssemblyRecord,assertAuthorStageAssemblyProof} from './author-stage-proofs.js';
 import {authorExpansionRecord,assertAuthorExpansionProof,assertAuthorPatchBase,patchInput} from './author-result-patch.js';
@@ -91,7 +92,7 @@ export class SupervisionReasoningRunner {
     ensure(loop.runtimeId === job.runtimeId && loop.projectId === job.projectId && loop.runId === job.runId && loop.contractVersion === job.contractVersion && loop.contractDigest === job.contractDigest, 'Supervision job boundary changed');
     ensure(!runtime.paused && !runtime.cancelled, 'Supervision runtime is paused or cancelled');
     frozenInput(job, loop.limits.maxContextChars);
-    assertAuthorStagePolicy(job,loop,id=>this.store.supervision.job(id));
+    assertAuthorStagePolicy(job,loop,id=>this.store.supervision.job(id),run.budget.limit);
     const route=this.store.authorRouting.forJob(job.id);
     if(route?.schemaVersion===2&&job.status==='running')ensure(Date.now()>=Date.parse(route.authorization.observedAt)&&Date.now()<route.authorization.absoluteDeadlineMs,'Author frozen route deadline exhausted');
     const attempt = run.attempts.find(a => a.id === job.attemptId), operation = run.operations.find(o => o.id === job.id);
@@ -103,10 +104,10 @@ export class SupervisionReasoningRunner {
     const reserve = run.attempts.filter(a => !a.settled).reduce((sum, a) => sum + a.reservation, 0);
     const legacy = Math.max(0, run.budget.verificationReserve - run.attempts.filter(a => a.purpose === 'verification' && a.contractVersion === run.contract.version).reduce((sum, a) => sum + (a.settled ? a.actual! : a.reservation), 0));
     const protection = Math.max(legacy, futureVerificationFloor(run))+futureExecutionFloor(run);
-    ensure(Number.isSafeInteger(run.budget.spent + reserve + protection) && run.budget.spent + reserve + protection <= run.budget.limit, 'Supervision budget is exhausted');
+    ensure(Number.isSafeInteger(run.budget.spent + reserve + protection) && run.budget.spent + reserve + protection <= tokenCapacity(run.budget.limit), 'Supervision budget is exhausted');
     const conversation = this.store.conversations.forRun(job.projectId, job.runId);
-    if (conversation) ensure(this.store.conversations.budget(conversation.id).available >= protection, 'Conversation supervision budget is exhausted');
-    ensure(job.observedUsage <= job.config.reservation && (!dispatch || job.observedUsage < job.config.reservation), 'Supervision reserved model usage exhausted');
+    if (conversation) ensure(tokenCapacity(this.store.conversations.budget(conversation.id).available) >= protection, 'Conversation supervision budget is exhausted');
+    ensure(withinTokenReservation(run.budget.limit, job.observedUsage, job.config.reservation) && (!dispatch || run.budget.limit === null || job.observedUsage < job.config.reservation), 'Supervision reserved model usage exhausted');
     this.store.verification.assertNoVerificationWriter(runtime.workspace);
     ensure(!this.store.executionList().some(execution => (!['completed', 'cancelled', 'failed', 'interrupted'].includes(execution.state) || !execution.stopConfirmed) && overlap(execution.workspace, runtime.workspace)), 'Workspace has active execution');
   }
@@ -163,7 +164,7 @@ export class SupervisionReasoningRunner {
       const input = frozenInput(job, this.store.supervision.get(job.loopId).limits.maxContextChars);
       const acceptance=(input.context as {acceptance?:{environment?:{scope?:unknown;digest?:string}}})?.acceptance;if(acceptance?.environment?.scope){const cwd=await realpath(this.store.runtime.get(job.runtimeId).workspace),scope=parseEnvironmentScope(acceptance.environment.scope,{...job,workspace:cwd,dataDir:this.dataDir});await assertEnvironmentCwd(scope,cwd);ensure(acceptance.environment.digest===(await environmentFingerprint(scope)).digest,'Frozen author environment changed');}
       safeJSON(job.result); parseReasonerOutput(JSON.stringify(job.result), input.outputSchema);
-      ensure(job.usage >= job.observedUsage && job.usage <= job.config.reservation, 'Invalid supervision result accounting');
+      ensure(job.usage >= job.observedUsage && withinTokenReservation(this.store.runtime.inspect(job.runtimeId).run.budget.limit, job.usage, job.config.reservation), 'Invalid supervision result accounting');
       const indexedMaterials=(input.context as {acceptance?:{materials?:{evidence?:{indexed?:unknown}}[]}})?.acceptance?.materials;
       if(indexedMaterials?.some(m=>m.evidence?.indexed)){const required=join(this.directory(job.id),'indexed-reader','binding.json');ensure(job.proofs[required],'Actual indexed author archive missing');}
       for(const path of Object.keys(job.proofs))if(path.endsWith('/indexed-reader/binding.json')){await assertIndexedConsumerArchive(path,{jobId:job.id,attemptId:job.attemptId,identities:job.identities});assertIndexedAuthorArchive(this.store,job.id,path);}
@@ -231,7 +232,7 @@ export class SupervisionReasoningRunner {
       const observed = this.store.supervision.job(job.id);
       ensure(result.modelStarted && observed.modelStarted && observed.identities.length > 0, 'Supervision result lacks durable model and process intent');
       ensure(result.stopConfirmed && await this.stopped(observed, false), 'Supervision result lacks actual stopped process');
-      ensure(result.usage !== null && Number.isSafeInteger(result.usage) && result.usage >= observed.observedUsage && result.usage <= observed.config.reservation, 'Supervision usage is unknown, underreported or over reservation');
+      ensure(result.usage !== null && Number.isSafeInteger(result.usage) && result.usage >= observed.observedUsage && withinTokenReservation(this.store.runtime.inspect(observed.runtimeId).run.budget.limit, result.usage, observed.config.reservation), 'Supervision usage is unknown, underreported or over reservation');
       ensure(result.value !== null, 'Empty supervision model result'); safeJSON(result.value); result.value = parseReasonerOutput(JSON.stringify(result.value), input.outputSchema);
       if(stage){
         parseAuthorStageOutput(result.value,stage.context.acceptance,stage.context.authorStage,stage.context.authorStageParents);

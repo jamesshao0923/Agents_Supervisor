@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-task-chat-attachments-v2-20261012",
+  "revision": "dev-token-policy-v1-20261012",
   "modules": [
     {
       "id": "dev-contracts",
@@ -1113,6 +1113,36 @@
       "layer": "live",
       "file": "dist/tests/live/task-chat-followup.test.js",
       "timeoutMs": 320000
+    },
+    {
+      "id": "unit-token-policy",
+      "layer": "unit",
+      "file": "dist/tests/unit/token-policy.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "unit-token-unlimited-scheduler",
+      "layer": "unit",
+      "file": "dist/tests/unit/token-unlimited-scheduler.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "unit-token-unlimited-supervision",
+      "layer": "unit",
+      "file": "dist/tests/unit/token-unlimited-supervision.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "integration-token-policy",
+      "layer": "integration",
+      "file": "dist/tests/integration/token-policy.test.js",
+      "timeoutMs": 120000
+    },
+    {
+      "id": "live-token-policy",
+      "layer": "live",
+      "file": "dist/tests/live/token-policy.test.js",
+      "timeoutMs": 420000
     }
   ],
   "cases": [
@@ -2095,7 +2125,8 @@
         "v44-source-refresh-delivery-impact",
         "v45-indexed-reader-impact",
         "v46-author-presentation-impact",
-        "v46-final-impact"
+        "v46-final-impact",
+        "token-policy-impact"
       ],
       "prerequisites": "Pinned Node runtime; see tests/unit/boundaries.test.ts",
       "assertions": "tests/unit/boundaries.test.ts: boundaries allow pure domain and contract imports",
@@ -2122,7 +2153,8 @@
         "v44-source-refresh-delivery-impact",
         "v45-indexed-reader-impact",
         "v46-author-presentation-impact",
-        "v46-final-impact"
+        "v46-final-impact",
+        "token-policy-impact"
       ],
       "prerequisites": "Pinned Node runtime; see tests/unit/boundaries.test.ts",
       "assertions": "tests/unit/boundaries.test.ts: boundaries reject product and external effects inside domain",
@@ -2149,7 +2181,8 @@
         "v44-source-refresh-delivery-impact",
         "v45-indexed-reader-impact",
         "v46-author-presentation-impact",
-        "v46-final-impact"
+        "v46-final-impact",
+        "token-policy-impact"
       ],
       "prerequisites": "Pinned Node runtime; see tests/unit/boundaries.test.ts",
       "assertions": "tests/unit/boundaries.test.ts: boundaries keep development verifier independent from product",
@@ -2176,7 +2209,8 @@
         "v44-source-refresh-delivery-impact",
         "v45-indexed-reader-impact",
         "v46-author-presentation-impact",
-        "v46-final-impact"
+        "v46-final-impact",
+        "token-policy-impact"
       ],
       "prerequisites": "Pinned Node runtime; see tests/unit/boundaries.test.ts",
       "assertions": "tests/unit/boundaries.test.ts: boundaries reject import equals and import types across TypeScript extensions",
@@ -3363,7 +3397,8 @@
       "impactTags": [
         "domain",
         "contracts",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "token-policy-impact"
       ],
       "prerequisites": "Pinned Node; real production modules",
       "assertions": "tests/unit/domain.test.ts: reservations conflict across parallel nodes and preserve verification allowance",
@@ -3383,7 +3418,8 @@
       "impactTags": [
         "domain",
         "contracts",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "token-policy-impact"
       ],
       "prerequisites": "Pinned Node; real production modules",
       "assertions": "tests/unit/domain.test.ts: budget rejects negative nonfinite and malformed reservations without mutation",
@@ -3403,7 +3439,8 @@
       "impactTags": [
         "domain",
         "contracts",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "token-policy-impact"
       ],
       "prerequisites": "Pinned Node; real production modules",
       "assertions": "tests/unit/domain.test.ts: actual overspend is recorded and prevents new dispatch",
@@ -3423,7 +3460,8 @@
       "impactTags": [
         "domain",
         "contracts",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "token-policy-impact"
       ],
       "prerequisites": "Pinned Node; real production modules",
       "assertions": "tests/unit/domain.test.ts: settlement releases reservation exactly once and rejects conflicting totals",
@@ -3463,7 +3501,8 @@
       "impactTags": [
         "domain",
         "contracts",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "token-policy-impact"
       ],
       "prerequisites": "Pinned Node; real production modules",
       "assertions": "tests/unit/domain.test.ts: cancelled attempts accept late settlement but late success never revives nodes",
@@ -6556,7 +6595,8 @@
         "orchestration",
         "p5",
         "v38-combined-impact",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "token-policy-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "P5 reasoning protects verification reserve and cannot manufacture node progress",
@@ -7890,7 +7930,8 @@
       "scenario": "P6-POL-U18 verified completion survives exhausted limits but user cancellation and pause prevent late success",
       "impactTags": [
         "contracts",
-        "p6-foundation"
+        "p6-foundation",
+        "token-policy-impact"
       ],
       "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
       "assertions": "tests/unit/loop-policy.test.ts :: P6-POL-U18 verified completion survives exhausted limits but user cancellation and pause prevent late success",
@@ -7909,7 +7950,8 @@
       "scenario": "P6-POL-U19 budget attempt and elapsed limits stop new dispatch and strict mode terminates in-flight work",
       "impactTags": [
         "contracts",
-        "p6-foundation"
+        "p6-foundation",
+        "token-policy-impact"
       ],
       "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
       "assertions": "tests/unit/loop-policy.test.ts :: P6-POL-U19 budget attempt and elapsed limits stop new dispatch and strict mode terminates in-flight work",
@@ -7947,7 +7989,8 @@
       "scenario": "P6-POL-U21 policy input rejects unsafe budgets contradictory streaks and duplicate acceptance identities",
       "impactTags": [
         "contracts",
-        "p6-foundation"
+        "p6-foundation",
+        "token-policy-impact"
       ],
       "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
       "assertions": "tests/unit/loop-policy.test.ts :: P6-POL-U21 policy input rejects unsafe budgets contradictory streaks and duplicate acceptance identities",
@@ -8031,7 +8074,8 @@
         "contracts",
         "p6-foundation",
         "v38-combined-impact",
-        "task-chat-impact"
+        "task-chat-impact",
+        "token-policy-impact"
       ],
       "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
       "assertions": "tests/integration/conversations.test.ts :: P6 conversation unknown usage reserves remain charged after reopening",
@@ -8052,7 +8096,8 @@
         "contracts",
         "p6-foundation",
         "v38-combined-impact",
-        "task-chat-impact"
+        "task-chat-impact",
+        "token-policy-impact"
       ],
       "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
       "assertions": "tests/integration/conversations.test.ts :: P6 conversation linked delivered rounds consume the original authorized budget exactly once",
@@ -8073,7 +8118,8 @@
         "contracts",
         "p6-foundation",
         "v38-combined-impact",
-        "task-chat-impact"
+        "task-chat-impact",
+        "token-policy-impact"
       ],
       "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
       "assertions": "tests/integration/conversations.test.ts :: P6 conversation rejects reset budgets spent drafts foreign workspaces and parallel active rounds",
@@ -9267,7 +9313,8 @@
       "impactTags": [
         "p6-autoloop-foundation",
         "v38-combined-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "token-policy-impact"
       ],
       "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
       "assertions": "tests/integration/supervision-ledger.test.ts :: P6-SUP-I02 supervision reasoning reserves and settles original Run budget exactly once without changing requirements",
@@ -9287,7 +9334,8 @@
       "impactTags": [
         "p6-autoloop-foundation",
         "v38-combined-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "token-policy-impact"
       ],
       "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
       "assertions": "tests/integration/supervision-ledger.test.ts :: P6-SUP-I03 unknown reasoning usage retains reservation and blocks another job or intent across reopen",
@@ -9327,7 +9375,8 @@
       "impactTags": [
         "p6-autoloop-foundation",
         "v38-combined-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "token-policy-impact"
       ],
       "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
       "assertions": "tests/integration/supervision-ledger.test.ts :: P6-SUP-I05 context and budget failures precede intents while overrun remains charged and completion cannot be fabricated",
@@ -9367,7 +9416,8 @@
       "impactTags": [
         "p6-autoloop-foundation",
         "v38-combined-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "token-policy-impact"
       ],
       "prerequisites": "Pinned Node; real module, SQLite, filesystem and subprocess behavior; repository fixtures explicitly do not prove model execution or approval",
       "assertions": "tests/integration/supervision-ledger.test.ts :: P6-SUP-I07 underreported final usage keeps observed cost unresolved and reservation overrun cannot publish a result",
@@ -12992,7 +13042,8 @@
         "v36-authority-impact",
         "v38-combined-impact",
         "v44-source-refresh-delivery-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "token-policy-impact"
       ],
       "prerequisites": "Pinned Node; real immutable files and actual permission-limited P4 Node command processes, identity/stop and output proofs; no model approval is fabricated.",
       "assertions": "tests/integration/control-qualification.test.ts :: P6-CTRL-I07 independent review includes full old new source diffs actual pairs and blocks truncation",
@@ -13402,7 +13453,8 @@
         "v36-authority-impact",
         "v38-combined-impact",
         "v44-source-refresh-delivery-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "token-policy-impact"
       ],
       "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
       "assertions": "tests/integration/control-bootstrap.test.ts :: P6-BOOT-I04 unknown shared usage and cancellation reject dispatch while retaining actual job accounting",
@@ -13534,7 +13586,8 @@
         "v36-authority-impact",
         "v38-combined-impact",
         "v44-source-refresh-delivery-impact",
-        "v46-author-presentation-impact"
+        "v46-author-presentation-impact",
+        "token-policy-impact"
       ],
       "prerequisites": "Pinned Node; actual production modules, SQLite and immutable filesystem/managed processes as applicable. Seeded protocol or model metadata only proves repository gates; no live model or stage approval is claimed.",
       "assertions": "tests/integration/control-bootstrap.test.ts :: P6-BOOT-I10 real weak detector proof cannot authorize forged verdict usable job identity or negative usage",
@@ -14400,7 +14453,8 @@
         "p7-scheduler",
         "v38-combined-impact",
         "v39-completion-impact",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "token-policy-impact"
       ],
       "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
       "assertions": "tests/unit/task-scheduler.test.ts :: P7-SCHED-U05 shared budget protects max overlapping verification floor and unknown usage stops every tier without freeing reservations",
@@ -14421,7 +14475,8 @@
         "p7-scheduler",
         "v38-combined-impact",
         "v39-completion-impact",
-        "v40-research-groups-impact"
+        "v40-research-groups-impact",
+        "token-policy-impact"
       ],
       "prerequisites": "Pinned Node; real domain implementation or SQLite, owned local processes and filesystem. Model metadata fixtures are explicit and do not certify real model execution.",
       "assertions": "tests/unit/task-scheduler.test.ts :: P7-SCHED-U06 nested allocations constrain every ancestor and expansion respects depth nodes rounds and total budget",
@@ -15977,7 +16032,8 @@
       "scenario": "protected shared balance and full recovery context limits fail without a new reservation",
       "impactTags": [
         "p6-author-routing",
-        "v53-author-route-v2-impact"
+        "v53-author-route-v2-impact",
+        "token-policy-impact"
       ],
       "prerequisites": "Actual SQLite, files, managed Node and protocol parser; synthetic model output/accounting is mechanism coverage only.",
       "assertions": "tests/integration/author-routing.test.ts :: protected shared balance and full recovery context limits fail without a new reservation",
@@ -21514,7 +21570,8 @@
       "scenario": "P6-AUTH-STAGE-I02 stage preflight and interrupted accounting reject without extra calls or fabricated progress",
       "impactTags": [
         "p6-author-stages",
-        "p6-author-routing"
+        "p6-author-routing",
+        "token-policy-impact"
       ],
       "prerequisites": "Actual SQLite/FS/managed Node; explicit synthetic model JSON and usage, no provider approval.",
       "assertions": "tests/integration/author-stages.test.ts :: P6-AUTH-STAGE-I02 stage preflight and interrupted accounting reject without extra calls or fabricated progress",
@@ -21554,7 +21611,8 @@
       "impactTags": [
         "p6-author-stages",
         "p6-author-stage-recovery",
-        "p6-author-routing"
+        "p6-author-routing",
+        "token-policy-impact"
       ],
       "prerequisites": "Actual SQLite/FS/managed Node; explicit synthetic model JSON and usage, no provider approval.",
       "assertions": "tests/integration/author-stages.test.ts :: P6-AUTH-STAGE-I04 policy2 recovers distinct frozen stages once with all five calls charged and original max4 still blocks",
@@ -21742,6 +21800,348 @@
       "prerequisites": "Authenticated Codex gpt-6-astra low and actual Supervisor screenshot; isolated real IPC service",
       "assertions": "Actual clarification, attached image/text reply, original requirement preserved, exact idempotent replay after service restart with no new model charge",
       "cleanup": "Close owned service and processes; preserve actual SQLite and evidence paths",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-token-policy.001",
+      "name": "token tiers expose medium five million high fifty million and explicit unlimited",
+      "suiteId": "unit-token-policy",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "token-policy"
+      ],
+      "scenario": "token tiers expose medium five million high fifty million and explicit unlimited",
+      "impactTags": [
+        "token-policy-impact"
+      ],
+      "prerequisites": "Pinned Node 24; real local modules/SQLite; live requires installed logged-in Codex gpt-6-astra low",
+      "assertions": "tests/unit/token-policy.test.ts :: token tiers expose medium five million high fifty million and explicit unlimited",
+      "cleanup": "Isolated test directories and owned processes; no production task mutations",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-token-policy.002",
+      "name": "token parsers accept explicit null and preserve finite limits without accepting missing or invalid limits",
+      "suiteId": "unit-token-policy",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "token-policy"
+      ],
+      "scenario": "token parsers accept explicit null and preserve finite limits without accepting missing or invalid limits",
+      "impactTags": [
+        "token-policy-impact"
+      ],
+      "prerequisites": "Pinned Node 24; real local modules/SQLite; live requires installed logged-in Codex gpt-6-astra low",
+      "assertions": "tests/unit/token-policy.test.ts :: token parsers accept explicit null and preserve finite limits without accepting missing or invalid limits",
+      "cleanup": "Isolated test directories and owned processes; no production task mutations",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-token-policy.003",
+      "name": "unlimited requires explicit token accounting and retains finite reservation deadline and verification validation",
+      "suiteId": "unit-token-policy",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "token-policy"
+      ],
+      "scenario": "unlimited requires explicit token accounting and retains finite reservation deadline and verification validation",
+      "impactTags": [
+        "token-policy-impact"
+      ],
+      "prerequisites": "Pinned Node 24; real local modules/SQLite; live requires installed logged-in Codex gpt-6-astra low",
+      "assertions": "tests/unit/token-policy.test.ts :: unlimited requires explicit token accounting and retains finite reservation deadline and verification validation",
+      "cleanup": "Isolated test directories and owned processes; no production task mutations",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-token-policy.004",
+      "name": "reservation comparison allows known unlimited overspend and rejects unknown or malformed usage",
+      "suiteId": "unit-token-policy",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "token-policy"
+      ],
+      "scenario": "reservation comparison allows known unlimited overspend and rejects unknown or malformed usage",
+      "impactTags": [
+        "token-policy-impact"
+      ],
+      "prerequisites": "Pinned Node 24; real local modules/SQLite; live requires installed logged-in Codex gpt-6-astra low",
+      "assertions": "tests/unit/token-policy.test.ts :: reservation comparison allows known unlimited overspend and rejects unknown or malformed usage",
+      "cleanup": "Isolated test directories and owned processes; no production task mutations",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-token-policy.005",
+      "name": "finite token ceilings still reject oversized reservations and block dispatch after actual overspend",
+      "suiteId": "unit-token-policy",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "token-policy"
+      ],
+      "scenario": "finite token ceilings still reject oversized reservations and block dispatch after actual overspend",
+      "impactTags": [
+        "token-policy-impact"
+      ],
+      "prerequisites": "Pinned Node 24; real local modules/SQLite; live requires installed logged-in Codex gpt-6-astra low",
+      "assertions": "tests/unit/token-policy.test.ts :: finite token ceilings still reject oversized reservations and block dispatch after actual overspend",
+      "cleanup": "Isolated test directories and owned processes; no production task mutations",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-token-policy.006",
+      "name": "unlimited token dispatch accounts actual overspend once and permits the next dependent attempt",
+      "suiteId": "unit-token-policy",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "token-policy"
+      ],
+      "scenario": "unlimited token dispatch accounts actual overspend once and permits the next dependent attempt",
+      "impactTags": [
+        "token-policy-impact"
+      ],
+      "prerequisites": "Pinned Node 24; real local modules/SQLite; live requires installed logged-in Codex gpt-6-astra low",
+      "assertions": "tests/unit/token-policy.test.ts :: unlimited token dispatch accounts actual overspend once and permits the next dependent attempt",
+      "cleanup": "Isolated test directories and owned processes; no production task mutations",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-token-policy.007",
+      "name": "unlimited mode keeps unknown accounting effects cancellation and verification gates",
+      "suiteId": "unit-token-policy",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "token-policy"
+      ],
+      "scenario": "unlimited mode keeps unknown accounting effects cancellation and verification gates",
+      "impactTags": [
+        "token-policy-impact"
+      ],
+      "prerequisites": "Pinned Node 24; real local modules/SQLite; live requires installed logged-in Codex gpt-6-astra low",
+      "assertions": "tests/unit/token-policy.test.ts :: unlimited mode keeps unknown accounting effects cancellation and verification gates",
+      "cleanup": "Isolated test directories and owned processes; no production task mutations",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-token-policy.008",
+      "name": "token selector renders all three Chinese tiers and the unlimited accounting explanation",
+      "suiteId": "unit-token-policy",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "token-policy"
+      ],
+      "scenario": "token selector renders all three Chinese tiers and the unlimited accounting explanation",
+      "impactTags": [
+        "token-policy-impact"
+      ],
+      "prerequisites": "Pinned Node 24; real local modules/SQLite; live requires installed logged-in Codex gpt-6-astra low",
+      "assertions": "tests/unit/token-policy.test.ts :: token selector renders all three Chinese tiers and the unlimited accounting explanation",
+      "cleanup": "Isolated test directories and owned processes; no production task mutations",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-token-unlimited-scheduler.001",
+      "name": "TOKEN-UNLIMITED-SCHED-U01 null root bypasses shared and ancestor token ceilings with finite reservations and serializable null remaining",
+      "suiteId": "unit-token-unlimited-scheduler",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "token-policy"
+      ],
+      "scenario": "TOKEN-UNLIMITED-SCHED-U01 null root bypasses shared and ancestor token ceilings with finite reservations and serializable null remaining",
+      "impactTags": [
+        "token-policy-impact"
+      ],
+      "prerequisites": "Pinned Node 24; real local modules/SQLite; live requires installed logged-in Codex gpt-6-astra low",
+      "assertions": "tests/unit/token-unlimited-scheduler.test.ts :: TOKEN-UNLIMITED-SCHED-U01 null root bypasses shared and ancestor token ceilings with finite reservations and serializable null remaining",
+      "cleanup": "Isolated test directories and owned processes; no production task mutations",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-token-unlimited-scheduler.002",
+      "name": "TOKEN-UNLIMITED-SCHED-U02 unlimited scheduling retains unknown accounting resource iteration time node and depth gates",
+      "suiteId": "unit-token-unlimited-scheduler",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "token-policy"
+      ],
+      "scenario": "TOKEN-UNLIMITED-SCHED-U02 unlimited scheduling retains unknown accounting resource iteration time node and depth gates",
+      "impactTags": [
+        "token-policy-impact"
+      ],
+      "prerequisites": "Pinned Node 24; real local modules/SQLite; live requires installed logged-in Codex gpt-6-astra low",
+      "assertions": "tests/unit/token-unlimited-scheduler.test.ts :: TOKEN-UNLIMITED-SCHED-U02 unlimited scheduling retains unknown accounting resource iteration time node and depth gates",
+      "cleanup": "Isolated test directories and owned processes; no production task mutations",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-token-unlimited-scheduler.003",
+      "name": "TOKEN-UNLIMITED-SCHED-U03 null loop budget continues above token estimates while finite time attempt and no-progress bounds still stop",
+      "suiteId": "unit-token-unlimited-scheduler",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "token-policy"
+      ],
+      "scenario": "TOKEN-UNLIMITED-SCHED-U03 null loop budget continues above token estimates while finite time attempt and no-progress bounds still stop",
+      "impactTags": [
+        "token-policy-impact"
+      ],
+      "prerequisites": "Pinned Node 24; real local modules/SQLite; live requires installed logged-in Codex gpt-6-astra low",
+      "assertions": "tests/unit/token-unlimited-scheduler.test.ts :: TOKEN-UNLIMITED-SCHED-U03 null loop budget continues above token estimates while finite time attempt and no-progress bounds still stop",
+      "cleanup": "Isolated test directories and owned processes; no production task mutations",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-token-unlimited-scheduler.004",
+      "name": "TOKEN-UNLIMITED-SCHED-U04 unlimited research grouping funds all original sources with finite estimates and still refuses unknown accounting",
+      "suiteId": "unit-token-unlimited-scheduler",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "token-policy"
+      ],
+      "scenario": "TOKEN-UNLIMITED-SCHED-U04 unlimited research grouping funds all original sources with finite estimates and still refuses unknown accounting",
+      "impactTags": [
+        "token-policy-impact"
+      ],
+      "prerequisites": "Pinned Node 24; real local modules/SQLite; live requires installed logged-in Codex gpt-6-astra low",
+      "assertions": "tests/unit/token-unlimited-scheduler.test.ts :: TOKEN-UNLIMITED-SCHED-U04 unlimited research grouping funds all original sources with finite estimates and still refuses unknown accounting",
+      "cleanup": "Isolated test directories and owned processes; no production task mutations",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-token-unlimited-supervision.001",
+      "name": "TOKEN-SUP-U01 unlimited supervision retains finite estimates and settles usage above reservation across reopen",
+      "suiteId": "unit-token-unlimited-supervision",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "token-policy"
+      ],
+      "scenario": "TOKEN-SUP-U01 unlimited supervision retains finite estimates and settles usage above reservation across reopen",
+      "impactTags": [
+        "token-policy-impact"
+      ],
+      "prerequisites": "Pinned Node 24; real local modules/SQLite; live requires installed logged-in Codex gpt-6-astra low",
+      "assertions": "tests/unit/token-unlimited-supervision.test.ts :: TOKEN-SUP-U01 unlimited supervision retains finite estimates and settles usage above reservation across reopen",
+      "cleanup": "Isolated test directories and owned processes; no production task mutations",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-token-unlimited-supervision.002",
+      "name": "TOKEN-SUP-U02 finite supervision still charges overruns and rejects their publication",
+      "suiteId": "unit-token-unlimited-supervision",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "token-policy"
+      ],
+      "scenario": "TOKEN-SUP-U02 finite supervision still charges overruns and rejects their publication",
+      "impactTags": [
+        "token-policy-impact"
+      ],
+      "prerequisites": "Pinned Node 24; real local modules/SQLite; live requires installed logged-in Codex gpt-6-astra low",
+      "assertions": "tests/unit/token-unlimited-supervision.test.ts :: TOKEN-SUP-U02 finite supervision still charges overruns and rejects their publication",
+      "cleanup": "Isolated test directories and owned processes; no production task mutations",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-token-unlimited-supervision.003",
+      "name": "TOKEN-SUP-U03 unlimited supervision preserves unknown usage underreporting and unconfirmed stop gates",
+      "suiteId": "unit-token-unlimited-supervision",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "token-policy"
+      ],
+      "scenario": "TOKEN-SUP-U03 unlimited supervision preserves unknown usage underreporting and unconfirmed stop gates",
+      "impactTags": [
+        "token-policy-impact"
+      ],
+      "prerequisites": "Pinned Node 24; real local modules/SQLite; live requires installed logged-in Codex gpt-6-astra low",
+      "assertions": "tests/unit/token-unlimited-supervision.test.ts :: TOKEN-SUP-U03 unlimited supervision preserves unknown usage underreporting and unconfirmed stop gates",
+      "cleanup": "Isolated test directories and owned processes; no production task mutations",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-token-policy.001",
+      "name": "unlimited goal runtime and conversation persist null ceilings and actual overspend across SQLite reopen",
+      "suiteId": "integration-token-policy",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "token-policy"
+      ],
+      "scenario": "unlimited goal runtime and conversation persist null ceilings and actual overspend across SQLite reopen",
+      "impactTags": [
+        "token-policy-impact"
+      ],
+      "prerequisites": "Pinned Node 24; real local modules/SQLite; live requires installed logged-in Codex gpt-6-astra low",
+      "assertions": "tests/integration/token-policy.test.ts :: unlimited goal runtime and conversation persist null ceilings and actual overspend across SQLite reopen",
+      "cleanup": "Isolated test directories and owned processes; no production task mutations",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-token-policy.002",
+      "name": "unlimited delivered continuation preserves null authorization old accounting and finite reservations after reopen",
+      "suiteId": "integration-token-policy",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "token-policy"
+      ],
+      "scenario": "unlimited delivered continuation preserves null authorization old accounting and finite reservations after reopen",
+      "impactTags": [
+        "token-policy-impact"
+      ],
+      "prerequisites": "Pinned Node 24; real local modules/SQLite; live requires installed logged-in Codex gpt-6-astra low",
+      "assertions": "tests/integration/token-policy.test.ts :: unlimited delivered continuation preserves null authorization old accounting and finite reservations after reopen",
+      "cleanup": "Isolated test directories and owned processes; no production task mutations",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-token-policy.003",
+      "name": "unlimited unknown reasoning usage stays reserved and blocks admission and continuation after SQLite reopen",
+      "suiteId": "integration-token-policy",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "token-policy"
+      ],
+      "scenario": "unlimited unknown reasoning usage stays reserved and blocks admission and continuation after SQLite reopen",
+      "impactTags": [
+        "token-policy-impact"
+      ],
+      "prerequisites": "Pinned Node 24; real local modules/SQLite; live requires installed logged-in Codex gpt-6-astra low",
+      "assertions": "tests/integration/token-policy.test.ts :: unlimited unknown reasoning usage stays reserved and blocks admission and continuation after SQLite reopen",
+      "cleanup": "Isolated test directories and owned processes; no production task mutations",
+      "status": "active"
+    },
+    {
+      "id": "p8.live-token-policy.001",
+      "name": "live unlimited goal reasoning and direct Codex execution exceed reservation one without cancellation and retain actual accounting",
+      "suiteId": "live-token-policy",
+      "module": "orchestration",
+      "layer": "live",
+      "covers": [
+        "token-policy"
+      ],
+      "scenario": "live unlimited goal reasoning and direct Codex execution exceed reservation one without cancellation and retain actual accounting",
+      "impactTags": [
+        "token-policy-impact"
+      ],
+      "prerequisites": "Pinned Node 24; real local modules/SQLite; live requires installed logged-in Codex gpt-6-astra low",
+      "assertions": "tests/live/token-policy.test.ts :: live unlimited goal reasoning and direct Codex execution exceed reservation one without cancellation and retain actual accounting",
+      "cleanup": "Isolated test directories and owned processes; no production task mutations",
       "status": "active"
     }
   ]

@@ -23,7 +23,7 @@ test('P8-IDXC-I01 explicit indexed single analysis automatic author actual contr
  assert.deepEqual(review.controls.map(c=>[c.id,c.passed]),[['good',true],['bad',true]]);
  assert.equal(review.controls[1]!.results[0]!.checks[0]!.verdict,'failed');
  for(const job of [review,f.final]){assert.equal(job.stopConfirmed,true);assert.equal(job.usageUnknown,false);await new VerificationProofReader(f.store).assertJob(job);for(const identity of job.identities)assert.equal((await inspectProcess(identity)).status,'stopped');}
- const before=f.store.runtime.inspect(f.runtime.id).run.budget;assert.ok(before.spent>0&&before.spent<=before.limit);
+ const before=f.store.runtime.inspect(f.runtime.id).run.budget;assert.ok(before.spent>0&&before.spent<=before.limit!);
  const archive=Object.keys(f.final.proofs).find(p=>p.endsWith('/indexed-reader/binding.json'))!;assert.ok(archive);
  const original=await readFile(archive);await writeFile(archive,'{}');await assert.rejects(new VerificationProofReader(f.store).assertJob(f.final));await writeFile(archive,original);
  const reopened=new SupervisorStore(f.data);try{const delivery=reopened.verification.get('delivery',f.delivery.id);assert.equal(delivery.jobId,f.final.id);assert.equal(reopened.runtime.inspect(f.runtime.id).run.status,'succeeded');await new VerificationProofReader(reopened).assertJob(reopened.verification.get('job',f.final.id));assert.deepEqual(reopened.runtime.inspect(f.runtime.id).run.budget,before);}finally{reopened.close();}

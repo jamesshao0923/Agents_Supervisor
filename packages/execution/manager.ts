@@ -235,7 +235,7 @@ export class ExecutionManager {
     const child=await spawnManagedProcess({operationId:id,command:this.codex,args:await this.processArgs(),cwd:record.workspace,timeoutMs:remaining,
       onBeforeSpawn:async intent=>{await this.awaitLaunchEligible(id);this.store.executionUpdate(id,{},'process-intent',intent);},
       onIdentity:async identity=>{await this.awaitLaunchEligible(id);this.store.executionUpdate(id,{identity,pid:identity.pid},'process-identity',identity);}});
-    const materialReader=reader?await reader.start(child.identity,directory!,capabilities.version,()=>{const e=this.store.executionGet(id);if(e.usage&&e.usage.totalTokens>=e.reservation)throw Error('Indexed execution reservation exhausted');}):undefined;
+    const materialReader=reader?await reader.start(child.identity,directory!,capabilities.version,()=>{const e=this.store.executionGet(id);if(e.tokenLimit!==null&&e.usage&&e.usage.totalTokens>=e.reservation)throw Error('Indexed execution reservation exhausted');}):undefined;
     const adapter=new CodexAdapter({...(materialReader?{materialReader}:{}),transport:transport(child),requestTimeoutMs:Math.min(20_000,remaining),
       onRawEvent:event=>{const a=this.active.get(id);if(a?.reader){a.rawBytes=(a.rawBytes??0)+Buffer.byteLength(event.line);if(a.rawBytes>8*1024*1024)throw Error('Indexed execution event capacity exceeded');}this.store.executionUpdate(id,{},'codex-raw',event);},
       onEvent:event=>this.onEvent(id,event)});
@@ -278,7 +278,7 @@ export class ExecutionManager {
     }
     if(event.kind==='turn-status'&&event.terminal)patch.terminalStatus=event.status??'unknown';
     this.store.executionUpdate(id,patch,'codex-event',event);
-    if(event.tokenUsage && event.tokenUsage.total.totalTokens>=record.reservation && !record.cancelRequested && !event.terminal) {
+    if(record.tokenLimit!==null && event.tokenUsage && event.tokenUsage.total.totalTokens>=record.reservation && !record.cancelRequested && !event.terminal) {
       void this.cancel(id,'Observed token usage reached the reserved attempt limit');
     }
     if(event.kind==='turn-status'&&event.terminal&&active) {

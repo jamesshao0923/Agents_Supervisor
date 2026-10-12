@@ -1,3 +1,4 @@
+import {withinTokenReservation,type TokenLimit} from '../contracts/token-policy.js';
 import {assertStageRecoveryRootPolicy,parseStageRecoveryInput,type StageAttemptRef,type StageRejectionRef} from './author-stage-recovery-presentation.js';
 import {createHash} from 'node:crypto';
 import {lstatSync,readFileSync,realpathSync} from 'node:fs';
@@ -23,11 +24,11 @@ export function assertStoredAuthorStage(job:SupervisionJob,dataDir:string):void 
 }
 
 /** Complete immutable raw/output/turn/process evidence, shared by stage-derived patches. */
-export function assertStoredAuthorOutput(job:SupervisionJob,dataDir:string):void {
+export function assertStoredAuthorOutput(job:SupervisionJob,dataDir:string,tokenLimit:TokenLimit=parseAuthorStageInput(job.input)?parseAuthorStageInput(job.input)!.context.authorStage.sessionTokenCeiling:job.config.reservation):void {
   const input=job.input as {outputSchema:Record<string,unknown>};
   ensure(job.purpose==='acceptance-authoring'&&job.status==='finished'&&!job.error&&job.result!==null
     &&job.modelStarted&&job.stopConfirmed&&job.threadId&&job.usage!==null
-    &&Number.isSafeInteger(job.usage)&&job.usage>=job.observedUsage&&job.usage<=job.config.reservation,'fragment not completed with known cost');
+    &&Number.isSafeInteger(job.usage)&&job.usage>=job.observedUsage&&withinTokenReservation(tokenLimit,job.usage,job.config.reservation),'fragment not completed with known cost');
   ensure(sha(runtimeCanonical(job.input))===job.inputDigest,'fragment input changed');
   ensure(sha(runtimeCanonical({usage:job.reportedUsage??job.usage,stopConfirmed:job.stopConfirmed,error:job.error,
     proofs:job.proofs,threadId:job.threadId,result:job.result}))===job.completionDigest,'fragment completion changed');
@@ -63,7 +64,7 @@ export function stageAttemptRef(job:SupervisionJob):StageAttemptRef {
 }
 function assertStageCompletion(job:SupervisionJob):void {
   ensure(job.status==='finished'&&job.stopConfirmed&&job.usage!==null&&Number.isSafeInteger(job.usage)
-    &&job.usage>=job.observedUsage&&job.usage<=job.config.reservation,'stage accounting unresolved');
+    &&job.usage>=job.observedUsage&&withinTokenReservation(parseAuthorStageInput(job.input)!.context.authorStage.sessionTokenCeiling,job.usage,job.config.reservation),'stage accounting unresolved');
   ensure(sha(runtimeCanonical(job.input))===job.inputDigest,'stage input changed');
   ensure(sha(runtimeCanonical({usage:job.reportedUsage??job.usage,stopConfirmed:job.stopConfirmed,error:job.error,
     proofs:job.proofs,threadId:job.threadId,result:job.result}))===job.completionDigest,'stage completion changed');
@@ -157,7 +158,7 @@ export function authorStageChargePrefix(job:SupervisionJob,readJob:ReadJob,dataD
               &&e.value.result.stop.stopped&&e.value.result.stop.members.length===0),'known-zero stop evidence missing');
         }
       }
-      ensure(node.config.reservation===root.context.authorStage.sessionTokenCeiling-result.reduce((n,j)=>n+j.usage!,0),'charged attempt reservation differs');
+      ensure(node.config.reservation===(root.context.authorStage.sessionTokenCeiling===null?job.config.reservation:root.context.authorStage.sessionTokenCeiling-result.reduce((n,j)=>n+j.usage!,0)),'charged attempt reservation differs');
       result.push(node);
     }
   };
@@ -196,26 +197,26 @@ export function assertAuthorStageParents(job:SupervisionJob,readJob:ReadJob,data
     ensure(same(prior.context.authorStageParents,input.context.authorStageParents.slice(0,index)),'prior rendered ancestry differs');
     ensure(parent.config.model===job.config.model&&parent.config.effort===job.config.effort,'model changed within an author session');
     const charged=authorStageChargePrefix(parent,readJob,dataDir);
-    ensure(parent.config.reservation===binding.sessionTokenCeiling-charged.reduce((n,j)=>n+j.usage!,0),'prior fragment reservation differs');
+    ensure(parent.config.reservation===(binding.sessionTokenCeiling===null?job.config.reservation:binding.sessionTokenCeiling-charged.reduce((n,j)=>n+j.usage!,0)),'prior fragment reservation differs');
     return parent;
   });
   const spent=authorStageChargePrefix(job,readJob,dataDir).reduce((n,parent)=>n+parent.usage!,0);
-  ensure(Number.isSafeInteger(spent)&&job.config.reservation===binding.sessionTokenCeiling-spent&&job.config.reservation>0,'shared author session ceiling changed');
+  ensure(Number.isSafeInteger(spent)&&job.config.reservation===(binding.sessionTokenCeiling===null?job.config.reservation:binding.sessionTokenCeiling-spent)&&job.config.reservation>0,'shared author session ceiling changed');
   ensure(job.config.timeoutMs<=binding.perCallTimeoutMs&&job.config.timeoutMs>=1000
     &&Date.parse(job.startedAt)<binding.loopDeadlineMs,'stage exceeds its call or Loop deadline');
   return parents;
 }
 
 /** Cheap current-state check; full immutable parent proofs are checked at dispatch/use. */
-export function assertAuthorStagePolicy(job:SupervisionJob,loop:SupervisionRecord,readJob:ReadJob):void {
+export function assertAuthorStagePolicy(job:SupervisionJob,loop:SupervisionRecord,readJob:ReadJob,tokenLimit:TokenLimit=loop.config.reservation):void {
   const input=parseAuthorStageInput(job.input);if(!input)return;
   const b=input.context.authorStage;
   ensure(loop.authoringProtocol===b.protocol,'Loop did not select staged authoring');
-  ensure(b.sessionTokenCeiling===loop.config.reservation&&b.perCallTimeoutMs===loop.config.timeoutMs
+  ensure(b.sessionTokenCeiling===(tokenLimit===null?null:loop.config.reservation)&&b.perCallTimeoutMs===loop.config.timeoutMs
     &&b.loopDeadlineMs===Date.parse(loop.createdAt)+loop.limits.maxDurationMs&&job.config.model===loop.config.model&&job.config.effort===loop.config.effort,'stage policy differs from original Loop');
   for(const ref of b.parents){const parent=readJob(ref.jobId);ensure(parent.status==='finished'&&!parent.error&&parent.stopConfirmed&&parent.usage!==null,'stage has unresolved parent');}
   const spent=authorStageChargePrefix(job,readJob).reduce((n,parent)=>n+parent.usage!,0);
-  ensure(Number.isSafeInteger(spent)&&job.config.reservation===b.sessionTokenCeiling-spent&&job.config.reservation>0,'stage budget differs from actual prior usage');
+  ensure(Number.isSafeInteger(spent)&&job.config.reservation===(b.sessionTokenCeiling===null?loop.config.reservation:b.sessionTokenCeiling-spent)&&job.config.reservation>0,'stage budget differs from actual prior usage');
   ensure(job.config.timeoutMs<=b.perCallTimeoutMs&&Date.parse(job.startedAt)<b.loopDeadlineMs,'stage time policy changed');
 }
 

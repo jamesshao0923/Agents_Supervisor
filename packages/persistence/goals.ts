@@ -1,3 +1,4 @@
+import { tokenCapacity } from '../contracts/token-policy.js';
 import {ResearchGroupsRepository} from './research-groups.js';
 import {assessResearchGrouping} from '../orchestration/research-group-admission.js';
 import {ScheduledLoopRepository} from './scheduled-loops.js';
@@ -117,7 +118,7 @@ export class GoalRepository {
     const reviewed=evolution?validateEvolutionReview((job.context as {acceptanceReview?:unknown}|null)?.acceptanceReview,evolution,context,frozen.relatedMessageIds):null;
     if(reviewed)ensure(reviewed.approved,'Contract evolution lacks independent authorization');
     const candidate={...s,messages:structuredClone(frozen.messages),proposal:job.proposal},plan=admittedPlan(candidate,run);
-    ensure(run.budget.limit-run.budget.spent-run.budget.verificationReserve>=s.config.reservation,'Insufficient execution budget after follow-up reasoning');
+    ensure(tokenCapacity(run.budget.limit)-run.budget.spent-run.budget.verificationReserve>=s.config.reservation,'Insufficient execution budget after follow-up reasoning');
     const nodes=plan.steps.map((step,i)=>({id:step.id,dependencies:i?[plan.steps[i-1]!.id]:[],required:true})),runtime=new RuntimeRepository(this.db);
     const acknowledge=()=>{repository.applyProcessingGroup(frozen.messageId,frozen.relatedMessageIds,plan.contract.version,job.followupResult?.response);frozen.appliedContractVersion=plan.contract.version;s.proposal=structuredClone(job.proposal);s.phase='admitted';s.error=null;
       if(s.research){
@@ -157,7 +158,7 @@ export class GoalRepository {
     ensure(a.expectedRevision===s.revision,'Goal revision changed');ensure(s.phase==='ready'&&!s.runtimeId,'Goal is not ready for admission');
     ensure(s.jobs.every(j=>j.status==='finished'&&j.stopConfirmed&&j.usage!==null),'Unresolved model work prevents admission');
     const plan=admittedPlan(s,run);applyAction(run,{type:'admit',contract:plan.contract,nodes:plan.steps.map((step,i)=>({id:step.id,dependencies:i?[plan.steps[i-1]!.id]:[],required:true}))});
-    ensure(run.budget.limit-run.budget.spent-run.budget.verificationReserve>=s.config.reservation,'Insufficient execution budget');
+    ensure(tokenCapacity(run.budget.limit)-run.budget.spent-run.budget.verificationReserve>=s.config.reservation,'Insufficient execution budget');
     if(s.research)assessResearchGrouping(s,run);
   }
   /** One parent transaction owns admission, final execution protection and graph
@@ -201,7 +202,7 @@ export class GoalRepository {
         ensure(s.phase==='ready'&&!s.runtimeId,'Goal is not ready for admission');const plan=admittedPlan(s,this.run(s));
         ensure(s.jobs.every(j=>j.status==='finished'&&j.stopConfirmed&&j.usage!==null),'Unresolved model work prevents admission');
         this.act(s,{type:'admit',contract:plan.contract,nodes:plan.steps.map((step,i)=>({id:step.id,dependencies:i?[plan.steps[i-1]!.id]:[],required:true}))});
-        const run=this.run(s);ensure(run.budget.limit-run.budget.spent-run.budget.verificationReserve>=s.config.reservation,'Insufficient execution budget');
+        const run=this.run(s);ensure(tokenCapacity(run.budget.limit)-run.budget.spent-run.budget.verificationReserve>=s.config.reservation,'Insufficient execution budget');
         const runtime=new RuntimeRepository(this.db,this.dataDir).adoptGoal({type:'submit',commandId:a.commandId,workspace:s.workspace,workspaceKind:s.workspaceKind,goal:s.goal,tokenLimit:run.budget.limit,verificationReserve:run.budget.verificationReserve,steps:plan.steps},s.projectId,s.id);
         if(s.research){
           const grouping=assessResearchGrouping(s,this.run(s));

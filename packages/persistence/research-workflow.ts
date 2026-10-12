@@ -1,3 +1,4 @@
+import {tokenCapacity} from '../contracts/token-policy.js';
 import {expandedAuthorInput} from '../orchestration/indexed-history-presentation.js';
 import {prepareResearchWorkflowEvolution} from '../verification/research-evolution.js';
 import { assertResearchMappingApproval } from '../verification/research-mapping-proof.js';
@@ -205,7 +206,7 @@ export class ResearchWorkflowRepository {
             && a.status !== 'running')
             && run.operations.every(o => o.status === 'confirmed')
             && run.leases.every(l => l.released)
-            && run.budget.spent <= run.budget.limit, 'unknown effects/cost/resources or total Run budget exceeded');
+            && run.budget.spent <= tokenCapacity(run.budget.limit), 'unknown effects/cost/resources or total Run budget exceeded');
         ensure(s.siblings.runtimes.every(r => ['cancelled', 'awaiting-verification'].includes(r.phase)
             && !this.store.conversations.hasPendingForRun(r.projectId, r.runId))
             && s.siblings.executions.every(e => e.stopConfirmed
@@ -640,7 +641,7 @@ export class ResearchWorkflowRepository {
             && run.attempts.every(a => a.settled && a.status !== 'running')
             && run.operations.every(o => o.status === 'confirmed')
             && run.leases.every(l => l.released)
-            && run.budget.spent <= run.budget.limit, 'committed export current boundary is unresolved');
+            && run.budget.spent <= tokenCapacity(run.budget.limit), 'committed export current boundary is unresolved');
         const neighbors = [
             ...this.store.runtime.list().filter(r => overlap(r.workspace, runtime.workspace)),
             ...this.store.executionList().filter(e => overlap(e.workspace, runtime.workspace)),

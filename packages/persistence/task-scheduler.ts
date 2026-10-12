@@ -1,3 +1,4 @@
+import {withinTokenReservation,tokenCapacity,tokenRemaining} from '../contracts/token-policy.js';
 import {unavailableResearchGroups, ResearchGroupsRepository} from './research-groups.js';
 import {parseExplorationAction,type ExplorationAction,type ExplorationInspection} from '../contracts/p7-exploration.js';
 import type {ExplorationTier} from '../contracts/p7-scheduler.js';
@@ -38,8 +39,8 @@ export class TaskSchedulerRepository{
  integrationFenced(runtimeId:string):boolean {const row=this.db.prepare('SELECT record FROM scheduled_records WHERE runtime_id=?').get(runtimeId);return !!row&&(JSON.parse(String(row.record)) as ScheduledRecord).fence==='held';}
  private actualOperations(claims:ScheduledClaim[],operations:ScheduledOperation[]):ScheduledOperation[]{return operations.map(op=>{
   const claim=claims.find(c=>c.id===op.claimId)!;const row=this.db.prepare('SELECT record FROM executions WHERE id=?').get(claim.attemptId);if(!row)return op;
-  const actual=JSON.parse(String(row.record)) as ExecutionRecord&{scheduledBinding?:ScheduledBinding};ensure(actual.scheduledBinding?.claimId===claim.id&&actual.attemptId===claim.attemptId&&actual.workspace===claim.workspace,'foreign actual execution');const runRow=this.db.prepare('SELECT snapshot FROM runs WHERE project_id=? AND id=?').get(claim.projectId,claim.runId);ensure(runRow,'actual scope missing');const attempt=(JSON.parse(String(runRow.snapshot)) as Run).attempts.find(a=>a.id===claim.attemptId);ensure(attempt,'actual attempt missing');if(attempt.settled)ensure(actual.usageStatus==='reported'&&actual.usage?.totalTokens===attempt.actual,'actual settled accounting inconsistent');
-  return actual.state==='unknown'||actual.state==='interrupted'||actual.cancelRequested||actual.usage&&actual.usage.totalTokens>claim.reservation?{...op,state:'unknown'}:op;
+  const actual=JSON.parse(String(row.record)) as ExecutionRecord&{scheduledBinding?:ScheduledBinding};ensure(actual.scheduledBinding?.claimId===claim.id&&actual.attemptId===claim.attemptId&&actual.workspace===claim.workspace,'foreign actual execution');const runRow=this.db.prepare('SELECT snapshot FROM runs WHERE project_id=? AND id=?').get(claim.projectId,claim.runId);ensure(runRow,'actual scope missing');const run=JSON.parse(String(runRow.snapshot)) as Run,attempt=run.attempts.find(a=>a.id===claim.attemptId);ensure(attempt,'actual attempt missing');if(attempt.settled)ensure(actual.usageStatus==='reported'&&actual.usage?.totalTokens===attempt.actual,'actual settled accounting inconsistent');
+  return actual.state==='unknown'||actual.state==='interrupted'||actual.cancelRequested||actual.usage&&!withinTokenReservation(run.budget.limit,actual.usage.totalTokens,claim.reservation)?{...op,state:'unknown'}:op;
  });}
  private allResourceLeases():ScheduledLease[]{const leases=this.leases();for(const row of this.db.prepare('SELECT record FROM executions').all()){const e=JSON.parse(String(row.record)) as ExecutionRecord;if(!e.stopConfirmed&&!leases.some(l=>l.state==='held'&&l.resource.kind==='path'&&l.resource.key===e.workspace))leases.push({id:'actual:'+e.id,claimId:'actual:'+e.id,resource:{kind:'path',key:e.workspace,mode:'write'},state:'held'});}return leases;}
  private unavailableDependencies(s:ScheduledRecord):string[]{const ledger=this.results().inspect(s.plan);return s.plan.tasks.filter(task=>task.inputRequirements.some(input=>{
@@ -163,12 +164,12 @@ export class TaskSchedulerRepository{
   if(!loopProgramComplete(this.db,id))reasons.push('loop program has not yielded');
   if(new ConversationRepository(this.db).hasPendingForRun(run.projectId,run.id))reasons.push('pending follow-up');
   if(run.attempts.some(a=>!a.settled||a.status==='running')||run.operations.some(o=>o.status!=='confirmed')||run.leases.some(l=>!l.released)||this.leases().some(l=>claims.some(c=>c.id===l.claimId)&&l.state!=='released'))reasons.push('unresolved cost effects or resources');
-  if(run.budget.spent>run.budget.limit)reasons.push('total budget exceeded');
+  if(run.budget.spent>tokenCapacity(run.budget.limit))reasons.push('total budget exceeded');
   if(reasons.length)return result;
   const actual=this.actualOperations(claims,operations),ledger=this.results().inspect(s.plan);
   const snapshot=domain.snapshot(run,s.plan,ledger,claims,actual,this.allResourceLeases(),this.now());
-  result.remaining=snapshot.budget.limit-snapshot.budget.spent-Math.max(snapshot.budget.verificationRemaining,snapshot.budget.futureVerificationFloor)-(snapshot.budget.futureExecutionFloor??0);
-  if(result.remaining<0){reasons.push('protected final budget exhausted');return result;}
+  result.remaining=tokenRemaining(snapshot.budget.limit,snapshot.budget.spent+Math.max(snapshot.budget.verificationRemaining,snapshot.budget.futureVerificationFloor)+(snapshot.budget.futureExecutionFloor??0));
+  if(result.remaining!==null&&result.remaining<0){reasons.push('protected final budget exhausted');return result;}
   for(const task of s.plan.tasks){
    const c=claims.find(c=>c.taskId===task.node.id&&c.generation===task.generation);if(!task.node.required&&!c)continue;
    if(!c||actual.find(o=>o.claimId===c.id)?.state!=='confirmed'||run.nodes.find(n=>n.id===task.node.id)?.status!=='succeeded'){reasons.push('required or attempted branch not confirmed successful: '+task.node.id);continue;}
@@ -183,7 +184,7 @@ export class TaskSchedulerRepository{
   const decision=this.decision(id),omitted=new Map<string,{taskId:string;reason:string;blockedBy:string[]}>();
   const unattempted=(task:ScheduledPlan['tasks'][number])=>!task.node.required&&!claims.some(c=>c.taskId===task.node.id&&c.generation===task.generation)&&run.nodes.find(n=>n.id===task.node.id)?.status==='pending'&&!stoppedLoopTask(this.db,id,task.node.id);
   for(const task of s.plan.tasks){const node=decision.nodes.find(n=>n.taskId===task.node.id)!;
-   if(unattempted(task)&&node.admitted&&node.ready&&task.node.reservation>result.remaining)omitted.set(task.node.id,{taskId:task.node.id,reason:'never attempted: shared budget cannot fit reservation after protected final floors',blockedBy:[]});
+   if(unattempted(task)&&node.admitted&&node.ready&&result.remaining!==null&&task.node.reservation>result.remaining)omitted.set(task.node.id,{taskId:task.node.id,reason:'never attempted: shared budget cannot fit reservation after protected final floors',blockedBy:[]});
   }
   // Only the unattempted optional dependency closure of actual budget exclusions
   // is omitted. Required or attempted work, independent resource blockage and
@@ -199,12 +200,12 @@ export class TaskSchedulerRepository{
   result.unperformedOptional=[...omitted.values()];result.ready=reasons.length===0;return result;
  });}
  /** Projection of committed release evidence only; no live budget inference. */
- persistedCompletion(id:string):{planDigest:string;protectedRemaining:number;unperformedOptional:{taskId:string;reason:string;blockedBy:string[]}[]}|null{
+ persistedCompletion(id:string):{planDigest:string;protectedRemaining:number|null;unperformedOptional:{taskId:string;reason:string;blockedBy:string[]}[]}|null{
   ensure(!this.db.isTransaction,'committed completion cannot be read inside a transaction');
   const s=this.get(id);if(s.state!=='drained'||s.fence!=='released')return null;
   const row=this.db.prepare("SELECT record FROM scheduled_events WHERE scheduler_id=? AND kind='integration-fence-released' ORDER BY rowid DESC LIMIT 1").get(id);if(!row)return null;
   const evidence=JSON.parse(String(row.record));if(!Object.hasOwn(evidence,'unperformedOptional'))return null;
-  ensure(evidence.planDigest===s.planDigest&&Number.isSafeInteger(evidence.protectedRemaining)&&evidence.protectedRemaining>=0&&Array.isArray(evidence.unperformedOptional),'invalid committed completion evidence');
+  ensure(evidence.planDigest===s.planDigest&&(evidence.protectedRemaining===null?this.run(s.plan).budget.limit===null:Number.isSafeInteger(evidence.protectedRemaining)&&evidence.protectedRemaining>=0)&&Array.isArray(evidence.unperformedOptional),'invalid committed completion evidence');
   const seen=new Set<string>(),claims=this.claims(id);
   for(const item of evidence.unperformedOptional){
    const task=s.plan.tasks.find(t=>t.node.id===item.taskId);

@@ -32,7 +32,7 @@ function actual(store:SupervisorStore,dataDir:string,failedJobId:string){
   const input=parseAuthorStageInput(job.input);ensure(input,'missing fragment');
   ensure(job.runtimeId===loop.runtimeId&&job.projectId===run.projectId&&job.runId===run.id
     &&same(input.context.acceptance.contract,run.contract)&&(input.context.candidate as Candidate).root===runtime.workspace,'frozen fragment scope changed');
-  assertAuthorStagePolicy(job,loop,id=>repo.job(id));
+  assertAuthorStagePolicy(job,loop,id=>repo.job(id),run.budget.limit);
   const rejected=readRejectedAuthorStage(job,dataDir);
   assertAuthorStageParents(job,id=>repo.job(id),dataDir);
   const prior=authorStageChargePrefix(job,id=>repo.job(id),dataDir);
@@ -46,7 +46,7 @@ function actual(store:SupervisorStore,dataDir:string,failedJobId:string){
   const binding=input.context.authorStage;
   ensure(loop.reasoningCount+1+(2-binding.index)<=loop.limits.maxReasoningCalls,'not enough calls for fragment recovery and remaining stages');
   ensure(binding.loopDeadlineMs-Date.now()>=1000,'original Loop deadline exhausted');
-  const reservation=binding.sessionTokenCeiling-charged.reduce((sum,j)=>sum+j.usage!,0);
+  const reservation=binding.sessionTokenCeiling===null?loop.config.reservation:binding.sessionTokenCeiling-charged.reduce((sum,j)=>sum+j.usage!,0);
   ensure(Number.isSafeInteger(reservation)&&reservation>0,'shared session budget exhausted');
   const next=renderStageRecoveryInput({acceptance:input.context.acceptance,candidate:input.context.candidate,binding:binding as import('../contracts/p6-author-stages.js').HostAuthorStageBindingV2,parents:input.context.authorStageParents},
     {schemaVersion:2,rejection:rejected.ref,raw:rejected.raw,previousAttempt:null});

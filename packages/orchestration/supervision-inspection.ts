@@ -1,3 +1,4 @@
+import {tokenCapacity,withinTokenReservation} from '../contracts/token-policy.js';
 import { createHash } from 'node:crypto';
 import { lstat, mkdir, readFile, readdir, realpath } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
@@ -90,17 +91,17 @@ export class SupervisionInspectionRunner {
     const writerActive = ['claimed','started'].includes(writerOperation.state) && ['starting','running','waiting'].includes(writer.state) && !writer.stopConfirmed && !writer.cancelRequested && writerAttempt?.purpose === 'execution' && writerAttempt.contractVersion === job.contractVersion && writerAttempt.status === 'running' && !writerAttempt.settled && run.operations.some(o => o.id === writer.id && o.attemptId === writer.attemptId && o.status === 'pending');
     const writerStopped = writerOperation.state === 'confirmed' && ['completed','failed','cancelled','interrupted'].includes(writer.state) && writer.stopConfirmed && writer.usageStatus === 'reported' && writer.usage !== null && writerAttempt?.settled && writerAttempt.status !== 'running' && writerAttempt.actual === writer.usage.totalTokens && run.operations.find(o => o.attemptId === writer.attemptId)?.status === 'confirmed' && run.leases.every(l => l.attemptId !== writer.attemptId || l.released);
     ensure(writerActive || !dispatch && job.modelStarted && writerStopped, 'Inspection original writer is not currently qualified');
-    if (dispatch) ensure(writer.usage === null || writer.usage.totalTokens < writer.reservation, 'Inspection writer budget is exhausted');
+    if (dispatch) ensure(writer.usage === null || run.budget.limit === null || writer.usage.totalTokens < writer.reservation, 'Inspection writer budget is exhausted');
     ensure(run.attempts.every(a => a.id === job.attemptId || a.id === writer.attemptId || a.settled && a.status !== 'running') && run.operations.every(o => o.id === job.id || o.status === 'confirmed' || writerActive && o.status === 'pending' && o.attemptId === writer.attemptId) && run.leases.every(l => l.released || writerActive && l.attemptId === writer.attemptId), 'Inspection has unrelated unresolved execution effects');
     if (job.status === 'running') ensure(attempt.status === 'running' && !attempt.settled && operation.status === 'pending', 'Inspection attempt is not dispatchable');
     else ensure(attempt.settled && attempt.status === 'succeeded' && attempt.actual === job.usage && operation.status === 'confirmed', 'Inspection result lacks settled successful ledger');
     const reserve = run.attempts.filter(a => !a.settled).reduce((sum, a) => sum + a.reservation, 0);
     const legacy = Math.max(0, run.budget.verificationReserve - run.attempts.filter(a => a.purpose === 'verification' && a.contractVersion === run.contract.version).reduce((sum, a) => sum + (a.settled ? a.actual! : a.reservation), 0));
     const protection = Math.max(legacy, futureVerificationFloor(run))+futureExecutionFloor(run);
-    ensure(Number.isSafeInteger(run.budget.spent + reserve + protection) && run.budget.spent + reserve + protection <= run.budget.limit, 'Inspection budget is exhausted');
+    ensure(Number.isSafeInteger(run.budget.spent + reserve + protection) && run.budget.spent + reserve + protection <= tokenCapacity(run.budget.limit), 'Inspection budget is exhausted');
     const conversation = this.store.conversations.forRun(job.projectId, job.runId);
-    if (conversation) ensure(this.store.conversations.budget(conversation.id).available >= protection, 'Conversation inspection budget is exhausted');
-    ensure(job.observedUsage <= job.config.reservation && (!dispatch || job.observedUsage < job.config.reservation), 'Inspection reserved model usage exhausted');
+    if (conversation) ensure(tokenCapacity(this.store.conversations.budget(conversation.id).available) >= protection, 'Conversation inspection budget is exhausted');
+    ensure(withinTokenReservation(run.budget.limit, job.observedUsage, job.config.reservation) && (!dispatch || run.budget.limit === null || job.observedUsage < job.config.reservation), 'Inspection reserved model usage exhausted');
     this.store.verification.assertNoVerificationWriter(runtime.workspace);
     ensure(!this.store.executionList().some(execution => execution.id !== writer.id && overlap(execution.workspace, runtime.workspace) && (!['completed','cancelled','failed','interrupted'].includes(execution.state) || !execution.stopConfirmed)), 'Inspection workspace has another writer');
   }
@@ -157,7 +158,7 @@ export class SupervisionInspectionRunner {
       this.boundary(job);
       const input = frozenInput(job, this.store.supervision.get(job.loopId).limits.maxContextChars);
       safeMonitorJSON(job.result); parseInspectionResult(job.result, input.context.snapshot.evidence.map(item => item.id));
-      ensure(job.usage >= job.observedUsage && job.usage <= job.config.reservation, 'Invalid supervision result accounting');
+      ensure(job.usage >= job.observedUsage && withinTokenReservation(this.store.runtime.inspect(job.runtimeId).run.budget.limit, job.usage, job.config.reservation), 'Invalid supervision result accounting');
       const actual = await this.proofs(job, Object.keys(job.proofs));
       ensure(runtimeCanonical(actual) === runtimeCanonical(job.proofs), 'Supervision proof digest changed');
       ensure(await this.stopped(job, false), 'Supervision process has not actually stopped');
@@ -206,7 +207,7 @@ export class SupervisionInspectionRunner {
       const observed = this.store.supervision.job(job.id);
       ensure(result.modelStarted && observed.modelStarted && observed.identities.length > 0, 'Supervision result lacks durable model and process intent');
       ensure(result.stopConfirmed && await this.stopped(observed, false), 'Supervision result lacks actual stopped process');
-      ensure(result.usage !== null && Number.isSafeInteger(result.usage) && result.usage >= observed.observedUsage && result.usage <= observed.config.reservation, 'Supervision usage is unknown, underreported or over reservation');
+      ensure(result.usage !== null && Number.isSafeInteger(result.usage) && result.usage >= observed.observedUsage && withinTokenReservation(this.store.runtime.inspect(observed.runtimeId).run.budget.limit, result.usage, observed.config.reservation), 'Supervision usage is unknown, underreported or over reservation');
       ensure(result.value !== null, 'Empty supervision model result'); safeMonitorJSON(result.value); parseReasonerOutput(JSON.stringify(result.value), input.outputSchema); result.value = parseInspectionResult(result.value, input.context.snapshot.evidence.map(item => item.id));
       proofs = await this.proofs(observed, result.proofFiles); await this.writersQualified(observed); current();
     } catch (error) { if (error instanceof ReasonerError) result = error.result; failure = message(error); }

@@ -18,4 +18,4 @@ export interface LoopPreparation {source:LoopProgramSource;advance:LoopAdvance;w
 export interface LoopTaskOrigin {schedulerId:string;taskId:string;generation:number;introducedRevision:number;templateId:string;frameKey:string;task:ScheduledTask}
 
 export interface LoopIterationRecord {id:string;schedulerId:string;instanceId:string;ordinal:number;generation:number;bodyKey:string;parentIterationId:string|null;ancestry:string[];planRevision:number;deadlineMs:number;initialTaskIds:string[]}
-export interface LoopBudgetProjection {instanceId:string;limit:number;spent:number;reserved:number;unknown:boolean;deadlineMs:number;generatedNodes:number;maxNodes:number;iteration:number;maxIterations:number}
+export interface LoopBudgetProjection {instanceId:string;limit:number|null;spent:number;reserved:number;unknown:boolean;deadlineMs:number;generatedNodes:number;maxNodes:number;iteration:number;maxIterations:number}

@@ -334,7 +334,7 @@ test('P8-NOCHANGE-DELIVERY-I01 actual same-byte reacquisition new producer histo
   assert.equal(canonical({proposal:f.store.verification.get('proposal',f.proposal.id),review:f.store.verification.get('job',f.proposal.reviewId!),final:f.store.verification.get('job',f.final.id),run:f.store.runtime.inspect(f.runtime.id).run}),originalHistory);
   assert.equal(canonical(f.store.researchWorkflow.committed('first-delivery',{type:'deliver',commandId:'first-delivery',jobId:f.final.id})),firstSeal);
   assert.deepEqual(await hashes(f.proposal.bundle.root),originalFiles);
-  const budget=f.store.conversations.budget(conversation.id);assert.equal(budget.limit,originalBudget.limit);assert.ok(budget.spent>originalBudget.spent);assert.ok(budget.spent<=budget.limit);assert.equal(budget.reserved,0);
+  const budget=f.store.conversations.budget(conversation.id);assert.equal(budget.limit!,originalBudget.limit);assert.ok(budget.spent>originalBudget.spent);assert.ok(budget.spent<=budget.limit!);assert.equal(budget.reserved,0);
 
   // Reopen the actual same SQLite and immutable absolute proof paths. No replayed model approval.
   const reopened=new SupervisorStore(f.data),viewer=new VerificationController(reopened,f.data);

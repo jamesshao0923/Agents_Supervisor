@@ -3,7 +3,7 @@ export type ExecutionState = 'queued' | 'starting' | 'running' | 'waiting' | 'ca
 export interface ExecutionStart {
   type: 'start'; commandId: string; workspace?: string; prompt: string;
   model: string; effort: string; timeoutMs: number;
-  tokenLimit: number; reservation: number; verificationReserve: number; images?: string[];
+  tokenLimit: number | null; reservation: number; verificationReserve: number; images?: string[];
 }
 /** Controller-resolved input; workspace ownership is never accepted from an IPC caller. */
 export interface ResolvedExecutionStart extends ExecutionStart {
@@ -22,7 +22,7 @@ export interface ExecutionRecord {
   id: string; commandId: string; projectId: string; runId: string; attemptId: string;
   workspace: string; workspaceKind: 'project' | 'managed'; prompt: string; model: string; effort: string; images: string[];
   state: ExecutionState; createdAt: string; updatedAt: string; deadline: string;
-  timeoutMs: number; tokenLimit: number; reservation: number; verificationReserve: number;
+  timeoutMs: number; tokenLimit: number | null; reservation: number; verificationReserve: number;
   identity: unknown; pid: number | null; threadId: string | null; turnId: string | null;
   lastEventSeq: number; message: string; diff: string; error: string | null;
   usage: TokenUsage | null; usageStatus: 'unknown' | 'reported';
@@ -58,13 +58,14 @@ export function parseExecutionAction(value: unknown): ExecutionAction {
     if (key === 'images') continue;
     if (key === 'workspace' && (!Object.hasOwn(o, key) || typeof o[key] === 'string' && !(o[key] as string).trim())) continue;
     if (!Object.hasOwn(o, key)) throw new Error(`Missing execution field ${key}`);
+    if (key==='tokenLimit'&&o[key]===null)continue;
     if (['after', 'timeoutMs', 'tokenLimit', 'reservation', 'verificationReserve'].includes(key)) {
       if (!Number.isSafeInteger(o[key]) || (o[key] as number) < 0) throw new Error(`Invalid ${key}`);
     } else if (typeof o[key] !== 'string' || !(o[key] as string).trim() || (o[key] as string).includes('\0')) throw new Error(`Invalid ${key}`);
   }
   if (type === 'start') {
     if ((o.timeoutMs as number) < 1000 || (o.timeoutMs as number) > 3_600_000) throw new Error('timeoutMs must be between 1000 and 3600000');
-    if ((o.reservation as number) < 1 || (o.reservation as number) + (o.verificationReserve as number) > (o.tokenLimit as number)) throw new Error('Budget cannot cover the attempt and protected verification reserve');
+    if ((o.reservation as number) < 1 || (o.tokenLimit!==null && (o.reservation as number) + (o.verificationReserve as number) > (o.tokenLimit as number))) throw new Error('Budget cannot cover the attempt and protected verification reserve');
     if ((o.prompt as string).length > 200_000 || (o.commandId as string).length > 200) throw new Error('Execution input too long');
     if (o.images !== undefined && (!Array.isArray(o.images) || o.images.length > 5 || o.images.some(x => typeof x !== 'string' || !x.trim() || x.includes('\0')))) throw new Error('Invalid images');
   }

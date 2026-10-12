@@ -220,7 +220,7 @@ test('P6-POL-U17 executor success cannot complete failed unknown stale or missin
 });
 
 test('P6-POL-U18 verified completion survives exhausted limits but user cancellation and pause prevent late success', () => {
-  const complete = loop(); complete.completion.requiredCriteria[0]!.status = 'passed'; complete.budget.used = complete.budget.limit;
+  const complete = loop(); complete.completion.requiredCriteria[0]!.status = 'passed'; complete.budget.used = complete.budget.limit!;
   assert.equal(decideLoop(complete).action, 'complete');
   assert.deepEqual(decideLoop({ ...complete, cancelled: true }), { action: 'stop', reason: 'user-cancelled', stopNewDispatch: true, terminateInFlight: true });
   assert.equal(decideLoop({ ...complete, paused: true }).action, 'pause');

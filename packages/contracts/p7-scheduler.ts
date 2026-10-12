@@ -17,7 +17,8 @@ export interface SchedulerClaim {
   id: string; taskId: string; reservation: number; resources: SchedulerResource[]; loopIds: string[];
   usage: 'known' | 'unknown'; effects: 'pending' | 'unknown';
 }
-/** Child allocations constrain spending; they are not extra global reservations. */
+/** Child token estimates constrain finite Runs; null root limit disables token ceilings.
+ * They are not extra global reservations. Iteration/depth/node bounds always apply. */
 export interface SchedulerLoop {
   id: string; parentId: string | null; depth: number; iteration: number; maxIterations: number;
   nodeCount: number; maxNodes: number; limit: number; spent: number;
@@ -28,7 +29,7 @@ export interface SchedulerSnapshot {
   claims: SchedulerClaim[]; loops: SchedulerLoop[];
   /** Host projects every actual current-generation claim, including settled ones. */
   attemptedTaskIds?: string[];
-  budget: { limit: number; spent: number; verificationRemaining: number; futureVerificationFloor: number; futureExecutionFloor?:number };
+  budget: { limit: number | null; spent: number; verificationRemaining: number; futureVerificationFloor: number; futureExecutionFloor?:number };
   limits: { maxActive: number; maxNodes: number; maxDepth: number; nowMs: number; deadlineMs: number };
 }
 export interface SchedulerNodeDecision {
@@ -40,7 +41,7 @@ export interface SchedulerDecision {
   schemaVersion: 1; policyVersion: 'p7-scheduler-v1'; id: string; snapshotDigest: string; revision: number;
   state: 'dispatch' | 'active' | 'waiting' | 'exhausted' | 'stopped';
   nodes: SchedulerNodeDecision[]; dispatchTaskIds: string[]; requiredGaps: string[];
-  reservation: number; remaining: number; reasons: string[];
+  reservation: number; remaining: number | null; reasons: string[];
 }
 export interface SchedulerExpansion {
   parentLoopId: string | null; childDepth: number; additionalNodes: number; reservation: number;

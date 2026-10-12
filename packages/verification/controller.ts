@@ -335,7 +335,7 @@ export class VerificationController {
     await assertControlDraft(draft);context.eligible();
     repo.appendReviewStage({commandId:context.job.id+':bootstrap',reviewId:context.job.id,stage:'bootstrap',payload:{draftDigest:draft.digest}});
     const bootstrap=await executeControlBootstrap(context,draft);
-    const assembled=await assembleQualification({draft,evidence:bootstrap,reviewJob:this.repo.get('job',context.job.id)});
+    const assembled=await assembleQualification({draft,evidence:bootstrap,reviewJob:this.repo.get('job',context.job.id)},this.repo.run(context.job.projectId,context.job.runId).budget.limit);
     repo.appendReviewStage({commandId:context.job.id+':matrix-frozen',reviewId:context.job.id,stage:'matrix-frozen',payload:{bootstrap,assembled}});
     const execution=await executeQualification(context,assembled);
     repo.appendReviewStage({commandId:context.job.id+':qualification',reviewId:context.job.id,stage:'qualification',payload:{execution}});

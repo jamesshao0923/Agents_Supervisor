@@ -1,3 +1,4 @@
+import { tokenCapacity } from '../contracts/token-policy.js';
 import type { CreateRunInput, DomainEvent, Readiness, Run, RunAction, VerificationCase, VerificationCatalog, VerificationChange, VerificationPlan } from '../contracts/p1.js';
 import { parseCreateRunInput, parseRunAction, validateVerificationChangeShape, validateVerificationPlanShape } from '../contracts/validation.js';
 
@@ -81,8 +82,8 @@ export function readiness(run: Run): Readiness {
   // Budget limits gate new work. They do not erase an already verified result.
   if (!reasons.length) return result('complete');
   const ready = run.nodes.filter((n) => (n.status === 'pending' || n.status === 'failed') && n.dependencies.every((id) => run.nodes.find((d) => d.id === id)?.status === 'succeeded'));
-  if (run.budget.spent > run.budget.limit) return result('blocked', [], ['budget overspent']);
-  if (ready.length && run.budget.limit - run.budget.spent - reservations(run) - Math.max(protectedReserve(run),futureVerificationFloor(run)) - (ready.some(n=>n.id===run.budget.futureExecution?.nodeId)?0:futureExecutionFloor(run)) > 0) return result('ready', ready.map((n) => n.id));
+  if (run.budget.spent > tokenCapacity(run.budget.limit)) return result('blocked', [], ['budget overspent']);
+  if (ready.length && tokenCapacity(run.budget.limit) - run.budget.spent - reservations(run) - Math.max(protectedReserve(run),futureVerificationFloor(run)) - (ready.some(n=>n.id===run.budget.futureExecution?.nodeId)?0:futureExecutionFloor(run)) > 0) return result('ready', ready.map((n) => n.id));
   if (ready.length) return result('blocked', [], ['execution budget exhausted']);
   if (run.nodes.some((n) => n.required && n.status !== 'succeeded')) return result('blocked', [], reasons);
   return result('verification', [], reasons);
@@ -123,7 +124,7 @@ export function applyAction(input: Run, unparsed: RunAction): { run: Run; events
       if(consumeExecution)ensure(action.purpose==='execution'&&executionAllocation&&action.futureExecutionAllocationId===executionAllocation.allocationId&&action.nodeId===executionAllocation.nodeId&&action.attemptId===executionAllocation.attemptId&&action.contractVersion===executionAllocation.contractVersion&&action.reservation===executionAllocation.amount,'final execution allocation does not match this exact attempt');
       if(action.purpose==='execution'&&executionAllocation?.nodeId===action.nodeId)ensure(consumeExecution,'final execution requires explicit allocation consumption');
       const reservedTotal=run.budget.spent+reservations(run)+action.reservation+protection+(consumeExecution?0:executionFloor);
-      ensure(Number.isSafeInteger(reservedTotal)&&run.budget.spent <= run.budget.limit && reservedTotal <= run.budget.limit, 'insufficient budget');
+      ensure(Number.isSafeInteger(reservedTotal)&&run.budget.spent <= tokenCapacity(run.budget.limit) && reservedTotal <= tokenCapacity(run.budget.limit), 'insufficient budget');
       if(consume)delete run.budget.futureVerification;
       if(consumeExecution)delete run.budget.futureExecution;
       run.attempts.push({ id: action.attemptId, nodeId: node.id, contractVersion: action.contractVersion, status: 'running', reservation: action.reservation, purpose: action.purpose, settled: false, actual: null });
@@ -145,7 +146,7 @@ export function applyAction(input: Run, unparsed: RunAction): { run: Run; events
       if (attempt.settled) { ensure(attempt.actual === action.actual, 'conflicting settlement'); return noChange(); }
       ensure(Number.isSafeInteger(run.budget.spent + action.actual), 'accounting sum exceeds safe integer range');
       attempt.actual = action.actual; attempt.settled = true; run.budget.spent += action.actual;
-      if (run.budget.spent > run.budget.limit && !['cancelled', 'paused'].includes(run.status)) run.status = 'blocked'; break;
+      if (run.budget.spent > tokenCapacity(run.budget.limit) && !['cancelled', 'paused'].includes(run.status)) run.status = 'blocked'; break;
     }
     case 'releaseLease': {
       const lease = run.leases.find((l) => l.resource === action.resource && l.attemptId === action.attemptId); ensure(lease, 'unknown lease');
@@ -187,7 +188,7 @@ export function applyAction(input: Run, unparsed: RunAction): { run: Run; events
       const a=action.allocation;ensure(a.contractVersion===run.contract.version,'stale final execution contract');
       ensure(run.nodes.some(n=>n.id===a.nodeId&&n.required&&n.status==='pending')&&!run.attempts.some(t=>t.id===a.attemptId),'final allocation needs a fresh required node');
       if(run.budget.futureExecution){ensure(same(run.budget.futureExecution,a),'final execution allocation is immutable');return noChange();}
-      ensure(Number.isSafeInteger(run.budget.spent+a.amount+Math.max(protectedReserve(run),futureVerificationFloor(run)))&&run.budget.spent+a.amount+Math.max(protectedReserve(run),futureVerificationFloor(run))<=run.budget.limit,'insufficient final execution budget');
+      ensure(Number.isSafeInteger(run.budget.spent+a.amount+Math.max(protectedReserve(run),futureVerificationFloor(run)))&&run.budget.spent+a.amount+Math.max(protectedReserve(run),futureVerificationFloor(run))<=tokenCapacity(run.budget.limit),'insufficient final execution budget');
       run.budget.futureExecution=structuredClone(a);return audit();
     }
     case 'setFutureVerification': {
@@ -196,7 +197,7 @@ export function applyAction(input: Run, unparsed: RunAction): { run: Run; events
       const previous=run.budget.futureVerification??null;
       if(action.amount===0){ensure(previous?.allocationId===action.allocationId,'unknown future verification allocation');delete run.budget.futureVerification;}
       else {
-        ensure(Number.isSafeInteger(run.budget.spent+Math.max(protectedReserve(run),action.amount)+futureExecutionFloor(run))&&run.budget.spent+Math.max(protectedReserve(run),action.amount)+futureExecutionFloor(run)<=run.budget.limit,'insufficient future verification budget');
+        ensure(Number.isSafeInteger(run.budget.spent+Math.max(protectedReserve(run),action.amount)+futureExecutionFloor(run))&&run.budget.spent+Math.max(protectedReserve(run),action.amount)+futureExecutionFloor(run)<=tokenCapacity(run.budget.limit),'insufficient future verification budget');
         run.budget.futureVerification={allocationId:action.allocationId,contractVersion:action.contractVersion,amount:action.amount};
       }
       return audit({previousAllocation:previous});

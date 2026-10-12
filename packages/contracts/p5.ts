@@ -48,7 +48,7 @@ export interface GoalSession {
 }
 export interface GoalInspection {session:GoalSession;run:Run}
 export type OrchestrationAction =
-  | ({type:'start';commandId:string;goal:string;workspace?:string;tokenLimit:number;verificationReserve:number;maxContextChars?:number;research?:GoalResearchConfiguration}&ReasonerConfig)
+  | ({type:'start';commandId:string;goal:string;workspace?:string;tokenLimit: number | null;verificationReserve:number;maxContextChars?:number;research?:GoalResearchConfiguration}&ReasonerConfig)
   | ({type:'answer';commandId:string;sessionId:string;expectedRevision:number;text:string;attachments?:TaskAttachment[]})
   | {type:'admit';commandId:string;sessionId:string;expectedRevision:number;explorationTier?:import('./p7-scheduler.js').ExplorationTier}
   | {type:'restore';commandId:string;sessionId:string;expectedRevision:number}
@@ -75,9 +75,9 @@ export function parseOrchestrationAction(v:unknown):OrchestrationAction {
   if(typeof o.type!=='string'||!Object.hasOwn(fields,o.type))throw new Error('Unknown orchestration action');
   for(const k of Object.keys(o))if(k!=='type'&&!fields[o.type]!.includes(k))throw new Error(`Unknown orchestration field ${k}`);
   const optional=['workspace','maxContextChars','explorationTier','research'];const numbers=['expectedRevision','tokenLimit','verificationReserve','reservation','timeoutMs','maxContextChars'];
-  for(const k of fields[o.type]!) {if(k==='attachments'){if(o.attachments!==undefined)validateTaskAttachments(o.attachments);continue;}if(k==='research'){if(o.research!==undefined)validateGoalResearchConfiguration(o.research);continue;}if(o[k]===undefined&&optional.includes(k))continue;if(numbers.includes(k)){if(!Number.isSafeInteger(o[k])||(o[k] as number)<(k==='expectedRevision'?0:1))throw new Error(`Invalid ${k}`);}else if(typeof o[k]!=='string'||!(o[k] as string).trim()||(o[k] as string).includes('\0')||(o[k] as string).length>(['goal','text'].includes(k)?40000:4096))throw new Error(`Invalid ${k}`);}
+  for(const k of fields[o.type]!) {if(k==='attachments'){if(o.attachments!==undefined)validateTaskAttachments(o.attachments);continue;}if(k==='research'){if(o.research!==undefined)validateGoalResearchConfiguration(o.research);continue;}if(o[k]===undefined&&optional.includes(k))continue;if(k==='tokenLimit'&&o[k]===null)continue;if(numbers.includes(k)){if(!Number.isSafeInteger(o[k])||(o[k] as number)<(k==='expectedRevision'?0:1))throw new Error(`Invalid ${k}`);}else if(typeof o[k]!=='string'||!(o[k] as string).trim()||(o[k] as string).includes('\0')||(o[k] as string).length>(['goal','text'].includes(k)?40000:4096))throw new Error(`Invalid ${k}`);}
   if(o.type==='admit'&&o.explorationTier!==undefined&&!['low','medium','high','unlimited'].includes(String(o.explorationTier)))throw new Error('Invalid exploration tier');
-  if(o.type==='start'){if((o.reservation as number)+(o.verificationReserve as number)>(o.tokenLimit as number))throw new Error('Insufficient reasoning budget');if((o.timeoutMs as number)<1000||(o.timeoutMs as number)>3600000)throw new Error('Invalid reasoning deadline');if(o.maxContextChars!==undefined&&((o.maxContextChars as number)<8000||(o.maxContextChars as number)>200000))throw new Error('Invalid context capacity');}
+  if(o.type==='start'){if(o.tokenLimit!==null&&(o.reservation as number)+(o.verificationReserve as number)>(o.tokenLimit as number))throw new Error('Insufficient reasoning budget');if((o.timeoutMs as number)<1000||(o.timeoutMs as number)>3600000)throw new Error('Invalid reasoning deadline');if(o.maxContextChars!==undefined&&((o.maxContextChars as number)<8000||(o.maxContextChars as number)>200000))throw new Error('Invalid context capacity');}
   return structuredClone(o) as unknown as OrchestrationAction;
 }
 

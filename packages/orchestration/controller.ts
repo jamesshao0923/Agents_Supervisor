@@ -109,7 +109,7 @@ export class OrchestrationController {
         onIntent:intent=>{this.store.goals.update(id,jobId,j=>{j.intents.push(intent);});},
         onTurnIntent:()=>{this.store.goals.update(id,jobId,j=>{j.modelStarted=true;});},
         onIdentity:identity=>{this.store.goals.update(id,jobId,j=>{j.identities.push(identity);});},
-        onUsage:usage=>{this.store.goals.update(id,jobId,j=>{j.observedUsage=usage;});if(usage>job.config.reservation||usage>run.budget.limit-run.budget.spent-run.budget.verificationReserve)throw new Error('Reasoning exceeded available budget');}
+        onUsage:usage=>{this.store.goals.update(id,jobId,j=>{j.observedUsage=usage;});if(run.budget.limit!==null&&(usage>job.config.reservation||usage>run.budget.limit-run.budget.spent-run.budget.verificationReserve))throw new Error('Reasoning exceeded available budget');}
       });
       const proposal=result.value as GoalProposal;validateProposal(proposal,this.store.goals.get(id));
     }catch(e){if(e instanceof ReasonerError)result=e.result;error=errorText(e);}

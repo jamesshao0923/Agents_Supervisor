@@ -1,3 +1,4 @@
+import {tokenRemaining,tokenCapacity} from '../contracts/token-policy.js';
 import type {GoalProposal,GoalSession} from '../contracts/p5.js';
 import type {Run} from '../contracts/p1.js';
 import type {ScheduledPlan} from '../contracts/p7-dispatch.js';
@@ -58,12 +59,12 @@ export function assessGoalIteration(input:{session:GoalSession;baseRun:Run;admis
  ensure(templatePlan.runId===baseRun.id&&templatePlan.projectId===baseRun.projectId&&templatePlan.runtimeId===session.id&&templatePlan.contractDigest===hash(admission.contract),'actual template scope differs');
  const program={schemaVersion:1 as const,policyVersion:'bounded-data-loop-v1' as const,sourceDigest:hash(templatePlan),tree:goalIterationTree(requested)};
  const source:LoopProgramSource={templatePlan:structuredClone(templatePlan),program,seed:structuredClone(seed),preparationRoot,startedAtMs:Date.parse(seed.createdAt)};validateLoopSource(source);
- const verified=baseRun.attempts.filter(a=>a.purpose==='verification'&&a.contractVersion===admission.contract.version).reduce((n,a)=>n+(a.settled?a.actual!:a.reservation),0),remaining=baseRun.budget.limit-baseRun.budget.spent-Math.max(0,baseRun.budget.verificationReserve-verified,futureVerificationFloor(baseRun))-Math.max(futureExecutionFloor(baseRun),admission.integrationStep.reservation);
+ const verified=baseRun.attempts.filter(a=>a.purpose==='verification'&&a.contractVersion===admission.contract.version).reduce((n,a)=>n+(a.settled?a.actual!:a.reservation),0),remaining=tokenRemaining(baseRun.budget.limit,baseRun.budget.spent+Math.max(0,baseRun.budget.verificationReserve-verified,futureVerificationFloor(baseRun))+Math.max(futureExecutionFloor(baseRun),admission.integrationStep.reservation));
  const duration=templatePlan.limits.deadlineMs-source.startedAtMs;
  for(const node of programNodes(program.tree))if(node.kind==='loop'){
   ensure(node.limits.iterations<=policy.maxIterations&&node.limits.unchangedIterations<=policy.maxUnchangedIterations,'requested repeat/no-progress cap exceeds host policy');
-  ensure(node.limits.durationMs<=duration&&node.limits.tokens<=remaining,'requested loop exceeds original time or remaining shared budget');
-  const minimum=programNodes(node.body).filter((n):n is Extract<LoopProgramNode,{kind:'task'}>=>n.kind==='task').reduce((n,leaf)=>n+templatePlan.tasks.find(t=>t.node.id===leaf.taskId)!.node.reservation,0);ensure(node.limits.tokens>=minimum,'loop cannot fund one full original body');
+  ensure(node.limits.durationMs<=duration&&node.limits.tokens<=tokenCapacity(remaining),'requested loop exceeds original time or remaining shared budget');
+  const minimum=programNodes(node.body).filter((n):n is Extract<LoopProgramNode,{kind:'task'}>=>n.kind==='task').reduce((n,leaf)=>n+templatePlan.tasks.find(t=>t.node.id===leaf.taskId)!.node.reservation,0);ensure(baseRun.budget.limit===null||node.limits.tokens>=minimum,'loop cannot fund one full original body');
  }
  return {source,decision:{schemaVersion:1,policyVersion:'goal-loop-admission-v1',proposalDigest:hash(requested),hostPolicyDigest:hash({policy,graphLimits:templatePlan.limits,remaining}),taskTemplateDigest:hash(templatePlan),contractDigest:templatePlan.contractDigest,effectiveProgramDigest:hash(program),allowed:true,reasons:['Every original task and criterion retained; full-tree dependencies validated','Host hard bounds and same-Run protected final/P4 allocations retained','Internal numeric yield only; original final integration and independent P4 remain mandatory']}};
 }

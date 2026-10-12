@@ -22,7 +22,7 @@ export type ConversationMessageKind = 'question' | 'change' | 'unclassified';
 export type ConversationMessageState = 'received' | 'waiting' | 'processing' | 'clarifying' | 'applied' | 'answered' | 'failed';
 export interface Conversation {
   id:string; projectId:string; workspace:string; firstRunId:string; activeRunId:string;
-  activeSessionId:string; authorizedLimit:number; createdAt:string;
+  activeSessionId:string; authorizedLimit: number | null; createdAt:string;
 }
 export interface ConversationRound {
   conversationId:string; ordinal:number; sessionId:string; projectId:string; runId:string;
@@ -44,13 +44,13 @@ export interface ConversationMessage {
   history:{state:ConversationMessageState; at:string; reason:string|null}[];
 }
 export interface ConversationBudget {
-  limit:number; spent:number; reserved:number; remaining:number; available:number;
+  limit: number | null; spent:number; reserved:number; remaining:number|null; available:number|null;
   reasoningSpent:number; reasoningReserved:number;
-  rounds:{runId:string; limit:number; spent:number; reserved:number; status:string}[];
+  rounds:{runId:string; limit: number | null; spent:number; reserved:number; status:string}[];
 }
 export interface ConversationChildAuthorization {
   conversationId:string; projectId:string; workspace:string; predecessorRunId:string;
-  predecessorDeliveryId:string; tokenLimit:number; verificationReserve:number;
+  predecessorDeliveryId:string; tokenLimit: number | null; verificationReserve:number;
 }
 
 /** These costs belong to the conversation, never to an immutable delivered Run. */

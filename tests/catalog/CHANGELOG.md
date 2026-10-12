@@ -1,3 +1,7 @@
+## 2026-10-12 — Token policy and separate recovery-fixture maintenance
+
+Add 19 stable cases for explicit nullable token limits, actual SQLite persistence/continuation, scheduler and supervision gates, and actual Codex execution. Reuse affected finite/unknown-accounting cases; P8 selects109 necessary IDs. File-granularity execution expands the targeted batch to92 unit,55 integration,1 live. No retired or deleted cases; deferred full combinations remain in the ledger.
+
 ## 2026-10-12 — 试用反馈：任务对话与附件
 
 新增 5 个组件用例和 1 个真实 Codex 图文输入用例、1 个真实 IPC→需求澄清→图文询问→重启幂等用例，复用既有桌面投影与 SQLite 会话重试检查；不删除或替代旧断言。P8 个人范围加入这些影响项，当前修复通过 task-chat-impact 冻结去重选择，不执行全历史。视频/PDF 等规划期解码、拖放/粘贴和草稿快照自动清理延期，见 deferred-p6-p8.json。

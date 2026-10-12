@@ -127,7 +127,7 @@ export function describeRuntimeEvent(event: RuntimeEvent, runtime: RuntimeRecord
     case 'submitted': {
       const definition = object(payload.definition);
       const steps = Array.isArray(definition.steps) ? definition.steps : [];
-      return { title: '任务已创建', description: `已保存 ${steps.length} 个执行步骤；总额度 ${number(definition.tokenLimit)} tokens，独立验收预留 ${number(definition.verificationReserve)} tokens。` };
+      return { title: '任务已创建', description: `已保存 ${steps.length} 个执行步骤；总额度 ${definition.tokenLimit===null?'无限':number(definition.tokenLimit)} tokens，独立验收预留 ${number(definition.verificationReserve)} tokens。` };
     }
     case 'input': return { title: '已收到步骤输入', description: string(payload.text) ? excerpt(string(payload.text)) : '输入已持久保存，后续步骤将使用这份输入。' };
     case 'pause': return { title: '已暂停新步骤派发', description: '已在运行的步骤继续执行；恢复派发后再启动后续步骤。' };

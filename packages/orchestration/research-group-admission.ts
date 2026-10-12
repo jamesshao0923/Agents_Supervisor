@@ -1,3 +1,4 @@
+import {tokenCapacity} from '../contracts/token-policy.js';
 import type {GoalProposal, GoalSession} from '../contracts/p5.js';
 import {goalResearchGroupsSchema, type GoalResearchGroupingDecision} from '../contracts/p8-research-group-planning.js';
 import type {ResearchGroupDeclaration} from '../contracts/p8-research-groups.js';
@@ -51,14 +52,14 @@ export function assessResearchGrouping(session: GoalSession, run: Run): {
   const verification = Math.max(reserve, futureVerificationFloor(run));
   const original = session.config.reservation + verification;
   ensure(Number.isSafeInteger(original) && Number.isSafeInteger(run.budget.spent + original) &&
-    run.budget.spent + original <= run.budget.limit, 'original full analysis and verification cannot be funded');
+    run.budget.spent + original <= tokenCapacity(run.budget.limit), 'original full analysis and verification cannot be funded');
   const proposed = session.proposal.researchGroups?.groups ?? [];
   const count = proposed.length;
   const maxActive = Math.min(DEFAULT_GRAPH_ADMISSION.maxActive, 5, count);
   const extra = count * session.config.reservation;
   ensure(Number.isSafeInteger(extra), 'group reservation capacity overflow');
   const grouped = count >= 2 && maxActive >= 2 && Number.isSafeInteger(run.budget.spent + original + extra) &&
-    run.budget.spent + original + extra <= run.budget.limit;
+    run.budget.spent + original + extra <= tokenCapacity(run.budget.limit);
   const reason = grouped ? 'Host admitted disjoint mandatory material groups; complete original analysis and verification remain protected. No measured efficiency improvement is claimed.' :
     !count ? 'No grouping was proposed; the original full analysis remains unchanged.' :
     count < 2 || maxActive < 2 ? 'Grouping has no structural parallel opportunity; use the original full analysis.' :

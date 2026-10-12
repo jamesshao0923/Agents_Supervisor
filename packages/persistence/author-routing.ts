@@ -1,3 +1,4 @@
+import {withinTokenReservation} from '../contracts/token-policy.js';
 import {createTypedAuthorPatchInput} from '../orchestration/author-typed-patch.js';
 import {authorStageChargePrefix,readRejectedAuthorStage} from '../orchestration/author-stage-proofs.js';
 import {parseStageRecoveryInput} from '../orchestration/author-stage-recovery-presentation.js';
@@ -53,23 +54,23 @@ export class AuthorRoutingRepository {
   }
   const input=parseAuthorStageInput(current.input);if(!input)return null;
   ensure(input.context.authorStage.index===2,'Recovery requires a complete stage assembly');
-  const loop=this.supervision.get(job.loopId),binding=input.context.authorStage;
-  ensure(loop.authoringProtocol===binding.protocol&&binding.sessionTokenCeiling===loop.config.reservation
+  const loop=this.supervision.get(job.loopId),binding=input.context.authorStage,{run}=this.runtime.inspect(loop.runtimeId);
+  ensure(loop.authoringProtocol===binding.protocol&&binding.sessionTokenCeiling===(run.budget.limit===null?null:loop.config.reservation)
    &&binding.loopDeadlineMs===Date.parse(loop.createdAt)+loop.limits.maxDurationMs,'Author session policy changed');
   assertAuthorStageParents(current,id=>this.supervision.job(id),this.dataDir);
   const jobs=[...authorStageChargePrefix(current,id=>this.supervision.job(id),this.dataDir),current,...patches.reverse()];
   assertAuthorStageAssemblyProof(current,id=>this.supervision.job(id),this.dataDir);
-  const {run}=this.runtime.inspect(loop.runtimeId);let spent=0;
+  let spent=0;
   for(const source of jobs) {
    for(const key of ['loopId','runtimeId','projectId','runId','contractVersion','contractDigest','purpose'] as const)
     ensure(source[key]===job[key],'Author session scope changed');
    if(source.error){if(source.modelStarted)readRejectedAuthorStage(source,this.dataDir);else ensure(source.usage===0&&parseStageRecoveryInput(source.input),'unbound failed session attempt');}
-   else assertStoredAuthorOutput(source,this.dataDir);
+   else assertStoredAuthorOutput(source,this.dataDir,run.budget.limit);
    if(patchInput(source.input)) {
     assertAuthorPatchBase(source,id=>this.supervision.job(id),this.dataDir);
     assertAuthorExpansionProof(source,id=>this.supervision.job(id),this.dataDir);
    }
-   ensure(source.config.reservation===binding.sessionTokenCeiling-spent,'Author session prior reservation changed');
+   ensure(source.config.reservation===(binding.sessionTokenCeiling===null?loop.config.reservation:binding.sessionTokenCeiling-spent),'Author session prior reservation changed');
    const attempt=run.attempts.find(a=>a.id===source.attemptId);
    ensure(attempt?.purpose==='reasoning'&&attempt.nodeId==='@supervisor'&&attempt.contractVersion===source.contractVersion
     &&attempt.status===(source.error?'failed':'succeeded')&&attempt.settled&&attempt.actual===source.usage&&attempt.reservation===source.config.reservation,
@@ -78,7 +79,7 @@ export class AuthorRoutingRepository {
     &&run.leases.filter(l=>l.attemptId===source.attemptId).every(l=>l.released),'Author session operation unresolved');
    spent+=source.usage!;
   }
-  const remaining=binding.sessionTokenCeiling-spent;
+  const remaining=binding.sessionTokenCeiling===null?loop.config.reservation:binding.sessionTokenCeiling-spent;
   ensure(Number.isSafeInteger(spent)&&remaining>0,'Shared author session budget exhausted');
   return {schemaVersion:1,sessionId:binding.sessionId,rootJobId:jobs[0]!.id,ceiling:binding.sessionTokenCeiling,spent,remaining,
    jobs:jobs.map(source=>({jobId:source.id,inputDigest:source.inputDigest,completionDigest:source.completionDigest!,proofsDigest:hash(source.proofs),usage:source.usage!}))};
@@ -118,7 +119,7 @@ export class AuthorRoutingRepository {
   this.supervision.assertEligible(loop.id);
   ensure(loop.phase===(reviewRebuild?'reviewing':'authoring')&&loop.references.authorJobId===job.id&&!runtime.paused&&!runtime.cancelled,'Author rejection is not current');
   ensure(job.loopId===loopId&&job.runtimeId===runtime.id&&job.projectId===run.projectId&&job.runId===run.id&&job.contractVersion===run.contract.version&&job.contractDigest===loop.contractDigest,'Author scope changed');
-  ensure(job.purpose==='acceptance-authoring'&&job.status==='finished'&&job.modelStarted&&job.stopConfirmed&&job.threadId&&job.usage!==null&&job.usage>=job.observedUsage&&job.usage<=job.config.reservation,'Author stop or accounting is unresolved');
+  ensure(job.purpose==='acceptance-authoring'&&job.status==='finished'&&job.modelStarted&&job.stopConfirmed&&job.threadId&&job.usage!==null&&job.usage>=job.observedUsage&&withinTokenReservation(run.budget.limit,job.usage,job.config.reservation),'Author stop or accounting is unresolved');
   const attempt=run.attempts.find(a=>a.id===job.attemptId);
   ensure(attempt?.purpose==='reasoning'&&attempt.nodeId==='@supervisor'&&attempt.contractVersion===job.contractVersion&&attempt.reservation===job.config.reservation&&attempt.settled&&attempt.actual===job.usage&&attempt.status===(job.error?'failed':'succeeded'),'Author actual accounting changed');
   ensure(run.attempts.every(a=>a.settled&&a.status!=='running')&&run.operations.every(o=>o.status==='confirmed')&&run.leases.every(l=>l.released),'Author recovery requires fully settled quiet boundary');

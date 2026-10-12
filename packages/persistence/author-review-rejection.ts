@@ -1,3 +1,4 @@
+import {withinTokenReservation} from '../contracts/token-policy.js';
 import {resolveAuthorBundle,assertAuthorExpansionProof} from '../orchestration/author-result-patch.js';
 import {SupervisionRepository} from './supervision.js';
 import {verificationDirectory,parseEnvironmentScope} from '../verification/scoped-environment.js';
@@ -33,7 +34,7 @@ export function readAuthorReviewRejection(db:DatabaseSync,dataDir:string,loop:Su
  ensure(same(binding.base,base)&&proposal.status==='proposed'&&proposal.version===null&&proposal.contractDigest===loop.contractDigest&&proposal.projectId===run.projectId&&proposal.runId===run.id&&proposal.runtimeId===loop.runtimeId,'proposal/head/contract changed');
  ensure(job.kind==='review'&&job.planId===null&&job.proposalId===proposal.id&&job.runtimeId===loop.runtimeId&&job.projectId===run.projectId&&job.runId===run.id&&job.workspace===proposal.candidate.root,'actual review scope differs');
  const attempt=run.attempts.find(a=>a.id===job.attemptId);
- ensure(job.status==='finished'&&!job.approved&&!!job.error&&job.stopConfirmed&&!job.usageUnknown&&Number.isSafeInteger(job.usage)&&job.usage>=0&&job.usage<=job.config.reservation&&attempt?.purpose==='verification'&&attempt.status==='failed'&&attempt.settled&&attempt.actual===job.usage&&attempt.reservation===job.config.reservation,'review rejection lacks known stopped settlement');
+ ensure(job.status==='finished'&&!job.approved&&!!job.error&&job.stopConfirmed&&!job.usageUnknown&&Number.isSafeInteger(job.usage)&&job.usage>=0&&withinTokenReservation(run.budget.limit,job.usage,job.config.reservation)&&attempt?.purpose==='verification'&&attempt.status==='failed'&&attempt.settled&&attempt.actual===job.usage&&attempt.reservation===job.config.reservation,'review rejection lacks known stopped settlement');
  const root=verificationDirectory(realpathSync(dataDir),job);let bytes=0;
  const read=(path:string)=>{const resolved=resolve(path);ensure(isAbsolute(path)&&resolved.startsWith(realpathSync(dataDir)+sep),'private evidence path escaped');let item=resolved;while(item!==realpathSync(dataDir)){const st=lstatSync(item);ensure(!st.isSymbolicLink(),'evidence symlink');item=dirname(item);}const stat=lstatSync(path);ensure(stat.isFile()&&realpathSync(path)===resolved,'evidence not a canonical regular file');bytes+=stat.size;ensure(bytes<=256*1024*1024,'full review evidence exceeds capacity');const value=readFileSync(path);ensure(value.length===stat.size,'evidence size changed');return value;};
  const proof=(path:string)=>{ensure(path.startsWith(root+sep)&&Object.hasOwn(job.proofs,path),'actual review proof missing');const value=read(path);ensure(digest(value)===job.proofs[path],'actual review proof changed');return value;};

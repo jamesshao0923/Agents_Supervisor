@@ -1,3 +1,4 @@
+import {withinTokenReservation,type TokenLimit} from '../contracts/token-policy.js';
 import {indexedStageScopes,exactIndexedStage} from './indexed-stage-authority.js';
 import {IndexedResearchConsumer} from '../runtime/indexed-research-consumer.js';
 import type {SupervisorStore} from '../persistence/store.js';
@@ -24,12 +25,16 @@ import { runUiVerification } from './ui.js';
 import { evaluateVerification, selectInstances } from './rules.js';
 import {assertLegacyControlQualification,legacyControlQualified} from './control-qualification-gates.js';
 export interface EngineContext {store?:SupervisorStore;job:VerificationJob; signal:AbortSignal; save():void; eligible():void; output:string}
+/** A connected job takes its token policy from its actual Run; standalone engines retain finite reservations. */
+export function verificationTokenLimit(context:EngineContext):TokenLimit {
+  return context.store?context.store.runtime.inspect(context.job.runtimeId).run.budget.limit:context.job.config.reservation;
+}
 export function processHooks(context:EngineContext) { return {
   onIntent:(intent:ProcessIntent)=>{context.eligible();context.job.intents.push(intent);context.save();},
   onIdentity:(identity:ProcessIdentity)=>{context.job.identities.push(identity);context.save();},
 }; }
 export async function reviewModel(context:EngineContext,prompt:string,cwd:string,output:string,images?:string[]):Promise<ModelReviewResult> {
-  context.eligible();cwd=await reviewEnvironmentCwd(context.job,cwd);if(context.job.environmentScope){await assertEnvironmentCwd(parseEnvironmentScope(context.job.environmentScope,context.job),cwd);if((await environmentFingerprint(context.job.environmentScope)).digest!==context.job.environmentDigest)throw Error('Verifier environment changed before model dispatch');} const job=context.job, base=job.usage, previousUnknown=job.usageUnknown; if(previousUnknown||base>=job.config.reservation)throw new Error('Verification budget exhausted or previous model usage unknown'); job.modelStarted=true;job.usageUnknown=true;context.save();
+  context.eligible();cwd=await reviewEnvironmentCwd(context.job,cwd);if(context.job.environmentScope){await assertEnvironmentCwd(parseEnvironmentScope(context.job.environmentScope,context.job),cwd);if((await environmentFingerprint(context.job.environmentScope)).digest!==context.job.environmentDigest)throw Error('Verifier environment changed before model dispatch');} const job=context.job, base=job.usage, previousUnknown=job.usageUnknown; if(previousUnknown||verificationTokenLimit(context)!==null&&base>=job.config.reservation)throw new Error('Verification budget exhausted or previous model usage unknown'); job.modelStarted=true;job.usageUnknown=true;context.save();
   const accept=(result:ModelReviewResult)=>{job.usage=Math.max(job.usage,base+(result.usage??0));job.usageUnknown=previousUnknown||(result.modelStarted&&result.usage===null);context.save();};
   try {
     const proposal=context.store?.verification.get('proposal',job.proposalId),bindings=proposal?.spec.cases.flatMap(c=>c.verifier.kind==='material'?[c.verifier.binding]:[])??[];
@@ -38,8 +43,8 @@ export async function reviewModel(context:EngineContext,prompt:string,cwd:string
       if(stage?.binding&&(await readMaterialBinding(stage.binding)).input.indexed){exactIndexedStage(context.store,job.id,output);indexed=await IndexedResearchConsumer.verificationStage(context.store,job.id,digest(prompt),output);}
       else if(bindings.some(binding=>readMaterialBindingSync(binding).input.indexed))throw Error('Actual indexed review stage is not bound to frozen producer');
     }
-    const result=await runModelReview({...(indexed?{indexed}:{}),id:job.id+'-'+job.intents.length,cwd,logDir:output,prompt,...(images?.length?{images}:{}),model:job.config.model,effort:job.config.effort,timeoutMs:job.config.timeoutMs,signal:context.signal,assertEligible:context.eligible,...processHooks(context),onUsage:tokens=>{job.usage=base+tokens;context.save();if(job.usage>job.config.reservation)throw new Error('Verification token reservation exhausted');}});
-    accept(result);if(job.environmentScope)await assertEnvironmentCwd(job.environmentScope,cwd);if(!result.stopConfirmed||job.usage>job.config.reservation)throw new Error('Model stop or accounting gate failed');return result;
+    const result=await runModelReview({...(indexed?{indexed}:{}),id:job.id+'-'+job.intents.length,cwd,logDir:output,prompt,...(images?.length?{images}:{}),model:job.config.model,effort:job.config.effort,timeoutMs:job.config.timeoutMs,signal:context.signal,assertEligible:context.eligible,...processHooks(context),onUsage:tokens=>{job.usage=base+tokens;context.save();if(!withinTokenReservation(verificationTokenLimit(context),job.usage,job.config.reservation))throw new Error('Verification token reservation exhausted');}});
+    accept(result);if(job.environmentScope)await assertEnvironmentCwd(job.environmentScope,cwd);if(!result.stopConfirmed||!withinTokenReservation(verificationTokenLimit(context),job.usage,job.config.reservation))throw new Error('Model stop or accounting gate failed');return result;
   }catch(error){if(error instanceof ModelReviewError)accept(error.result);throw error;}
 }
 export async function executeInstances(context:EngineContext,spec:VerificationSpec,bundle:DefinitionBundle,candidate:Candidate,instances:VerificationInstance[],label:string,options:{stopOnUnqualifiedPositive?:true;materialProjectionTarget?:VerificationSpec;historicalMaterialEpoch?:HistoricalMaterialEpoch}={}):Promise<VerificationResult[]> {

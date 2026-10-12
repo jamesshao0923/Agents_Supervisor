@@ -1,3 +1,4 @@
+import {tokenCapacity} from '../contracts/token-policy.js';
 import { assertProviderReasonerSchemaProof } from './reasoner-schema.js';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -41,8 +42,8 @@ export function parseAuthorRouteReceipt(value: unknown): AuthorRouteReceipt {
         exact(session,['schemaVersion','sessionId','rootJobId','ceiling','spent','remaining','jobs']);
         ensure(session.schemaVersion===1&&typeof session.sessionId==='string'&&session.sessionId.length>0
             &&typeof session.rootJobId==='string'&&session.rootJobId.length>0,'Invalid author session identity');
-        integer(session.ceiling,1);integer(session.spent);integer(session.remaining,1);
-        ensure(session.ceiling-session.spent===session.remaining,'Author session arithmetic changed');
+        if(session.ceiling!==null)integer(session.ceiling,1);integer(session.spent);integer(session.remaining,1);
+        ensure(session.ceiling===null||session.ceiling-session.spent===session.remaining,'Author session arithmetic changed');
         ensure(Array.isArray(session.jobs)&&session.jobs.length>=3&&session.jobs.length<=6,'Invalid author session inventory');
         const ids=new Set<string>();let spent=0;
         for(const job of session.jobs) {
@@ -61,9 +62,10 @@ export function parseAuthorRouteReceipt(value: unknown): AuthorRouteReceipt {
     integer(a.wireChars, 1);
     ensure(a.maxContextChars <= 200000 && a.storedChars + 6000 <= a.maxContextChars && a.wireChars + 6000 <= a.maxContextChars, 'Author route capacity changed');
     exact(a.budget, ['limit', 'spent', 'reserved', 'protected']);
-    for (const n of Object.values(a.budget))
-        integer(n);
-    ensure(a.budget.spent + a.budget.reserved + a.budget.protected + r.selected.reservation <= a.budget.limit, 'Author route budget unavailable');
+    for (const [key,n] of Object.entries(a.budget))
+        if(key!=='limit'||n!==null)integer(n);
+    if(a.authorSession)ensure((a.authorSession.ceiling===null)===(a.budget.limit===null),'Author session differs from original Run token policy');
+    ensure(a.budget.spent + a.budget.reserved + a.budget.protected + r.selected.reservation <= tokenCapacity(a.budget.limit), 'Author route budget unavailable');
     ensure(r.createdAt === a.observedAt && a.inputDigest === r.nextInputDigest, 'Author route input/time changed');
     ensure(same(r.selected, expectedAuthorRouteConfig(r)), 'Author route selection changed');
     return r;

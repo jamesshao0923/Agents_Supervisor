@@ -204,7 +204,7 @@ test('complete JSON schema errors get typed markers; malformed JSON and exhauste
 
 test('protected shared balance and full recovery context limits fail without a new reservation',async t=>{
  const f=await fixture(t),request=await f.request(),run=f.store.runtime.inspect(f.runtime.id).run;
- f.store.runtime.setFutureVerification({commandId:'all-protected',runtimeId:f.runtime.id,expectedContractVersion:run.contract.version,expectedRevision:run.revision,allocationId:'protect-remaining',amount:run.budget.limit-run.budget.spent,reason:'Explicit fixture protects remaining balance'});
+ f.store.runtime.setFutureVerification({commandId:'all-protected',runtimeId:f.runtime.id,expectedContractVersion:run.contract.version,expectedRevision:run.revision,allocationId:'protect-remaining',amount:run.budget.limit!-run.budget.spent,reason:'Explicit fixture protects remaining balance'});
  assert.throws(()=>f.repo.begin(request),/budget|reserve|verification/i);assert.throws(()=>f.repo.beginV2(request),/budget|reserve|verification/i);assert.equal(f.repo.routes(f.loop.id).length,0);assert.equal(f.store.supervision.jobs(f.loop.id).length,1);
  const small=await fixture(t,{capacity:true}),limited=await small.request();assert.throws(()=>small.repo.begin(limited),/Rendered author input exceeds capacity/);assert.throws(()=>small.repo.beginV2(limited),/Rendered author input exceeds capacity/);assert.equal(small.repo.routes(small.loop.id).length,0);assert.equal(small.store.supervision.jobs(small.loop.id).length,1);
  // Distinct actual rejected-output fixture exercises storage capacity, while the

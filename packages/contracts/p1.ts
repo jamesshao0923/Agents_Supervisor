@@ -8,7 +8,7 @@ export interface Attempt {
   id: string; nodeId: string; contractVersion: number; status: 'running' | 'succeeded' | 'failed' | 'cancelled';
   reservation: number; purpose: AttemptPurpose; settled: boolean; actual: number | null;
 }
-export interface Budget { unit: 'work-unit' | 'token'; limit: number; spent: number; verificationReserve: number; futureVerification?: import('./p6-loop.js').FutureVerificationAllocation; futureExecution?: import('./p7-final-execution.js').FutureExecutionAllocation }
+export interface Budget { unit: 'work-unit' | 'token'; limit: number | null; spent: number; verificationReserve: number; futureVerification?: import('./p6-loop.js').FutureVerificationAllocation; futureExecution?: import('./p7-final-execution.js').FutureExecutionAllocation }
 export interface Lease { resource: string; attemptId: string; released: boolean }
 export interface Operation { id: string; attemptId: string; status: 'pending' | 'confirmed' | 'unknown' }
 export interface Artifact { id: string; digest: string; path: string; contractVersion: number }
@@ -42,7 +42,7 @@ export interface Project { id: string; name: string }
 export interface CreateRunInput {
   id: string; projectId: string; contract: TaskContract;
   nodes: { id: string; dependencies: string[]; required: boolean }[];
-  budget: { limit: number; verificationReserve: number; unit?: 'work-unit' | 'token' };
+  budget: { limit: number | null; verificationReserve: number; unit?: 'work-unit' | 'token' };
 }
 export type RunAction =
   | {type:'setFutureExecution';allocation:import('./p7-final-execution.js').FutureExecutionAllocation;reason:string}

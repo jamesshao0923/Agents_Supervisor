@@ -126,7 +126,7 @@ export class ConversationController {
         onIntent:intent=>{eligible();repository.observeAssessment(id,{intents:[...repository.assessment(id).intents,intent]});},
         onIdentity:identity=>{repository.observeAssessment(id,{identities:[...repository.assessment(id).identities,identity]});},
         onTurnIntent:()=>{eligible();repository.observeAssessment(id,{modelStarted:true});},
-        onUsage:observedUsage=>{repository.observeAssessment(id,{observedUsage});if(observedUsage>job.config.reservation)throw new Error('询问分析超出本次预留额度。');},
+        onUsage:observedUsage=>{repository.observeAssessment(id,{observedUsage});if(job.input.run.budget.limit!==null&&observedUsage>job.config.reservation)throw new Error('询问分析超出本次预留额度。');},
       });}catch(caught){if(caught instanceof ReasonerError)result=caught.result;throw caught;}
       decision=validateTerminalAssessment(result.value,repository.message(job.messageId),repository.clarificationParents(job.messageId));
     }catch(caught){error=errorText(caught);}
@@ -177,7 +177,7 @@ export class ConversationController {
       const eligible=()=>{
         const current=this.store.goals.inspect(sessionId),message=this.store.conversations.message(job.followup!.messageId);
         if(signal.aborted||current.run.status==='cancelled'||current.run.status==='paused'||current.session.jobs.at(-1)?.id!==jobId||message.state!=='processing'||current.run.contract.version!==job.followup!.baseContractVersion)throw new Error('跟进任务已暂停、取消或版本已改变。');
-        if(!knownUsage||!stopped||totalUsage>=job.config.reservation||current.run.budget.spent+totalUsage+current.run.budget.verificationReserve>=current.run.budget.limit)throw new Error('没有已确认的剩余分析预算，不能派发下一次模型调用。');
+        if(!knownUsage||!stopped||current.run.budget.limit!==null&&(totalUsage>=job.config.reservation||current.run.budget.spent+totalUsage+current.run.budget.verificationReserve>=current.run.budget.limit))throw new Error('没有已确认的剩余分析预算，不能派发下一次模型调用。');
       };
       eligible();
       const attached=await taskAttachmentContext(initial.session.workspace,[...job.followup!.messages,...this.context(initial.session,job).frozenMessages]);prompt+=attached.text;
@@ -191,7 +191,7 @@ export class ConversationController {
           onIntent:intent=>{dispatched=true;this.store.goals.update(sessionId,jobId,j=>{j.intents.push(intent);});},
           onIdentity:identity=>{this.store.goals.update(sessionId,jobId,j=>{j.identities.push(identity);});},
           onTurnIntent:()=>{eligible();this.store.goals.update(sessionId,jobId,j=>{j.modelStarted=true;});},
-          onUsage:usage=>{this.store.goals.update(sessionId,jobId,j=>{j.observedUsage=baseUsage+usage;});if(baseUsage+usage>job.config.reservation)throw new Error('跟进分析及独立复核超过本次预算。');},
+          onUsage:usage=>{this.store.goals.update(sessionId,jobId,j=>{j.observedUsage=baseUsage+usage;});if(initial.run.budget.limit!==null&&baseUsage+usage>job.config.reservation)throw new Error('跟进分析及独立复核超过本次预算。');},
         });
         return response.value;
       }catch(caught){if(caught instanceof ReasonerError)response=caught.result;throw caught;}
@@ -225,7 +225,7 @@ export class ConversationController {
         this.store.goals.update(sessionId,jobId,j=>{j.context={input:data,acceptanceReview:reviewed,callReceipts};});
         if(!reviewed.approved)throw new Error(`验收标准变更未通过独立复核：${reviewed.changes.flatMap(change=>change.reasons).join('；')}`);
       }
-      if(totalUsage>job.config.reservation)throw new Error('跟进分析超过预约预算，已记录实际用量并停止应用。');
+      if(initial.run.budget.limit!==null&&totalUsage>job.config.reservation)throw new Error('跟进分析超过预约预算，已记录实际用量并停止应用。');
     }catch(caught){error=errorText(caught);}
     this.store.goals.finish(sessionId,jobId,j=>{j.context={...(j.context as Record<string,unknown>??{}),callReceipts};j.error=error;j.usage=knownUsage?totalUsage:null;j.stopConfirmed=stopped;j.modelStarted=modelStarted||j.modelStarted;j.threadId=threadId;j.proofs=proofs;if(!error&&result)j.followupResult=result;else delete j.followupResult;j.proposal=!error?result?.proposal??null:null;});
     await this.serial(()=>this.publish(sessionId,jobId));

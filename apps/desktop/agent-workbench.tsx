@@ -1,3 +1,4 @@
+import { formatTokenLimit } from '../../packages/contracts/token-policy.js';
 import React,{useEffect,useState} from 'react';
 import type {DesktopTask} from './presentation.js';
 import type {ExecutionRecord} from '../../packages/contracts/p2.js';
@@ -12,7 +13,7 @@ export function AgentWorkbench(props:{projectPath:string;parents:DesktopTask[];e
   {props.parents.map(parent=>{const agents=cards.filter(c=>c.parentId===parent.id),scope=props.snapshot?.project.path===props.projectPath?props.snapshot.parents.find(p=>p.runtimeId===parent.id):undefined;return <section key={parent.id} className="workbench-task" aria-label="父任务与子执行">
    <header className="workbench-task-heading"><div><span className="workbench-role">父任务 · {parent.conversationId?'持续跟进':'任务记录'}</span><h3>{parent.prompt}</h3><p>{parentWorkbenchStatus(parent,props.connection)} · {agents.length} 个已记录子 Agent</p></div><button className="button" onClick={()=>props.onSelect(parent)}>跟进 / 任务控制</button></header>
    <p className="form-hint">跟进针对当前任务轮次。暂停仅停止新步骤派发；取消作用于整项父任务，并核对在途进程。子卡片只查看该执行，不能代替父任务取消。</p>
-   {scope&&<p className="form-hint">任务账本：已结算 {scope.budget.spent.toLocaleString('zh-CN')} / {scope.budget.limit.toLocaleString('zh-CN')} tokens · 验收预留 {scope.budget.verificationReserve.toLocaleString('zh-CN')}</p>}
+   {scope&&<p className="form-hint">任务账本：已结算 {scope.budget.spent.toLocaleString('zh-CN')} / {formatTokenLimit(scope.budget.limit)} tokens · 验收预留 {scope.budget.verificationReserve.toLocaleString('zh-CN')}</p>}
    {scope?.issues.map((issue,i)=><div className="form-hint" key={i}><p>{workbenchObservationMessage(issue)}</p><details><summary>查看状态核对的技术详情</summary><pre>{issue}</pre></details></div>)}
    {scope?.results&&<p className="form-hint">{scope.results.heads.length} 个当前结果版本 · 仅展示已存记录，发布资格本次尚未复核。{scope.results.heads.map(h=>`${h.ref.taskId} v${h.ref.version}：${workbenchResultState(h.state)}${h.currentContract?'':'（旧要求）'}`).join('；')}</p>}
    {agents.length?<div className="workbench-grid">{agents.map(card=><article key={card.id} className={`workbench-agent ${card.tone} ${pinned===card.id?'pinned':''}`} tabIndex={0} aria-label={`${card.role}：${card.status}`}>

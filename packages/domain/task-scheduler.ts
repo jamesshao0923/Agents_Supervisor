@@ -1,3 +1,4 @@
+import {tokenCapacity} from '../contracts/token-policy.js';
 import type { SchedulerAdmission, SchedulerDecision, SchedulerExpansion, SchedulerExpansionDecision, SchedulerNodeDecision, SchedulerResource, SchedulerSnapshot } from '../contracts/p7-scheduler.js';
 import { parseDependencyBindings, parseTaskResultManifest, safeResultJSON } from '../contracts/p7-results.js';
 import { createTaskResultDomain } from './task-results.js';
@@ -44,7 +45,7 @@ export function createTaskScheduler({ sha256, decisionId }: { sha256: (canonical
     safeResultJSON(s); exact(s, ['schemaVersion','revision','scope','status','tier','nodes','results','claims','loops','budget','limits',...(Object.hasOwn(s,'attemptedTaskIds')?['attemptedTaskIds']:[])]);
     ensure(s.schemaVersion === 1 && ['ready','running','paused','blocked','cancelled','succeeded'].includes(s.status) && Object.hasOwn(thresholds, s.tier), 'invalid scheduler state'); integer(s.revision);
     exact(s.scope, ['projectId','runId','contractVersion','contractDigest']); text(s.scope.projectId); text(s.scope.runId); integer(s.scope.contractVersion, 1); ensure(/^[a-f0-9]{64}$/.test(s.scope.contractDigest), 'invalid contract digest');
-    exact(s.budget, ['limit','spent','verificationRemaining','futureVerificationFloor',...(Object.hasOwn(s.budget,'futureExecutionFloor')?['futureExecutionFloor']:[])]); Object.values(s.budget).forEach(v => integer(v));
+    exact(s.budget, ['limit','spent','verificationRemaining','futureVerificationFloor',...(Object.hasOwn(s.budget,'futureExecutionFloor')?['futureExecutionFloor']:[])]); Object.entries(s.budget).forEach(([key,v]) => { if (key !== 'limit' || v !== null) integer(v!); });
     exact(s.limits, ['maxActive','maxNodes','maxDepth','nowMs','deadlineMs']); Object.values(s.limits).forEach(v => integer(v)); integer(s.limits.maxActive, 1); integer(s.limits.maxNodes, 1);
     ensure(s.nodes.length <= 4096 && s.claims.length <= 4096 && s.loops.length <= 256, 'scheduler capacity exceeded');
     if (s.attemptedTaskIds !== undefined) {
@@ -60,7 +61,7 @@ export function createTaskScheduler({ sha256, decisionId }: { sha256: (canonical
     }
     for (const l of s.loops) {
       const parent = l.parentId === null ? null : s.loops.find(p => p.id === l.parentId); ensure(l.parentId === null ? l.depth === 1 : parent && l.depth === parent.depth + 1, 'invalid loop parent');
-      ensure(l.limit <= (parent?.limit ?? s.budget.limit), 'child allocation exceeds parent');
+      ensure(s.budget.limit === null || l.limit <= (parent?.limit ?? s.budget.limit), 'child allocation exceeds parent');
       ensure(l.spent <= (parent?.spent ?? s.budget.spent), 'child spending exceeds parent accounting');
     }
     for (const c of s.claims) { exact(c, ['id','taskId','reservation','resources','loopIds','usage','effects']); text(c.taskId); integer(c.reservation); resources(c.resources); ancestors(c.loopIds); ensure(['known','unknown'].includes(c.usage) && ['pending','unknown'].includes(c.effects), 'invalid claim state'); }
@@ -83,7 +84,7 @@ export function createTaskScheduler({ sha256, decisionId }: { sha256: (canonical
     for (const l of s.loops) ensure(l.nodeCount >= s.nodes.filter(n => n.loopIds.includes(l.id)).length, 'loop node count understated');
   }
   function reserved(s: SchedulerSnapshot, loopId?: string): number { const amount = s.claims.filter(c => loopId === undefined || c.loopIds.includes(loopId)).reduce((a,c) => a + c.reservation, 0); integer(amount); return amount; }
-  function available(s: SchedulerSnapshot): number { const held = s.budget.spent + reserved(s) + Math.max(s.budget.verificationRemaining, s.budget.futureVerificationFloor)+(s.budget.futureExecutionFloor??0); integer(held); return s.budget.limit - held; }
+  function available(s: SchedulerSnapshot): number { const held = s.budget.spent + reserved(s) + Math.max(s.budget.verificationRemaining, s.budget.futureVerificationFloor)+(s.budget.futureExecutionFloor??0); integer(held); return tokenCapacity(s.budget.limit) - held; }
   function hardReasons(s: SchedulerSnapshot): string[] {
     const reasons: string[] = [];
     if (['paused','cancelled','succeeded','blocked'].includes(s.status)) reasons.push('run does not authorize new dispatch');
@@ -126,7 +127,7 @@ export function createTaskScheduler({ sha256, decisionId }: { sha256: (canonical
       if (s.claims.some(c => c.taskId === n.id)) reasons.push('task already claimed');
       for (const id of n.dependencies) { const dep = s.nodes.find(d => d.id === id); if (!dep || dep.status !== 'succeeded' || s.claims.some(c => c.taskId === id)) reasons.push('dependency unfinished or unknown: ' + id); if (!n.inputs.some(i => i.dependencyNodeId === id)) reasons.push('dependency has no frozen result: ' + id); }
       const deps = resultDomain.resolveDependencies(s.results, n.inputs, s.scope); reasons.push(...deps.reasons);
-      for (const id of n.loopIds) { const l = s.loops.find(l => l.id === id)!; if (l.depth > s.limits.maxDepth || l.iteration > l.maxIterations || l.nodeCount > l.maxNodes) reasons.push('loop bound reached: ' + id); if (l.spent + reserved(s,id) + (additions.get(id) ?? 0) + n.reservation > l.limit) reasons.push('ancestor budget exhausted: ' + id); }
+      for (const id of n.loopIds) { const l = s.loops.find(l => l.id === id)!; if (l.depth > s.limits.maxDepth || l.iteration > l.maxIterations || l.nodeCount > l.maxNodes) reasons.push('loop bound reached: ' + id); if (s.budget.limit !== null && l.spent + reserved(s,id) + (additions.get(id) ?? 0) + n.reservation > l.limit) reasons.push('ancestor budget exhausted: ' + id); }
       const ready = reasons.length === 0;
       reasons.push(...global);
       if (ready && !global.length) {
@@ -142,7 +143,7 @@ export function createTaskScheduler({ sha256, decisionId }: { sha256: (canonical
     const dispatchTaskIds = nodes.filter(n => n.dispatch).map(n => n.taskId), requiredGaps = s.nodes.filter(n => n.required && n.status !== 'succeeded').map(n => n.id);
     const unfinishedAdmitted=nodes.some(d=>d.admitted && s.nodes.find(n=>n.id===d.taskId)!.status!=='succeeded');
     const state = global.length ? 'stopped' : dispatchTaskIds.length ? 'dispatch' : s.claims.length ? 'active' : requiredGaps.length || unfinishedAdmitted ? 'waiting' : 'exhausted';
-    return immutable({schemaVersion:1,policyVersion:'p7-scheduler-v1',id,snapshotDigest,revision:s.revision,state,nodes,dispatchTaskIds,requiredGaps,reservation,remaining,reasons:global});
+    return immutable({schemaVersion:1,policyVersion:'p7-scheduler-v1',id,snapshotDigest,revision:s.revision,state,nodes,dispatchTaskIds,requiredGaps,reservation,remaining:s.budget.limit===null?null:remaining,reasons:global});
   }
   function evaluateExpansion(s: SchedulerSnapshot, request: SchedulerExpansion): SchedulerExpansionDecision {
     validate(s); safeResultJSON(request); exact(request, ['parentLoopId','childDepth','additionalNodes','reservation']); integer(request.childDepth,1); integer(request.additionalNodes,1); integer(request.reservation,1);
@@ -152,7 +153,7 @@ export function createTaskScheduler({ sha256, decisionId }: { sha256: (canonical
     if (s.nodes.length + request.additionalNodes > s.limits.maxNodes) reasons.push('expansion global node limit');
     if (request.reservation > available(s)) reasons.push('expansion shared budget limit');
     let loop = parent;
-    while (loop) { if (loop.iteration > loop.maxIterations || loop.nodeCount + request.additionalNodes > loop.maxNodes || loop.spent + reserved(s,loop.id) + request.reservation > loop.limit) reasons.push('expansion ancestor limit: ' + loop.id); loop = loop.parentId === null ? null : s.loops.find(l => l.id === loop!.parentId)!; }
+    while (loop) { if (loop.iteration > loop.maxIterations || loop.nodeCount + request.additionalNodes > loop.maxNodes || (s.budget.limit !== null && loop.spent + reserved(s,loop.id) + request.reservation > loop.limit)) reasons.push('expansion ancestor limit: ' + loop.id); loop = loop.parentId === null ? null : s.loops.find(l => l.id === loop!.parentId)!; }
     return immutable({allowed:reasons.length === 0,reasons});
   }
   return Object.freeze({evaluate,evaluateExpansion});

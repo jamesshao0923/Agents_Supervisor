@@ -1,3 +1,4 @@
+import {withinTokenReservation} from '../contracts/token-policy.js';
 import { captureQualificationCausalEvidence } from '../verification/qualification-causal-evidence.js';
 import {decodeQualificationReviewPrompt} from '../verification/qualification-review-wire.js';
 import {expandedAuthorInput} from '../orchestration/indexed-history-presentation.js';
@@ -67,7 +68,7 @@ export class ControlQualificationRepository {
         && job.workspace === proposal.candidate.root, 'Control sidecar belongs to another review or proposal');
     ensure(Number.isSafeInteger(job.usage)
         && job.usage >= 0
-        && job.usage <= job.config.reservation
+        && withinTokenReservation(run.budget.limit, job.usage, job.config.reservation)
         && !job.usageUnknown
         && attempt?.purpose === 'verification'
         && attempt.reservation === job.config.reservation, 'Control review accounting is unknown or outside reservation');
@@ -118,7 +119,7 @@ export class ControlQualificationRepository {
         && !job.error
         && Number.isSafeInteger(job.usage)
         && job.usage! > 0
-        && job.usage! <= job.config.reservation
+        && withinTokenReservation(run.budget.limit, job.usage!, job.config.reservation)
         && attempt?.purpose === 'reasoning'
         && attempt.status === 'succeeded'
         && attempt.reservation === job.config.reservation
@@ -327,7 +328,7 @@ export class ControlQualificationRepository {
         && job.intents.length === job.identities.length
         && job.identities.every(identity => job.intents.some(intent => intent.operationId === identity.operationId
         && intent.ownerToken === identity.ownerToken)), 'Qualified model review lacks complete actual process ownership');
-    const expected = reconstructQualification({ draft: record.draft, evidence: evidence.bootstrap, reviewJob: job }, 'finished');
+    const expected = reconstructQualification({ draft: record.draft, evidence: evidence.bootstrap, reviewJob: job }, 'finished', this.run(job.projectId,job.runId).budget.limit);
     ensure(same(expected, evidence.assembled), 'Qualification assembly differs from exact actual bootstrap results');
     validateControlImplementationHistory(expected.definitions);
     for (const d of expected.definitions) reader.definition(d.definition.spec, d.bundle);

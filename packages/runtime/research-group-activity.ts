@@ -1,3 +1,4 @@
+import {withinTokenReservation} from '../contracts/token-policy.js';
 import {assertIndexedProducerReceipt} from './indexed-research-consumer.js';
 import {writeFile, lstat, realpath, readdir} from 'node:fs/promises';
 import {join} from 'node:path';
@@ -29,10 +30,10 @@ export class ResearchGroupActivity {
     const claim = this.store.scheduler.claimGet(record.scheduledBinding.claimId), input = this.store.researchGroups.inputForClaim(claim);
     ensure(input, 'actual group input missing');
     this.inputForExecution(record);
-    const scheduler = this.store.scheduler.get(claim.schedulerId), runtime = this.store.runtime.get(claim.runtimeId);
+    const scheduler = this.store.scheduler.get(claim.schedulerId), runtime = this.store.runtime.get(claim.runtimeId), run = this.store.runtime.inspect(claim.runtimeId).run;
     ensure(!runtime.paused && !runtime.cancelled && scheduler.state === 'active' && scheduler.fence === 'held', 'group publication paused/cancelled/closed');
     ensure(record.identity && record.terminalStatus === 'completed' && record.turnIntent &&
-      record.usageStatus === 'reported' && record.usage && record.usage.totalTokens <= claim.reservation && !record.cancelRequested,
+      record.usageStatus === 'reported' && record.usage && withinTokenReservation(run.budget.limit,record.usage.totalTokens,claim.reservation) && !record.cancelRequested,
       'actual physical stop and known bounded same-turn usage required');
     const events = researchCompletionEvents(record, after => this.store.executionEvents(record.id, after));
     return {claim, input, events};

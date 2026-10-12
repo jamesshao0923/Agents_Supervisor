@@ -22,7 +22,7 @@ export function beginAuthorStages(store:SupervisorStore,loopId:string,context:Sn
     ensure(deadline-Date.now()>=1000,'Loop deadline exhausted');
     const sessionId='author-session-'+authorStageDigest({loopId,revision:loop.revision,contractDigest:loop.contractDigest,context});
     const binding:AnyHostAuthorStageBinding={protocol:loop.authoringProtocol,sessionId,index:0,stage:'definition',
-      sessionTokenCeiling:loop.config.reservation,perCallTimeoutMs:loop.config.timeoutMs,loopDeadlineMs:deadline,parents:[]};
+      sessionTokenCeiling:store.runtime.inspect(loop.runtimeId).run.budget.limit===null?null:loop.config.reservation,perCallTimeoutMs:loop.config.timeoutMs,loopDeadlineMs:deadline,parents:[]};
     const input=renderNewAuthorStageInput({...context,binding,parents:[]});
     const job=repo.beginJob({commandId:sessionId+':0',loopId,expectedRevision:loop.revision,purpose:'acceptance-authoring',context:input});
     const current=repo.get(loopId);repo.update(loopId,current.revision,{phase:'authoring',reason:null,references:{...current.references,authorJobId:job.id}});
@@ -53,7 +53,7 @@ export function advanceAuthorStage(store:SupervisorStore,dataDir:string,job:Supe
     ensure(loop.reasoningCount+AUTHOR_STAGE_ORDER.length-index<=loop.limits.maxReasoningCalls,'not enough remaining calls for complete assembly');
     ensure(binding.loopDeadlineMs-Date.now()>=1000,'Loop deadline exhausted');
     assertStageAttemptLedger(store,actual,charged);
-    const spent=charged.reduce((n,parent)=>n+parent.usage!,0),reservation=binding.sessionTokenCeiling-spent;
+    const spent=charged.reduce((n,parent)=>n+parent.usage!,0),reservation=binding.sessionTokenCeiling===null?loop.config.reservation:binding.sessionTokenCeiling-spent;
     ensure(Number.isSafeInteger(spent)&&Number.isSafeInteger(reservation)&&reservation>0,'shared author session budget exhausted');
     const next:AnyHostAuthorStageBinding={...binding,index,stage:AUTHOR_STAGE_ORDER[index],parents:all.map(parent=>authorStageParent(parent,dataDir))};
     const nextInput=renderAuthorStageInput({acceptance:input.context.acceptance,candidate:input.context.candidate,binding:next,parents:all.map(parent=>parent.result)},input.context.authorPresentation.schemaVersion===10?9:input.context.authorPresentation.schemaVersion);

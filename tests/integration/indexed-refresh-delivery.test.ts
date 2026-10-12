@@ -99,6 +99,6 @@ test('P8-INDEXED-REFRESH-I01 sealed grouped predecessor indexed original epochs 
   previous=f.store.verification.get('proposal',p.id);previousRuntime=runtime;lastDelivery=delivery;
  }
  assert.equal(f.store.conversations.rounds(conversation.id).length,3);assert.deepEqual(await files(f.proposal.bundle.root),oldFiles);assert.equal(canonical({proposal:f.store.verification.get('proposal',f.proposal.id),review:f.store.verification.get('job',f.proposal.reviewId!),final:f.store.verification.get('job',f.final.id),delivery:f.delivery,input:groupedInput}),initialHistory);
- const budget=f.store.conversations.budget(conversation.id);assert.equal(budget.reserved,0);assert.ok(f.store.runtime.list().every(r=>f.store.runtime.inspect(r.id).run.attempts.every(a=>a.settled)));assert.ok(budget.spent<=budget.limit);
+ const budget=f.store.conversations.budget(conversation.id);assert.equal(budget.reserved,0);assert.ok(f.store.runtime.list().every(r=>f.store.runtime.inspect(r.id).run.attempts.every(a=>a.settled)));assert.ok(budget.spent<=budget.limit!);
  await writeFile(join(f.root,'indexed-refresh-complete.json'),JSON.stringify({scope:'actual component with explicit synthetic protocol, not provider or P8 stage gate',root:f.root,data:f.data,records,budget},null,2));
 });

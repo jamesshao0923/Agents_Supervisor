@@ -207,7 +207,7 @@ function qualifiedHistory(s: DeliveryEvidenceSnapshot, options: DeliveryAssessme
     ensure(equal(draft.draft.target.definition.spec, s.proposal.spec)
         && equal(draft.draft.target.bundle, s.proposal.bundle)
         && equal(draft.draft.target.definition.contract, s.run.contract), 'history-binding-invalid', 'Historical qualification target differs from the delivered standard');
-    const reconstructed = reconstructQualification({ draft: draft.draft, evidence: receipt.bootstrap, reviewJob: s.review }, 'finished');
+    const reconstructed = reconstructQualification({ draft: draft.draft, evidence: receipt.bootstrap, reviewJob: s.review }, 'finished', s.run.budget.limit);
     ensure(equal(reconstructed, receipt.assembled), 'history-evidence-invalid', 'Historical qualification assembly differs from original persisted observations');
     const execution = receipt.execution, evaluation = evaluateControlQualification(reconstructed.matrix, execution.pairs);
     ensure(execution.stopConfirmed

@@ -338,7 +338,7 @@ async function appendSecondRefresh(t:test.TestContext, f:Awaited<ReturnType<type
     const delivery=await f.p4.dispatch({type:'deliver',commandId:'third-delivery',jobId:final.id}) as Delivery;
     trace.current!.deliveryId=delivery.id;await phase('third full ALL-OF seal committed');
     assert.equal(f.store.runtime.inspect(runtime.id).run.status,'succeeded');
-    const budget=f.store.conversations.budget(conversationId);assert.equal(budget.reserved,0);assert.ok(budget.spent<=budget.limit);trace.budget=budget;
+    const budget=f.store.conversations.budget(conversationId);assert.equal(budget.reserved,0);assert.ok(budget.spent<=budget.limit!!);trace.budget=budget;
     const reopened=new SupervisorStore(f.data),viewer=new VerificationController(reopened,f.data);
     try{
       assert.equal(reopened.controlQualification.qualificationForReview(checked.id).digest,qualified.digest);
@@ -495,7 +495,7 @@ test('P8-REFRESH-DELIVERY-I01 actual authorized research continuation new produc
   assert.equal(canonical({proposal:f.store.verification.get('proposal',f.proposal.id),review:f.store.verification.get('job',f.proposal.reviewId!),final:f.store.verification.get('job',f.final.id),run:f.store.runtime.inspect(f.runtime.id).run}),originalHistory);
   assert.equal(canonical(f.store.researchWorkflow.committed('first-delivery',{type:'deliver',commandId:'first-delivery',jobId:f.final.id})),firstSeal);
   assert.deepEqual(await hashes(f.proposal.bundle.root),originalFiles);
-  const budget=f.store.conversations.budget(conversation.id);assert.equal(budget.limit,originalBudget.limit);assert.ok(budget.spent>originalBudget.spent);assert.ok(budget.spent<=budget.limit);assert.equal(budget.reserved,0);
+  const budget=f.store.conversations.budget(conversation.id);assert.equal(budget.limit!!,originalBudget.limit);assert.ok(budget.spent>originalBudget.spent);assert.ok(budget.spent<=budget.limit!!);assert.equal(budget.reserved,0);
 
   // Reopen the actual same SQLite and immutable absolute proof paths. No replayed model approval.
   const reopened=new SupervisorStore(f.data),viewer=new VerificationController(reopened,f.data);

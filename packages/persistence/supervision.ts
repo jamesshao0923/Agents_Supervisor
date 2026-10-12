@@ -1,3 +1,4 @@
+import {withinTokenReservation} from '../contracts/token-policy.js';
 import {parseAuthorStageInput} from '../orchestration/author-stage-protocol.js';
 import {assertAuthorWireCapacity,type PresentedAuthorInput} from '../orchestration/author-presentation.js';
 import { acceptanceReferenceDiagnostic } from '../orchestration/acceptance-authoring-feedback.js';
@@ -149,7 +150,7 @@ export class SupervisionRepository {
     ensure(completion.result===null||(completion.stopConfirmed&&completion.usage!==null&&!completion.error&&Object.keys(completion.proofs).length>0),'Unverified model result cannot publish');
     Object.assign(job,structuredClone(completion));job.reportedUsage=completion.usage;job.completionDigest=completionDigest;
     if(job.usage!==null&&job.usage<job.observedUsage){job.usage=null;job.error='Final model usage is lower than the durable observed usage; settlement remains unknown';job.result=null;}
-    else if(job.usage!==null&&job.usage>job.config.reservation){job.error=job.error??'Supervision model exceeded its reserved budget';job.result=null;}
+    else if(job.usage!==null&&!withinTokenReservation(this.ledger(loop).budget.limit,job.usage,job.config.reservation)){job.error=job.error??'Supervision model exceeded its reserved budget';job.result=null;}
     job.status='finished';job.finishedAt=now();
     this.act(loop,{type:'finishAttempt',attemptId:id,outcome:!job.error&&job.stopConfirmed&&job.usage!==null?'succeeded':'failed'});
     if(job.usage!==null)this.act(loop,{type:'settleAttempt',attemptId:id,actual:job.usage});

@@ -1,3 +1,4 @@
+import {withinTokenReservation} from '../contracts/token-policy.js';
 import { createHash } from 'node:crypto';
 import { lstatSync, readFileSync, realpathSync } from 'node:fs';
 import { isAbsolute, join, relative, sep } from 'node:path';
@@ -115,7 +116,7 @@ export class SupervisionConcernRepository {
   }
   private audit(jobId: string) {
     const job = this.supervision.job(jobId), loop = this.supervision.get(job.loopId), { run } = this.runtime.inspect(job.runtimeId);
-    ensure(job.purpose === 'inspection' && job.status === 'finished' && job.modelStarted && job.stopConfirmed && !job.error && Number.isSafeInteger(job.usage) && job.usage! > 0 && job.usage! >= job.observedUsage && job.usage! <= job.config.reservation, 'Concern requires successful known inspection accounting');
+    ensure(job.purpose === 'inspection' && job.status === 'finished' && job.modelStarted && job.stopConfirmed && !job.error && Number.isSafeInteger(job.usage) && job.usage! > 0 && job.usage! >= job.observedUsage && withinTokenReservation(run.budget.limit, job.usage!, job.config.reservation), 'Concern requires successful known inspection accounting');
     ensure(job.runtimeId === loop.runtimeId && job.projectId === loop.projectId && job.runId === loop.runId, 'Foreign concern inspection');
     safeMonitorJSON(job.input); ensure(hash(job.input) === job.inputDigest, 'Concern input digest changed');
     const input = job.input as FrozenInspectionInput, { binding, snapshot } = input.context;

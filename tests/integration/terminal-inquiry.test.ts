@@ -157,7 +157,7 @@ test('P6-TERM-I08 assessment overruns remain actual spend while contradictory fi
     const goal=await delivered(f),before=oldBytes(f),message=ask(f,goal),job=f.conversations.beginAssessment(message.id);
     const result={usage:350,stopConfirmed:true,proofs:{[f.proof]:f.proofDigest},threadId:null,result:{decision:'answer' as const,response:'Fixture result',questions:[]},error:null};
     const finished=f.conversations.finishAssessment(job.id,result);assert.match(finished.error!,/reservation/);assert.equal(finished.result,null);assert.equal(finished.reportedUsage,350);assert.deepEqual(f.conversations.finishAssessment(job.id,result),finished);
-    const budget=f.conversations.budget(job.conversationId);assert.equal(budget.reasoningSpent,350);assert.equal(budget.spent,goal.run.budget.spent+350);assert.equal(budget.reasoningReserved,0);assert.ok(budget.remaining<0);
+    const budget=f.conversations.budget(job.conversationId);assert.equal(budget.reasoningSpent,350);assert.equal(budget.spent,goal.run.budget.spent+350);assert.equal(budget.reasoningReserved,0);assert.ok(budget.remaining!<0);
     assert.throws(()=>f.conversations.childAuthorization(job.conversationId),/exhausted/);f.conversations.retry(message.id,'Explicit retry cannot refill budget');assert.throws(()=>f.conversations.beginAssessment(message.id),/exhausted/);
     assert.equal(f.conversations.assessments(job.conversationId).length,1);assert.equal(oldBytes(f),before);
     const g=fixture();try{

@@ -1,3 +1,4 @@
+import {tokenCapacity} from '../contracts/token-policy.js';
 import {explorationDeclaration} from './exploration.js';
 import type { Run } from '../contracts/p1.js';
 import type { GoalSession } from '../contracts/p5.js';
@@ -51,7 +52,7 @@ export function compileGoalScheduledTemplate(input:{session:GoalSession;baseRun:
  const verificationUsed=run.attempts.filter(a=>a.purpose==='verification'&&a.contractVersion===run.contract.version).reduce((n,a)=>n+(a.settled?a.actual!:a.reservation),0);
  const protectedAmount=Math.max(0,run.budget.verificationReserve-verificationUsed,futureVerificationFloor(run));
  const initialExecution=admission.implementationSteps.filter(step=>session.proposal!.steps.some(core=>core.id===step.id)).reduce((n,s)=>n+s.reservation,admission.integrationStep.reservation);
- ensure(Number.isSafeInteger(initialExecution)&&run.budget.limit-run.budget.spent-protectedAmount>=initialExecution,'Initial branches and final integration exceed remaining same-Run execution budget');
+ ensure(Number.isSafeInteger(initialExecution)&&tokenCapacity(run.budget.limit)-run.budget.spent-protectedAmount>=initialExecution,'Initial branches and final integration exceed remaining same-Run execution budget');
  // Concrete external-resource alias/isolation qualification is not implemented
  // by this automatic bridge. Any declared resource keeps conservative order;
  // it cannot act as a claim of permission or safe external concurrency.

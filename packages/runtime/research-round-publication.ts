@@ -1,3 +1,4 @@
+import {withinTokenReservation} from '../contracts/token-policy.js';
 import {readActivatingSourceRefreshGeneration} from '../verification/source-refresh-binding.js';
 import {mkdir,rename,lstat,realpath,readdir,writeFile} from 'node:fs/promises';
 import {join,dirname,sep} from 'node:path';
@@ -124,7 +125,7 @@ export async function publishResearchRoundReports(
   const events=researchCompletionEvents(latest,after=>store.executionEvents(record.id,after));
   assertTrue(researchDigest(events)===researchDigest(completion.completionEvents),'Research round completed event evidence changed');
   const attempt=run.attempts.find(a=>a.id===record.attemptId);
-  assertTrue(attempt&&attempt.reservation>=latest.usage.totalTokens
+  assertTrue(attempt&&withinTokenReservation(run.budget.limit,latest.usage.totalTokens,attempt.reservation)
    &&run.attempts.filter(a=>a.id!==record.attemptId).every(a=>a.settled&&a.status!=='running')
    &&run.operations.filter(o=>o.attemptId!==record.attemptId).every(o=>o.status==='confirmed')
    &&run.leases.filter(l=>l.attemptId!==record.attemptId).every(l=>l.released),

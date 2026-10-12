@@ -1,3 +1,4 @@
+import {withinTokenReservation} from '../contracts/token-policy.js';
 import {dirname,join as indexedJoin} from 'node:path';
 import {assertIndexedCall,assertIndexedToolCorrelation} from './indexed-call-proof.js';
 import {assertIndexedConsumerArchiveSync} from '../workspace/indexed-consumer-proof.js';
@@ -91,7 +92,7 @@ export function captureSourceRefreshControlContext(db:DatabaseSync,dataRoot:stri
   const c=def.definition.spec.cases.find(c=>c.id===witness.instance.caseId&&c.revision===witness.instance.revision);if(c?.verifier.kind!=='material')continue;
   const candidates=db.prepare("SELECT record FROM verification_records WHERE kind='proposal'").all().map(r=>JSON.parse(String(r.record)) as Proposal).filter(p=>p.status==='published'&&p.bundle.digest===witness.definitionDigest&&p.reviewId);
   assertTrue(candidates.length===1,'Historical material detector has ambiguous published authority');const p=candidates[0]!,job=record<VerificationJob>(db,'job',p.reviewId!);
-  assertTrue(job.approved&&job.stopConfirmed&&!job.usageUnknown&&job.usage>0&&job.usage<=job.config.reservation,'Historical material authority stop/accounting unresolved');
+  assertTrue(job.approved&&job.stopConfirmed&&!job.usageUnknown&&job.usage>0&&withinTokenReservation(new RuntimeRepository(db,dataRoot).inspect(job.runtimeId).run.budget.limit,job.usage,job.config.reservation),'Historical material authority stop/accounting unresolved');
   const proofPaths=witness.result.proofFiles??[],observations=(job.materials??[]).filter(o=>proofPaths.includes(o.proofPath)&&eq(o.binding,c.verifier.kind==='material'?c.verifier.binding:null));
   assertTrue(observations.length===1,'Historical material witness lacks exact original observation');const observation=observations[0]!;
   const eventPaths=proofPaths.filter(path=>path.endsWith('/model/events.jsonl'));

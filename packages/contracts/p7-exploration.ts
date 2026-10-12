@@ -14,7 +14,7 @@ export interface ExplorationInspection {
   counts: { required: number; optional: number; admitted: number; waiting: number; active: number };
   /** Committed integration release evidence, never an inferred task success. */
   completion?: {
-    planDigest: string; protectedRemaining: number;
+    planDigest: string; protectedRemaining: number | null;
     unperformedOptional: {taskId: string; reason: string; blockedBy: string[]}[];
   } | null;
 }

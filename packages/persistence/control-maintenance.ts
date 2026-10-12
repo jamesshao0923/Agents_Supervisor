@@ -1,3 +1,4 @@
+import {tokenCapacity,withinTokenReservation} from '../contracts/token-policy.js';
 import {captureMaintenanceCausalEvidence,type MaintenanceCausalOperationInput} from '../verification/maintenance-causal-evidence.js';
 import {assertLegacyControlReviewEvidence} from '../verification/legacy-review-evidence.js';
 import {assertControlQualificationPublication} from './control-qualification.js';
@@ -94,7 +95,7 @@ export class ControlMaintenanceRepository {
             && !job.error
             && Number.isSafeInteger(job.usage)
             && job.usage >= 0
-            && job.usage <= job.config.reservation
+            && withinTokenReservation(run.budget.limit, job.usage, job.config.reservation)
             && a?.settled
             && a.actual === job.usage
             && a.purpose === 'verification', 'Unsettled verification evidence');
@@ -268,7 +269,7 @@ export class ControlMaintenanceRepository {
             ensure(!run.budget.futureVerification, 'Original final allocation must already be consumed');
             const legacyReserve = Math.max(0, run.budget.verificationReserve - run.attempts.filter(a => a.purpose === 'verification'
                 && a.contractVersion === run.contract.version).reduce((sum, a) => sum + a.actual!, 0));
-            ensure(run.budget.limit - run.budget.spent - (run.budget.futureExecution?.amount ?? 0) >= 2 * loop.config.reservation + Math.max(legacyReserve, loop.config.reservation), 'Maintenance cannot fund author, review and protected full final');
+            ensure(tokenCapacity(run.budget.limit) - run.budget.spent - (run.budget.futureExecution?.amount ?? 0) >= 2 * loop.config.reservation + Math.max(legacyReserve, loop.config.reservation), 'Maintenance cannot fund author, review and protected full final');
             const id = 'maintenance-' + hash({ loopId: loop.id, policy: basis.policy }).slice(0, 32);
             runtime.setFutureVerification({ commandId: input.commandId + ':floor', runtimeId: loop.runtimeId, expectedContractVersion: loop.contractVersion, expectedRevision: run.revision, allocationId: id + ':final', amount: loop.config.reservation, reason: 'Protect full final after bounded same-contract control maintenance' });
             const job = loops.beginJob({ commandId: input.commandId + ':author', loopId: loop.id, expectedRevision: loop.revision, purpose: 'acceptance-authoring', context: input.authorInput });
