@@ -1,3 +1,4 @@
+import { captureQualificationCausalEvidence } from '../../packages/verification/qualification-causal-evidence.js';
 import { assessDeliveryEvidence } from '../../packages/verification/delivery-status.js';
 import type { DeliveryEvidenceSnapshot, DeliveryAssessmentOptions } from '../../packages/verification/delivery-status.js';
 import { evaluateVerification } from '../../packages/verification/rules.js';
@@ -67,13 +68,15 @@ async function fixture(t: TestContext) {
     await writeFile(events, [ { kind: 'review-input', value: { prompt } }, { kind: 'codex-event', value: { method: 'turn/completed', threadId: result.threadId, turnId: result.turnId, raw: { method: 'turn/completed', params: { threadId: result.threadId, turn: { id: result.turnId, status: 'completed' } } } } } ].map(x => JSON.stringify(x)).join('\n') + '\n');
     await writeFile(resultPath, JSON.stringify(result)); ctx.job.modelStarted = true; ctx.job.usage = 3; return result;
   }
-  async function complete(presentation?:'compact-v2') {
+  async function complete(presentation?:'compact-v2'|'complete-v3') {
     repo.insertDraft({ commandId: 'draft', proposalId: proposal.id, draft }); repo.appendReviewStage({ commandId: 's1', reviewId: 'review', stage: 'bootstrap', payload: { draftDigest: draft.digest } });
     const bootstrap = await executeControlBootstrap(ctx, draft), assembled = await assembleQualification({ draft, evidence: bootstrap, reviewJob: ctx.job });
     repo.appendReviewStage({ commandId: 's2', reviewId: 'review', stage: 'matrix-frozen', payload: { bootstrap, assembled } });
     const execution = await executeQualification(ctx, { ...assembled, matrix: assembled.matrix });
     repo.appendReviewStage({ commandId: 's3', reviewId: 'review', stage: 'qualification', payload: { execution } });
-    const prompt = await controlQualificationReviewPrompt({ ...assembled, pairs: execution.pairs },1_000_000,presentation), review = await model(prompt); ctx.save();
+    Object.assign(ctx.job.proofs,execution.proofs);ctx.save();
+    const qualificationCausalEvidence=presentation==='complete-v3'?captureQualificationCausalEvidence({job:ctx.job,matrix:assembled.matrix,pairs:execution.pairs,executionProofs:execution.proofs,dataDir:f.root}):undefined;
+    const prompt = await controlQualificationReviewPrompt({ ...assembled, pairs: execution.pairs,...(qualificationCausalEvidence?{qualificationCausalEvidence}:{}) },1_000_000,presentation), review = await model(prompt); ctx.save();
     repo.appendReviewStage({ commandId: 's4', reviewId: 'review', stage: 'independent-review', payload: { review, promptDigest: digest(prompt) } });
     await writeFile(join(ctx.output, 'report.json'), JSON.stringify({ results: ctx.job.results, controls: ctx.job.controls, evaluation: ctx.job.evaluation, error: ctx.job.error })); ctx.job.proofs = await proofs(); finish();
     const content = { schemaVersion: 1 as const, id: 'qualification:review', proposalId: proposal.id, proposalDigest: lineage.bindingForProposal(proposal.id).proposalDigest, controlDraftDigest: draft.digest, reviewJobId: 'review', environmentDigest: ctx.job.environmentDigest, bootstrap, assembled, execution, independentReview: review, reviewPromptDigest: digest(prompt), proofs: ctx.job.proofs };
@@ -82,7 +85,7 @@ async function fixture(t: TestContext) {
   return { ...f, get db() { return db; }, get repo() { return repo; }, get lineage() { return lineage; }, draft, proposal, ctx, run, record, saveRun, author, finish, proofs, model, complete, reopen() { db.close(); db = new DatabaseSync(dbPath); repo = new ControlQualificationRepository(db, f.root); lineage = new VerificationLineageRepository(db); } };
 }
 
-async function deliveredFixture(t: TestContext,presentation?:'compact-v2') {
+async function deliveredFixture(t: TestContext,presentation?:'compact-v2'|'complete-v3') {
   const f = await fixture(t), evidence = await f.complete(presentation); f.repo.recordQualification({ commandId: 'final-receipt', reviewId: 'review', evidence }); f.lineage.publishBound({ commandId: 'publish', proposalId: 'proposal', reviewId: 'review', expectedBaseProposalId: null, expectedHeadRevision: 0 });
   const proposal = JSON.parse(String(f.db.prepare("SELECT record FROM verification_records WHERE kind='proposal' AND id='proposal'").get()!.record)) as Proposal;
   const candidate = await captureCandidate(join(f.root, 'good'), join(f.root, 'final-candidate'));
@@ -113,7 +116,7 @@ test('P6-HISTV2-I01 actual SQLite qualification receipt and full final command p
 });
 
 test('P6-HISTV2-I02 changed current environment head child workspace and source TTL do not erase authentic V2 history', async t => {
-  const { f, load, options } = await deliveredFixture(t), snapshot = load();
+  const { f, load, options } = await deliveredFixture(t,'complete-v3'), snapshot = load();
   snapshot.head = { proposalId: 'later-proposal' }; snapshot.conversation = { id: 'conversation', projectId: 'project', workspace: snapshot.runtime.workspace, firstRunId: 'run', activeRunId: 'child', activeSessionId: 'child', authorizedLimit: 1000, createdAt: snapshot.delivery.createdAt }; snapshot.round = { conversationId: 'conversation', ordinal: 1, sessionId: 'run', projectId: 'project', runId: 'run', predecessorRunId: null, predecessorDeliveryId: null, createdAt: snapshot.delivery.createdAt };
   await writeFile(join(snapshot.runtime.workspace, 'data.json'), '{"sum":100}');
   const assessed = await assessDeliveryEvidence(snapshot, { ...options(), currentEnvironmentDigest: digest('new-environment'), checkedAt: new Date(Date.parse(snapshot.delivery.createdAt) + 120_000).toISOString() });

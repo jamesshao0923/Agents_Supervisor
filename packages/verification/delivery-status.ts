@@ -1,3 +1,4 @@
+import { captureQualificationCausalEvidence } from './qualification-causal-evidence.js';
 import {decodeQualificationReviewPrompt} from './qualification-review-wire.js';
 import type {MaintenanceReviewPayload} from '../contracts/p6-control-maintenance.js';
 import {assertMaintenanceContext,assertRegressionContext} from './control-maintenance-replay.js';
@@ -306,11 +307,11 @@ async function qualifiedFiles(history: QualifiedHistory, options: DeliveryAssess
       && typeof inputs[0]!.value.prompt === 'string'
       && digest(inputs[0]!.value.prompt) === receipt.reviewPromptDigest, 'history-evidence-invalid', 'Historical review prompt differs from its recorded digest');
   const prompt = inputs[0]!.value.prompt as string, newline = prompt.indexOf('\n'); ensure(newline > 0, 'history-evidence-invalid', 'Historical review context is absent');
-  const {payload} = decodeQualificationReviewPrompt(prompt), implementationText: Record<string, Record<string, string>> = {}, specimenText: Record<string, Record<string, string>> = {};
+  const {payload, presentation} = decodeQualificationReviewPrompt(prompt), implementationText: Record<string, Record<string, string>> = {}, specimenText: Record<string, Record<string, string>> = {};
   for (const definition of receipt.assembled.definitions) { const files: Record<string, string> = {}; for (const name of Object.keys(definition.bundle.files)) files[name] = new TextDecoder('utf-8', { fatal: true }).decode(await read(join(definition.bundle.directory, name))); implementationText[definition.definition.definitionDigest] = files; }
   for (const specimen of receipt.assembled.specimens) { const files: Record<string, string> = {}; for (const name of Object.keys(specimen.candidate.files)) files[name] = new TextDecoder('utf-8', { fatal: true }).decode(await read(join(specimen.candidate.tree, name))); specimenText[specimen.revision.ref.id + ':' + specimen.revision.ref.revision] = files; }
   const diffs = receipt.assembled.specimens.filter(s => s.revision.predecessor).map(s => { const before = receipt.assembled.specimens.find(p => equal(p.revision.ref, s.revision.predecessor)); ensure(before, 'history-binding-invalid', 'Historical review lacks an original specimen'); return { specimen: s.revision.ref, diff: specimenDiff(before, s) }; });
-  ensure(equal(payload, { rules: receipt.assembled.rules, matrix: receipt.assembled.matrix, pairs: receipt.execution.pairs, deterministicQualification: receipt.execution.evaluation, implementations: implementationText, specimenImplementations: specimenText, diffs,...(history.maintenance?{maintenance:history.maintenance}:{}) }), 'history-evidence-invalid', 'Historical model prompt did not contain the complete frozen qualification');
+  ensure(equal(payload, { ...(presentation==='complete-v3'?{qualificationCausalEvidence:captureQualificationCausalEvidence({job:review,matrix:receipt.assembled.matrix,pairs:receipt.execution.pairs,executionProofs:receipt.execution.proofs,dataDir:options.dataDir})}:{}),rules: receipt.assembled.rules, matrix: receipt.assembled.matrix, pairs: receipt.execution.pairs, deterministicQualification: receipt.execution.evaluation, implementations: implementationText, specimenImplementations: specimenText, diffs,...(history.maintenance?{maintenance:history.maintenance}:{}) }), 'history-evidence-invalid', 'Historical model prompt did not contain the complete frozen qualification');
   ensure(events.some(e => e.kind === 'codex-event'
       && e.value?.method === 'turn/completed'
       && e.value?.raw?.params?.threadId === model.threadId

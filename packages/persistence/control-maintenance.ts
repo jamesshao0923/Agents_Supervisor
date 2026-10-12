@@ -542,8 +542,8 @@ export class ControlMaintenanceRepository {
             assertRecordedStops(job, reader);
         }
     }
-    reviewPayload(proposalId: string, reviewId: string, presentation?:'causal-v1'): unknown | null {
-        ensure(presentation===undefined||presentation==='causal-v1','Unknown maintenance causal presentation');
+    reviewPayload(proposalId: string, reviewId: string, presentation?:'causal-v1'|'causal-v2'): unknown | null {
+        ensure(presentation===undefined||(presentation==='causal-v1'||presentation==='causal-v2'),'Unknown maintenance causal presentation');
         const proposal = this.object<Proposal>('proposal', proposalId), source = this.sourcesForProposal(proposal);
         if (!source)
             return null;
@@ -591,7 +591,31 @@ export class ControlMaintenanceRepository {
             for(const side of ['bad','good']as const)operations.push({role:side==='bad'?'bad-replay':'good-replay',defectRef:original.defectRef,job:review,instance:replay.instance,candidateDigest:side==='bad'?original.candidate.digest:replay.passingCandidate.digest,output:join(root,'maintenance-'+replay.id+'-'+side,replay.instance.id),label:'maintenance-'+replay.id+'-'+side,result:replay[side][0]!,fixedProofs:stage.executionProofs});
         }
         const causalEvidence=captureMaintenanceCausalEvidence({proposalId,reviewId,replayStageDigest:stage.digest,operations},new FrozenReader(dataDir));
-        return {...legacy,causalEvidence};
+        if(presentation==='causal-v1')return {...legacy,causalEvidence};
+        const eligible=[];
+        for(const replay of stage.replays){
+            const inherited=this.executionRegressionSource(replay.source,proposal.id,replay.instance,'bad');
+            if(!inherited)continue;
+            const old=inherited.proposal,oldReview=this.object<VerificationJob>('job',old.reviewId!),definition=proposal.spec.cases.find(c=>c.id===replay.instance.caseId&&c.revision===replay.instance.revision)!;
+            ensure(definition.verifier.kind==='command'&&!definition.verifier.build,'Host execution regression supports command/no-build only');
+            const files=[];const hostReader=new FrozenReader(dataDir);hostReader.definition(old.spec,old.bundle);hostReader.definition(proposal.spec,proposal.bundle);
+            for(const name of definition.verifier.files){
+                const originalPath=join(old.bundle.directory,name),currentPath=join(proposal.bundle.directory,name),original=hostReader.read(originalPath),current=hostReader.read(currentPath);
+                const originalMode=lstatSync(originalPath).mode&0o111,currentMode=lstatSync(currentPath).mode&0o111;
+                ensure(originalMode===0&&currentMode===0&&digest(original)===old.bundle.files[name]&&digest(current)===proposal.bundle.files[name]&&original.equals(current),'Host execution regression checker assets differ');
+                files.push({name,originalPath,currentPath,sha256:digest(original),originalCurrentExecutableBits:originalMode,currentExecutableBits:currentMode});
+            }
+            const reviewPath=join(verificationDirectory(dataDir,oldReview),'definition-review','result.json'),reviewBytes=hostReader.read(reviewPath);
+            ensure(digest(reviewBytes)===oldReview.proofs[reviewPath],'Host original independent review proof differs');
+            const reviewed=JSON.parse(reviewBytes.toString('utf8'));
+            ensure(reviewed.verdict==='passed'&&reviewed.stopConfirmed===true,'Host original independent review lacks passed/stopped result');
+            eligible.push({role:'original-execution-regression-v1',defectRef:replay.defectRef,sourceFailureJobId:inherited.job.id,sourcePlanId:inherited.job.planId,
+                originalProposalId:old.id,originalPublishedStatus:old.status,originalDefinitionDigest:old.bundle.digest,currentProposalId:proposal.id,currentDefinitionDigest:proposal.bundle.digest,
+                originalInstance:replay.source.instance,currentInstance:replay.instance,originalCase:old.spec.cases.find(c=>c.id===replay.source.instance.caseId&&c.revision===replay.source.instance.revision),currentCase:definition,
+                originalIndependentReview:{id:oldReview.id,proposalId:oldReview.proposalId,approved:oldReview.approved,usage:oldReview.usage,usageUnknown:oldReview.usageUnknown,stopConfirmed:oldReview.stopConfirmed,config:oldReview.config,proof:{path:reviewPath,sha256:digest(reviewBytes),encoding:'utf8',content:reviewBytes.toString('utf8')}},
+                checkerAssets:files,meaning:'Host revalidated exact published independently approved single-obligation/no-build/single-entry inherited case, original normal nonzero/no-checker witness, current bad replay and good entry/checker through existing source/replay guards. Asset mode facts are current reads of frozen original and inherited files; legacy definition digests did not historically bind mode. This role proves that exact execution regression, not arbitrary business assertion coverage or semantic approval.'});
+        }
+        return {...legacy,causalEvidence,hostEligibility:{schemaVersion:1,kind:'original-execution-regression-host-eligibility',proposalId,reviewId,replayStageDigest:stage.digest,eligible}};
     }
     /** A recorded mandatory gap cannot be bypassed by manually delivering its old baseline. */
     assertDelivery(projectId: string, runId: string, contractDigest: string): void {

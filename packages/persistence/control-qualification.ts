@@ -1,3 +1,4 @@
+import { captureQualificationCausalEvidence } from '../verification/qualification-causal-evidence.js';
 import {decodeQualificationReviewPrompt} from '../verification/qualification-review-wire.js';
 import {expandedAuthorInput} from '../orchestration/indexed-history-presentation.js';
 import {assertIndexedAuthorArchive} from '../runtime/indexed-research-consumer.js';
@@ -256,7 +257,7 @@ export class ControlQualificationRepository {
     const inputs = bytes.toString().trim().split('\n').map(line => JSON.parse(line)).filter(e => e.kind === 'review-input');
     ensure(inputs.length === 1 && typeof inputs[0].value?.prompt === 'string', 'Maintenance review lacks unique input');
     const decoded = decodeQualificationReviewPrompt(inputs[0].value.prompt);
-    return repo.reviewPayload(stage.proposalId, reviewId, decoded.compact ? 'causal-v1' : undefined) as import('../contracts/p6-control-maintenance.js').MaintenanceReviewPayload;
+    return repo.reviewPayload(stage.proposalId, reviewId, decoded.presentation === 'complete-v3' ? 'causal-v2' : decoded.compact ? 'causal-v1' : undefined) as import('../contracts/p6-control-maintenance.js').MaintenanceReviewPayload;
 }
   private jobRoot(job: VerificationJob): string {
     if (this.dataDir) return verificationDirectory(this.dataDir,job);
@@ -290,7 +291,7 @@ export class ControlQualificationRepository {
         && typeof inputs[0]!.value.prompt === 'string'
         && digest(inputs[0]!.value.prompt) === evidence.reviewPromptDigest, 'Independent model prompt differs from frozen review context');
     const prompt = inputs[0]!.value.prompt as string, newline = prompt.indexOf('\n'); ensure(newline > 0, 'Independent review lacks complete qualification context');
-    const {payload, compact} = decodeQualificationReviewPrompt(prompt), assembled = evidence.assembled;
+    const {payload, compact, presentation} = decodeQualificationReviewPrompt(prompt), assembled = evidence.assembled;
     const implementations: Record<string, Record<string, string>> = {}, specimenImplementations: Record<string, Record<string, string>> = {};
     for (const definition of assembled.definitions) implementations[definition.definition.definitionDigest] = Object.fromEntries(Object.keys(definition.bundle.files).map(name => [name, new TextDecoder('utf-8', { fatal: true }).decode(reader.read(join(definition.bundle.directory, name)))]));
     for (const specimen of assembled.specimens) specimenImplementations[specimen.revision.ref.id + ':' + specimen.revision.ref.revision] = Object.fromEntries(Object.keys(specimen.candidate.files).map(name => [name, new TextDecoder('utf-8', { fatal: true }).decode(reader.read(join(specimen.candidate.tree, name)))]));
@@ -300,7 +301,7 @@ export class ControlQualificationRepository {
     const researchWorkflow=native?researchQualificationReviewContext(this.db,proposal,this.run(proposal.projectId,proposal.runId).contract):undefined;
     const sourceRefreshEvidence=sourceRefreshReviewEvidence({matrix:assembled.matrix,pairs:evidence.execution.pairs,observations:job.materials??[]});
     const materialProjections=materialProjectionReviewEvidence(evidence.execution.pairs,job.materials??[],assembled);
-    ensure(same(payload, { ...(sourceRefreshEvidence?{sourceRefreshEvidence}:{}),...(researchWorkflow?{researchWorkflow}:{}),...(materialProjections.length?{materialProjections}:{}),rules: assembled.rules, matrix: assembled.matrix, pairs: evidence.execution.pairs, deterministicQualification: evaluateControlQualification(assembled.matrix, evidence.execution.pairs), implementations, specimenImplementations, diffs, ...(()=>{const value=new ControlMaintenanceRepository(this.db,this.dataDir).reviewPayload(job.proposalId,job.id,compact?'causal-v1':undefined);return value?{maintenance:value}:{};})() }), 'Independent model did not review the complete actual qualification context');
+    ensure(same(payload, { ...(presentation==='complete-v3'?{qualificationCausalEvidence:captureQualificationCausalEvidence({job,matrix:assembled.matrix,pairs:evidence.execution.pairs,executionProofs:evidence.execution.proofs,dataDir:this.dataDir??dirname(String(this.db.prepare('PRAGMA database_list').all().find(row=>row.name==='main')?.file??''))})}:{}),...(sourceRefreshEvidence?{sourceRefreshEvidence}:{}),...(researchWorkflow?{researchWorkflow}:{}),...(materialProjections.length?{materialProjections}:{}),rules: assembled.rules, matrix: assembled.matrix, pairs: evidence.execution.pairs, deterministicQualification: evaluateControlQualification(assembled.matrix, evidence.execution.pairs), implementations, specimenImplementations, diffs, ...(()=>{const value=new ControlMaintenanceRepository(this.db,this.dataDir).reviewPayload(job.proposalId,job.id,presentation==='complete-v3'?'causal-v2':compact?'causal-v1':undefined);return value?{maintenance:value}:{};})() }), 'Independent model did not review the complete actual qualification context');
     const completed = events.filter(e => e.kind === 'codex-event' && e.value?.method === 'turn/completed').map(e => e.value.raw?.params);
     ensure(completed.some(p => p?.threadId === model.threadId
         && p?.turn?.id === model.turnId

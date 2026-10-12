@@ -1,3 +1,9 @@
+## 2026-10-12 — Complete qualification causal review v3
+
+Extend existing CTRL-I07 (complete row/rawfile inventory, omission/hash rejection and exact v3 roundtrip), QUAL-I04 (v3 atomic publication/reopen), HISTV2-I02 (v3 history despite current-state drift). Keep HISTV2-I01 on compact-v2 and other legacy fixtures unchanged for compatibility. Existing MAINT-I05 runs the new controller presentation through actual maintenance and final verification; its model transport is explicitly synthetic. No stable ID added, removed or deferred; no change to the reduced140 gate or deferred-risk ledger.
+
+Freeze4 full affected suites22cases before execution: 22PASS/0FAIL/0skip, 346837ms, 469source/887compiled no drift. Build/boundaries pass; evidence `.supervisor-dev/p6-complete-causal-v3/`. Actual a036 raw archive reconstruction preserves32rows/36operations/280qualificationfiles plus current host eligibility. Raw878688B/parts886335B/prompt255501B under original1000000B cap. Byte-fit is not token-fit or supplier approval; prior L01unknown/FAIL remains unresolved.
+
 ## 2026-10-12 — Retained original CLI execution regression
 
 Extend existing U01/I09 only. Preserve generic early-entry rejection and original report assertions; add exact inherited single-obligation/single-entry eligibility, a self-owned real SQLite publication and Node bad/good replay, original-source reopen, and in-memory phantom checker rejection. Actual selected results: 2/2 PASS, zero skip; unit 74ms and integration 16.2s. Independent review accepted the narrow source/proof guard and new versioned presentation; old renderers remain unchanged. No new stable ID, default-scope expansion, provider invocation or live delivery claim. Original f07 maintenance FAIL remains.

@@ -1,3 +1,4 @@
+import { captureQualificationCausalEvidence } from './qualification-causal-evidence.js';
 import {expandedAuthorInput} from '../orchestration/indexed-history-presentation.js';
 import {prepareResearchProofPlan} from './research-workflow.js';
 import {readBounded} from '../workspace/research-runtime-files.js';
@@ -341,8 +342,9 @@ export class VerificationController {
     ensure(execution.evaluation.qualified&&execution.stopConfirmed,'Control qualification did not preserve all required positive and negative witnesses');
     const maintenance=this.store.controlMaintenance.sourcesForProposal(proposal);
     if(maintenance){const replay=await executeMaintenanceReplay(context,proposal,maintenance.basis,maintenance.plan);this.store.controlMaintenance.appendReplay(replay);}
-    const maintenancePayload=this.store.controlMaintenance.reviewPayload(proposal.id,context.job.id,'causal-v1');
-    const prompt=await controlQualificationReviewPrompt({...assembled,pairs:execution.pairs,materialObservations:context.job.materials??[],...(proposal.researchProofPlanDigest?{researchWorkflow:this.store.researchWorkflow.qualificationReviewContext(proposal.id)}:{}),...(maintenancePayload?{maintenance:maintenancePayload}:{})},1_000_000,maintenancePayload?'compact-v2':undefined);
+    if(maintenance){Object.assign(context.job.proofs,execution.proofs);context.save();}
+    const maintenancePayload=this.store.controlMaintenance.reviewPayload(proposal.id,context.job.id,'causal-v2');
+    const prompt=await controlQualificationReviewPrompt({...assembled,pairs:execution.pairs,materialObservations:context.job.materials??[],...(proposal.researchProofPlanDigest?{researchWorkflow:this.store.researchWorkflow.qualificationReviewContext(proposal.id)}:{}),...(maintenancePayload?{maintenance:maintenancePayload,qualificationCausalEvidence:captureQualificationCausalEvidence({job:context.job,matrix:assembled.matrix,pairs:execution.pairs,executionProofs:execution.proofs,dataDir:this.dataDir})}:{})},1_000_000,maintenancePayload?'complete-v3':undefined);
     const independentReview=await reviewModel(context,prompt,proposal.candidate.tree,join(context.output,'definition-review'));
     context.save();context.eligible();
     const reviewPromptDigest=digest(prompt);
