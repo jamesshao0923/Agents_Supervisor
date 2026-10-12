@@ -17,6 +17,7 @@ import { spawnManagedProcess, terminateProcess, type ManagedProcess, type Proces
 
 export interface ReasonerInput {
   indexed?: IndexedResearchConsumer;
+  images?: string[];
   id: string; cwd: string; logDir: string; prompt: string; outputSchema: Record<string, unknown>;
   model: string; effort: string; timeoutMs: number; signal?: AbortSignal;
   /** Host-frozen author route boundary, additional to the per-request timeout. */
@@ -278,7 +279,8 @@ export async function runReasonerRequest(input: ReasonerInput): Promise<Reasoner
     });
     if (result.threadId && result.threadId !== thread.thread.id) throw new Error('Reasoner thread response mismatch');
     observation.threadId = result.threadId = thread.thread.id; await record('reasoner-thread', thread);
-    const turnInput = [{ type: 'text' as const, text: input.prompt }];
+    if(input.images?.length && !selected.inputModalities.includes('image')) throw new Error('当前模型未公布图片输入能力，请选择支持图片的模型');
+    const turnInput = [{ type: 'text' as const, text: input.prompt }, ...(input.images??[]).map(path=>({type:'localImage' as const,path}))];
     eligible();
     await record('provider-schema', providerSchema);
     const providerSchemaDigest = providerSchema.providerSchemaDigest;

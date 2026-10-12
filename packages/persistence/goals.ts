@@ -65,7 +65,7 @@ export class GoalRepository {
     const parents=repository.clarificationParents(messageId);
     const processing=repository.beginProcessing(messageId);ensure(processing.processing?.runId===s.id&&processing.processing.baseContractVersion===this.run(s).contract.version,'Follow-up message has a stale processing boundary');
     for(const source of [...parents,message]){
-      const requirement={id:source.id,role:'user' as const,text:source.text,createdAt:source.createdAt};
+      const requirement={id:source.id,role:'user' as const,text:source.text,createdAt:source.createdAt,...(source.attachments?{attachments:structuredClone(source.attachments)}:{})};
       const existing=s.messages.find(m=>m.id===source.id);
       if(source.kind==='question')ensure(!existing,'Read-only question was incorrectly included in requirements');
       else if(existing)ensure(canonical(existing)===canonical(requirement),'Immutable follow-up requirement changed');else s.messages.push(requirement);
@@ -220,7 +220,7 @@ export class GoalRepository {
       }else {
         const conversations=new ConversationRepository(this.db);
         ensure(!conversations.hasPendingForRun(s.projectId,s.id)&&!s.jobs.some(j=>j.followup&&conversations.message(j.followup.messageId).state==='processing'),'Pending follow-up prevents legacy answer or restore');
-        if(a.type==='answer'){ensure(!s.runtimeId&&!s.jobs.some(j=>j.status==='running'),'Cannot change requirements during execution or reasoning');s.messages.push({id:`${s.id}:message:${s.messages.length+1}`,role:'user',text:a.text,createdAt:new Date().toISOString()});s.proposal=null;}
+        if(a.type==='answer'){ensure(!s.runtimeId&&!s.jobs.some(j=>j.status==='running'),'Cannot change requirements during execution or reasoning');s.messages.push({id:`${s.id}:message:${s.messages.length+1}`,role:'user',text:a.text,createdAt:new Date().toISOString(),...(a.attachments?{attachments:structuredClone(a.attachments)}:{})});s.proposal=null;}
         if(a.type==='restore'&&s.runtimeId){const runtime=new RuntimeRepository(this.db).inspect(s.runtimeId);ensure(['awaiting-verification','paused','blocked'].includes(runtime.runtime.phase)&&runtime.run.attempts.every(x=>x.status!=='running'&&x.settled),'Runtime must be quiescent before context restoration');}
         this.begin(s,a.type==='restore'?'restore':'requirements');
       }

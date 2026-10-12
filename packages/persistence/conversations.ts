@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
+import {validateTaskAttachments} from '../contracts/task-attachments.js';
 import type { Run } from '../contracts/p1.js';
 import type { GoalSession } from '../contracts/p5.js';
 import type { Conversation, ConversationBudget, ConversationChildAuthorization, ConversationMessage, ConversationMessageInput, ConversationMessageState, ConversationRound, TerminalAssessmentJob } from '../contracts/p6.js';
@@ -50,10 +51,11 @@ export class ConversationRepository {
   });}
   private insertRound(round:ConversationRound):void {this.db.prepare('INSERT INTO conversation_rounds(conversation_id,ordinal,session_id,project_id,run_id,record) VALUES (?,?,?,?,?,?)').run(round.conversationId,round.ordinal,round.sessionId,round.projectId,round.runId,canonical(round));}
   receive(input:ConversationMessageInput):ConversationMessage {return this.tx(()=>{
-    ensure(input&&typeof input==='object'&&Object.keys(input).filter(k=>k!=='replyToMessageId').sort().join(',')==='commandId,conversationId,kind,source,text','Invalid conversation message fields');
+    ensure(input&&typeof input==='object'&&Object.keys(input).filter(k=>k!=='replyToMessageId'&&k!=='attachments').sort().join(',')==='commandId,conversationId,kind,source,text','Invalid conversation message fields');
     ensure(typeof input.commandId==='string'&&input.commandId.trim()&&input.commandId.length<=4096&&!input.commandId.includes('\0'),'Invalid message commandId');
     ensure(input.source==='user'&&['question','change','unclassified'].includes(input.kind),'Invalid message provenance or kind');
     ensure(typeof input.text==='string'&&input.text.trim()&&input.text.length<=40000&&!input.text.includes('\0'),'Invalid message text');
+    if(input.attachments!==undefined)validateTaskAttachments(input.attachments);
     const previous=this.db.prepare('SELECT request,record FROM conversation_messages WHERE command_id=?').get(input.commandId);
     if(previous){ensure(previous.request===canonical(input),'Conflicting conversation commandId');return JSON.parse(String(previous.record)) as ConversationMessage;}
     if(input.replyToMessageId!==undefined){

@@ -1,3 +1,4 @@
+import {taskAttachmentContext} from '../workspace/task-attachments.js';
 import {EXPLORATION_GUIDANCE} from './exploration.js';
 import {DEFAULT_GOAL_LOOP_POLICY} from '../contracts/p7-goal-loop.js';
 import {prepareGoalGraphAdmission,DEFAULT_GRAPH_ADMISSION,type GraphAdmissionOptions} from './graph-admission.js';
@@ -100,9 +101,10 @@ export class OrchestrationController {
       const requiredMemoryIds=snapshot.records.filter(r=>r.id.startsWith('execution:')&&r.validity?.taskId===s.id).map(r=>r.id);
       const context=await memory.buildContext({taskId:s.id,dependencies,requiredMemoryIds,contract:{version:run.contract.version,goal:s.goal,sources:source(`session:${s.messages[0]!.id}`),requiredCriteria:run.contract.criteria.map(c=>({id:c.id,text:c.description,sources:[{kind:'evidence',ref:`contract:${id}:${run.contract.version}`}]})),constraints:messages},currentRequirements:[ledger],maxChars:contextCapacity,outputReserveChars:6000});
       this.store.goals.update(id,jobId,j=>{j.context=context;});
-      const prompt=prefix+context.text;
+      const attached=await taskAttachmentContext(s.workspace,s.messages);
+      const prompt=prefix+context.text+attached.text;
       if(prompt.length+JSON.stringify(outputSchema).length+6000>s.maxContextChars)throw new Error('Context capacity exceeded; required user constraints were preserved, not truncated');
-      result=await this.reasoner.request({id:jobId,cwd:s.workspace,logDir:join(this.dataDir,'reasoning',jobId),prompt,outputSchema,...job.config,signal,
+      result=await this.reasoner.request({id:jobId,cwd:s.workspace,logDir:join(this.dataDir,'reasoning',jobId),prompt,images:attached.images,outputSchema,...job.config,signal,
         assertEligible:()=>{const x=this.store.goals.inspect(id);if(x.session.phase!=='thinking'||x.session.jobs.at(-1)?.id!==jobId||x.run.status==='cancelled')throw new Error('Reasoning no longer eligible');},
         onIntent:intent=>{this.store.goals.update(id,jobId,j=>{j.intents.push(intent);});},
         onTurnIntent:()=>{this.store.goals.update(id,jobId,j=>{j.modelStarted=true;});},

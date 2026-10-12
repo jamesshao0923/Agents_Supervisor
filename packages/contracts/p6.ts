@@ -1,3 +1,4 @@
+import type {TaskAttachment} from './task-attachments.js';
 import type {SourceRefreshIntent} from './p8-source-refresh.js';
 import type { GoalProposal, GoalSession, ReasonerConfig } from './p5.js';
 import type { Run } from './p1.js';
@@ -29,7 +30,7 @@ export interface ConversationRound {
 }
 export interface ConversationMessageInput {
   conversationId:string; commandId:string; source:'user'; kind:ConversationMessageKind; text:string;
-  replyToMessageId?:string;
+  replyToMessageId?:string; attachments?:TaskAttachment[];
 }
 export interface ConversationProcessing {
   attempt:number; runId:string; baseContractVersion:number; throughSequence:number; startedAt:string;
@@ -37,7 +38,7 @@ export interface ConversationProcessing {
 export interface ConversationMessage {
   id:string; conversationId:string; sequence:number; commandId:string; source:'user';
   kind:ConversationMessageKind; text:string; receivedRunId:string; receivedContractVersion:number;
-  replyToMessageId?:string;
+  replyToMessageId?:string; attachments?:TaskAttachment[];
   createdAt:string; state:ConversationMessageState; processing:ConversationProcessing|null;
   processingHistory:ConversationProcessing[]; response:string|null; appliedContractVersion:number|null;
   history:{state:ConversationMessageState; at:string; reason:string|null}[];

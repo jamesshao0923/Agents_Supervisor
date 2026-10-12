@@ -53,5 +53,6 @@ contextBridge.exposeInMainWorld('supervisor', Object.freeze({
   chooseWorkspace: () => ipcRenderer.invoke('supervisor:choose-workspace'),
   openProjectDirectory: path => ipcRenderer.invoke('supervisor:open-project-directory', path),
   openWorkspace: id => ipcRenderer.invoke('supervisor:open-workspace', id),
+  chooseTaskAttachments: sessionId => ipcRenderer.invoke('supervisor:choose-task-attachments', sessionId),
   chooseImages: () => ipcRenderer.invoke('supervisor:choose-images')
 }));

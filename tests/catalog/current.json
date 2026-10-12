@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-p6-personal-followup-core-v6-supplied-loop-20261012",
+  "revision": "dev-task-chat-attachments-v2-20261012",
   "modules": [
     {
       "id": "dev-contracts",
@@ -1089,6 +1089,30 @@
       "layer": "integration",
       "file": "dist/tests/integration/indexed-refresh-delivery.test.js",
       "timeoutMs": 720000
+    },
+    {
+      "id": "integration-task-attachments",
+      "layer": "integration",
+      "file": "dist/tests/integration/task-attachments.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "unit-task-conversation",
+      "layer": "unit",
+      "file": "dist/tests/unit/task-conversation.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "live-task-attachments",
+      "layer": "live",
+      "file": "dist/tests/live/task-attachments.test.js",
+      "timeoutMs": 200000
+    },
+    {
+      "id": "live-task-chat-followup",
+      "layer": "live",
+      "file": "dist/tests/live/task-chat-followup.test.js",
+      "timeoutMs": 320000
     }
   ],
   "cases": [
@@ -7269,7 +7293,8 @@
         "desktop",
         "p5",
         "v38-combined-impact",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "task-chat-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "desktop goal projection groups requirements by workspace without duplicating admitted runtime or removing legacy tasks",
@@ -7290,7 +7315,8 @@
         "desktop",
         "p5",
         "v38-combined-impact",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "task-chat-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "desktop goal revision merge rejects late snapshots and retains admitted runtime linkage across restore",
@@ -7311,7 +7337,8 @@
         "desktop",
         "p5",
         "v38-combined-impact",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "task-chat-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "desktop pending start identity matches durable command hashing without issuing a second request",
@@ -7433,7 +7460,8 @@
         "desktop",
         "p5",
         "v38-combined-impact",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "task-chat-impact"
       ],
       "prerequisites": "Pinned Node; actual presentation module with explicit capability inputs",
       "assertions": "Four exact IDs; labels ordered; provider reasoning metadata retained; missing preferred model stays unavailable; input immutable",
@@ -7939,7 +7967,8 @@
       "impactTags": [
         "contracts",
         "p6-foundation",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "task-chat-impact"
       ],
       "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
       "assertions": "tests/integration/conversations.test.ts :: P6 conversation SQLite reopens immutable idempotent ordered messages without linking unrelated project goals",
@@ -7959,7 +7988,8 @@
       "impactTags": [
         "contracts",
         "p6-foundation",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "task-chat-impact"
       ],
       "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
       "assertions": "tests/integration/conversations.test.ts :: P6 conversation questions remain read only while failed unclassified changes keep the durable fence",
@@ -7979,7 +8009,8 @@
       "impactTags": [
         "contracts",
         "p6-foundation",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "task-chat-impact"
       ],
       "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
       "assertions": "tests/integration/conversations.test.ts :: P6 conversation processing freezes its input boundary and prevents out of order or concurrent application",
@@ -7999,7 +8030,8 @@
       "impactTags": [
         "contracts",
         "p6-foundation",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "task-chat-impact"
       ],
       "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
       "assertions": "tests/integration/conversations.test.ts :: P6 conversation unknown usage reserves remain charged after reopening",
@@ -8019,7 +8051,8 @@
       "impactTags": [
         "contracts",
         "p6-foundation",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "task-chat-impact"
       ],
       "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
       "assertions": "tests/integration/conversations.test.ts :: P6 conversation linked delivered rounds consume the original authorized budget exactly once",
@@ -8039,7 +8072,8 @@
       "impactTags": [
         "contracts",
         "p6-foundation",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "task-chat-impact"
       ],
       "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
       "assertions": "tests/integration/conversations.test.ts :: P6 conversation rejects reset budgets spent drafts foreign workspaces and parallel active rounds",
@@ -8059,7 +8093,8 @@
       "impactTags": [
         "contracts",
         "p6-foundation",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "task-chat-impact"
       ],
       "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
       "assertions": "tests/integration/conversations.test.ts :: P6 conversation parent transaction rollback restores contract version and message application together",
@@ -8079,7 +8114,8 @@
       "impactTags": [
         "contracts",
         "p6-foundation",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "task-chat-impact"
       ],
       "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
       "assertions": "tests/integration/conversations.test.ts :: P6 conversation fence blocks new runtime claims but lets a claimed input finish without weakening failed-message fences",
@@ -8099,7 +8135,8 @@
       "impactTags": [
         "contracts",
         "p6-foundation",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "task-chat-impact"
       ],
       "prerequisites": "Pinned Node 24; isolated SQLite/filesystem and managed local processes for integration",
       "assertions": "tests/integration/conversations.test.ts :: P6 conversation runtime revision commit-hook rollback restores queued work checkpoint and message atomically",
@@ -8775,7 +8812,8 @@
       "scenario": "desktop conversation projection shows one active task while preserving old round delivery and unrelated projects",
       "impactTags": [
         "p6-followup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "task-chat-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/unit/desktop-conversations.test.ts :: desktop conversation projection shows one active task while preserving old round delivery and unrelated projects",
@@ -8794,7 +8832,8 @@
       "scenario": "desktop conversation admission never duplicates or loses active card while runtime polling catches up",
       "impactTags": [
         "p6-followup",
-        "v38-combined-impact"
+        "v38-combined-impact",
+        "task-chat-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/unit/desktop-conversations.test.ts :: desktop conversation admission never duplicates or loses active card while runtime polling catches up",
@@ -21577,6 +21616,132 @@
       "prerequisites": "Pinned Node and local actual FS/SQLite/owned managed Node where applicable; no provider or native platform.",
       "assertions": "tests/integration/indexed-refresh-delivery.test.ts :: P8-INDEXED-REFRESH-I01 sealed grouped predecessor indexed original epochs survive two same-input refreshes through full independent P4 and reopened third seal",
       "cleanup": "Stop all owned processes and retain original immutable evidence/fees; no global changes.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-task-attachments.001",
+      "name": "task attachments snapshot real files and expose honest bounded text image and video context",
+      "suiteId": "integration-task-attachments",
+      "module": "desktop",
+      "layer": "integration",
+      "covers": [
+        "task-chat-attachments"
+      ],
+      "scenario": "task attachments snapshot real files and expose honest bounded text image and video context",
+      "impactTags": [
+        "task-chat-impact"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/files; live requires Codex login and SUPERVISOR_CHAT_IMAGE actual app screenshot",
+      "assertions": "task attachments snapshot real files and expose honest bounded text image and video context",
+      "cleanup": "Temporary component fixtures removed; live evidence retained under ignored .supervisor-dev",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-task-attachments.002",
+      "name": "task attachments reject changed foreign symlink oversized and overcount inputs without partial selection",
+      "suiteId": "integration-task-attachments",
+      "module": "desktop",
+      "layer": "integration",
+      "covers": [
+        "task-chat-attachments"
+      ],
+      "scenario": "task attachments reject changed foreign symlink oversized and overcount inputs without partial selection",
+      "impactTags": [
+        "task-chat-impact"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/files; live requires Codex login and SUPERVISOR_CHAT_IMAGE actual app screenshot",
+      "assertions": "task attachments reject changed foreign symlink oversized and overcount inputs without partial selection",
+      "cleanup": "Temporary component fixtures removed; live evidence retained under ignored .supervisor-dev",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-task-attachments.003",
+      "name": "task attachment messages persist through real SQLite reopen idempotency and frozen followup requirements",
+      "suiteId": "integration-task-attachments",
+      "module": "desktop",
+      "layer": "integration",
+      "covers": [
+        "task-chat-attachments"
+      ],
+      "scenario": "task attachment messages persist through real SQLite reopen idempotency and frozen followup requirements",
+      "impactTags": [
+        "task-chat-impact"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/files; live requires Codex login and SUPERVISOR_CHAT_IMAGE actual app screenshot",
+      "assertions": "task attachment messages persist through real SQLite reopen idempotency and frozen followup requirements",
+      "cleanup": "Temporary component fixtures removed; live evidence retained under ignored .supervisor-dev",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-task-conversation.001",
+      "name": "task clarification renders concrete numbered questions without collapsed details and hides stale questions",
+      "suiteId": "unit-task-conversation",
+      "module": "desktop",
+      "layer": "unit",
+      "covers": [
+        "task-chat-attachments"
+      ],
+      "scenario": "task clarification renders concrete numbered questions without collapsed details and hides stale questions",
+      "impactTags": [
+        "task-chat-impact"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/files; live requires Codex login and SUPERVISOR_CHAT_IMAGE actual app screenshot",
+      "assertions": "task clarification renders concrete numbered questions without collapsed details and hides stale questions",
+      "cleanup": "Temporary component fixtures removed; live evidence retained under ignored .supervisor-dev",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-task-conversation.002",
+      "name": "task composer exposes labelled editable input attachment controls and explicit media reading limits",
+      "suiteId": "unit-task-conversation",
+      "module": "desktop",
+      "layer": "unit",
+      "covers": [
+        "task-chat-attachments"
+      ],
+      "scenario": "task composer exposes labelled editable input attachment controls and explicit media reading limits",
+      "impactTags": [
+        "task-chat-impact"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/files; live requires Codex login and SUPERVISOR_CHAT_IMAGE actual app screenshot",
+      "assertions": "task composer exposes labelled editable input attachment controls and explicit media reading limits",
+      "cleanup": "Temporary component fixtures removed; live evidence retained under ignored .supervisor-dev",
+      "status": "active"
+    },
+    {
+      "id": "p8.live-task-attachments.001",
+      "name": "real Codex reads an attached Supervisor screenshot and independent text snapshot in one reasoning turn",
+      "suiteId": "live-task-attachments",
+      "module": "desktop",
+      "layer": "live",
+      "covers": [
+        "task-chat-attachments"
+      ],
+      "scenario": "real Codex reads an attached Supervisor screenshot and independent text snapshot in one reasoning turn",
+      "impactTags": [
+        "task-chat-impact"
+      ],
+      "prerequisites": "Pinned Node; actual SQLite/files; live requires Codex login and SUPERVISOR_CHAT_IMAGE actual app screenshot",
+      "assertions": "real Codex reads an attached Supervisor screenshot and independent text snapshot in one reasoning turn",
+      "cleanup": "Temporary component fixtures removed; live evidence retained under ignored .supervisor-dev",
+      "status": "active"
+    },
+    {
+      "id": "p8.live-task-chat-followup.001",
+      "name": "real task chat sends attached image and text through IPC followup and reopens exactly one answered message",
+      "suiteId": "live-task-chat-followup",
+      "module": "desktop",
+      "layer": "live",
+      "covers": [
+        "task-chat-attachments"
+      ],
+      "scenario": "real task chat sends attached image and text through IPC followup and reopens exactly one answered message",
+      "impactTags": [
+        "task-chat-followup-impact"
+      ],
+      "prerequisites": "Authenticated Codex gpt-6-astra low and actual Supervisor screenshot; isolated real IPC service",
+      "assertions": "Actual clarification, attached image/text reply, original requirement preserved, exact idempotent replay after service restart with no new model charge",
+      "cleanup": "Close owned service and processes; preserve actual SQLite and evidence paths",
       "status": "active"
     }
   ]

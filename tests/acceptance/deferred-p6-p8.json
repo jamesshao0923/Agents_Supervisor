@@ -2692,5 +2692,42 @@
       "revisitWhen": "First field project without a supplied verifier, or changes to acceptance-author protocol/semantic mapping; restore initial-author scenario separately.",
       "evidenceScope": "No seeded approval. Actual P4 controls and independent review, real +2 defect, model repair, dynamic mandatory regression maintenance, two publications/three full verifications, delivery/reopen and accounting/stop assertions retained. Original maintenance-author reference equality restored during review."
     }
+  ],
+  "fieldTrialAdditions": [
+    {
+      "date": "2026-10-12",
+      "reason": "User field trial could not locate clarification questions or composer; add visible chat and attachment transport",
+      "addedCaseIds": [
+        "p8.integration-task-attachments.001",
+        "p8.integration-task-attachments.002",
+        "p8.integration-task-attachments.003",
+        "p8.unit-task-conversation.001",
+        "p8.unit-task-conversation.002",
+        "p8.live-task-attachments.001",
+        "p5.unit-desktop-goals.001",
+        "p5.unit-desktop-goals.002",
+        "p5.unit-desktop-goals.003",
+        "p5.unit-desktop-goals.004",
+        "p6.integration-conversations.001",
+        "p6.integration-conversations.002",
+        "p6.integration-conversations.003",
+        "p6.integration-conversations.004",
+        "p6.integration-conversations.005",
+        "p6.integration-conversations.006",
+        "p6.integration-conversations.007",
+        "p6.integration-conversations.008",
+        "p6.integration-conversations.009",
+        "p6.unit-desktop-conversations.001",
+        "p6.unit-desktop-conversations.002",
+        "p8.live-task-chat-followup.001"
+      ],
+      "removedCaseIds": [],
+      "scope": "Only task-chat-impact and existing core checks for this repair. Earlier failures and reduced-stage evidence remain historical.",
+      "deferred": [
+        "Video frame/audio extraction, PDF/Office decoding are explicitly not performed in planning; raw files remain for execution tools.",
+        "Drag/drop and clipboard attachment ingestion; file picker is supported.",
+        "Automatic cleanup of abandoned draft attachment snapshots; preserved to avoid deleting submitted evidence."
+      ]
+    }
   ]
 }

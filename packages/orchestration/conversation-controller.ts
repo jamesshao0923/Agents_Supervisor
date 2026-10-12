@@ -1,3 +1,4 @@
+import {taskAttachmentContext} from '../workspace/task-attachments.js';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -119,9 +120,9 @@ export class ConversationController {
     let usage:number|null=0,stopped=true;const proofs:Record<string,string>={};
     const eligible=()=>{if(this.closing||signal.aborted)throw new Error('询问分析已取消或服务正在关闭');const current=repository.assertAssessmentBoundary(id);if(current.status!=='running')throw new Error('Assessment already finished');};
     try{
-      eligible();const prompt=terminalAssessmentPrompt(job);
+      eligible();const attached=await taskAttachmentContext(job.workspace,[...job.input.session.messages,...job.input.messages]);const prompt=terminalAssessmentPrompt(job)+attached.text;
       if(prompt.length+6000>job.maxContextChars)throw new Error('询问上下文超过容量；完整要求已保留，尚未发送模型。');
-      try{result=await this.reasoner.request({id:job.id,cwd:job.workspace,logDir:join(this.dataDir,'reasoning',job.id),prompt,outputSchema:TERMINAL_ASSESSMENT_SCHEMA,...job.config,signal,assertEligible:eligible,
+      try{result=await this.reasoner.request({id:job.id,cwd:job.workspace,logDir:join(this.dataDir,'reasoning',job.id),prompt,images:attached.images,outputSchema:TERMINAL_ASSESSMENT_SCHEMA,...job.config,signal,assertEligible:eligible,
         onIntent:intent=>{eligible();repository.observeAssessment(id,{intents:[...repository.assessment(id).intents,intent]});},
         onIdentity:identity=>{repository.observeAssessment(id,{identities:[...repository.assessment(id).identities,identity]});},
         onTurnIntent:()=>{eligible();repository.observeAssessment(id,{modelStarted:true});},
@@ -179,12 +180,13 @@ export class ConversationController {
         if(!knownUsage||!stopped||totalUsage>=job.config.reservation||current.run.budget.spent+totalUsage+current.run.budget.verificationReserve>=current.run.budget.limit)throw new Error('没有已确认的剩余分析预算，不能派发下一次模型调用。');
       };
       eligible();
+      const attached=await taskAttachmentContext(initial.session.workspace,[...job.followup!.messages,...this.context(initial.session,job).frozenMessages]);prompt+=attached.text;
       if(prompt.length+6000>initial.session.maxContextChars)throw new Error('跟进上下文超过容量；完整要求已保留，尚未发送模型。');
       const baseUsage=totalUsage;
       let dispatched=false;
       let response:Awaited<ReturnType<SupervisorReasoner['request']>>|undefined;
       try{
-        response=await this.reasoner.request({id:job.id+suffix,cwd:initial.session.workspace,logDir:join(this.dataDir,'reasoning',job.id+suffix),prompt,outputSchema,...job.config,signal,
+        response=await this.reasoner.request({id:job.id+suffix,cwd:initial.session.workspace,logDir:join(this.dataDir,'reasoning',job.id+suffix),prompt,images:attached.images,outputSchema,...job.config,signal,
           assertEligible:eligible,
           onIntent:intent=>{dispatched=true;this.store.goals.update(sessionId,jobId,j=>{j.intents.push(intent);});},
           onIdentity:identity=>{this.store.goals.update(sessionId,jobId,j=>{j.identities.push(identity);});},

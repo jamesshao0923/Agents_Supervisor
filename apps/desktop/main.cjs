@@ -161,6 +161,13 @@ function installBridge() {
     const result = await dialog.showOpenDialog(window, { title: '选择任务工作区', properties: ['openDirectory', 'createDirectory'] });
     return result.canceled ? null : result.filePaths[0] || null;
   });
+  register('choose-task-attachments', async sessionId => {
+    const inspection = await orchestration({type:'inspect',sessionId:id(sessionId)});
+    const result = await dialog.showOpenDialog(window, {title:'添加图片、视频或文件',properties:['openFile','multiSelections']});
+    if(result.canceled || !result.filePaths.length) return [];
+    const {importTaskAttachments} = await import(pathToFileURL(join(__dirname,'../../packages/workspace/task-attachments.js')).href);
+    return importTaskAttachments(inspection.session.workspace,result.filePaths);
+  });
   register('choose-images', async () => {
     const result = await dialog.showOpenDialog(window, { title: '附加真实截图', properties: ['openFile', 'multiSelections'], filters: [{ name: '图像', extensions: ['png', 'jpg', 'jpeg', 'webp'] }] });
     return result.canceled ? [] : result.filePaths;

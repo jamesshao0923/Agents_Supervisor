@@ -1,3 +1,7 @@
+## 2026-10-12 — 试用反馈：任务对话与附件
+
+新增 5 个组件用例和 1 个真实 Codex 图文输入用例、1 个真实 IPC→需求澄清→图文询问→重启幂等用例，复用既有桌面投影与 SQLite 会话重试检查；不删除或替代旧断言。P8 个人范围加入这些影响项，当前修复通过 task-chat-impact 冻结去重选择，不执行全历史。视频/PDF 等规划期解码、拖放/粘贴和草稿快照自动清理延期，见 deferred-p6-p8.json。
+
 ## 2026-10-12 — Personal reduced gate closes with actual L01
 
 No added/removed/retired/deferred IDs or changed stage profile. Keep50/47/51 selections and140unique:139 applicable historical bounded PASS plus fc4ea7b actual L01 PASS. Original supplied driver/helper/model/caps unchanged; actual repair, mandatory regression maintenance,32qualification rows, fresh independent review112087, second publication, third full verification, sealed delivery and reopen completed.362759 known/0unknown/all settled,1575proof hashes match,111owned identities stopped,481source/887compiled no drift. Source evidence `.supervisor-dev/p6-loop-supplied-fc4ea7b-live-work/`; aggregate `.supervisor-dev/p6-p8-personal-aggregate-fc4ea7b/`. Personal reduced status is passed; original profiles remain developing and CLIstagePassed false. Old failures/unknown costs and exact deferred ledger remain unchanged. No extra provider or historical test reruns after terminal.

@@ -1,3 +1,5 @@
+import {TaskClarification, TaskComposer} from './task-conversation.js';
+import {validateTaskAttachments, type TaskAttachment} from '../../packages/contracts/task-attachments.js';
 import {ResearchGroupsProposal} from './research-groups-panel.js';
 import {ExplorationSelector,ExplorationProposal,ExplorationPanel,type ExplorationDesktopAPI} from './exploration-panel.js';
 import type {ExplorationTier} from '../../packages/contracts/p7-scheduler.js';
@@ -71,6 +73,7 @@ interface DesktopAPI extends SupervisionDesktopAPI,DeliveryDesktopAPI,Exploratio
   chooseWorkspace(): Promise<string | null>;
   openProjectDirectory(path: string): Promise<void>;
   openWorkspace(id: string): Promise<void>;
+  chooseTaskAttachments(sessionId: string): Promise<TaskAttachment[]>;
   chooseImages(): Promise<string[]>;
 }
 declare global { interface Window { supervisor: DesktopAPI } }
@@ -106,6 +109,9 @@ function App() {
   const [executions, setExecutions] = useState<ExecutionRecord[]>([]);
   const [runtimes, setRuntimes] = useState<RuntimeRecord[]>([]);
   const [sessions, setSessions] = useState<GoalSession[]>([]);
+  const [attachments, setAttachments] = useState<TaskAttachment[]>([]);
+  const [attaching, setAttaching] = useState(false);
+  const [attachmentError, setAttachmentError] = useState('');
   const [conversations, setConversations] = useState<ConversationInspection[]>([]);
   const [conversationError, setConversationError] = useState('');
   const [conversationBusy, setConversationBusy] = useState(false);
@@ -247,7 +253,7 @@ function App() {
           const pendingMessage = chatPendingRef.current;
           if (pendingMessage && chats.some(value => value.messages.some(message => message.commandId === pendingMessage.commandId))) {
             chatPendingRef.current = null; setChatPending(null);
-            if (selectedConversationRef.current === pendingMessage.conversationId) { setChatText(''); setReplyToMessageId(null); setConversationError(''); }
+            if (selectedConversationRef.current === pendingMessage.conversationId) { setChatText(''); setAttachments([]); setReplyToMessageId(null); setConversationError(''); }
           }
         }
 
@@ -263,7 +269,7 @@ function App() {
   }, [monitoring, revision]);
   useEffect(() => { if (connection === 'online' && composer && !capabilities && !capError) void loadCapabilities(); }, [connection, composer, capabilities, capError, loadCapabilities]);
   useEffect(() => {
-    setGoalDetail(null); setGoalReadError(''); setGoalActionError(''); setAnswerText(''); setShowGoalDetails(false); setChatText(''); setReplyToMessageId(null); setRoundHistory(null); setHistoryError(''); setConversationError('');
+    setGoalDetail(null); setGoalReadError(''); setGoalActionError(''); setAnswerText(''); setAttachments([]); setAttachmentError(''); setShowGoalDetails(false); setChatText(''); setReplyToMessageId(null); setRoundHistory(null); setHistoryError(''); setConversationError('');
   }, [selected]);
   useEffect(() => {
     if (!selected?.startsWith('goal-') || !monitoring || connection !== 'online') { setGoalLoading(false); return; }
@@ -394,15 +400,28 @@ function App() {
     setSessions(current => mergeGoalSessions(current, [inspection.active.session]));
     setSelected(current => current ? activeConversationTaskId([inspection], current) : current);
   }
+  const unresolvedClarification = selectedConversation?.messages.findLast(m=>m.state==='clarifying'&&!selectedConversation.messages.some(reply=>reply.replyToMessageId===m.id));
+  async function chooseTaskAttachments() {
+    const sessionId = selectedConversation?.active.session.id ?? selectedSession?.id;
+    if (!sessionId || attaching) return;
+    const taskId = selectedRef.current;
+    setAttaching(true); setAttachmentError('');
+    try {
+      const chosenFiles = await api.chooseTaskAttachments(sessionId);
+      if (selectedRef.current !== taskId) return;
+      const combined = [...attachments, ...chosenFiles]; validateTaskAttachments(combined); setAttachments(combined);
+    } catch (error) { if(selectedRef.current===taskId) setAttachmentError(errorText(error)); }
+    finally { setAttaching(false); }
+  }
   async function sendChat(request?: ConversationSend) {
     if (!selectedConversation || conversationBusy) return;
-    const input = request ?? {conversationId: selectedConversation.conversation.id, commandId: crypto.randomUUID(), kind: chatKind, text: chatText.trim(), ...(replyToMessageId ? {replyToMessageId} : {})};
+    const input = request ?? {conversationId: selectedConversation.conversation.id, commandId: crypto.randomUUID(), kind: (unresolvedClarification || replyToMessageId || goalSession?.phase==='clarifying') ? 'unclassified' as const : chatKind, text: chatText.trim() || '请结合附件补充本次需求。', ...(attachments.length?{attachments}: {}), ...((replyToMessageId || unresolvedClarification?.id) ? {replyToMessageId: replyToMessageId || unresolvedClarification!.id} : {})};
     if (!input.text || (chatPendingRef.current && chatPendingRef.current.commandId !== input.commandId)) return;
     chatPendingRef.current = input; setChatPending(input); setConversationBusy(true); setConversationError(''); conversationGeneration.current++;
     try {
       const inspection = await api.conversationSend(input); conversationGeneration.current++; rememberConversation(inspection);
       chatPendingRef.current = null; setChatPending(null);
-      if (selectedConversationRef.current === input.conversationId) { setChatText(''); setReplyToMessageId(null); }
+      if (selectedConversationRef.current === input.conversationId) { setChatText(''); setAttachments([]); setReplyToMessageId(null); }
       setRevision(value => value + 1);
     } catch (error) { if (selectedConversationRef.current === input.conversationId) setConversationError(`消息提交结果待核对：${errorText(error)}。请求编号已保留，重试会使用同一编号。`); }
     finally { setConversationBusy(false); }
@@ -438,28 +457,21 @@ function App() {
     const pendingHere = chatPending?.conversationId === value.conversation.id ? chatPending : null;
     const pendingElsewhere = Boolean(chatPending && !pendingHere);
     return <section className="conversation-panel" aria-label="同一任务持续跟进">
-      <h3 className="section-title">同一任务持续跟进<span className="pill">第 {value.rounds.length} 轮</span></h3>
+      <h3 className="section-title">任务对话<span className="pill">第 {value.rounds.length} 轮</span></h3>
       <p className="form-hint">执行中也可发送补充要求。后台会等待安全时机再应用；询问仅答复，交付后追加工作会保留历史交付并开启下一轮。</p>
-      <dl className="facts conversation-budget"><dt>累计授权</dt><dd>{count(value.budget.limit)} tokens</dd><dt>实际支出</dt><dd>{count(value.budget.spent)} tokens</dd><dt>待结算预留</dt><dd>{count(value.budget.reserved)} tokens</dd><dt>当前可用</dt><dd>{count(value.budget.available)} tokens</dd></dl>
+      <details className="conversation-accounting"><summary>查看累计用量</summary><dl className="facts conversation-budget"><dt>累计授权</dt><dd>{count(value.budget.limit)} tokens</dd><dt>实际支出</dt><dd>{count(value.budget.spent)} tokens</dd><dt>待结算预留</dt><dd>{count(value.budget.reserved)} tokens</dd><dt>当前可用</dt><dd>{count(value.budget.available)} tokens</dd></dl></details>
       {!online && <div className="notice compact">后台连接已断开，消息与预算为上次已知状态；重连后继续核对。</div>}
       {(value.budget.reasoningSpent > 0 || value.budget.reasoningReserved > 0) && <p className="form-hint">其中交付后询问已花费 {count(value.budget.reasoningSpent)} tokens，待结算 {count(value.budget.reasoningReserved)} tokens；已计入上方累计费用。</p>}
       <ol className="conversation-messages" aria-label="持续跟进消息">{value.messages.map(message => <li key={message.id} className={`conversation-message ${message.state}`}>
         <div className="event-meta"><span>{message.kind === 'question' ? '仅询问' : message.kind === 'change' ? '补充要求' : '用户消息'}</span><time dateTime={message.createdAt}>{date(message.createdAt)}</time></div>
-        <p>{message.text}</p><span className="pill" role="status">{conversationStateLabels[message.state]}{message.appliedContractVersion !== null ? ` · 要求 v${message.appliedContractVersion}` : ''}</span>
+        <p>{message.text}</p>{message.attachments?.map(file=><p className="form-hint" key={file.path}>附件：{file.name}</p>)}<span className="pill" role="status">{conversationStateLabels[message.state]}{message.appliedContractVersion !== null ? ` · 要求 v${message.appliedContractVersion}` : ''}</span>
         {message.response && <div className="conversation-response"><strong>主控答复</strong><p>{message.response}</p></div>}
         {message.history.at(-1)?.reason && <p className="form-hint">{message.history.at(-1)?.reason}</p>}
         {value.assessmentJobs.filter(job => job.messageId === message.id && job.status === 'running').map(job => <button key={job.id} className="button danger" disabled={!online || conversationBusy || job.cancelRequested} onClick={() => {void cancelAssessment(message.id,job.id);}}>{job.cancelRequested ? '正在停止询问…' : '停止这次询问'}</button>)}
         {message.state === 'clarifying' && <button className="button" disabled={!online || conversationBusy || Boolean(chatPending)} onClick={() => { setReplyToMessageId(message.id); setChatKind('unclassified'); }}>回答这条澄清</button>}
         {message.state === 'failed' && <button className="button" disabled={!online || conversationBusy || Boolean(chatPending)} onClick={() => { void retryChat(message.id); }}>重试处理</button>}
       </li>)}</ol>
-      {conversationError && <div className="notice error compact" role="alert">{conversationError}</div>}
-      <form className="conversation-composer" onSubmit={event => {event.preventDefault(); void sendChat(pendingHere ?? undefined);}}>
-        {replyToMessageId && <p className="form-hint">正在回答一条澄清；原问题仍保留。<button type="button" className="plain-button" onClick={() => setReplyToMessageId(null)}>取消回复关联</button></p>}
-        <label className="field"><span>消息用途</span><select aria-label="跟进消息用途" value={chatKind} disabled={conversationBusy || Boolean(chatPending) || Boolean(replyToMessageId)} onChange={event => setChatKind(event.target.value as ConversationSend['kind'])}><option value="unclassified">让主控判断</option><option value="question">仅询问，不修改要求</option><option value="change">修改或补充要求</option></select></label>
-        <label className="field"><span>给当前任务发消息</span><textarea aria-label="同一任务消息" placeholder="例如：增加一个比较维度，或询问当前进展…" value={pendingHere?.text ?? chatText} onChange={event => setChatText(event.target.value)} maxLength={40000} disabled={!online || conversationBusy || Boolean(chatPending)} required={!chatPending}/></label>
-        {pendingHere && <p className="form-hint">有一条提交结果待核对的消息。后台同步会核对同一请求，避免重复追加。</p>}{pendingElsewhere && <p className="form-hint">另一任务有一条消息提交结果待核对，请返回原任务核对后继续发送。</p>}
-        <button type="submit" className="button primary" disabled={!online || conversationBusy || pendingElsewhere || (!pendingHere && !chatText.trim())}>{conversationBusy ? '正在提交…' : pendingHere ? '重试同一条消息' : '发送消息'}</button>
-      </form>
+
       {value.rounds.length > 1 && <details className="conversation-history"><summary>历史轮次与交付（{value.rounds.length - 1} 轮）</summary>{value.rounds.filter(round => round.runId !== value.conversation.activeRunId).map(round => <button key={round.runId} className="button ghost" disabled={!online || conversationBusy} onClick={() => {void inspectRound(round);}}>查看第 {round.ordinal} 轮</button>)}</details>}
       {historyError && <div className="notice error compact" role="alert">{historyError}</div>}
       {roundHistory && <div className="conversation-history-detail"><h4>第 {roundHistory.round.ordinal} 轮历史记录</h4><p>{roundHistory.goal.run.contract.goal}</p><p className="form-hint">要求 v{roundHistory.goal.run.contract.version} · 实际支出 {count(roundHistory.goal.run.budget.spent)} tokens · {roundHistory.goal.run.status === 'succeeded' ? '已有独立交付记录' : '未完成交付'}</p>{roundHistory.verification?.deliveries.map(delivery => <dl key={delivery.id} className="facts"><dt>保留交付</dt><dd className="mono">{delivery.id}</dd><dt>时间</dt><dd>{date(delivery.createdAt)}</dd><dt>候选摘要</dt><dd className="mono">{delivery.candidateDigest}</dd></dl>)}<p className="form-hint">历史通过不表示当前轮次已通过；当前操作始终针对第 {value.rounds.length} 轮。</p></div>}
@@ -489,7 +501,7 @@ function App() {
       }
       goalPendingRef.current = null; setGoalPending(null); rememberGoal(inspection);
       if (selectedRef.current === action.sessionId) {
-        if (type === 'answer') setAnswerText('');
+        if (type === 'answer') {setAnswerText('');setAttachments([]);}
         if (type === 'admit') await openSessionRuntime(inspection.session);
         setRevision(value => value + 1);
       }
@@ -501,7 +513,7 @@ function App() {
   function goalAction(type: 'answer' | 'admit' | 'restore' | 'cancel') {
     if (!goalSession) return;
     const base = { commandId: crypto.randomUUID(), sessionId: goalSession.id };
-    const action: GoalMutation = type === 'cancel' ? { type, ...base } : type === 'answer' ? { type, ...base, expectedRevision: goalSession.revision, text: answerText.trim() } : { type, ...base, expectedRevision: goalSession.revision, ...(type==='admit'?{explorationTier}:{}) };
+    const action: GoalMutation = type === 'cancel' ? { type, ...base } : type === 'answer' ? { type, ...base, expectedRevision: goalSession.revision, text: answerText.trim() || '请结合附件补充本次需求。', ...(attachments.length?{attachments}: {}) } : { type, ...base, expectedRevision: goalSession.revision, ...(type==='admit'?{explorationTier}:{}) };
     void performGoalAction(action);
   }
   async function control(kind: 'pause' | 'resume' | 'cancel' | 'reconcile') {
@@ -640,7 +652,7 @@ function App() {
           {online && <button className="button ghost" onClick={() => setMonitoring(false)}>断开界面</button>}
           <button className="button primary" onClick={() => newTask(project)}><Icon name="plus"/>{project ? '在此项目新建' : '新任务'}</button>
         </div></header>
-      <div className="content"><section className="board" aria-label="Agent 工作台">
+      <div className="content"><div className="task-main"><section className="board" aria-label="Agent 工作台">
         {connection === 'offline' && <div className="notice error" role="alert">后台暂不可达，保留上次已知状态。请启动独立后台后重连。<br/>{connectionError}</div>}
         {connection === 'detached' && <div className="notice">界面已停止同步。后台任务继续由独立服务管理；重新连接后核对持久状态。</div>}
         {actionError && <div className="notice error" role="alert">{actionError}</div>}
@@ -671,9 +683,24 @@ function App() {
 
           : <div className="empty"><Icon name="agent" size={36}/><h2>{project?'项目尚无任务':'从一个明确的目标开始'}</h2><p>{project?'该目录已在本窗口挂载；尚未创建持久任务。':'选择已有项目，或直接描述目标。没有项目目录时，Supervisor 会自动创建暂存工作区。'}</p><button className="button primary" onClick={() => newTask(project)}><Icon name="plus"/>创建第一个任务</button></div>}
         {!currentProject && !composer && <div className="single-note"><i className="dot"/>任务按项目目录管理；选择项目继续工作。</div>}
+        {chosen && !composer && <TaskClarification session={goalSession ?? associatedSession ?? null} conversation={selectedConversation}/>}
+        {chosen && !composer && conversationPanel()}
       </section>
+      {chosen && !composer && <TaskComposer
+        text={selectedConversation ? (chatPending?.conversationId===selectedConversation.conversation.id ? chatPending.text : chatText) : answerText}
+        attachments={chatPending?.conversationId===selectedConversation?.conversation.id && chatPending ? chatPending.attachments ?? [] : attachments}
+        disabled={!online || conversationBusy || busy || Boolean(chatPending) || Boolean(goalPending) || attaching || (!selectedConversation && (!goalSession || !goalCanAnswer(goalSession)))}
+        canSend={online && !conversationBusy && !busy && !attaching && (selectedConversation ? (!chatPending || chatPending.conversationId===selectedConversation.conversation.id) && Boolean(chatPending || chatText.trim() || attachments.length) : Boolean(goalSession && goalCanAnswer(goalSession) && goalReady && !goalPending && (answerText.trim() || attachments.length)))}
+        sending={conversationBusy || busy} attaching={attaching} pending={Boolean(chatPending?.conversationId===selectedConversation?.conversation.id && chatPending)}
+        clarifying={Boolean(goalSession?.phase==='clarifying'||unresolvedClarification||replyToMessageId)} kind={chatKind}
+        hint={!online ? '后台未连接，草稿保留。重连后可以发送。' : chatPending && chatPending.conversationId!==selectedConversation?.conversation.id ? '另一任务有待核对消息，请先回到该任务核对。' : !selectedConversation && !goalSession ? '正在读取此任务的会话记录…' : ''}
+        error={attachmentError || conversationError || goalActionError}
+        onText={selectedConversation ? setChatText : setAnswerText} onKind={setChatKind}
+        onAttach={()=>{void chooseTaskAttachments();}} onRemove={index=>setAttachments(current=>current.filter((_,i)=>i!==index))}
+        onSend={()=>{if(selectedConversation) void sendChat(chatPending??undefined);else goalAction('answer');}}
+      />}
+      </div>
       {goalSession && <aside className="detail goal-detail" aria-label="主控需求会话"><header className="detail-header"><div className="detail-title"><h2>需求与执行计划</h2><button className="icon-button" aria-label="关闭需求详情" onClick={() => setSelected(null)}><Icon name="close"/></button></div><p className="detail-goal">{goalSession.goal}</p><span className={`agent-status ${goalSession.phase === 'blocked' ? 'failed' : goalSession.phase === 'thinking' ? '' : 'stopped'}`}><i className="dot"/>{goalSession.phase === 'thinking' && goalSession.runtimeId ? '主控恢复分析中' : goalPhaseLabels[goalSession.phase]}</span></header><div className="detail-body">
-        {conversationPanel()}
         <dl className="facts"><dt>项目目录</dt><dd>{goalSession.workspace}<br/><span className="subtle">{goalSession.workspaceKind === 'managed' ? 'Supervisor 暂存工作区' : '本地项目'}</span></dd><dt>主控模型</dt><dd>{goalSession.config.model} / {goalSession.config.effort}</dd><dt>累计额度</dt><dd>{selectedGoal ? `${count(selectedGoal.run.budget.spent)} / ${count(selectedGoal.run.budget.limit)} tokens` : '正在读取账本'}<br/>{selectedGoal ? `${selectedGoal.run.attempts.filter(attempt => !attempt.settled).length} 次用量待结算` : ''}</dd><dt>上下文容量</dt><dd>{count(goalSession.maxContextChars)} 字符</dd></dl>
         {!online && <div className="notice compact">界面未连接后台，以下为上次已知需求记录；重新连接后核对再操作。</div>}
         {goalReadError && <div className="notice error compact" role="alert">需求记录同步失败，操作已暂停。<details className="technical-details"><summary>查看同步错误</summary><pre>{goalReadError}</pre></details></div>}
@@ -691,7 +718,7 @@ function App() {
           {goalSession.proposal.criteria.length > 0 && <><h3 className="section-title">具体验收要求</h3><ol className="goal-criteria">{goalSession.proposal.criteria.map(item => <li key={item.id}><strong>{item.description}</strong><p className="form-hint">{item.kind === 'command' ? '工程检查' : item.kind === 'ui' ? '界面操作' : '来源核验'} · {item.target}</p><ul>{item.checks.map((check, index) => <li key={index}>{check}</li>)}</ul></li>)}</ol><p className="form-hint">这些是拟定的业务验收要求。准入后仍须独立复核并发布项目验收定义，冻结必要清单并实际验收。</p></>}
         </section>}
         {goalSession.graphAdmission&&<ExplorationPanel key={goalSession.graphAdmission.policy.schedulerId} schedulerId={goalSession.graphAdmission.policy.schedulerId} api={api} online={online}/>}
-        {goalCanAnswer(goalSession) && !selectedConversation && <form className="runtime-input" onSubmit={event => { event.preventDefault(); if (answerText.trim()) goalAction('answer'); }}><label className="field"><span>{goalSession.phase === 'ready' ? '修改或补充计划（尚未开始执行）' : '补充需求（可按问题编号一并回答）'}</span><textarea aria-label="补充需求" value={answerText} onChange={event => setAnswerText(event.target.value)} maxLength={40000} required disabled={!goalReady}/></label><button type="submit" className="button primary" disabled={!goalReady || !answerText.trim()}>{goalSession.phase === 'ready' ? '更新需求并重新分析' : '提交回答并继续分析'}</button></form>}
+
         {goalSession.phase === 'ready' && <div className="notice compact"><p>计划就绪。点击开始执行后，后台将按该提案准入并派发步骤；这一步不会跳过独立验收。</p><button className="button primary" disabled={!goalReady || goalSession.proposal?.decision !== 'ready'} onClick={() => goalAction('admit')}>开始执行</button></div>}
         {goalSession.runtimeId && <section className="goal-runtime"><h3 className="section-title">已准入的执行任务</h3><p className="form-hint">需求记录与执行共用累计账本。恢复主控只读取保存的任务和记忆，不会自动重跑已准入步骤。</p><div className="verification-buttons"><button className="button primary" disabled={!online || busy} onClick={() => { void openSessionRuntime(goalSession); }}>查看执行任务</button><button className="button" disabled={!restoreReady} onClick={() => goalAction('restore')}>恢复主控会话</button></div>{!restoreReady && goalSession.phase !== 'thinking' && <p className="form-hint">{goalTerminal ? '此轮已结束；可在本任务的对话框继续询问或提出新要求。继续开发会保留原交付并建立关联轮次。' : '恢复前需核对执行已暂停、阻塞或进入待验收阶段，且没有仍在运行或用量未结算的尝试。'}</p>}</section>}
         <details className="goal-section"><summary>查看用户输入记录（{goalSession.messages.length} 条）</summary><ol className="goal-messages">{goalSession.messages.map(message => <li key={message.id}><time dateTime={message.createdAt}>{date(message.createdAt)}</time><p>{message.text}</p></li>)}</ol></details>
@@ -699,7 +726,6 @@ function App() {
         {goalPending && goalPending.sessionId === goalSession.id && <div className="notice compact"><p>有待核对的主控请求。重试复用同一请求编号与原记录版本；不会创建第二次派发。</p><div className="verification-buttons"><button className="button" disabled={!online || busy} onClick={() => { void performGoalAction(goalPending); }}>重试同一主控请求</button><button className="button ghost" disabled={busy} onClick={() => { goalPendingRef.current = null; setGoalPending(null); setGoalActionError(''); }}>清除主控待核对记录</button></div><p className="form-hint">清除不会取消后台分析；请先核对实际状态。</p></div>}
       </div><footer className="detail-actions"><button className="button ghost" disabled={!online || busy || goalLoading} onClick={() => setRevision(value => value + 1)}><Icon name="refresh"/>核对需求记录</button>{goalSession.runtimeId && goalSession.phase === 'thinking' && <button className="button danger" disabled={!online || busy || Boolean(goalPending) || sessionRuntime?.cancelled || selectedGoal?.run.status === 'succeeded'} onClick={() => { void cancelSessionRuntime(); }}><Icon name="stop"/>取消任务与主控分析</button>}{!goalSession.runtimeId && goalSession.phase !== 'cancelled' && <button className="button danger" disabled={!online || busy || Boolean(goalPending)} onClick={() => goalAction('cancel')}><Icon name="stop"/>取消需求会话</button>}<button className="button" disabled={busy} onClick={() => { void openWorkspace(goalSession.id); }}><Icon name="folder"/>打开目录</button></footer></aside>}
       {chosen && !goalSession && <aside className="detail" aria-label="任务详情"><header className="detail-header"><div className="detail-title"><h2>{chosenRuntime ? '任务详情' : '尝试详情'}</h2><button className="icon-button" aria-label="关闭任务详情" onClick={() => setSelected(null)}><Icon name="close"/></button></div><p className="detail-goal">{chosen.prompt}</p><Status record={chosen} deliveryLabel={deliveryLabel}/></header><div className="detail-body">
-        {conversationPanel()}
         <dl className="facts"><dt>项目目录</dt><dd>{chosen.workspace}<br/><span className="subtle">{chosen.workspaceKind === 'managed' ? 'Supervisor 暂存工作区 · 持续保留' : '本地项目'}</span></dd><dt>创建时间</dt><dd>{date(chosen.createdAt)}</dd>
           {chosenRuntime && <><dt>步骤位置</dt><dd>{Math.min(chosenRuntime.cursor + 1, chosenRuntime.definition.steps.length)} / {chosenRuntime.definition.steps.length} · {waitingStep?.kind || '全部步骤结束'}</dd><dt>累计用量</dt><dd>{detail ? `${count(detail.run.budget.spent)} tokens · ${detail.run.attempts.filter(attempt => !attempt.settled).length} 次用量待结算` : '等待后台账本'}</dd><dt>预算</dt><dd>{count(chosenRuntime.definition.tokenLimit)} tokens · 验收预留 {count(chosenRuntime.definition.verificationReserve)}</dd></>}
           {chosenExecution && <><dt>模型 / 深度</dt><dd>{chosenExecution.model} / {chosenExecution.effort}</dd><dt>当前尝试</dt><dd>{chosenExecution.state === 'completed' ? '模型执行已结束' : labels[chosenExecution.state]}</dd><dt>进程状态</dt><dd>{chosenExecution.stopConfirmed ? '已确认停止' : '尚未确认停止'}{chosenExecution.pid ? ` · PID ${chosenExecution.pid}` : ''}</dd><dt>超时期限</dt><dd>{date(chosenExecution.deadline)}</dd>{!chosenRuntime && <><dt>用量</dt><dd>{chosenExecution.usageStatus === 'reported' && chosenExecution.usage ? `${count(chosenExecution.usage.totalTokens)} tokens` : '未知 · 待执行器回报'}</dd><dt>预算</dt><dd>{count(chosenExecution.tokenLimit)} tokens · 验收预留 {count(chosenExecution.verificationReserve)}</dd></>}</>}
