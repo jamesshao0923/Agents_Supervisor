@@ -3,7 +3,7 @@
   "date": "2026-10-12",
   "authorization": "User explicitly requested reduced P6-P8 acceptance tests with a record of omissions and potential risks for later field validation.",
   "scope": "Personal field-trial gate; source tests and original failures retained. Exclusion is not a pass or a claim of duplicate coverage.",
-  "catalogRevision": "dev-public-web-v2-20261012",
+  "catalogRevision": "dev-task-relations-v1-20261012",
   "reason": "Deferred from default stage gate to shorten personal-trial delivery. Run when affected by changes, field failures, or before broader release.",
   "stages": {
     "P6": {
@@ -2901,6 +2901,31 @@
       ],
       "removedCaseIds": [],
       "profileCount": 128
+    },
+    {
+      "date": "2026-10-12",
+      "reason": "Read-only task ownership, dependency and followup lineage UI; real SQLite metadata and React projection. Preserve old warnings, no execution/delivery authority changes.",
+      "addedCaseIds": [
+        "p8.unit-workbench.004",
+        "p8.unit-workbench.005"
+      ],
+      "selectedCaseIds": [
+        "p6.unit-desktop-conversations.001",
+        "p6.unit-desktop-conversations.002",
+        "p8.unit-workbench.001",
+        "p8.unit-workbench.002",
+        "p8.integration-workbench-read.001",
+        "p8.integration-workbench-read.002",
+        "p8.unit-workbench.003",
+        "p8.unit-workbench.004",
+        "p8.unit-workbench.005"
+      ],
+      "removedCaseIds": [],
+      "profileCount": 130,
+      "notCovered": [
+        "Arbitrary user-created links or drag-to-reparent are not implemented",
+        "Large graphs and all historical task shapes need field validation"
+      ]
     }
   ]
 }

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-public-web-v2-20261012",
+  "revision": "dev-task-relations-v1-20261012",
   "modules": [
     {
       "id": "dev-contracts",
@@ -8893,7 +8893,8 @@
       "impactTags": [
         "p6-followup",
         "v38-combined-impact",
-        "task-chat-impact"
+        "task-chat-impact",
+        "task-relations-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/unit/desktop-conversations.test.ts :: desktop conversation projection shows one active task while preserving old round delivery and unrelated projects",
@@ -8913,7 +8914,8 @@
       "impactTags": [
         "p6-followup",
         "v38-combined-impact",
-        "task-chat-impact"
+        "task-chat-impact",
+        "task-relations-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/unit/desktop-conversations.test.ts :: desktop conversation admission never duplicates or loses active card while runtime polling catches up",
@@ -15725,7 +15727,8 @@
       "impactTags": [
         "p8-workbench",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "task-relations-impact"
       ],
       "prerequisites": "Real production module, SQLite and Unix service; queued projection records are explicit fixtures, no model or desktop interaction claim",
       "assertions": "tests/unit/workbench.test.ts :: P8-WBENCH-U01 terminal unknown stop and fees outrank completion while offline remains last observation",
@@ -15745,7 +15748,8 @@
       "impactTags": [
         "p8-workbench",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "task-relations-impact"
       ],
       "prerequisites": "Real production module, SQLite and Unix service; queued projection records are explicit fixtures, no model or desktop interaction claim",
       "assertions": "tests/unit/workbench.test.ts :: P8-WBENCH-U02 actual child binding scopes cards and React escapes untrusted text without child cancel controls",
@@ -15765,7 +15769,8 @@
       "impactTags": [
         "p8-workbench",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "task-relations-impact"
       ],
       "prerequisites": "Real production module, SQLite and Unix service; queued projection records are explicit fixtures, no model or desktop interaction claim",
       "assertions": "tests/integration/workbench-read.test.ts :: P8-WBENCH-I01 immutable real scheduler plan and queued execution project under parent without read-side mutations",
@@ -15785,7 +15790,8 @@
       "impactTags": [
         "p8-workbench",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "task-relations-impact"
       ],
       "prerequisites": "Real production module, SQLite and Unix service; queued projection records are explicit fixtures, no model or desktop interaction claim",
       "assertions": "tests/integration/workbench-read.test.ts :: P8-WBENCH-I02 actual typed Unix service read rejects extra fields and missing directory without creating tasks",
@@ -15805,7 +15811,8 @@
       "impactTags": [
         "p8-workbench",
         "v38-combined-impact",
-        "v39-completion-impact"
+        "v39-completion-impact",
+        "task-relations-impact"
       ],
       "prerequisites": "Actual production modules. Mobile host cases require installed Xcode/Android toolchains; no installs/config changes or model/P4 business acceptance inferred.",
       "assertions": "tests/unit/workbench.test.ts :: P8-WBENCH-U03 standalone parent retains unknown stop and cost warnings while runtime pause block and cancel remain scoped",
@@ -22412,6 +22419,48 @@
       "prerequisites": "Real implementation and SQLite/protocol modules; persisted fixture inputs are mechanism checks only. Live requires actual advertised Codex model and public internet; no skips or synthetic provider success.",
       "assertions": "tests/unit/planning-capabilities.test.ts :: planner discovery evidence carries actual completed calls and rejects changed or foreign-context journals",
       "cleanup": "Close owned services and processes; preserve frozen evidence and all previous failures.",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-workbench.004",
+      "name": "P8-WBENCH-U04 relation tree preserves provisional dependencies without fabricating executions or nesting dependent siblings",
+      "suiteId": "unit-workbench",
+      "module": "desktop",
+      "layer": "unit",
+      "covers": [
+        "p8-workbench-projection"
+      ],
+      "scenario": "P8-WBENCH-U04 relation tree preserves provisional dependencies without fabricating executions or nesting dependent siblings",
+      "impactTags": [
+        "p8-workbench",
+        "v38-combined-impact",
+        "v39-completion-impact",
+        "task-relations-impact"
+      ],
+      "prerequisites": "Actual production modules. Mobile host cases require installed Xcode/Android toolchains; no installs/config changes or model/P4 business acceptance inferred.",
+      "assertions": "tests/unit/workbench.test.ts :: P8-WBENCH-U04 relation tree preserves provisional dependencies without fabricating executions or nesting dependent siblings",
+      "cleanup": "Stop only owned service/processes/private devices; preserve observed failures and proof files",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-workbench.005",
+      "name": "P8-WBENCH-U05 sequential execution links require matching run operation owner and attempt; old metadata remains unassociated",
+      "suiteId": "unit-workbench",
+      "module": "desktop",
+      "layer": "unit",
+      "covers": [
+        "p8-workbench-projection"
+      ],
+      "scenario": "P8-WBENCH-U05 sequential execution links require matching run operation owner and attempt; old metadata remains unassociated",
+      "impactTags": [
+        "p8-workbench",
+        "v38-combined-impact",
+        "v39-completion-impact",
+        "task-relations-impact"
+      ],
+      "prerequisites": "Actual production modules. Mobile host cases require installed Xcode/Android toolchains; no installs/config changes or model/P4 business acceptance inferred.",
+      "assertions": "tests/unit/workbench.test.ts :: P8-WBENCH-U05 sequential execution links require matching run operation owner and attempt; old metadata remains unassociated",
+      "cleanup": "Stop only owned service/processes/private devices; preserve observed failures and proof files",
       "status": "active"
     }
   ]

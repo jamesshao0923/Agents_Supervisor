@@ -6,6 +6,7 @@ import type {GoalSession} from '../../packages/contracts/p5.js';
 import type {RuntimeRecord} from '../../packages/contracts/p3.js';
 import type {ExecutionRecord} from '../../packages/contracts/p2.js';
 import {taskViews} from '../../apps/desktop/presentation.js';
+import {taskRelationNodes,TaskRelations} from '../../apps/desktop/task-relations.js';
 import {AgentWorkbench} from '../../apps/desktop/agent-workbench.js';
 import {agentExecutionStatus,projectAgentCards,workbenchColumns,parentWorkbenchStatus,workbenchObservationMessage,workbenchResultState} from '../../apps/desktop/workbench-projection.js';
 const createdAt = '2026-10-10T12:00:00.000Z';
@@ -24,7 +25,7 @@ test('P8-WBENCH-U01 terminal unknown stop and fees outrank completion while offl
 test('P8-WBENCH-U02 actual child binding scopes cards and React escapes untrusted text without child cancel controls',()=>{
  const parent=runtime(goal('parent')),parents=taskViews([parent],[]),e=execution(parent);assert.equal(projectAgentCards('/project',parents,[e],null,'online').length,1);assert.equal(projectAgentCards('/other',parents,[e],null,'online').length,0);
  const foreign=structuredClone(e);foreign.scheduledBinding!.runId='other';assert.equal(projectAgentCards('/project',parents,[foreign],null,'online').length,0);
- const markup=renderToStaticMarkup(React.createElement(AgentWorkbench,{projectPath:'/project',parents,executions:[e],snapshot:null,readError:'真实读取失败',connection:'offline',selected:null,onSelect:()=>{throw Error('SSR must not mutate');}}));assert.ok(markup.includes('&lt;script&gt;'));assert.ok(!markup.includes('<script>'));assert.match(markup,/固定详情/);assert.match(markup,/最后观察/);assert.ok(!markup.includes('取消此Agent'));
+ const markup=renderToStaticMarkup(React.createElement(AgentWorkbench,{projectPath:'/project',parents,executions:[e],snapshot:null,readError:'真实读取失败',connection:'offline',selected:null,onSelect:()=>{throw Error('SSR must not mutate');}}));assert.ok(markup.includes('&lt;script&gt;'));assert.ok(!markup.includes('<script>'));assert.match(markup,/任务关系/);assert.match(markup,/展开详情/);assert.match(markup,/最后观察/);assert.ok(!markup.includes('取消此Agent'));
  assert.match(workbenchObservationMessage('Result observation unavailable: TaskResult repository: scope uninitialized'),/尚无共享结果/);
  assert.match(workbenchObservationMessage('Result observation unavailable: hash mismatch'),/无法核对/);assert.match(workbenchObservationMessage('Scheduler observation unavailable: older contract'),/执行计划需要重新核对/);assert.match(workbenchResultState('submitted'),/待独立验证/);assert.match(workbenchResultState('verified'),/当前资格待核对/);assert.match(workbenchResultState('invalidated'),/已失效/);
  assert.ok(markup.includes('<details><summary>查看读取问题的技术详情</summary><pre>真实读取失败</pre></details>'),'Technical read error remains in collapsed details');
@@ -35,4 +36,21 @@ test('P8-WBENCH-U03 standalone parent retains unknown stop and cost warnings whi
  const r=runtime(goal('parent')),e=execution(r);delete e.scheduledBinding;
  const project=()=>taskViews([],[e])[0]!;assert.match(parentWorkbenchStatus(project(),'online'),/核对/);e.stopConfirmed=true;assert.match(parentWorkbenchStatus(project(),'online'),/核对/,'Known stop does not clear unknown accounting');e.usageStatus='reported';e.usage={totalTokens:7,inputTokens:7,cachedInputTokens:0,outputTokens:0,reasoningOutputTokens:0};assert.match(parentWorkbenchStatus(project(),'online'),/尚不表示验收/);e.stopConfirmed=false;assert.match(parentWorkbenchStatus(project(),'online'),/核对/,'Known cost does not confirm the writer stopped');assert.match(parentWorkbenchStatus(project(),'offline'),/最后观察/);
  r.phase='paused';r.paused=true;assert.match(parentWorkbenchStatus(taskViews([r],[])[0]!,'online'),/暂停/);r.error='Explicit runtime block';assert.match(parentWorkbenchStatus(taskViews([r],[])[0]!,'online'),/受阻/);r.error=null;r.cancelled=true;assert.match(parentWorkbenchStatus(taskViews([r],[])[0]!,'online'),/取消.*核对/);
+});
+
+
+test('P8-WBENCH-U04 relation tree preserves provisional dependencies without fabricating executions or nesting dependent siblings',()=>{
+ const session=goal('draft');session.proposal={decision:'ready',summary:'Plan only',facts:[],questions:[],constraints:[],style:[],criteria:[],steps:[{id:'front',description:'Frontend <script>',dependencies:[],acceptanceIds:[]},{id:'back',description:'Backend',dependencies:[],acceptanceIds:[]},{id:'join',description:'Integrate',dependencies:['front','back'],acceptanceIds:[]}]};
+ const parent=taskViews([],[],[session])[0]!,before=structuredClone(parent),nodes=taskRelationNodes(parent,undefined,[],[]);
+ assert.equal(nodes.length,3);assert.deepEqual(nodes[2]!.dependencies,['front','back']);assert.ok(nodes.every(n=>n.executions.length===0&&n.kind.includes('未执行')));assert.deepEqual(parent,before);
+ const markup=renderToStaticMarkup(React.createElement(TaskRelations,{parent,scope:undefined,cards:[],executions:[],connection:'offline',conversation:undefined}));assert.match(markup,/前置依赖/);assert.match(markup,/↗ front/);assert.match(markup,/↗ back/);assert.match(markup,/最后观察/);assert.ok(markup.includes('&lt;script&gt;'));assert.equal((markup.match(/class="relation-node"/g)||[]).length,3);
+});
+
+test('P8-WBENCH-U05 sequential execution links require matching run operation owner and attempt; old metadata remains unassociated',()=>{
+ const r=runtime(goal('parent')),parent=taskViews([r],[])[0]!,e=execution(r);delete e.scheduledBinding;e.projectId=r.projectId;e.runId=r.runId;e.runtimeBinding={runtimeId:r.id,operationId:'op',owner:'owner',projectId:r.projectId,runId:r.runId,attemptId:e.attemptId};
+ const scope={runtimeId:r.id,projectId:r.projectId,runId:r.runId,contractVersion:1,budget:{unit:'token' as const,limit:100,spent:0,reserved:0,verificationReserve:20},scheduler:null,results:null,issues:[],operations:[{id:'op',contractVersion:1,stepIndex:0,attemptId:e.attemptId,owner:'owner',executionId:e.id,state:'started' as const}]};
+ r.definition.steps[0]={id:'work',kind:'codex',prompt:'Implement this admitted Supervisor task: internal instructions',model:'fixture',effort:'low',reservation:1,timeoutMs:1000};
+ const linked=taskRelationNodes(parent,scope,[],[e]);assert.equal(linked[0]!.title,'work','Opaque worker instructions are not a node title');assert.equal(linked.length,1);assert.equal(linked[0]!.executions[0]!.id,e.id);
+ for(const broken of [{...scope,operations:[]},{...scope,contractVersion:2},{...scope,runId:'foreign'},{...scope,operations:[{...scope.operations[0]!,owner:'foreign'}]}]){const nodes=taskRelationNodes(parent,broken,[],[e]);assert.equal(nodes[0]!.executions.length,0);assert.ok(nodes.some(n=>n.kind.includes('关联待核对')));}
+ const foreign=structuredClone(e);foreign.runtimeBinding!.runId='foreign';assert.ok(taskRelationNodes(parent,scope,[],[foreign]).every(n=>n.executions.length===0));
 });

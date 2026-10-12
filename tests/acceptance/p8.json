@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "stage": "P8",
-  "revision": "p8-personal-public-web-v2-20261012",
+  "revision": "p8-personal-task-relations-v1-20261012",
   "caseIds": [
     "p8.unit-workbench.001",
     "p8.unit-workbench.002",
@@ -130,7 +130,9 @@
     "p6.unit-followup-evolution.001",
     "p8.unit-research-planning.001",
     "dev.unit-boundaries.001",
-    "p8.unit-planning-capabilities.005"
+    "p8.unit-planning-capabilities.005",
+    "p8.unit-workbench.004",
+    "p8.unit-workbench.005"
   ],
   "requiredRisks": [
     "p0.unit-boundaries.001",

@@ -1,3 +1,6 @@
+import React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import {TaskRelations} from '../../apps/desktop/task-relations.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ConversationInspection } from '../../packages/contracts/p6-actions.js';
@@ -30,6 +33,8 @@ test('desktop conversation projection shows one active task while preserving old
   assert.equal(activeConversationTaskId([conversation],first.id),current.id,'A selected historical round follows the actual active round');
   assert.equal(activeConversationTaskId([conversation],unrelated.id),unrelated.id,'An unrelated project selection must not move');
   assert.equal(conversation.rounds[1]?.predecessorDeliveryId,'preserved-delivery');
+  const markup=renderToStaticMarkup(React.createElement(TaskRelations,{parent:cards.find(c=>c.id===current.id)!,scope:undefined,cards:[],executions:[],connection:'online',conversation}));
+  assert.match(markup,/跟进继承/);assert.match(markup,/延续第 1 轮/);assert.match(markup,/承接前轮交付/);assert.ok(!markup.includes('已有独立交付记录'),'Lineage does not claim current verification passed');
   assert.deepEqual(conversation,before,'Card deduplication must preserve history and real budget');
 });
 

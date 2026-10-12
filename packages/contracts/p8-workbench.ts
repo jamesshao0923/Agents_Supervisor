@@ -3,6 +3,7 @@ import type {ScheduledRecord,ScheduledClaim,ScheduledOperation} from './p7-dispa
 import type {ResultRef,ResultState} from './p7-results.js';
 export interface WorkbenchRead {type:'read';projectPath:string}
 export interface WorkbenchParent {
+ operations?:Pick<import('./p3.js').RuntimeOperation,'id'|'contractVersion'|'stepIndex'|'attemptId'|'owner'|'executionId'|'generation'|'state'>[];
  runtimeId:string;projectId:string;runId:string;contractVersion:number;budget:Budget;
  scheduler:{record:ScheduledRecord;claims:ScheduledClaim[];operations:ScheduledOperation[]}|null;
  results:{revision:number;heads:{ref:ResultRef;state:ResultState;attemptId:string;generation:number;currentContract:boolean;publicationEligibility:'unchecked'}[]}|null;

@@ -11,8 +11,8 @@ export async function readWorkbench(store:SupervisorStore,input:unknown):Promise
  return store.supervision.transaction(()=>{
   const parents:WorkbenchParent[]=[],all=store.scheduler.list();
   for(const runtime of store.runtime.list().filter(r=>r.workspace===path)){
-   const {run}=store.runtime.inspect(runtime.id),contractDigest=createHash('sha256').update(runtimeCanonical(run.contract)).digest('hex');
-   const parent:WorkbenchParent={runtimeId:runtime.id,projectId:run.projectId,runId:run.id,contractVersion:run.contract.version,budget:run.budget,scheduler:null,results:null,issues:[]};
+   const {run,operations}=store.runtime.inspect(runtime.id),contractDigest=createHash('sha256').update(runtimeCanonical(run.contract)).digest('hex');
+   const parent:WorkbenchParent={runtimeId:runtime.id,projectId:run.projectId,runId:run.id,contractVersion:run.contract.version,budget:run.budget,operations:operations.map(({id,contractVersion,stepIndex,attemptId,owner,executionId,generation,state})=>({id,contractVersion,stepIndex,attemptId,owner,executionId,...(generation===undefined?{}:{generation}),state})),scheduler:null,results:null,issues:[]};
    const matching=all.filter(s=>s.plan.runtimeId===runtime.id&&s.plan.projectId===run.projectId&&s.plan.runId===run.id);
    if(matching.length>1)parent.issues.push('Multiple scheduler records require reconciliation');
    else if(matching.length===1){try{const record=store.scheduler.get(matching[0]!.id);if(record.plan.contractVersion!==run.contract.version||record.plan.contractDigest!==contractDigest)throw Error('Scheduler belongs to an older contract');parent.scheduler={record,claims:store.scheduler.claims(record.id),operations:store.scheduler.operations(record.id)};}catch(e){parent.issues.push('Scheduler observation unavailable: '+message(e));}}
