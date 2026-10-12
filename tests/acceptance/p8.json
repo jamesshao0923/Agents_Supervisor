@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "stage": "P8",
-  "revision": "p8-personal-token-policy-v1-20261012",
+  "revision": "p8-personal-public-web-v2-20261012",
   "caseIds": [
     "p8.unit-workbench.001",
     "p8.unit-workbench.002",
@@ -111,7 +111,26 @@
     "p6.integration-author-routing.007",
     "p6.integration-control-bootstrap.004",
     "p6.integration-control-bootstrap.010",
-    "p6.integration-control-qualification.007"
+    "p6.integration-control-qualification.007",
+    "p8.unit-planning-capabilities.001",
+    "p8.unit-planning-capabilities.002",
+    "p8.unit-planning-capabilities.003",
+    "p8.unit-planning-capabilities.004",
+    "p8.unit-native-web-search.001",
+    "p8.unit-native-web-search.002",
+    "p8.unit-native-web-search.003",
+    "p8.unit-followup-error-presentation.001",
+    "p8.unit-followup-error-presentation.002",
+    "p8.unit-followup-error-presentation.003",
+    "p8.integration-followup-decision-recovery.001",
+    "p8.live-native-web-research.001",
+    "p5.unit-orchestration.001",
+    "p5.unit-reasoner.001",
+    "p6.unit-followup-proposal.001",
+    "p6.unit-followup-evolution.001",
+    "p8.unit-research-planning.001",
+    "dev.unit-boundaries.001",
+    "p8.unit-planning-capabilities.005"
   ],
   "requiredRisks": [
     "p0.unit-boundaries.001",

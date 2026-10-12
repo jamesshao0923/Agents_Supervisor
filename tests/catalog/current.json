@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "dev-token-policy-v2-20261012",
+  "revision": "dev-public-web-v2-20261012",
   "modules": [
     {
       "id": "dev-contracts",
@@ -1143,6 +1143,36 @@
       "layer": "live",
       "file": "dist/tests/live/token-policy.test.js",
       "timeoutMs": 420000
+    },
+    {
+      "id": "unit-planning-capabilities",
+      "layer": "unit",
+      "file": "dist/tests/unit/planning-capabilities.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "unit-native-web-search",
+      "layer": "unit",
+      "file": "dist/tests/unit/native-web-search.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "unit-followup-error-presentation",
+      "layer": "unit",
+      "file": "dist/tests/unit/followup-error-presentation.test.js",
+      "timeoutMs": 30000
+    },
+    {
+      "id": "integration-followup-decision-recovery",
+      "layer": "integration",
+      "file": "dist/tests/integration/followup-decision-recovery.test.js",
+      "timeoutMs": 60000
+    },
+    {
+      "id": "live-native-web-research",
+      "layer": "live",
+      "file": "dist/tests/live/native-web-research.test.js",
+      "timeoutMs": 660000
     }
   ],
   "cases": [
@@ -2126,7 +2156,8 @@
         "v45-indexed-reader-impact",
         "v46-author-presentation-impact",
         "v46-final-impact",
-        "token-policy-impact"
+        "token-policy-impact",
+        "public-web-repair-impact"
       ],
       "prerequisites": "Pinned Node runtime; see tests/unit/boundaries.test.ts",
       "assertions": "tests/unit/boundaries.test.ts: boundaries allow pure domain and contract imports",
@@ -6574,7 +6605,8 @@
         "orchestration",
         "p5",
         "v38-combined-impact",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "public-web-repair-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "P5 draft cannot dispatch work fabricate evidence or claim completion",
@@ -6808,7 +6840,8 @@
         "v42-research-group-entry-impact",
         "v45-indexed-reader-impact",
         "v53-author-route-v2-impact",
-        "model-event-journal"
+        "model-event-journal",
+        "public-web-repair-impact"
       ],
       "prerequisites": "Pinned Node runtime; real SQLite/files/processes; live cases require authenticated local Codex",
       "assertions": "p5.reasoner.unit.structured-proposal-parses-and-schema-is-detached",
@@ -8203,7 +8236,8 @@
         "p6-followup",
         "v38-combined-impact",
         "v41-source-refresh-impact",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "public-web-repair-impact"
       ],
       "prerequisites": "Pinned Node; actual modules, SQLite and files; live requires authenticated local Codex",
       "assertions": "tests/unit/followup-proposal.test.ts :: P6-FUP-U01 strict followup schema requires every field rejects extra authority and freezes source IDs",
@@ -11729,7 +11763,8 @@
       "scenario": "P6-FE-U01 new transport schema requires complete source mappings but never asks the model to compute hashes",
       "impactTags": [
         "p6-followup-evolution",
-        "v41-source-refresh-impact"
+        "v41-source-refresh-impact",
+        "public-web-repair-impact"
       ],
       "prerequisites": "Pinned Node; actual pure production modules. No live model or full-stage claim.",
       "assertions": "tests/unit/followup-evolution.test.ts :: P6-FE-U01 new transport schema requires complete source mappings but never asks the model to compute hashes",
@@ -18356,7 +18391,8 @@
         "p8-research-runtime",
         "p8-v32-mechanisms",
         "v41-source-refresh-impact",
-        "v42-research-group-entry-impact"
+        "v42-research-group-entry-impact",
+        "public-web-repair-impact"
       ],
       "prerequisites": "Pinned Node; real modules/SQLite/FS/managed processes where used; synthetic model metadata only where explicitly stated",
       "assertions": "tests/unit/research-planning.test.ts :: P8-RPLAN-U01 host research configuration is separated from verbatim user-only fact sources",
@@ -22142,6 +22178,240 @@
       "prerequisites": "Pinned Node 24; real local modules/SQLite; live requires installed logged-in Codex gpt-6-astra low",
       "assertions": "tests/live/token-policy.test.ts :: live unlimited goal reasoning and direct Codex execution exceed reservation one without cancellation and retain actual accounting",
       "cleanup": "Isolated test directories and owned processes; no production task mutations",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-planning-capabilities.001",
+      "name": "native planning schema excludes unavailable material without changing archived schemas or configured material support",
+      "suiteId": "unit-planning-capabilities",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "native-public-web-research"
+      ],
+      "scenario": "native planning schema excludes unavailable material without changing archived schemas or configured material support",
+      "impactTags": [
+        "public-web-repair-impact"
+      ],
+      "prerequisites": "Real implementation and SQLite/protocol modules; persisted fixture inputs are mechanism checks only. Live requires actual advertised Codex model and public internet; no skips or synthetic provider success.",
+      "assertions": "tests/unit/planning-capabilities.test.ts :: native planning schema excludes unavailable material without changing archived schemas or configured material support",
+      "cleanup": "Close owned services and processes; preserve frozen evidence and all previous failures.",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-planning-capabilities.002",
+      "name": "native followup dispatch constrains nested proposals without removing user provenance or acceptance evolution fields",
+      "suiteId": "unit-planning-capabilities",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "native-public-web-research"
+      ],
+      "scenario": "native followup dispatch constrains nested proposals without removing user provenance or acceptance evolution fields",
+      "impactTags": [
+        "public-web-repair-impact"
+      ],
+      "prerequisites": "Real implementation and SQLite/protocol modules; persisted fixture inputs are mechanism checks only. Live requires actual advertised Codex model and public internet; no skips or synthetic provider success.",
+      "assertions": "tests/unit/planning-capabilities.test.ts :: native followup dispatch constrains nested proposals without removing user provenance or acceptance evolution fields",
+      "cleanup": "Close owned services and processes; preserve frozen evidence and all previous failures.",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-planning-capabilities.003",
+      "name": "ordinary public research admits source evidence plus executable report checks without material configuration",
+      "suiteId": "unit-planning-capabilities",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "native-public-web-research"
+      ],
+      "scenario": "ordinary public research admits source evidence plus executable report checks without material configuration",
+      "impactTags": [
+        "public-web-repair-impact"
+      ],
+      "prerequisites": "Real implementation and SQLite/protocol modules; persisted fixture inputs are mechanism checks only. Live requires actual advertised Codex model and public internet; no skips or synthetic provider success.",
+      "assertions": "tests/unit/planning-capabilities.test.ts :: ordinary public research admits source evidence plus executable report checks without material configuration",
+      "cleanup": "Close owned services and processes; preserve frozen evidence and all previous failures.",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-planning-capabilities.004",
+      "name": "planning capability text distinguishes source discovery from frozen material acquisition and independent verification",
+      "suiteId": "unit-planning-capabilities",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "native-public-web-research"
+      ],
+      "scenario": "planning capability text distinguishes source discovery from frozen material acquisition and independent verification",
+      "impactTags": [
+        "public-web-repair-impact"
+      ],
+      "prerequisites": "Real implementation and SQLite/protocol modules; persisted fixture inputs are mechanism checks only. Live requires actual advertised Codex model and public internet; no skips or synthetic provider success.",
+      "assertions": "tests/unit/planning-capabilities.test.ts :: planning capability text distinguishes source discovery from frozen material acquisition and independent verification",
+      "cleanup": "Close owned services and processes; preserve frozen evidence and all previous failures.",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-native-web-search.001",
+      "name": "native search reasoning policy stays disabled by default and rejects indexed/live combinations",
+      "suiteId": "unit-native-web-search",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "native-public-web-research"
+      ],
+      "scenario": "native search reasoning policy stays disabled by default and rejects indexed/live combinations",
+      "impactTags": [
+        "public-web-repair-impact"
+      ],
+      "prerequisites": "Real implementation and SQLite/protocol modules; persisted fixture inputs are mechanism checks only. Live requires actual advertised Codex model and public internet; no skips or synthetic provider success.",
+      "assertions": "tests/unit/native-web-search.test.ts :: native search reasoning policy stays disabled by default and rejects indexed/live combinations",
+      "cleanup": "Close owned services and processes; preserve frozen evidence and all previous failures.",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-native-web-search.002",
+      "name": "native search execution policy excludes indexed and legacy inline frozen material evidence",
+      "suiteId": "unit-native-web-search",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "native-public-web-research"
+      ],
+      "scenario": "native search execution policy excludes indexed and legacy inline frozen material evidence",
+      "impactTags": [
+        "public-web-repair-impact"
+      ],
+      "prerequisites": "Real implementation and SQLite/protocol modules; persisted fixture inputs are mechanism checks only. Live requires actual advertised Codex model and public internet; no skips or synthetic provider success.",
+      "assertions": "tests/unit/native-web-search.test.ts :: native search execution policy excludes indexed and legacy inline frozen material evidence",
+      "cleanup": "Close owned services and processes; preserve frozen evidence and all previous failures.",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-native-web-search.003",
+      "name": "real notification reducer permits native search only for live policy and retains isolation and accounting",
+      "suiteId": "unit-native-web-search",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "native-public-web-research"
+      ],
+      "scenario": "real notification reducer permits native search only for live policy and retains isolation and accounting",
+      "impactTags": [
+        "public-web-repair-impact"
+      ],
+      "prerequisites": "Real implementation and SQLite/protocol modules; persisted fixture inputs are mechanism checks only. Live requires actual advertised Codex model and public internet; no skips or synthetic provider success.",
+      "assertions": "tests/unit/native-web-search.test.ts :: real notification reducer permits native search only for live policy and retains isolation and accounting",
+      "cleanup": "Close owned services and processes; preserve frozen evidence and all previous failures.",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-followup-error-presentation.001",
+      "name": "followup proposal inconsistency identifies invalid output without claiming a stale record",
+      "suiteId": "unit-followup-error-presentation",
+      "module": "desktop",
+      "layer": "unit",
+      "covers": [
+        "native-public-web-research"
+      ],
+      "scenario": "followup proposal inconsistency identifies invalid output without claiming a stale record",
+      "impactTags": [
+        "public-web-repair-impact"
+      ],
+      "prerequisites": "Real implementation and SQLite/protocol modules; persisted fixture inputs are mechanism checks only. Live requires actual advertised Codex model and public internet; no skips or synthetic provider success.",
+      "assertions": "tests/unit/followup-error-presentation.test.ts :: followup proposal inconsistency identifies invalid output without claiming a stale record",
+      "cleanup": "Close owned services and processes; preserve frozen evidence and all previous failures.",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-followup-error-presentation.002",
+      "name": "followup material configuration and actual capability failure have distinct actionable explanations",
+      "suiteId": "unit-followup-error-presentation",
+      "module": "desktop",
+      "layer": "unit",
+      "covers": [
+        "native-public-web-research"
+      ],
+      "scenario": "followup material configuration and actual capability failure have distinct actionable explanations",
+      "impactTags": [
+        "public-web-repair-impact"
+      ],
+      "prerequisites": "Real implementation and SQLite/protocol modules; persisted fixture inputs are mechanism checks only. Live requires actual advertised Codex model and public internet; no skips or synthetic provider success.",
+      "assertions": "tests/unit/followup-error-presentation.test.ts :: followup material configuration and actual capability failure have distinct actionable explanations",
+      "cleanup": "Close owned services and processes; preserve frozen evidence and all previous failures.",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-followup-error-presentation.003",
+      "name": "followup stale guidance is reserved for concrete persisted record conflicts",
+      "suiteId": "unit-followup-error-presentation",
+      "module": "desktop",
+      "layer": "unit",
+      "covers": [
+        "native-public-web-research"
+      ],
+      "scenario": "followup stale guidance is reserved for concrete persisted record conflicts",
+      "impactTags": [
+        "public-web-repair-impact"
+      ],
+      "prerequisites": "Real implementation and SQLite/protocol modules; persisted fixture inputs are mechanism checks only. Live requires actual advertised Codex model and public internet; no skips or synthetic provider success.",
+      "assertions": "tests/unit/followup-error-presentation.test.ts :: followup stale guidance is reserved for concrete persisted record conflicts",
+      "cleanup": "Close owned services and processes; preserve frozen evidence and all previous failures.",
+      "status": "active"
+    },
+    {
+      "id": "p8.integration-followup-decision-recovery.001",
+      "name": "recovered inconsistent followup output preserves paid receipt and user intent without application or automatic retry",
+      "suiteId": "integration-followup-decision-recovery",
+      "module": "orchestration",
+      "layer": "integration",
+      "covers": [
+        "native-public-web-research"
+      ],
+      "scenario": "recovered inconsistent followup output preserves paid receipt and user intent without application or automatic retry",
+      "impactTags": [
+        "public-web-repair-impact"
+      ],
+      "prerequisites": "Real implementation and SQLite/protocol modules; persisted fixture inputs are mechanism checks only. Live requires actual advertised Codex model and public internet; no skips or synthetic provider success.",
+      "assertions": "tests/integration/followup-decision-recovery.test.ts :: recovered inconsistent followup output preserves paid receipt and user intent without application or automatic retry",
+      "cleanup": "Close owned services and processes; preserve frozen evidence and all previous failures.",
+      "status": "active"
+    },
+    {
+      "id": "p8.live-native-web-research.001",
+      "name": "live IPC public research clarifies then uses native search without host material configuration and executes a small sourced report",
+      "suiteId": "live-native-web-research",
+      "module": "orchestration",
+      "layer": "live",
+      "covers": [
+        "native-public-web-research"
+      ],
+      "scenario": "live IPC public research clarifies then uses native search without host material configuration and executes a small sourced report",
+      "impactTags": [
+        "public-web-repair-impact"
+      ],
+      "prerequisites": "Real implementation and SQLite/protocol modules; persisted fixture inputs are mechanism checks only. Live requires actual advertised Codex model and public internet; no skips or synthetic provider success.",
+      "assertions": "tests/live/native-web-research.test.ts :: live IPC public research clarifies then uses native search without host material configuration and executes a small sourced report",
+      "cleanup": "Close owned services and processes; preserve frozen evidence and all previous failures.",
+      "status": "active"
+    },
+    {
+      "id": "p8.unit-planning-capabilities.005",
+      "name": "planner discovery evidence carries actual completed calls and rejects changed or foreign-context journals",
+      "suiteId": "unit-planning-capabilities",
+      "module": "orchestration",
+      "layer": "unit",
+      "covers": [
+        "native-public-web-research"
+      ],
+      "scenario": "planner discovery evidence carries actual completed calls and rejects changed or foreign-context journals",
+      "impactTags": [
+        "public-web-repair-impact"
+      ],
+      "prerequisites": "Real implementation and SQLite/protocol modules; persisted fixture inputs are mechanism checks only. Live requires actual advertised Codex model and public internet; no skips or synthetic provider success.",
+      "assertions": "tests/unit/planning-capabilities.test.ts :: planner discovery evidence carries actual completed calls and rejects changed or foreign-context journals",
+      "cleanup": "Close owned services and processes; preserve frozen evidence and all previous failures.",
       "status": "active"
     }
   ]

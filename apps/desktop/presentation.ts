@@ -97,7 +97,10 @@ export const goalPhaseLabels: Record<GoalSession['phase'], string> = {
   thinking: '主控分析中', clarifying: '需要补充需求', ready: '计划已提出 · 待开始执行', admitted: '已准入执行 · 待独立验收', blocked: '主控分析受阻', cancelled: '需求会话已取消'
 };
 export function describeGoalProblem(reason: string): string {
-  if (/revision|stale/i.test(reason)) return '需求记录已有更新，请重新核对后再操作。';
+  if (/Revision needs a ready executable proposal|Clarification needs explicit nonempty questions|Clarification needs concrete questions|Answer cannot include a requirements proposal|Unanswered questions prevent admission/i.test(reason)) return '主控返回的决策与提案不一致，需求尚未应用。请查看技术详情后重新分析。';
+  if (/Material acceptance needs admitted Run-owned acquisition configuration/i.test(reason)) return '当前任务未配置材料采集，无法使用材料验收。请重新生成网页来源与报告检查提案，或配置材料采集后再分析。';
+  if (/host capability|unsupported (?:host|acceptance|verification)|Required test tools absent|not supported by (?:the )?host/i.test(reason)) return '当前主控或验收能力无法完成这份提案。请查看具体能力限制后调整执行方案，保留原需求和验收标准。';
+  if (/\b(?:Goal revision changed|Run revision conflict|Graph Run revision changed|Contract changed after follow-up reasoning|Follow-up message has a stale processing boundary|Follow-up message processing boundary changed|Follow-up round changed|Follow-up requirement snapshot changed)\b/i.test(reason)) return '需求记录已有更新，请重新核对后再操作。';
   if (/budget|token|reservation|unsettled/i.test(reason)) return '累计额度或用量结算不满足继续分析的条件，请核对账本。';
   if (/active|quiescent|running|writer|stop/i.test(reason)) return '仍有执行或进程状态待核对，请暂停派发或处理未决操作后再恢复主控。';
   if (/context|capacity|memory|provenance/i.test(reason)) return '项目记忆或上下文无法满足恢复要求，请查看证据并补充必要信息。';

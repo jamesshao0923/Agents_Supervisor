@@ -1,3 +1,11 @@
+## 2026-10-12 — public web v2
+
+真实 live 首轮 FAIL 保留：独立审核缺少发现证据、规划能力提示附加未授权报告字段。修复实现与提示，新增哈希/上下文/完整调用传递机制用例，live 增加审核输入证据断言。未降低验收，未删除用例；累计新增13项，P8 profile128项。
+
+## 2026-10-12 — Native public research repair
+
+Add12 cases for native search opt-in/default isolation, fixed-material execution exclusion, new-dispatch schema capabilities, source+command admission, accurate error presentation, durable rejection recovery and one actual IPC→clarification→web search/open→independent revision review→report execution→reopen flow. Reuse six existing suite entry IDs and conservatively execute full affected files. P8 profile127; no case retired or removed. Original user failures remain, no invalid output is normalized into approval, and source/report P4 is still required for delivery. Scope and field risks recorded in deferred-p6-p8.json. This repair does not claim a full source-verification delivery or completion of P9.
+
 ## 2026-10-12 — Token policy and separate recovery-fixture maintenance
 
 Add 19 stable cases for explicit nullable token limits, actual SQLite persistence/continuation, scheduler and supervision gates, and actual Codex execution. Reuse affected finite/unknown-accounting cases; P8 selects109 necessary IDs. File-granularity execution expands the targeted batch to92 unit,55 integration,1 live. No retired or deleted cases; deferred full combinations remain in the ledger.

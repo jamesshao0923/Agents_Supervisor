@@ -3,7 +3,7 @@
   "date": "2026-10-12",
   "authorization": "User explicitly requested reduced P6-P8 acceptance tests with a record of omissions and potential risks for later field validation.",
   "scope": "Personal field-trial gate; source tests and original failures retained. Exclusion is not a pass or a claim of duplicate coverage.",
-  "catalogRevision": "dev-p6-personal-followup-core-v6-supplied-loop-20261012",
+  "catalogRevision": "dev-public-web-v2-20261012",
   "reason": "Deferred from default stage gate to shorten personal-trial delivery. Run when affected by changes, field failures, or before broader release.",
   "stages": {
     "P6": {
@@ -1181,7 +1181,7 @@
       "originalProfile": "tests/acceptance/extended/p8.json",
       "originalProfileSHA256": "a9fe6702413eb2427601666bc4d9f34364032a055e61cb59686e15564ba02ea2",
       "previousDefaultCount": 947,
-      "newDefaultCount": 109,
+      "newDefaultCount": 127,
       "keptCaseIds": [
         "p8.unit-workbench.001",
         "p8.unit-workbench.002",
@@ -1291,7 +1291,25 @@
         "p6.integration-author-routing.007",
         "p6.integration-control-bootstrap.004",
         "p6.integration-control-bootstrap.010",
-        "p6.integration-control-qualification.007"
+        "p6.integration-control-qualification.007",
+        "p8.unit-planning-capabilities.001",
+        "p8.unit-planning-capabilities.002",
+        "p8.unit-planning-capabilities.003",
+        "p8.unit-planning-capabilities.004",
+        "p8.unit-native-web-search.001",
+        "p8.unit-native-web-search.002",
+        "p8.unit-native-web-search.003",
+        "p8.unit-followup-error-presentation.001",
+        "p8.unit-followup-error-presentation.002",
+        "p8.unit-followup-error-presentation.003",
+        "p8.integration-followup-decision-recovery.001",
+        "p8.live-native-web-research.001",
+        "p5.unit-orchestration.001",
+        "p5.unit-reasoner.001",
+        "p6.unit-followup-proposal.001",
+        "p6.unit-followup-evolution.001",
+        "p8.unit-research-planning.001",
+        "dev.unit-boundaries.001"
       ],
       "addedExistingCaseIds": [],
       "deferredCount": 899,
@@ -2844,6 +2862,45 @@
         "originalFailure": "2026-10-12T05-30-14-519Z-1a076c16-04b4-4762-a837-e264185b7e8d",
         "independentReview": "unlimited_tests reviewed assertion preservation; no weakened gate."
       }
+    },
+    {
+      "date": "2026-10-12",
+      "reason": "Actual user public research blocked by disabled native search, unavailable material acceptance and misleading revision error. Enable native search in ordinary planner/executor; preserve fixed-material and independent-review isolation.",
+      "addedCaseIds": [
+        "p8.unit-planning-capabilities.001",
+        "p8.unit-planning-capabilities.002",
+        "p8.unit-planning-capabilities.003",
+        "p8.unit-planning-capabilities.004",
+        "p8.unit-native-web-search.001",
+        "p8.unit-native-web-search.002",
+        "p8.unit-native-web-search.003",
+        "p8.unit-followup-error-presentation.001",
+        "p8.unit-followup-error-presentation.002",
+        "p8.unit-followup-error-presentation.003",
+        "p8.integration-followup-decision-recovery.001",
+        "p8.live-native-web-research.001",
+        "p5.unit-orchestration.001",
+        "p5.unit-reasoner.001",
+        "p6.unit-followup-proposal.001",
+        "p6.unit-followup-evolution.001",
+        "p8.unit-research-planning.001",
+        "dev.unit-boundaries.001"
+      ],
+      "removedCaseIds": [],
+      "scope": "Freeze public-web-repair-impact: 12 new cases plus affected existing schema, provenance, acceptance, accounting and module-boundary regressions. Complete files expand selected cases; no full historical replay.",
+      "deferred": [
+        "Full patent-agency report and all P4 source/report verification combinations are not represented by the small live planning/execution gate.",
+        "Paywalls, login, bot defenses, large/unsupported source payloads and multi-day research require field validation; unavailable evidence cannot count as verified."
+      ]
+    },
+    {
+      "date": "2026-10-12",
+      "reason": "Real public-web live failed independent review because observed discovery evidence was missing and helper added report fields. Preserve failure; fix evidence transfer and avoid invented format constraints, no acceptance weakening.",
+      "addedCaseIds": [
+        "p8.unit-planning-capabilities.005"
+      ],
+      "removedCaseIds": [],
+      "profileCount": 128
     }
   ]
 }
